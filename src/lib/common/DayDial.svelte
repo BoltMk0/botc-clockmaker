@@ -20,11 +20,16 @@
 <div class="clock-container" style="width: {size}px; height: {size / 2}px;">
     <!-- Dial that rotates from right (max) to left (min) -->
      <div class="dial-background" style="background-color: {skyColor};">
-        {#each {length: $day_info.max+1} as _, i}
+        
+        <div class="dial-tick-main">
+            {#each {length: $day_info.max+1} as _, i}
             <div class="dial-tick-container" style="transform: rotate({(140 * (i / ($day_info.max)) - 70)}deg);">
                 <div class="dial-tick major"></div>
             </div>
-        {/each}
+            {/each}
+            <div class="dial-tick-outer-rim"></div>
+            <div class="dial-tick-inner-rim"></div>
+        </div>
 
         <div class="time-display">
             <div style="font-size: 0.3em; opacity: 0.7;">Day</div>
@@ -62,14 +67,13 @@
 
     .dial-container {
         position: relative;
-        width: 70%;
+        width: 60%;
         aspect-ratio: 1;
         left: 50%;
-        top: 0;
+        bottom: 0;
     }
 
     .dial {
-        box-sizing: border-box;
         width: 100%;
         height: 100%;
         transform-origin: 50% 7%;
@@ -85,6 +89,12 @@
         object-fit: contain;
     }
 
+    .dial-tick-main {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        opacity: 0.6;
+    }
 
     .dial-tick-container {
         position: absolute;
@@ -96,17 +106,42 @@
 
     .dial-tick {
         position: absolute;
-        bottom: 0%;
-        height: 7%;
-        width: 1.5px;
+        bottom: 5%;
+        height: 5%;
+        width: 1px;
         background-color: #333;
-        opacity: 0.6;
     }
 
     .dial-tick.major {
-        height: 10%;
+        height: 5%;
         width: 4px;
         background-color: #000;
+    }
+
+
+    .dial-tick-outer-rim {
+        position: absolute;
+        bottom: 5%;
+        left: 2.5%;
+        right: 2.5%;
+        top: 0%;
+        border: 1px solid #112;
+        border-top: none;
+        border-radius: 0 0 999em 999em;
+        box-sizing: border-box;
+    }
+
+    .dial-tick-inner-rim {
+        position: absolute;
+        bottom: 10%;
+        left: 5%;
+        right: 5%;
+        top: 0%;
+        border: 1px solid #112;
+        border-radius: 0 0 999em 999em;
+        border-top: none;
+        box-sizing: border-box;
+
     }
 
     .time-display {

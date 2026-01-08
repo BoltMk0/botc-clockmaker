@@ -4,7 +4,7 @@ const sky_color_points = [
     { progress: 0.6, r: 170, g: 196, b: 245 },    // Morning
     { progress: 0.8, r: 245, g: 240, b: 222 },  // Afternoon
     { progress: 0.9, r: 255, g: 230, b: 198 },     // Sunset
-    { progress: 0.99, r: 255, g: 200, b: 150 },     // Sunset Pink
+    { progress: 0.9999, r: 255, g: 200, b: 150 },     // Sunset Pink
     { progress: 1.0, r: 90, g: 90, b: 100 },     // midnight blue
 ];
 

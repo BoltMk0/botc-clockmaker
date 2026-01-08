@@ -42,10 +42,10 @@
 <audio bind:this={audio} preload="auto" src="/bell.mp3"></audio>
 {#if model}
 <div style="width: fit-content; margin: auto;">
-    <FullDisplay model={model} size={300} />
+    <FullDisplay {model} size={300} />
     <div style="max-width: 400px;">
         <DaySetter day_info={model.day_info} />
-        <ClockSetter/>
+        <ClockSetter {model}/>
     </div>
 </div>
 

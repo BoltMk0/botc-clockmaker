@@ -19,8 +19,11 @@
         if(progress >= 1){
             return "#F00"
         }
-        const hue = 40-progress*30;
-        return `hsl(${hue}, 80%, 60%)`;
+        // Adjust progress to range [0,1] with emphasis on extremes
+        let adj_progress = Math.min(Math.max(progress, 0.5), 1)*2-1;
+        let saturation = 80;
+        const hue = 40-(adj_progress**2)*30;
+        return `hsl(${hue}, ${saturation}%, 60%)`;
     }
 
     let ticks = 41;
@@ -36,21 +39,29 @@
         <div class="dial-sun-container">
             <div class="dial-sun" style="transform: rotate({-rotationAngle*0.4}deg); background-color: {getCircleColor(progress)}"></div>
         </div>
+        
+        <div class="dial-tick-main">
+            {#each {length: ticks} as _, i}
+                {@const angle = (80-160 * (i / (ticks - 1)))}
+                <div class="dial-tick-container" style="transform: rotate({angle}deg);">
+                    <div class="dial-tick"></div>
+                </div>
+            {/each}
 
-        {#each {length: ticks} as _, i}
-            {@const angle = (80-160 * (i / (ticks - 1)))}
-            <div class="dial-tick-container" style="transform: rotate({angle}deg);">
-                <div class="dial-tick"></div>
-            </div>
-        {/each}
 
 
-        {#each {length: majorTicks} as _, i}
-            {@const angle = (80-160 * (i / (majorTicks - 1)))}
-            <div class="dial-tick-container" style="transform: rotate({angle}deg);">
-                <div class="dial-tick major"></div>
-            </div>
-        {/each}
+            {#each {length: majorTicks} as _, i}
+                {@const angle = (80-160 * (i / (majorTicks - 1)))}
+                <div class="dial-tick-container" style="transform: rotate({angle}deg);">
+                    <div class="dial-tick major"></div>
+                </div>
+            {/each}
+
+            <div class="dial-tick-outer-rim"></div>
+            <div class="dial-tick-inner-rim"></div>
+
+        </div>
+
 
 
         <div class="time-display">
@@ -110,9 +121,11 @@
 
     .dial-container {
         position: relative;
-        width: 50%;
+        width: 54%;
         aspect-ratio: 1;
         left: 50%;
+        bottom: 0;
+        top: -8%;
     }
 
     .dial {
@@ -129,26 +142,59 @@
         width: 100%;
         height: 100%;
         object-fit: contain;
+        opacity: 0.9;
+    }
+
+    .dial-tick-main {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        opacity: 0.6;
+    }
+
+    .dial-tick-outer-rim {
+        position: absolute;
+        top: 5%;
+        left: 2.5%;
+        right: 2.5%;
+        bottom: 0%;
+        border: 1px solid #112;
+        border-bottom: none;
+        border-radius: 999em 999em 0 0;
+        box-sizing: border-box;
+    }
+    .dial-tick-inner-rim {
+        position: absolute;
+        top: 10%;
+        left: 5%;
+        right: 5%;
+        bottom: 0%;
+        border: 1px solid #112;
+        border-radius: 999em 999em 0 0;
+        border-bottom: none;
+        box-sizing: border-box;
+
     }
 
     .dial-tick-container {
         position: absolute;
-        height: 100%;
+        height: 95%;
         left: 50%;
+        bottom: 0;
+        width: 0;
         transform-origin: 50% 100%;
         /* width: 2px; */
     }
 
     .dial-tick {
-        margin-top: -2px;
-        height: 7%;
-        width: 1.5px;
-        background-color: #333;
-        opacity: 0.6;
+        position: absolute;
+        height: 5%;
+        width: 1px;
+        background-color: #112;
+        transform: translateX(-50%);
     }
 
     .dial-tick.major {
-        height: 10%;
         width: 4px;
         background-color: #000;
     }

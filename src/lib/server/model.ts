@@ -1,9 +1,11 @@
 import type { ClockMessage } from '$lib/common/comms';
+import { getDefaultConfig, loadConfigFromFile, type Config } from '$lib/common/config';
 import { EventEmitter } from 'node:events';
 
 console.log("Loading BOTCTClock model...");
 
 export class BOTCTClock extends EventEmitter {
+    config: Config
     running: boolean = false;
     startTime: number = 0;
     duration: number = 0;
@@ -13,6 +15,12 @@ export class BOTCTClock extends EventEmitter {
 
     constructor(){
         super();
+        try {
+            this.config = loadConfigFromFile()
+        } catch (e) {
+            console.error("Error loading config file, using default config.", e);
+            this.config = getDefaultConfig();
+        }
     }
 
     on(event: 'dayChanged', listener: (dayInfo: {day: number; max: number}) => void): this;

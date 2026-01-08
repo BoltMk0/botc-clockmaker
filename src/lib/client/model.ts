@@ -1,5 +1,5 @@
 import type { BellRingRequestMessage, ClockMessage, DayMessage, SyncMessage, WSMessage } from "$lib/common/comms";
-import { writable, type Readable, type Writable } from "svelte/store";
+import { get, writable, type Readable, type Writable } from "svelte/store";
 import { source } from "sveltekit-sse";
 
 
@@ -12,7 +12,7 @@ export class ClientModel {
     private sse_store_unsubscribe: (()=>void) | null = null;
 
 
-    private state: 'counting' | 'idle' = 'idle';
+    state: Writable<'counting' | 'idle'> = writable('idle');
     private interval: number|null = null; 
     private setupTimeout: number|null = null;
     private startTime: number|null = null;
@@ -47,7 +47,14 @@ export class ClientModel {
         if(this.audioPlayer){
             this.audioPlayer.src = '/bell.mp3';
             this.audioPlayer.preload = 'auto';
-            // this.audioPlayer.load();
+            this.audioPlayer.load();
+            this.audioPlayer.addEventListener('ended', () => {
+                if(this.audioPlayer){
+                    console.log("Bell sound ended, resetting audio player.");
+                    this.audioPlayer.currentTime = 0;
+                    this.audioPlayer.load();
+                }
+            });
         }
     }
 
@@ -59,8 +66,9 @@ export class ClientModel {
     playBellSound() {
         // reset player to start
         if(!this.audioPlayer) return;
-        this.audioPlayer.pause();
-        this.audioPlayer.currentTime = 0;
+        if(this.audioPlayer.currentTime !== 0){
+            this.audioPlayer.currentTime = 0;
+        }
         this.audioPlayer.play().catch((error) => {
             console.error("Error playing bell sound:", error);
         });
@@ -68,7 +76,7 @@ export class ClientModel {
 
     private updateClock() {
         if(this.startTime === null || this.duration === null) return;
-        if(this.state === 'counting') {
+        if(get(this.state) === 'counting') {
             const now = Date.now();
             const adjNow = this.localTimeToServerTime(now);
             const elapsed = Math.round((adjNow - this.startTime) / 1000);
@@ -76,9 +84,10 @@ export class ClientModel {
                 this.playBellSound();
                 this.ringBellAfter = null; // prevent multiple rings
             }
+
             const remaining = this.duration - elapsed;
             if(remaining <= 0) {
-                this.state = 'idle';
+                this.state.set('idle');
                 if(this.interval !== null) {
                     clearInterval(this.interval);
                     this.interval = null;
@@ -140,7 +149,7 @@ export class ClientModel {
     }
 
     handleClockStateMessage(message: ClockMessage) {
-        this.state = message.running ? 'counting' : 'idle';
+        this.state.set(message.running ? 'counting' : 'idle');
         this.startTime = message.startTime;
         this.duration = message.duration;
         this.ringBellAfter = message.ringBellAfter;
@@ -155,7 +164,7 @@ export class ClientModel {
             this.interval = null;
         }
         
-        if(this.state === 'counting') {
+        if(get(this.state) === 'counting') {
             // Wait until the next second to align the interval
             const now = this.localTimeToServerTime(Date.now());
             const delay = 1000 - (now % 1000);
