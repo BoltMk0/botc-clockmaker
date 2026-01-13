@@ -1,9 +1,9 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
 export type TimerOption = {
-    label?: string;
+    label: string|null;
     duration: number;
-    ringBellWhenRemaining?: number;
+    ringBellWhenRemaining: number|null;
 }
 
 export type Config = {
@@ -13,9 +13,9 @@ export type Config = {
 export function getDefaultConfig(): Config {
     return {
         timerOptions: [
-            { label: '5 Seconds', duration: 5 },
+            { label: '5 Seconds', duration: 5, ringBellWhenRemaining: null },
             { label: '15 Seconds', duration: 15, ringBellWhenRemaining: 5 },
-            { label: '1 Minute', duration: 60 },
+            { label: '1 Minute', duration: 60, ringBellWhenRemaining: null },
             { label: '3 Minutes', duration: 3 * 60, ringBellWhenRemaining: 30 },
             { label: '5 Minutes', duration: 5 * 60, ringBellWhenRemaining: 30 },
             { label: '8 Minutes', duration: 8 * 60, ringBellWhenRemaining: 30 },
@@ -29,8 +29,8 @@ export function validateConfig(config: any): config is Config {
     for(const option of config.timerOptions){
         if(typeof option !== 'object' || option === null) return false;
         if(typeof option.duration !== 'number' || option.duration <= 0) return false;
-        if(option.label !== undefined && typeof option.label !== 'string') return false;
-        if(option.ringBellWhenRemaining !== undefined && (typeof option.ringBellWhenRemaining !== 'number' || option.ringBellWhenRemaining < 0)) return false;
+        if(option.label !== null && typeof option.label !== 'string') return false;
+        if(option.ringBellWhenRemaining !== null && (typeof option.ringBellWhenRemaining !== 'number' || option.ringBellWhenRemaining < 0)) return false;
     }
     return true;
 }
@@ -43,6 +43,7 @@ export function defaultConfigPath(): string {
 export function saveConfigToFile(config: Config, opts: {filepath?: string} = {}): void {
     const filepath = opts.filepath || defaultConfigPath();
     writeFileSync(filepath, JSON.stringify(config, null, 2), 'utf-8');
+    console.log("Config saved to", filepath);
 }
 
 export function loadConfigFromFile(opts: {filepath?: string} = {}): Config {

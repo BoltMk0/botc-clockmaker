@@ -84,7 +84,7 @@
         background-color: black;
         aspect-ratio: 1/1;
 
-        box-shadow: 0 0 5px #0005, 2px 8px 4px -7px #e9e2d1aa inset, 0px -3px 5px -1px #0009 inset, -2px -5px 3px -3px #F424 inset, 5px 10px 10px -5px #0005;
+        box-shadow: 0 0 5px #0005, 2px 8px 4px -7px #e9e2d1aa inset, 0px -3px 5px -1px #0009 inset, 2px -5px 3px -3px #F424 inset, 5px 10px 10px -5px #0005, 20px 40px 40px 0px #0002;
         border-radius: 99999em;
         transition: background 1s ease;
     }

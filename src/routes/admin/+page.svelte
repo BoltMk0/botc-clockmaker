@@ -41,7 +41,7 @@
 </script>
 <audio bind:this={audio} preload="auto" src="/bell.mp3"></audio>
 {#if model}
-<div style="width: fit-content; margin: auto;">
+<div style="width: min-content; margin: auto;">
     <FullDisplay {model} size={300} />
     <div style="max-width: 400px;">
         <DaySetter day_info={model.day_info} />

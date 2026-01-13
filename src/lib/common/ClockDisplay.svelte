@@ -101,7 +101,6 @@
     .dial-sun {
         height: 60%;
         aspect-ratio: 1;
-        background-color: red;
         border-radius: 50%;
         transform-origin: 50% 300%;
         transition: transform 1s ease, background-color 1s ease;

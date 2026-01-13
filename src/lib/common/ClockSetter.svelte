@@ -8,12 +8,12 @@
     $: state = model.state;
 
     var options: TimerOption[] = [
-        {duration: 0},
-        {duration: 5},
-        {duration: 30},
-        {duration: 180, ringBellWhenRemaining: 30},
-        {duration: 300, ringBellWhenRemaining: 30},
-        {duration: 480, ringBellWhenRemaining: 30}
+        {duration: 0, ringBellWhenRemaining: null, label: null},
+        {duration: 5, ringBellWhenRemaining: null, label: null},
+        {duration: 30, ringBellWhenRemaining: null, label: null},
+        {duration: 180, ringBellWhenRemaining: 30, label: null},
+        {duration: 300, ringBellWhenRemaining: 30, label: null},
+        {duration: 480, ringBellWhenRemaining: 30, label: null}
     ];
 
     onMount(()=>{
@@ -40,7 +40,7 @@
                     method: 'POST',
                     body: JSON.stringify({
                         duration: option.duration,
-                        ringBellAfter: option.ringBellWhenRemaining === undefined ? undefined : option.duration - option.ringBellWhenRemaining
+                        ringBellAfter: option.ringBellWhenRemaining === null ? null : option.duration - option.ringBellWhenRemaining
                     }),
                     headers: {'Content-Type': 'application/json'}
                 }).then(response => {
@@ -59,7 +59,7 @@
                             {formatTime(option.duration)}
                         </div>
                         <div>
-                            {#if option.ringBellWhenRemaining !== undefined}
+                            {#if option.ringBellWhenRemaining !== null}
                             <img class="timer-icon-img" src="/icons/bell.fill.png" alt="Bell"/>
                             {formatTime(option.ringBellWhenRemaining)}
                             {:else}
@@ -74,7 +74,8 @@
             </button>
         {/each}
     </div>
-    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; font-size: 1em; margin-top: 5px; gap: 5px;">
+    <a class="button-style" href="/admin/edit-timers">Edit</a>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; font-size: 1em; gap: 5px;">
         <button class="stop-btn" on:click={() => {
             fetch('/admin/api/clock/stop', {
                 method: 'POST'
@@ -122,10 +123,24 @@
 </div>
 
 <style>
-    .button-container {
-        display: grid; 
-        grid-template-columns: 1fr 1fr;
+
+    .clock-setter-main {
+        display: grid;
         gap: 5px;
+        justify-items: stretch;
+        align-items: center;
+    }
+
+    .button-container {
+        display: flex; 
+        flex-wrap: wrap;
+        gap: 5px;
+        width: fit-content;
+    }
+
+    .button-container button {
+        flex-grow: 1;
+        box-sizing: border-box;
     }
 
     button {
@@ -157,12 +172,10 @@
     }
 
     .timer-icons {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
+        display: flex;
+        justify-content: center;
         gap: 10px;
         align-items: center;
-        justify-content: center;
-
     }
 
     .timer-icon-img {

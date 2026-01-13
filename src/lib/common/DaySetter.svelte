@@ -26,7 +26,7 @@
     }
 </script>
 
-<div style="margin: 20px; text-align: center; display: grid; background-color: #2222; padding: 10px; border-radius: 10px; border: 2px solid white;">
+<div style="text-align: center; display: grid; padding: 10px;">
     <h3>Day Controls</h3>
     <div class='setter-row'>
         <button on:click={()=>{bump_day(-1)}}>-</button>
@@ -41,26 +41,42 @@
         margin: 0 auto;
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 2px;
         height: 2em;
-        margin-bottom: 20px;
-        font-size: small;
+        margin-bottom: 10px;
+        font-size: large;
     }
 
     h3 {
-        margin: 10px;
+        margin: 0px;
+        margin-bottom: 10px;
     }
 
     input[type="number"] {
         height: 100%;
         font-size: 1.5em;
         width: 60px;
+        padding: 5px;
         text-align: center;
+        box-sizing: border-box;
     }
 
     button {
         height: 100%;
         font-size: 1.5em;
         aspect-ratio: 1/1;
+        box-sizing: border-box;
+    }
+
+    button, input {
+        background-color: #555;
+        border: none;
+        border-radius: 5px;
+        color: #f0f0f0;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background-color: #777;
     }
 </style>
