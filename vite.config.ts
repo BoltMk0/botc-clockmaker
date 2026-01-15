@@ -11,8 +11,12 @@ export default defineConfig({
 			manifest: {
 				name: 'BOTCT Clock',
 				short_name: 'BOTCT Clock',
+				display: 'standalone',
+				start_url: '/',
+				display_override: ['standalone', 'minimal-ui'],
+				background_color: '#121212',
 				description: 'A clock for the BOTCT event',
-				theme_color: '#ffffff',
+				theme_color: '#2d4550',
 				icons: [
 				]
 			}
