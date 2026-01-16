@@ -1,5 +1,5 @@
 import {produce, type Unsafe} from 'sveltekit-sse';
-import type { ClockMessage, DayMessage, WSMessage } from '$lib/common/comms';
+import type { BellRingRequestMessage, ClockMessage, DayMessage, WSMessage } from '$lib/common/comms';
 
 import { getBOTCTClockInstance } from "$lib/server/model";
 import { v7 } from 'uuid';
@@ -41,8 +41,9 @@ getBOTCTClockInstance().on('dayChanged', (dayInfo: {day: number; max: number}) =
 });
 
 getBOTCTClockInstance().on('bellRingRequest', () => {
-    const message: WSMessage = {
-        type: 'bellRingRequest'
+    const message: BellRingRequestMessage = {
+        type: 'bellRingRequest',
+        atTime: Date.now() + 500 // add slight delay to account for network latency
     };
     broadcast(message);
 });
