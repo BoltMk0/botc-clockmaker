@@ -13,6 +13,7 @@ export default defineConfig({
 				short_name: 'BOTCT Clock',
 				display: 'standalone',
 				start_url: '/',
+				scope: '/',
 				display_override: ['standalone', 'minimal-ui'],
 				background_color: '#121212',
 				description: 'A clock for the BOTCT event',
