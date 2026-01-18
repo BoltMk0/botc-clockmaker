@@ -8,7 +8,7 @@
     let model = new ClientModel();
 
     let timeOnDevice = Date.now();
-    $: timeOnServer = timeOnDevice - (model.minDeltaToServerTime ?? 0);
+    $: timeOnServer = timeOnDevice - (model.deltaTimeManager.minDeltaToServerTime ?? 0);
 
     onMount(()=>{
         model.init(audio);

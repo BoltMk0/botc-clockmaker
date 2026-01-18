@@ -13,9 +13,9 @@
 
     function updateValues() {
         timeout = setTimeout(()=>{
-            values = model.deltaToServerTime;
-            filteredAvg = model.avgDeltaToServerTime;
-            minDelta = model.minDeltaToServerTime;
+            values = model.deltaTimeManager.deltaToServerTime;
+            filteredAvg = model.deltaTimeManager.avgDeltaToServerTime;
+            minDelta = model.deltaTimeManager.minDeltaToServerTime;
             updateValues();
         }, 1000);
     }
