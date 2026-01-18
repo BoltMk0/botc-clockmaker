@@ -19,6 +19,16 @@ export default defineConfig({
 				description: 'A clock for the BOTCT event',
 				theme_color: '#2d4550',
 				icons: [
+					{
+						src: '/icons/appicon_128x128.png',
+						sizes: '128x128',
+						type: 'image/png'
+					},
+					{
+						src: '/icons/appicon_512x512.png',
+						sizes: '512x512',
+						type: 'image/png'
+					}
 				]
 			}
 		})

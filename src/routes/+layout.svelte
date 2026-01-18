@@ -6,7 +6,7 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<link rel="icon" href="/icons/appicon_128x128.png" />
 </svelte:head>
 
 {@render children()}
