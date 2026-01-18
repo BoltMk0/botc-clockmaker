@@ -1,3 +1,4 @@
+import type { CommsConnectionStatus } from "$lib/client/model";
 
 const sky_color_points = [
     { progress: 0, r: 140, g: 169, b: 255 },   // Dawn
@@ -43,4 +44,17 @@ export function formatTime(seconds: number): string {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds - mins * 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+export function commsStatusToColor(status: CommsConnectionStatus): string {
+    switch (status) {
+        case 'connected':
+            return 'green';
+        case 'connecting':
+            return 'orange';
+        case 'disconnected':
+            return 'red';
+        default:
+            return 'black';
+    }
 }

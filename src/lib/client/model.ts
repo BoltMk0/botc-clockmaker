@@ -5,6 +5,7 @@ import { source } from "sveltekit-sse";
 
 type updateClockCallbackType = (params: {cur: number; max: number})=>void;
 
+export type CommsConnectionStatus = 'connected' | 'disconnected' | 'connecting';
 
 type BOTCTimeType = {
     time: number;
@@ -126,9 +127,12 @@ export class ClientModel {
     private sse_connection: ReturnType<typeof source> | null = null;
     private sse_data_store: Readable<ClockMessage|null> | null = null;
     private sse_store_unsubscribe: (()=>void) | null = null;
-
+    private sseReconnectAttempts: number = 0;
+    private sseReconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    private lifecycleEventsBound: boolean = false;
 
     state: Writable<'counting' | 'idle'> = writable('idle');
+    comms_state: Writable<CommsConnectionStatus> = writable('disconnected');
     private tickTimeout: ReturnType<typeof setTimeout>|null = null; 
     private setupTimeout: number|null = null;
     private startTime: BOTCTimeType|null = null;
@@ -148,16 +152,27 @@ export class ClientModel {
     }
 
     init(audioPlayer?: HTMLAudioElement){
+        const self = this;
         this.sse_connection = source('/events/clock', {
             close({ connect }) {
-                console.log('reconnecting...')
-                connect()
+                console.log('SSE closed; reconnecting...');
+                self.comms_state.set('connecting');
+                connect();
             },
             open() {
-                console.log('connected to clock events')
+                console.log('SSE connected to clock events');
+                self.sseReconnectAttempts = 0;
+                if(self.sseReconnectTimer){
+                    clearTimeout(self.sseReconnectTimer);
+                    self.sseReconnectTimer = null;
+                }
+                self.comms_state.set('connected');
             },
             error(err) {
-                console.error('connection error:', err)
+                console.error('SSE connection error:', err);
+                self.comms_state.set('disconnected');
+                // Schedule a reconnect via close() to trigger the built-in connect()
+                self.scheduleSSEReconnect();
             }
         });
         this.sse_data_store = this.sse_connection.select('message').json<ClockMessage>();
@@ -167,6 +182,52 @@ export class ClientModel {
         if(audioPlayer) {
             this.bellRinger = new BellRinger(audioPlayer, this.deltaTimeManager);
         }
+
+        // Bind lifecycle events once to handle mobile background/foreground transitions
+        if(!this.lifecycleEventsBound){
+            this.bindLifecycleEvents();
+            this.lifecycleEventsBound = true;
+        }
+    }
+
+    private scheduleSSEReconnect(){
+        if(this.sseReconnectTimer){
+            return; // already scheduled
+        }
+        const delay = Math.min(1000 * Math.pow(2, this.sseReconnectAttempts), 15000);
+        this.sseReconnectAttempts++;
+        this.sseReconnectTimer = setTimeout(() => {
+            this.sseReconnectTimer = null;
+            // Trigger close to invoke the provided close({connect}) handler
+            try {
+                this.sse_connection?.close();
+            } catch (e) {
+                console.error('Error during SSE close for reconnect:', e);
+            }
+        }, delay);
+    }
+
+    private bindLifecycleEvents(){
+        // When page becomes visible again, force a reconnect to recover from suspended connections
+        document.addEventListener('visibilitychange', () => {
+            if(document.visibilityState === 'visible'){
+                this.sseReconnectAttempts = 0;
+                this.sse_connection?.close();
+            }
+        });
+
+        // Safari/iOS can use BFCache; pageshow with persisted=true indicates restore — refresh SSE
+        window.addEventListener('pageshow', (event: PageTransitionEvent) => {
+            // Always attempt a reconnect on pageshow to be safe
+            this.sseReconnectAttempts = 0;
+            this.sse_connection?.close();
+        });
+
+        // Recover when network comes back online
+        window.addEventListener('online', () => {
+            this.sseReconnectAttempts = 0;
+            this.sse_connection?.close();
+        });
     }
     
     playBellSound() {

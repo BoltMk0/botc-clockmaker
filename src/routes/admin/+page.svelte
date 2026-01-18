@@ -3,6 +3,7 @@
     import ClockSetter from "$lib/common/ClockSetter.svelte";
     import DaySetter from "$lib/common/DaySetter.svelte";
     import FullDisplay from "$lib/common/FullDisplay.svelte";
+    import { commsStatusToColor } from "$lib/common/util";
     import { onMount } from "svelte";
 
     let clockData = {
@@ -12,6 +13,9 @@
 
     let audio: HTMLAudioElement;
     let model: ClientModel = new ClientModel();
+
+    $: commsState = model.comms_state;
+    $: buttonColor = commsStatusToColor($commsState);
 
     onMount(()=>{
         model.init(audio);
@@ -42,7 +46,7 @@
 <audio bind:this={audio} preload="auto" src="/bell.mp3"></audio>
 {#if model}
 <div style="width: min-content; margin: auto;">
-    <FullDisplay {model} size={300} />
+    <FullDisplay {model} size={300} buttonColor={buttonColor}/>
     <div style="max-width: 400px;">
         <DaySetter day_info={model.day_info} />
         <ClockSetter {model}/>
