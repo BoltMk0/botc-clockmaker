@@ -5,20 +5,22 @@
     import { onMount } from "svelte";
 
     let audio: HTMLAudioElement;
+    let audio2: HTMLAudioElement;
     let model = new ClientModel();
 
     let timeOnDevice = Date.now();
     $: timeOnServer = timeOnDevice - (model.deltaTimeManager.minDeltaToServerTime ?? 0);
 
     onMount(()=>{
-        model.init(audio);
+        model.init({finalBellAudioPlayer: audio, reminderBellAudioPlayer: audio2});
         setInterval(() => {
             timeOnDevice = Date.now();
         }, 1000);
     })
 </script>
 
-<audio src="/bell.mp3" bind:this={audio} preload="auto"></audio>
+<audio bind:this={audio} preload="auto"></audio>
+<audio bind:this={audio2} preload="auto"></audio>
 <div>
     <FullDisplay {model} size={400} />
     <div>

@@ -75,7 +75,7 @@
                 {/if}
             </div>
         </div>
-        <button aria-label="Ring bell" onclick={()=>{model.playBellSound()}} class="clock-hand-cap" style="background: radial-gradient(closest-side at center, {buttonColor} 30%, #111 50%, #111 83%, {getSkyColor(progress, 1, 1, 0.9)} 100%); box-shadow: 0px 0px {adjSize/25}px {getSkyColor(progress, 0.4, 1, 1)} inset, -2px -10px 5px -5px #0008 inset, 0 0 {adjSize/2}px {getSkyColor(progress, 1, 1.8)}, 1px 1px 2px 0 #FDC7 inset, -1px -1px 2px 0 #0007 inset, 0.4px 2px 4px -1px #0005;"></button>
+        <button aria-label="Ring bell" onclick={()=>{model.finalBellRinger?.ringBell()}} class="clock-hand-cap" style="background: radial-gradient(closest-side at center, {buttonColor} 30%, #111 50%, #111 83%, {getSkyColor(progress, 1, 1, 0.9)} 100%); box-shadow: 0px 0px {adjSize/25}px {getSkyColor(progress, 0.4, 1, 1)} inset, -2px -10px 5px -5px #0008 inset, 0 0 {adjSize/2}px {getSkyColor(progress, 1, 1.8)}, 1px 1px 2px 0 #FDC7 inset, -1px -1px 2px 0 #0007 inset, 0.4px 2px 4px -1px #0005;"></button>
 
         <!-- <div class="dial-shadow" style="top: {border_radius}px; bottom: {border_radius}px; left: {border_radius}px; right: {border_radius}px; box-shadow: 0 0 {adjSize*0.25}px {getSkyColor(progress, 1, 0.5, 0.1)} inset, 2px 10px 10px -5px #111C inset, 0 0 {adjSize*0.1}px #1118 inset;"></div> -->
         <div class="dial-shadow" style="top: {border_radius}px; bottom: {border_radius}px; left: {border_radius}px; right: {border_radius}px; background: radial-gradient(closest-side at center, {getSkyColor(progress, 0, 0.5, 0.1)} 75%, {getSkyColor(progress, 0.1, 0.5, 0.1)} 90%, {getSkyColor(progress, 0.3, 0.5, 0.1)} 100%); box-shadow: 0 0 {size/3}px #2116 inset;"></div>

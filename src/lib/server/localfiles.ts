@@ -1,4 +1,4 @@
-import { getMimeTypeForExtension, getMimeTypeForFilename } from "$lib/common/util";
+import { getExtensionForMimeType, getMimeTypeForExtension, getMimeTypeForFilename } from "$lib/common/util";
 import { existsSync, mkdirSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -11,8 +11,9 @@ if(!existsSync(DATA_DIR)){
 
 export function getLocalResource(relativePath: string, opts: {makeDirs?: boolean, checkExists?: boolean, mimeType?: string} = {checkExists: true}): string {
     if(opts.mimeType){
-        const ext = getMimeTypeForExtension(opts.mimeType);
+        const ext = getExtensionForMimeType(opts.mimeType);
         if(ext && !relativePath.endsWith(ext)){
+            console.log(relativePath, ext);
             relativePath += ext;
         }
     }

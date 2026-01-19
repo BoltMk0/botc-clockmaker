@@ -5,10 +5,11 @@
 
     let enterButtonClicked: boolean =  true;
     let audio: HTMLAudioElement;
+    let audio2: HTMLAudioElement;
     let model: ClientModel = new ClientModel();
 
     onMount(()=>{
-        model.init(audio);
+        model.init({finalBellAudioPlayer: audio, reminderBellAudioPlayer: audio2});
     });
 
     let clockData = {
@@ -31,6 +32,7 @@
 </script>
 
 <audio bind:this={audio} preload="auto"></audio>
+<audio bind:this={audio2} preload="auto"></audio>
 
 {#if enterButtonClicked}
 <FullDisplay model={model} />

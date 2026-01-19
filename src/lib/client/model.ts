@@ -66,11 +66,11 @@ class BellRinger {
         ringBellAtTimeServer?: BOTCTimeType;
     }|null = null;
 
-    constructor(audioPlayer: HTMLAudioElement, dtm: ServerDeltaTimeManager){
+    constructor(resourceName: string, audioPlayer: HTMLAudioElement, dtm: ServerDeltaTimeManager){
         this.audioPlayer = audioPlayer;
         this.dtm = dtm;
 
-        this.audioPlayer.src = '/resources/final-bell';
+        this.audioPlayer.src = `/resources/${resourceName}`;
         this.audioPlayer.preload = 'auto';
         this.audioPlayer.load();
         this.audioPlayer.addEventListener('ended', () => {
@@ -123,7 +123,6 @@ class BellRinger {
 
 
 export class ClientModel {
-    private audioPlayer?: HTMLAudioElement;
     private sse_connection: ReturnType<typeof source> | null = null;
     private sse_data_store: Readable<ClockMessage|null> | null = null;
     private sse_store_unsubscribe: (()=>void) | null = null;
@@ -134,24 +133,22 @@ export class ClientModel {
     state: Writable<'counting' | 'idle'> = writable('idle');
     comms_state: Writable<CommsConnectionStatus> = writable('disconnected');
     private tickTimeout: ReturnType<typeof setTimeout>|null = null; 
-    private setupTimeout: number|null = null;
     private startTime: BOTCTimeType|null = null;
     private duration: number|null = null;
     private ringBellAfter: number|null = null;
     
     deltaTimeManager: ServerDeltaTimeManager = new ServerDeltaTimeManager();
-    bellRinger?: BellRinger;
+    finalBellRinger?: BellRinger;
+    reminderBellRinger?: BellRinger;
 
     day_info: Writable<{day: number; max: number}> = writable({day: 0, max: 8});
     clock_info: Writable<{cur: number; max: number}> = writable({cur: 0, max:60});
 
     constructor(){
-        if(this.audioPlayer){
-            this.bellRinger = new BellRinger(this.audioPlayer, this.deltaTimeManager);
-        }
+
     }
 
-    init(audioPlayer?: HTMLAudioElement){
+    init(audioPlayers: {finalBellAudioPlayer: HTMLAudioElement, reminderBellAudioPlayer: HTMLAudioElement}|undefined = undefined) {
         const self = this;
         this.sse_connection = source('/events/clock', {
             close({ connect }) {
@@ -179,8 +176,9 @@ export class ClientModel {
         this.sse_store_unsubscribe = this.sse_data_store.subscribe((value) => {
             if(value) this.handleClockMessage(value);
         });
-        if(audioPlayer) {
-            this.bellRinger = new BellRinger(audioPlayer, this.deltaTimeManager);
+        if(audioPlayers) {
+            this.finalBellRinger = new BellRinger('final-bell', audioPlayers.finalBellAudioPlayer, this.deltaTimeManager);
+            this.reminderBellRinger = new BellRinger('reminder-bell', audioPlayers.reminderBellAudioPlayer, this.deltaTimeManager);
         }
 
         // Bind lifecycle events once to handle mobile background/foreground transitions
@@ -229,10 +227,6 @@ export class ClientModel {
             this.sse_connection?.close();
         });
     }
-    
-    playBellSound() {
-        this.bellRinger?.ringBell();
-    }
 
     private clearTickTimeout() {
         if(this.tickTimeout !== null) {
@@ -250,12 +244,12 @@ export class ClientModel {
             const remaining = this.duration - elapsed;
             if(remaining <= 0) {
                 this.state.set('idle');
-                this.bellRinger?.ringBell();
+                this.finalBellRinger?.ringBell();
                 this.clock_info.set({cur: 0, max: this.duration});
             } else {
                 if (this.ringBellAfter !== null) {
                     if (elapsed >= this.ringBellAfter) {
-                        this.bellRinger?.ringBell();
+                        this.reminderBellRinger?.ringBell();
                         this.ringBellAfter = null; // prevent multiple rings
                     }
                 }
@@ -316,13 +310,13 @@ export class ClientModel {
             let timeToSleep = targetTime - Date.now();
             if(timeToSleep > 0){
                 setTimeout(()=>{
-                    this.playBellSound();
+                    this.finalBellRinger?.ringBell();
                 }, timeToSleep);
             } else {
-                this.playBellSound();
+                this.finalBellRinger?.ringBell();
             }
         } else {
-            this.playBellSound();
+            this.finalBellRinger?.ringBell();
         }
     }
 

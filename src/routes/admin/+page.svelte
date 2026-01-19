@@ -12,6 +12,7 @@
     };
 
     let audio: HTMLAudioElement;
+    let audio2: HTMLAudioElement;
     let model: ClientModel = new ClientModel();
 
     $: commsState = model.comms_state;
@@ -19,7 +20,7 @@
     $: day_info = model.day_info;
 
     onMount(()=>{
-        model.init(audio);
+        model.init({finalBellAudioPlayer: audio, reminderBellAudioPlayer: audio2});
     });
 
     function bump_day(delta: number) {
@@ -68,6 +69,8 @@
 
 </script>
 <audio bind:this={audio} preload="auto"></audio>
+<audio bind:this={audio2} preload="auto"></audio>
+
 {#if model}
 <div style="width: min-content; margin: auto;">
     <FullDisplay {model} size={300} buttonColor={buttonColor} onDayShift={(delta)=>{bump_day(delta)}}/>

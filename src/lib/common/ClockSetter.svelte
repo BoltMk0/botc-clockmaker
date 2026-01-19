@@ -75,7 +75,7 @@
         {/each}
     </div>
     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; font-size: 1em; gap: 5px;">
-        <a class="button-style" id="edit-button" href="/admin/edit-timers">Config</a>
+        <a class="button-style" id="edit-button" href="/admin/config">Config</a>
         <button class="stop-btn" on:click={() => {
             fetch('/admin/api/clock/stop', {
                 method: 'POST'
