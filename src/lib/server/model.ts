@@ -1,6 +1,7 @@
 import type { ClockMessage } from '$lib/common/comms';
-import { getDefaultConfig, loadConfigFromFile, type Config } from '$lib/common/config';
+import { getDefaultConfig, type Config } from '$lib/common/config';
 import { EventEmitter } from 'node:events';
+import { loadConfigFromFile, saveConfigToFile } from './config';
 
 console.log("Loading BOTCTClock model...");
 
@@ -20,6 +21,7 @@ export class BOTCTClock extends EventEmitter {
         } catch (e) {
             console.error("Error loading config file, using default config.", e);
             this.config = getDefaultConfig();
+            saveConfigToFile(this.config);
         }
     }
 

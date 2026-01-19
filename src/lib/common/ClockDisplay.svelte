@@ -4,6 +4,7 @@
 
     export let clock_info: Readable<{cur: number; max: number}>;
     export let size: number = 700;
+    export let onTimeShift: ((delta: number)=>void) | undefined = undefined;
 
     $: rounded_cur = Math.round($clock_info.cur);
 
@@ -68,6 +69,16 @@
             <div style="font-size: 0.4em; opacity: 0.7;">Time Remaining</div>
             <div>{formatTime($clock_info.cur)}</div>
         </div>
+        {#if onTimeShift !== undefined}
+        <div class="shift-button-container">
+            <button onclick={()=>{onTimeShift(-15)}}>
+                -15
+            </button>
+            <button onclick={()=>{onTimeShift(15)}}>
+                +15
+            </button>
+        </div>
+        {/if}
         
         <!-- <div class="dial-shadow"></div> -->
 
@@ -210,5 +221,26 @@
         top: 30%;
         text-shadow: #1005 1px 3px 4px;
     }
+
+    .shift-button-container {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .shift-button-container > button {
+        /* background-color: #0000; */
+        font-family: monospace;
+        background: none;
+        padding-top: 20%;
+        border: none;
+        font-size: x-large;
+        color: #2229;
+    }
+
 
 </style>

@@ -3,6 +3,15 @@
 	import { onMount } from 'svelte';
 	import "./style.css"
 	let { children } = $props();
+
+	function disableDoubleTapZoomGesture(){
+		document.addEventListener('dblclick', function (event) {
+			event.preventDefault();
+		}, { passive: false });
+	}
+	onMount(() => {
+		disableDoubleTapZoomGesture();
+	});
 </script>
 
 <svelte:head>

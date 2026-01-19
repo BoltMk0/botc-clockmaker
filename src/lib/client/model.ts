@@ -70,14 +70,14 @@ class BellRinger {
         this.audioPlayer = audioPlayer;
         this.dtm = dtm;
 
-        this.audioPlayer.src = '/bell.mp3';
+        this.audioPlayer.src = '/resources/final-bell';
         this.audioPlayer.preload = 'auto';
         this.audioPlayer.load();
         this.audioPlayer.addEventListener('ended', () => {
             if(this.audioPlayer){
                 console.log("Bell sound ended, resetting audio player.");
                 this.audioPlayer.currentTime = 0;
-                this.audioPlayer.load();
+                // this.audioPlayer.load();
             }
         });
     }

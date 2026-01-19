@@ -34,7 +34,7 @@
 </script>
 <div class="clock-setter-main">
     <div class="button-container">
-        {#each options as option}
+        {#each options as option, index}
             <button on:click={() => {
                 fetch('/admin/api/clock/setup', {
                     method: 'POST',
@@ -51,7 +51,7 @@
                 }).catch(error => {
                     console.error("Error setting up clock:", error);
                 });
-            }} disabled={$state === 'counting'}>
+            }} disabled={$state === 'counting'} style="grid-column: span {(index === options.length - 1 && options.length%2 === 1) ? 2 : 1};">
                 <div>
                     <div class="timer-icons" style="font-size: {option.label ? '0.8em' : '1em'};">
                         <div>
@@ -74,8 +74,8 @@
             </button>
         {/each}
     </div>
-    <a class="button-style" href="/admin/edit-timers">Edit</a>
-    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; font-size: 1em; gap: 5px;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; font-size: 1em; gap: 5px;">
+        <a class="button-style" id="edit-button" href="/admin/edit-timers">Config</a>
         <button class="stop-btn" on:click={() => {
             fetch('/admin/api/clock/stop', {
                 method: 'POST'
@@ -117,34 +117,43 @@
                 console.error("Error ringing bell:", error);
             });
         }}>
-            Ring Bell
+            Ring
         </button>
     </div>
 </div>
 
 <style>
-
+    #edit-button {
+        text-decoration: none;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        box-sizing: border-box;
+    }
     .clock-setter-main {
         display: grid;
         gap: 5px;
         justify-items: stretch;
         align-items: center;
+        height: 100%;
     }
 
     .button-container {
-        display: flex; 
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
         gap: 5px;
-        width: fit-content;
+        width: 100%;
+        height: 100%;
     }
 
     .button-container button {
         flex-grow: 1;
         box-sizing: border-box;
+        /* height: 100%; */
     }
 
     button {
-        padding: 10px;
+        padding: 15px;
         font-size: inherit;
         border-radius: 5px;
         border: none;

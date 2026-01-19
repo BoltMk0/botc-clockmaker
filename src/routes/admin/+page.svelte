@@ -1,10 +1,10 @@
 <script lang="ts">
     import { ClientModel } from "$lib/client/model";
     import ClockSetter from "$lib/common/ClockSetter.svelte";
-    import DaySetter from "$lib/common/DaySetter.svelte";
     import FullDisplay from "$lib/common/FullDisplay.svelte";
     import { commsStatusToColor } from "$lib/common/util";
     import { onMount } from "svelte";
+    import { get } from "svelte/store";
 
     let clockData = {
         cur: 0,
@@ -16,11 +16,35 @@
 
     $: commsState = model.comms_state;
     $: buttonColor = commsStatusToColor($commsState);
+    $: day_info = model.day_info;
 
     onMount(()=>{
         model.init(audio);
     });
 
+    function bump_day(delta: number) {
+        let day = get(day_info).day + delta;
+        let max = get(day_info).max;
+
+        if(day > max){
+            max = day;
+        }
+
+        day = Math.max(0, day);
+
+        fetch('/admin/api/day', {
+            method: 'POST',
+            body: JSON.stringify({day: day, max: max}),
+            headers: {'Content-Type': 'application/json'}
+        }).then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to set day');
+            }
+            console.log("Day set to", day);
+        }).catch(error => {
+            console.error("Error setting day:", error);
+        });
+    }
 
     function startClock(params: {duration: number, ringBellAfter?: number}) {
         // send request to start clock
@@ -43,12 +67,11 @@
     }
 
 </script>
-<audio bind:this={audio} preload="auto" src="/bell.mp3"></audio>
+<audio bind:this={audio} preload="auto"></audio>
 {#if model}
 <div style="width: min-content; margin: auto;">
-    <FullDisplay {model} size={300} buttonColor={buttonColor}/>
+    <FullDisplay {model} size={300} buttonColor={buttonColor} onDayShift={(delta)=>{bump_day(delta)}}/>
     <div style="max-width: 400px;">
-        <DaySetter day_info={model.day_info} />
         <ClockSetter {model}/>
     </div>
 </div>

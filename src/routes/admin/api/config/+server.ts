@@ -1,4 +1,5 @@
-import { saveConfigToFile, validateConfig } from "$lib/common/config";
+import { validateConfig } from "$lib/common/config";
+import { saveConfigToFile } from "$lib/server/config";
 import { getBOTCTClockInstance } from "$lib/server/model";
 import { json } from "@sveltejs/kit";
 

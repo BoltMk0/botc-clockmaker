@@ -48,6 +48,24 @@
 </div>
 
 <style>
+    .shift-button-container {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .shift-button-container > button {
+        /* background-color: #0000; */
+        background: none;
+        border: none;
+        font-size: xx-large;
+        color: #AAA
+    }
+
     .clock-container {
         width: 100%;
         aspect-ratio: 2;

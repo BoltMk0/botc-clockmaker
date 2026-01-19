@@ -9,6 +9,8 @@
     export let size: number = 700;
 
     export let buttonColor: string = "black";
+    export let onDayShift: ((delta: number)=>void) | undefined = undefined;
+    export let onTimeShift: ((delta: number)=>void) | undefined = undefined;
 
     let adjSize: number = size;
     
@@ -50,14 +52,75 @@
     <div class="container" style="font-size: {adjSize/15}px; width: {adjSize}px; height: {adjSize}px; padding: {border_radius}px; background: radial-gradient(closest-side at center, #0000 0px, #0000 {adjSize/2-border_radius}px, #000F {adjSize/2-border_radius}px, {getSkyColor(progress, 1, 1, 0.8)} {adjSize/2-border_radius*0.85}px, #223 {adjSize/2-border_radius*0.5}px);">
         <ClockDisplay clock_info={model.clock_info} size={adjSize-border_radius*2}/>
         <DayDial day_info={model.day_info} clockData={model.clock_info} size={adjSize-border_radius*2}/>            
-        <button aria-label="Ring bell" on:click={()=>{model.playBellSound()}} class="clock-hand-cap" style="background: radial-gradient(closest-side at center, {buttonColor} 89%, {buttonColor} 93%, {getSkyColor(progress, 1, 1, 0.5)} 100%); box-shadow: 0px 0px {adjSize/20}px {getSkyColor(progress, 0.2, 1, 1)} inset, -2px -10px 5px -5px #0008 inset, 0 0 {adjSize/2}px {getSkyColor(progress, 1, 2)}, 0 5px 5px -5px black;"></button>
-        
+        <div class="shiftButtonsTopContainer">
+            <div class="shiftButtonsContainer">
+                {#if onTimeShift !== undefined}
+                <button class="timerShiftButton" onclick={()=>{onTimeShift(-15)}}>
+                    -15
+                </button>
+                <button class="timerShiftButton" onclick={()=>{onTimeShift(15)}}>
+                    +15
+                </button>
+                {/if}
+            </div>
+            
+            <div class="shiftButtonsContainer" style="margin: 0 10px;">
+                {#if onDayShift !== undefined}
+                <button class="dayShiftButton" onclick={()=>{onDayShift(-1)}}>
+                    -
+                </button>
+                <button class="dayShiftButton" onclick={()=>{onDayShift(1)}}>
+                    +
+                </button>
+                {/if}
+            </div>
+        </div>
+        <button aria-label="Ring bell" onclick={()=>{model.playBellSound()}} class="clock-hand-cap" style="background: radial-gradient(closest-side at center, {buttonColor} 30%, #111 50%, #111 83%, {getSkyColor(progress, 1, 1, 0.9)} 100%); box-shadow: 0px 0px {adjSize/25}px {getSkyColor(progress, 0.4, 1, 1)} inset, -2px -10px 5px -5px #0008 inset, 0 0 {adjSize/2}px {getSkyColor(progress, 1, 1.8)}, 1px 1px 2px 0 #FDC7 inset, -1px -1px 2px 0 #0007 inset, 0.4px 2px 4px -1px #0005;"></button>
+
         <!-- <div class="dial-shadow" style="top: {border_radius}px; bottom: {border_radius}px; left: {border_radius}px; right: {border_radius}px; box-shadow: 0 0 {adjSize*0.25}px {getSkyColor(progress, 1, 0.5, 0.1)} inset, 2px 10px 10px -5px #111C inset, 0 0 {adjSize*0.1}px #1118 inset;"></div> -->
         <div class="dial-shadow" style="top: {border_radius}px; bottom: {border_radius}px; left: {border_radius}px; right: {border_radius}px; background: radial-gradient(closest-side at center, {getSkyColor(progress, 0, 0.5, 0.1)} 75%, {getSkyColor(progress, 0.1, 0.5, 0.1)} 90%, {getSkyColor(progress, 0.3, 0.5, 0.1)} 100%); box-shadow: 0 0 {size/3}px #2116 inset;"></div>
     </div>
 </div>
 
 <style>
+    .shiftButtonsTopContainer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: grid;
+        grid-template-rows: 1fr 1fr;
+        z-index: 10;
+    }
+
+    .shiftButtonsContainer button {
+        background: none;
+        border: none;
+        font-family: monospace;
+        cursor: pointer;
+    }
+
+    .shiftButtonsContainer {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .timerShiftButton {
+        padding-top: 25%;
+        font-size: x-large;
+        color: #1119
+    }
+
+    .dayShiftButton {
+        color: #AAAA;
+        padding-bottom: 25%;
+        font-size: xx-large;
+    }
+
+    .dayShiftButton:hoer {
+        color: white;
+    }
 
     .clock-hand-cap {
         position: absolute;

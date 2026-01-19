@@ -30,7 +30,7 @@
 
 </script>
 
-<audio bind:this={audio} src="/bell.mp3" preload="auto"></audio>
+<audio bind:this={audio} preload="auto"></audio>
 
 {#if enterButtonClicked}
 <FullDisplay model={model} />
