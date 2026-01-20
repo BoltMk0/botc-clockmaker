@@ -45,16 +45,16 @@ export function makeResourceRESTAPI(resourcePath: string, acceptedMimeTypes: str
 
     async function DELETE(){
         // Delete custom bell sound file
-        const filedata = findLocalResource('sounds/final-bell', {checkExists: false});
+        const filedata = findLocalResource(resourcePath, {checkExists: false});
         if(filedata){
             // Delete existing file
             const filepath = filedata.filepath;
             unlinkSync(filepath);
-            console.log("Deleted custom final bell sound at", filepath);
-            return new Response('Custom final bell sound deleted', {status: 200});
+            console.log("Deleted custom resource at", filepath);
+            return new Response('Custom resource deleted', {status: 200});
         } else {
-            console.log("No custom final bell sound to delete");
-            return new Response('No custom final bell sound to delete', {status: 200});
+            console.log("No custom resource to delete");
+            return new Response('No custom resource to delete', {status: 200});
         }
     }
 
