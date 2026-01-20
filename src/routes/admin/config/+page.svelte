@@ -69,8 +69,8 @@
 
     function resetResource(name: string){
         if(confirm("Are you sure you want to reset to the default " + name + "?")){
-            fetch(`/resources/${name}/reset`, {
-                method: 'POST'
+            fetch(`/resources/${name}`, {
+                method: 'DELETE'
             }).then(response => {
                 if (!response.ok) {
                     throw new Error('Failed to reset bell ring sound');
