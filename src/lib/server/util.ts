@@ -1,4 +1,4 @@
-import { redirect } from "@sveltejs/kit";
+import { error, redirect } from "@sveltejs/kit";
 import { findLocalResource, saveLocalResource } from "./localfiles";
 import { readFileSync, unlinkSync } from "node:fs";
 
@@ -7,11 +7,12 @@ export function makeResourceRESTAPI(resourcePath: string, acceptedMimeTypes: str
         console.log(`GET resource ${resourcePath} requested`);
         const filedata = findLocalResource(resourcePath);
         if(!filedata){
-            console.log("No custom final bell sound found, redirecting to default");
             if(redirectIfNotFound){
+                console.log(`Resource ${resourcePath} not found, redirecting to ${redirectIfNotFound}`);
                 return redirect(301, redirectIfNotFound);
             } else {
-                return new Response('Resource not found', {status: 404});
+                console.log(`Resource ${resourcePath} not found, returning 404`);
+                return error(404, 'Resource not found');
             }
         }
     
@@ -29,16 +30,19 @@ export function makeResourceRESTAPI(resourcePath: string, acceptedMimeTypes: str
         const formData = await request.formData();
         const file = formData.get('file') as File;
         if(!file){
-            return new Response('No file uploaded', {status: 400});
+            console.error('No file uploaded in POST request');
+            return error(400, 'No file uploaded');
         }
         if(!acceptedMimeTypes.includes(file.type)){
-            return new Response('Uploaded file has an unexpected MIME type', {status: 400});
+            const message = `Uploaded ${resourcePath} file has unacceptable MIME type: ${file.type}. Expected one of: ${acceptedMimeTypes.join(', ')}`;
+            console.error(message);
+            return error(400, message);
         }
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
     
         const localFilepath = saveLocalResource(resourcePath, buffer, file.type);
-        console.log("Saved uploaded bell sound to", localFilepath);
+        console.log(`Saved uploaded resource ${resourcePath} (${file.type}) to`, localFilepath);
         
         return new Response('File uploaded successfully', {status: 200});
     }
