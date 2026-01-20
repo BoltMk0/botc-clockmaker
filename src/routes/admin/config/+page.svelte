@@ -132,6 +132,7 @@
                     </td>
                 </tr>
             </tbody>
+        </table>
     </div>
     <div class="panel">
         <h3>Timer Options</h3>

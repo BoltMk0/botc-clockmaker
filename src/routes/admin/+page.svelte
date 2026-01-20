@@ -1,6 +1,6 @@
 <script lang="ts">
     import { ClientModel } from "$lib/client/model";
-    import ClockSetter from "$lib/common/ClockSetter.svelte";
+    import ClockSetter from "./ClockSetter.svelte";
     import FullDisplay from "$lib/common/FullDisplay.svelte";
     import { commsStatusToColor } from "$lib/common/util";
     import { onMount } from "svelte";

@@ -40,7 +40,7 @@ getBOTCTClockInstance().on('dayChanged', (dayInfo: {day: number; max: number}) =
 getBOTCTClockInstance().on('bellRingRequest', () => {
     const message: BellRingRequestMessage = {
         type: 'bellRingRequest',
-        atTime: Date.now() + 500 // add slight delay to account for network latency
+        atTime: Date.now() + 200 // add slight delay to account for network latency
     };
     broadcast(message);
 });

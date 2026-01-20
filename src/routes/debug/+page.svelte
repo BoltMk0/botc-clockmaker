@@ -1,7 +1,7 @@
 <script lang="ts">
     import { ClientModel } from "$lib/client/model";
     import FullDisplay from "$lib/common/FullDisplay.svelte";
-    import OffsetDisplay from "$lib/common/OffsetDisplay.svelte";
+    import OffsetDisplay from "./OffsetDisplay.svelte";
     import { onMount } from "svelte";
 
     let audio: HTMLAudioElement;

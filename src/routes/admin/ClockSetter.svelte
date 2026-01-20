@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import type { Config, TimerOption } from "./config";
-    import { formatTime } from "./util";
+    import type { Config, TimerOption } from "$lib/common/config";
+    import { formatTime } from "$lib/common/util";
     import type { ClientModel } from "$lib/client/model";
     export let model: ClientModel;
 
@@ -29,29 +29,75 @@
         }).catch(error => {
             console.error("Error fetching config:", error);
         });
-    })
+    });
+
+
+    function onStop(){
+        fetch('/admin/api/clock/stop', {
+            method: 'POST'
+        }).then(response => {
+            if (!response.ok) {
+                alert("Failed to stop clock");
+                throw new Error('Failed to stop clock');
+            }
+            console.log("Clock stopped");
+        }).catch(error => {
+            console.error("Error stopping clock:", error);
+        });
+    }
+
+    function onStart(){
+        fetch('/admin/api/clock/start', {
+            method: 'POST'
+        }).then(response => {
+            if (!response.ok) {
+                alert("Failed to start clock");
+                throw new Error('Failed to start clock');
+            }
+            console.log("Clock started");
+        }).catch(error => {
+            console.error("Error starting clock:", error);
+        });
+    }
+
+    function onBell(){
+        fetch('/admin/api/clock/ringBell', {
+            method: 'POST'
+        }).then(response => {
+            if (!response.ok) {
+                alert("Failed to ring bell");
+                throw new Error('Failed to ring bell');
+            }
+            console.log("Bell rung");
+        }).catch(error => {
+            console.error("Error ringing bell:", error);
+        });
+    }
+
+    function setupClock(option: TimerOption){
+        fetch('/admin/api/clock/setup', {
+            method: 'POST',
+            body: JSON.stringify({
+                duration: option.duration,
+                ringBellAfter: option.ringBellWhenRemaining === null ? null : option.duration - option.ringBellWhenRemaining
+            }),
+            headers: {'Content-Type': 'application/json'}
+        }).then(response => {
+            if (!response.ok) {
+                alert("Failed to setup clock");
+                throw new Error('Failed to setup clock');
+            }
+            console.log("Clock setup successfully");
+        }).catch(error => {
+            console.error("Error setting up clock:", error);
+        });
+    }
     
 </script>
 <div class="clock-setter-main">
     <div class="button-container">
         {#each options as option, index}
-            <button on:click={() => {
-                fetch('/admin/api/clock/setup', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        duration: option.duration,
-                        ringBellAfter: option.ringBellWhenRemaining === null ? null : option.duration - option.ringBellWhenRemaining
-                    }),
-                    headers: {'Content-Type': 'application/json'}
-                }).then(response => {
-                    if (!response.ok) {
-                        throw new Error('Failed to setup clock');
-                    }
-                    console.log("Clock setup successfully");
-                }).catch(error => {
-                    console.error("Error setting up clock:", error);
-                });
-            }} disabled={$state === 'counting'} style="grid-column: span {(index === options.length - 1 && options.length%2 === 1) ? 2 : 1};">
+            <button on:click={() => setupClock(option)} disabled={$state === 'counting'} style="grid-column: span {(index === options.length - 1 && options.length%2 === 1) ? 2 : 1};">
                 <div>
                     <div class="timer-icons" style="font-size: {option.label ? '0.8em' : '1em'};">
                         <div>
@@ -76,49 +122,9 @@
     </div>
     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; font-size: 1em; gap: 5px;">
         <a class="button-style" id="edit-button" href="/admin/config">Config</a>
-        <button class="stop-btn" on:click={() => {
-            fetch('/admin/api/clock/stop', {
-                method: 'POST'
-            }).then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to stop clock');
-                }
-                console.log("Clock stopped");
-            }).catch(error => {
-                console.error("Error stopping clock:", error);
-            });
-        }} disabled={$state !== 'counting'}>
-            Stop
-        </button>
-        <button class="start-btn" on:click={() => {
-            fetch('/admin/api/clock/start', {
-                method: 'POST'
-            }).then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to start clock');
-                }
-                console.log("Clock started");
-            }).catch(error => {
-                console.error("Error starting clock:", error);
-            });
-        }} disabled={$state !== 'idle'}>
-            Start
-        </button>
-
-        <button class="ring-bell-btn" on:click={() => {
-            fetch('/admin/api/clock/ringBell', {
-                method: 'POST'
-            }).then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to ring bell');
-                }
-                console.log("Bell rung");
-            }).catch(error => {
-                console.error("Error ringing bell:", error);
-            });
-        }}>
-            Ring
-        </button>
+        <button class="stop-btn" on:click={onStop} disabled={$state !== 'counting'}>Stop</button>
+        <button class="start-btn" on:click={onStart} disabled={$state !== 'idle'}>Start</button>
+        <button class="ring-bell-btn" on:click={onBell}>Ring</button>
     </div>
 </div>
 
