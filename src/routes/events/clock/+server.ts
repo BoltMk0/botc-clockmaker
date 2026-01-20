@@ -6,10 +6,7 @@ import { v7 } from 'uuid';
 
 export type emit_cb = (eventName: string, data: string)=>Unsafe<void, Error>;
 
-console.log("Setting up SSE for clock...");
-
 var emitters = new Map<string, emit_cb>();
-
 
 function broadcast(message: WSMessage) {
     // console.log(`Broadcasting ${message.type} message to ${emitters.size} clients.`);
@@ -51,8 +48,6 @@ getBOTCTClockInstance().on('bellRingRequest', () => {
 setInterval(()=>{
     broadcast({type: 'sync', serverTime: Date.now() } as WSMessage);
 }, 500);
-
-console.log("Hello from SSE server endpoint");
 
 function sendSyncBurst(emit: emit_cb, count: number, interval: number = 100) {
     const {error} = emit('message', JSON.stringify({type: 'sync', serverTime: Date.now() } as WSMessage));

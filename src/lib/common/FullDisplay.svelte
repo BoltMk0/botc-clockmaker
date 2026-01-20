@@ -22,8 +22,6 @@
 
     $: progress = 1- $clock_info.cur / $clock_info.max;
 
-    $: console.log("Clock:", $clock_info);
-
 
     // On mount, check the screen dimentions and adjust size accordingly
     import { onMount } from "svelte";
