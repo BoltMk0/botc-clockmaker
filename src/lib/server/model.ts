@@ -7,11 +7,7 @@ console.log("Loading BOTCTClock model...");
 
 export class BOTCTClock extends EventEmitter {
     config: Config
-    running: boolean = false;
-    startTime: number = 0;
-    duration: number = 0;
-    ringBellAfter: number|null = null;
-
+    timer_info: {startTime: number|null; duration: number; ringBellAfter: number|null}|null = null;
     day_info: {day: number; max: number} = {day: 0, max: 8};
 
     constructor(){
@@ -32,36 +28,39 @@ export class BOTCTClock extends EventEmitter {
         return super.on(event, listener);
     }
 
+    private running(){
+        return this.timer_info !== null && this.timer_info.startTime !== null;
+    }
+
 
     getState(): ClockMessage {
         return {
             type: 'clock',
-            running: this.running,
-            startTime: this.startTime,
-            duration: this.duration,
-            ringBellAfter: this.ringBellAfter
+            running: this.running(),
+            startTime: this.timer_info?.startTime ?? 0,
+            duration: this.timer_info?.duration ?? 0,
+            ringBellAfter: this.timer_info?.ringBellAfter ?? null
         };
     }
 
     setup(duration: number, {ringBellAfter = null}: {ringBellAfter?: number|null} = {}) {
         console.log("Setting up clock...", {duration, ringBellAfter});
-        this.running = false;
-        this.startTime = Date.now();        
-        this.duration = duration;
-        this.ringBellAfter = ringBellAfter;
+        this.timer_info = {startTime: null, duration, ringBellAfter};
         this.emit('stateChanged', this.getState());
     }
 
     start() {
-        if (this.running) return;
-        this.running = true;
-        this.startTime = Date.now();
+        if (this.running()) return;
+        if( this.timer_info === null ) {
+            throw new Error("Cannot start clock that has not been set up.");
+        }
+        this.timer_info.startTime = Date.now();
         this.emit('stateChanged', this.getState());
     }
 
     stop() {
-        if (!this.running) return;
-        this.running = false;
+        if (!this.running() || this.timer_info === null) return;
+        this.timer_info.startTime = null;
         this.emit('stateChanged', this.getState());
     }
 
