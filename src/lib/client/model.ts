@@ -77,7 +77,6 @@ class BellRinger {
             if(this.audioPlayer){
                 console.log("Bell sound ended, resetting audio player.");
                 this.audioPlayer.currentTime = 0;
-                // this.audioPlayer.load();
             }
         });
     }
@@ -121,36 +120,26 @@ class BellRinger {
     }
 };
 
+type SSEConnectionManagerEventHandlerType = {onMessage?: (msg: WSMessage)=>void};
+class SSEConnectionManager{
+    readonly sourceUrl: string;
+    comms_state: Writable<CommsConnectionStatus> = writable('disconnected');
+    private eventHandlers: SSEConnectionManagerEventHandlerType;
 
-export class ClientModel {
     private sse_connection: ReturnType<typeof source> | null = null;
     private sse_data_store: Readable<ClockMessage|null> | null = null;
     private sse_store_unsubscribe: (()=>void) | null = null;
     private sseReconnectAttempts: number = 0;
     private sseReconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
     private lifecycleEventsBound: boolean = false;
-
-    state: Writable<'counting' | 'idle'> = writable('idle');
-    comms_state: Writable<CommsConnectionStatus> = writable('disconnected');
-    private tickTimeout: ReturnType<typeof setTimeout>|null = null; 
-    private startTime: BOTCTimeType|null = null;
-    private duration: number|null = null;
-    private ringBellAfter: number|null = null;
     
-    deltaTimeManager: ServerDeltaTimeManager = new ServerDeltaTimeManager();
-    finalBellRinger?: BellRinger;
-    reminderBellRinger?: BellRinger;
+    constructor(sourceUrl: string, eventHandlers: SSEConnectionManagerEventHandlerType = {}){
+        this.sourceUrl = sourceUrl;
+        this.eventHandlers = eventHandlers;
 
-    day_info: Writable<{day: number; max: number}> = writable({day: 0, max: 8});
-    clock_info: Writable<{cur: number; max: number}> = writable({cur: 0, max:60});
-
-    constructor(){
-
-    }
-
-    init(audioPlayers: {finalBellAudioPlayer: HTMLAudioElement, reminderBellAudioPlayer: HTMLAudioElement}|undefined = undefined) {
         const self = this;
-        this.sse_connection = source('/events/clock', {
+        this.sse_connection = source(this.sourceUrl, {
             close({ connect }) {
                 console.log('SSE closed; reconnecting...');
                 self.comms_state.set('connecting');
@@ -174,12 +163,9 @@ export class ClientModel {
         });
         this.sse_data_store = this.sse_connection.select('message').json<ClockMessage>();
         this.sse_store_unsubscribe = this.sse_data_store.subscribe((value) => {
-            if(value) this.handleClockMessage(value);
+            if(value && this.eventHandlers.onMessage) this.eventHandlers.onMessage(value);
         });
-        if(audioPlayers) {
-            this.finalBellRinger = new BellRinger('final-bell', audioPlayers.finalBellAudioPlayer, this.deltaTimeManager);
-            this.reminderBellRinger = new BellRinger('reminder-bell', audioPlayers.reminderBellAudioPlayer, this.deltaTimeManager);
-        }
+
 
         // Bind lifecycle events once to handle mobile background/foreground transitions
         if(!this.lifecycleEventsBound){
@@ -205,6 +191,18 @@ export class ClientModel {
         }, delay);
     }
 
+    close(){
+        console.log("Closing SSEConnectionManager connections");
+        if(this.sse_connection)
+            this.sse_connection.close();
+        if(this.sse_store_unsubscribe)
+            this.sse_store_unsubscribe();
+        if(this.sseReconnectTimer){
+            clearTimeout(this.sseReconnectTimer);
+            this.sseReconnectTimer = null;
+        }
+    }
+
     private bindLifecycleEvents(){
         // When page becomes visible again, force a reconnect to recover from suspended connections
         document.addEventListener('visibilitychange', () => {
@@ -226,6 +224,43 @@ export class ClientModel {
             this.sseReconnectAttempts = 0;
             this.sse_connection?.close();
         });
+    }
+}
+
+
+export class ClientModel {
+    state: Writable<'counting' | 'idle'> = writable('idle');
+    private tickTimeout: ReturnType<typeof setTimeout>|null = null; 
+    private startTime: BOTCTimeType|null = null;
+    private duration: number|null = null;
+    private ringBellAfter: number|null = null;
+    sse_connection_manager: SSEConnectionManager|null = null;
+    
+    deltaTimeManager: ServerDeltaTimeManager = new ServerDeltaTimeManager();
+    finalBellRinger?: BellRinger;
+    reminderBellRinger?: BellRinger;
+
+    day_info: Writable<{day: number; max: number}> = writable({day: 0, max: 8});
+    clock_info: Writable<{cur: number; max: number}> = writable({cur: 0, max:60});
+
+    constructor(){
+
+    }
+
+    init(audioPlayers: {finalBellAudioPlayer: HTMLAudioElement, reminderBellAudioPlayer: HTMLAudioElement}|undefined = undefined) {
+        const self = this;
+        if(this.sse_connection_manager === null){
+            this.sse_connection_manager = new SSEConnectionManager('/events/clock', {
+                onMessage(msg: WSMessage) {
+                    self.handleClockMessage(msg);
+                }
+            });
+        }
+
+        if(audioPlayers) {
+            this.finalBellRinger = new BellRinger('final-bell', audioPlayers.finalBellAudioPlayer, this.deltaTimeManager);
+            this.reminderBellRinger = new BellRinger('reminder-bell', audioPlayers.reminderBellAudioPlayer, this.deltaTimeManager);
+        }
     }
 
     private clearTickTimeout() {
@@ -322,7 +357,7 @@ export class ClientModel {
 
     close(){
         console.log("Closing ClientModel connections");
-        if(this.sse_connection)
-            this.sse_connection.close();
+        this.sse_connection_manager?.close();
+        this.clearTickTimeout();
     }
 }

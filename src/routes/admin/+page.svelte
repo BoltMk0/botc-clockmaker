@@ -3,8 +3,8 @@
     import ClockSetter from "./ClockSetter.svelte";
     import FullDisplay from "$lib/common/FullDisplay/FullDisplay.svelte";
     import { commsStatusToColor } from "$lib/common/util";
-    import { onMount } from "svelte";
-    import { get } from "svelte/store";
+    import { onDestroy, onMount } from "svelte";
+    import { get, type Unsubscriber } from "svelte/store";
 
     let clockData = {
         cur: 0,
@@ -15,12 +15,20 @@
     let audio2: HTMLAudioElement;
     let model: ClientModel = new ClientModel();
 
-    $: commsState = model.comms_state;
-    $: buttonColor = commsStatusToColor($commsState);
+    let commsStateUnsubscriber: Unsubscriber | undefined = undefined;
+    let buttonColor: string = "red";
+
     $: day_info = model.day_info;
 
     onMount(()=>{
         model.init({finalBellAudioPlayer: audio, reminderBellAudioPlayer: audio2});
+        commsStateUnsubscriber = model.sse_connection_manager?.comms_state.subscribe(value => {
+            buttonColor = commsStatusToColor(value);
+        });
+    });
+
+    onDestroy(()=>{
+        commsStateUnsubscriber?.();
     });
 
     function bump_day(delta: number) {
