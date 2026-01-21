@@ -4,6 +4,11 @@
     import { formatTime } from "$lib/common/util";
     import type { ClientModel } from "$lib/client/model";
     export let model: ClientModel;
+    import bell_and_waves from '$lib/assets/bell.and.waves.left.and.right.png';
+    import gearshape from '$lib/assets/gearshape.fill.png';
+    import timer from '$lib/assets/timer.png';
+    import bell from '$lib/assets/bell.fill.png';
+    import bell_slash from '$lib/assets/bell.slash.png';
 
     $: state = model.state;
 
@@ -101,15 +106,15 @@
                 <div>
                     <div class="timer-icons" style="font-size: {option.label ? '0.8em' : '1em'};">
                         <div>
-                            <img class="timer-icon-img" src="/icons/timer.png" alt="Timer"/>
+                            <img class="timer-icon-img" src="{timer}" alt="Timer"/>
                             {formatTime(option.duration)}
                         </div>
                         <div>
                             {#if option.ringBellWhenRemaining !== null}
-                            <img class="timer-icon-img" src="/icons/bell.fill.png" alt="Bell"/>
+                            <img class="timer-icon-img" src="{bell}" alt="Bell"/>
                             {formatTime(option.ringBellWhenRemaining)}
                             {:else}
-                            <img class="timer-icon-img" src="/icons/bell.slash.png" alt="No bell"/>
+                            <img class="timer-icon-img" src="{bell_slash}" alt="No bell"/>
                             {/if}
                         </div>
                     </div>
@@ -120,15 +125,25 @@
             </button>
         {/each}
     </div>
-    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; font-size: 1em; gap: 5px;">
-        <a class="button-style" id="edit-button" href="/admin/config">Config</a>
+    <div style="display: grid; grid-template-columns: 2fr 3fr 3fr 2fr; font-size: 1em; gap: 5px;">
+        <a class="button-style" id="edit-button" href="/admin/config">
+            <img class="button-icon-img" src="{gearshape}" alt="Config"/>
+        </a>
         <button class="stop-btn" on:click={onStop} disabled={$state !== 'counting'}>Stop</button>
         <button class="start-btn" on:click={onStart} disabled={$state !== 'idle'}>Start</button>
-        <button class="ring-bell-btn" on:click={onBell}>Ring</button>
+        <button class="ring-bell-btn" on:click={onBell}>
+            <img class="button-icon-img" src="{bell_and_waves}" alt="Ring Bell"/>
+        </button>
     </div>
 </div>
 
 <style>
+
+    .button-icon-img {
+        height: 1.2em;
+        object-fit: contain;
+    }
+
     #edit-button {
         text-decoration: none;
         display: flex;

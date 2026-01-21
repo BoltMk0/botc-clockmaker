@@ -1,11 +1,13 @@
 <script lang="ts">
     import {formatTime, getSkyColor} from "$lib/common/util";
     import type { Readable } from "svelte/store";
+    import clockhand from '$lib/assets/clockhand.png';
 
+    
     export let clock_info: Readable<{cur: number; max: number}>;
     export let size: number = 700;
     export let onTimeShift: ((delta: number)=>void) | undefined = undefined;
-
+    
     $: rounded_cur = Math.round($clock_info.cur);
 
     // Calculate the rotation angle (0 = right/max, 180 = left/min)
@@ -85,7 +87,7 @@
      </div>
     <div class="dial-container" style="transform: translate(-50%, 6.5%);">
         <div class="dial" style="transform: rotate({rotationAngle}deg);">
-            <img src="/clockhand.png" alt="clock hand" class="dial-needle" style="transform: rotate(-90deg);"/>
+            <img src="{clockhand}" alt="clock hand" class="dial-needle" style="transform: rotate(-90deg);"/>
         </div>
     </div>
 </div>
@@ -217,8 +219,8 @@
         color: #0009;
         position: absolute;
         left: 50%;
-        transform: translateX(-50%);
-        top: 30%;
+        top: 50%;
+        transform: translate(-50%, -50%);
         text-shadow: #1005 1px 3px 4px;
     }
 

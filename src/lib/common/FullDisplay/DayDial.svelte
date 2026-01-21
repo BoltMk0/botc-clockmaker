@@ -1,7 +1,7 @@
 <script lang="ts">
     import type { Readable } from "svelte/store";
-    import { getSkyColor } from "./util";
-
+    import { getSkyColor } from "$lib/common/util";
+    import clockhand from '$lib/assets/clockhand3.png';
     export let day_info: Readable<{ day: number; max: number }>;
     $: day = $day_info.day;
     $: max = $day_info.max;
@@ -41,7 +41,7 @@
      </div>
     <div class="dial-container" style="transform: translate(-50%, -6.5%);">
         <div class="dial" style="transform: rotate({rotationAngle}deg);">
-            <img src="/clockhand3.png" alt="clock hand" class="dial-needle" style="transform: rotate(90deg);"/>
+            <img src="{clockhand}" alt="clock hand" class="dial-needle" style="transform: rotate(90deg);"/>
         </div>
     </div>
 
@@ -153,8 +153,8 @@
         color: #FED;
         position: absolute;
         left: 50%;
-        transform: translateX(-50%);
-        top: 30%;
+        top: 50%;
+        transform: translate(-50%, -50%);
         text-shadow: #1005 1px 3px 4px;
     }
 

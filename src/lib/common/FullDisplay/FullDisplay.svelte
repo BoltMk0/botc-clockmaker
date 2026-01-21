@@ -2,11 +2,12 @@
     import type { ClientModel } from "$lib/client/model";
     import ClockDisplay from "./ClockDisplay.svelte";
     import DayDial from "./DayDial.svelte";
-    import { getSkyColor } from "./util";
+    import { getSkyColor } from "$lib/common/util";
 
     export let model: ClientModel;
 
     export let size: number = 700;
+    export let fontScale: number = 1;
 
     export let buttonColor: string = "black";
     export let onDayShift: ((delta: number)=>void) | undefined = undefined;
@@ -47,7 +48,7 @@
 </script>
 
 <div class="full-display-main">
-    <div class="container" style="font-size: {adjSize/15}px; width: {adjSize}px; height: {adjSize}px; padding: {border_radius}px; background: radial-gradient(closest-side at center, #0000 0px, #0000 {adjSize/2-border_radius}px, #000F {adjSize/2-border_radius}px, {getSkyColor(progress, 1, 1, 0.8)} {adjSize/2-border_radius*0.85}px, #223 {adjSize/2-border_radius*0.5}px);">
+    <div class="container" style="font-size: {fontScale*adjSize/15}px; width: {adjSize}px; height: {adjSize}px; padding: {border_radius}px; background: radial-gradient(closest-side at center, #0000 0px, #0000 {adjSize/2-border_radius}px, #000F {adjSize/2-border_radius}px, {getSkyColor(progress, 1, 1, 0.8)} {adjSize/2-border_radius*0.85}px, #223 {adjSize/2-border_radius*0.5}px);">
         <ClockDisplay clock_info={model.clock_info} size={adjSize-border_radius*2}/>
         <DayDial day_info={model.day_info} clockData={model.clock_info} size={adjSize-border_radius*2}/>            
         <div class="shiftButtonsTopContainer">
