@@ -1,90 +1,87 @@
 <script lang="ts">
-    import { ClientModel } from "$lib/client/model";
-    import ClockSetter from "./ClockSetter.svelte";
-    import FullDisplay from "$lib/common/FullDisplay/FullDisplay.svelte";
-    import { commsStatusToColor } from "$lib/common/util";
-    import { onDestroy, onMount } from "svelte";
-    import { get, type Unsubscriber } from "svelte/store";
+    import { goto, invalidateAll } from '$app/navigation';
+    import type { Config } from '$lib/common/config.js';
+    import { v7 } from 'uuid';
 
-    let clockData = {
-        cur: 0,
-        max: 300
-    };
+    export let data;
 
-    let audio: HTMLAudioElement;
-    let audio2: HTMLAudioElement;
-    let model: ClientModel = new ClientModel();
-
-    let commsStateUnsubscriber: Unsubscriber | undefined = undefined;
-    let buttonColor: string = "red";
-
-    $: day_info = model.day_info;
-
-    onMount(()=>{
-        model.init({finalBellAudioPlayer: audio, reminderBellAudioPlayer: audio2});
-        commsStateUnsubscriber = model.sse_connection_manager?.comms_state.subscribe(value => {
-            buttonColor = commsStatusToColor(value);
-        });
-    });
-
-    onDestroy(()=>{
-        commsStateUnsubscriber?.();
-    });
-
-    function bump_day(delta: number) {
-        let day = get(day_info).day + delta;
-        let max = get(day_info).max;
-
-        if(day > max){
-            max = day;
+    function createNewClock(){
+        let newClockId = v7();
+        const trimmedId = newClockId.trim();
+        if(trimmedId){
+            fetch(`/admin/api/clock/${trimmedId}/create`, {
+                method: 'POST'
+            }).then(response => {
+                if (!response.ok) {
+                    alert("Failed to create clock");
+                    throw new Error('Failed to create clock');
+                }
+                console.log("Clock created");
+                goto(`/admin/${trimmedId}/config`);
+            }).catch(error => {
+                console.error("Error creating clock:", error);
+            });
         }
-
-        day = Math.max(0, day);
-
-        fetch('/admin/api/day', {
-            method: 'POST',
-            body: JSON.stringify({day: day, max: max}),
-            headers: {'Content-Type': 'application/json'}
-        }).then(response => {
-            if (!response.ok) {
-                throw new Error('Failed to set day');
-            }
-            console.log("Day set to", day);
-        }).catch(error => {
-            console.error("Error setting day:", error);
-        });
     }
 
-    function startClock(params: {duration: number, ringBellAfter?: number}) {
-        // send request to start clock
-        
-        fetch('/admin/api/clock/start', {
-            method: 'POST',
-            body: JSON.stringify({
-                duration: params.duration,
-                ringBellAfter: params.ringBellAfter
-            }),
-            headers: {'Content-Type': 'application/json'}
-        }).then(response => {
-            if (!response.ok) {
-                throw new Error('Failed to start clock');
-            }
-            console.log("Clock started");
-        }).catch(error => {
-            console.error("Error starting clock:", error);
-        });
+    function deleteClock(clockData: {id: string, config: Config}){
+        if(confirm(`Are you sure you want to delete clock "${clockData.config.teamName ?? clockData.id}"? This action cannot be undone.`)){
+            fetch(`/admin/api/clock/${clockData.id}/delete`, {
+                method: 'POST'
+            }).then(response => {
+                if (!response.ok) {
+                    alert("Failed to delete clock");
+                    throw new Error('Failed to delete clock');
+                }
+                console.log("Clock deleted");
+                invalidateAll();
+                goto('/admin/');
+            }).catch(error => {
+                console.error("Error deleting clock:", error);
+            });
+        }
     }
 
 </script>
-<audio bind:this={audio} preload="auto"></audio>
-<audio bind:this={audio2} preload="auto"></audio>
 
-{#if model}
-<div style="width: min-content; margin: auto;">
-    <FullDisplay {model} size={300} buttonColor={buttonColor} onDayShift={(delta)=>{bump_day(delta)}}/>
-    <div style="max-width: 400px;">
-        <ClockSetter {model}/>
-    </div>
+<div style="display: flex; flex-direction: column; gap: 10px;">
+    <table>
+        <tbody>
+            {#each data.clocks as clockData(clockData.id)}
+            <tr>
+                <td><a class="button-style" style="min-width: 10em; border-color: {clockData.config.theme.rimColor}" href="/admin/{clockData.id}">{clockData.config.teamName ?? clockData.id}</a></td>
+                <td><button class="button-style error" on:click={() => deleteClock(clockData)} disabled={clockData.id==="default"}>Delete</button></td>
+            </tr>
+            {/each}
+            <tr>
+                <td colspan="2">
+                    <button class="button-style highlight" on:click={createNewClock}>
+                        Create New Clock
+                    </button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <a class="button-style" href="/admin/mixer">
+        Mixer
+    </a>
 </div>
 
-{/if}
+<style>
+    table, td, th {
+        border-collapse: collapse;
+    }
+    td, th {
+        padding: 2px;
+    }
+
+    td>.button-style {
+        display: block;
+        width: 100%;
+    }
+
+    a.button-style {
+        border: 2px solid #0000;
+    }
+</style>

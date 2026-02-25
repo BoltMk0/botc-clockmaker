@@ -85,6 +85,18 @@ export function getExtensionForMimeType(mimeType: string): string {
     return '';
 }
 
+export function fileFitsMimeType(filename: string, mimeType: string): boolean {
+    const ext = filename.substring(filename.lastIndexOf('.'));
+    const fileMimeType = getMimeTypeForExtension(ext);
+    
+    // Support wildcard mime types like "audio/*"
+    if(mimeType.endsWith('/*')){
+        const typePrefix = mimeType.split('/')[0];
+        return fileMimeType.startsWith(typePrefix + '/');
+    }
+    return fileMimeType === mimeType;
+}
+
 export function getMimeTypeForFilename(filename: string): string {
     const ext = filename.substring(filename.lastIndexOf('.'));
     return getMimeTypeForExtension(ext);

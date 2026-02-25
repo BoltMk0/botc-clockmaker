@@ -1,9 +1,13 @@
 <script lang="ts">
     import { goto, invalidateAll, refreshAll } from '$app/navigation';
+    import { page } from '$app/state';
 
     export let data;
 
+    const id = page.params.clockid;
+
     let config = data.config;
+    $: if(config.teamName === null) config.teamName = page.params.clockid!;
 
     let newFinalBellRingSoundFile: File | null = null;
     let newReminderBellSoundFile: File | null = null;
@@ -49,7 +53,7 @@
             await saveBellSound(newReminderBellSoundFile, 'reminder-bell');
         }
         
-        fetch('/admin/api/config', {
+        fetch(`/admin/api/clock/${id}/config`, {
             method: 'POST',
             body: JSON.stringify(config),
             headers: {'Content-Type': 'application/json'}
@@ -58,7 +62,7 @@
                 throw new Error('Failed to save config');
             }
             console.log("Config saved successfully");
-            goto('/admin').then(() => {
+            goto(`/admin/${id}`).then(() => {
                 invalidateAll();
             });
         }).catch(error => {
@@ -78,7 +82,7 @@
                 alert("Bell ring sound reset to default successfully");
                 newFinalBellRingSoundFile = null;
                 const thisPage = window.location.pathname;
-                goto('/').then(() => {
+                goto(`/admin/${id}`).then(() => {
                     goto(thisPage);
                 });
             }).catch(error => {
@@ -91,6 +95,34 @@
 
 
 <div class="main">
+    <div class="panel">
+        <h2>General</h2>
+        <table>
+            <tbody>
+                <tr>
+                    <td>Clock Name</td>
+                    <td><input type="text" bind:value={config.teamName} placeholder="Optional name for the clock"/></td>
+                </tr>
+                <tr>
+                    <td>Theme</td>
+                    <td>
+                        <table>
+                            <tbody>
+                                <tr>
+                                    <td>Rim Color</td>
+                                    <td><input type="color" bind:value={config.theme.rimColor} /></td>
+                                </tr>
+                                <tr>
+                                    <td>Tick Color</td>
+                                    <td><input type="color" bind:value={config.theme.tickColor} /></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
     <div class="panel">
         <h2>Sound Effects</h2>
         <table>
@@ -168,7 +200,7 @@
         </table>
     </div>
     <div class="panel" style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 5px;">
-        <a class="button-style" href="/admin">Back</a>
+        <a class="button-style" href="/admin/{page.params.clockid}">Back</a>
         <button class="button-style" onclick={onSave}>Save</button>
     </div>
 </div>

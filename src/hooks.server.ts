@@ -1,5 +1,4 @@
-import { getBOTCTClockInstance } from "$lib/server/model";
+import { getBOTCTClockInstanceManager } from "$lib/server/model";
 
-getBOTCTClockInstance();
-
+const manager = getBOTCTClockInstanceManager();
 

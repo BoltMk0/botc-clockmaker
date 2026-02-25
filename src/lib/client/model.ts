@@ -1,4 +1,5 @@
 import type { BellRingRequestMessage, ClockMessage, DayMessage, SyncMessage, WSMessage } from "$lib/common/comms";
+import { getDefaultConfig, type Config } from "$lib/common/config";
 import { get, writable, type Readable, type Writable } from "svelte/store";
 import { source } from "sveltekit-sse";
 
@@ -114,9 +115,15 @@ class BellRinger {
         if(this.audioPlayer.currentTime !== 0){
             this.audioPlayer.currentTime = 0;
         }
-        this.audioPlayer.play().catch((error) => {
-            console.error("Error playing bell sound:", error);
-        });
+
+        // Keep success path separate so we don't log a ring if autoplay policy blocked playback.
+        this.audioPlayer.play()
+            .then(() => {
+                console.log("Ringing bell (url=", this.audioPlayer.src, ")");
+            })
+            .catch((error) => {
+                console.error("Error playing bell sound:", error);
+            });
     }
 };
 
@@ -125,7 +132,7 @@ class SSEConnectionManager{
     readonly sourceUrl: string;
     comms_state: Writable<CommsConnectionStatus> = writable('disconnected');
     private eventHandlers: SSEConnectionManagerEventHandlerType;
-
+    private closing: boolean = false;
     private sse_connection: ReturnType<typeof source> | null = null;
     private sse_data_store: Readable<ClockMessage|null> | null = null;
     private sse_store_unsubscribe: (()=>void) | null = null;
@@ -141,6 +148,10 @@ class SSEConnectionManager{
         const self = this;
         this.sse_connection = source(this.sourceUrl, {
             close({ connect }) {
+                if(self.closing){
+                    console.log('SSE connection closed by client, not reconnecting.');
+                    return;
+                }
                 console.log('SSE closed; reconnecting...');
                 self.comms_state.set('connecting');
                 connect();
@@ -193,6 +204,7 @@ class SSEConnectionManager{
 
     close(){
         console.log("Closing SSEConnectionManager connections");
+        this.closing = true;
         if(this.sse_connection)
             this.sse_connection.close();
         if(this.sse_store_unsubscribe)
@@ -228,6 +240,13 @@ class SSEConnectionManager{
 }
 
 
+export type ClientModelListenerType = {
+    onReminderBellRing?: () => void;
+    onFinalBellRing?: () => void;
+    onBellRingRequest?: () => void;
+    onClockReset?: () => void;
+}
+
 export class ClientModel {
     state: Writable<'counting' | 'idle'> = writable('idle');
     private tickTimeout: ReturnType<typeof setTimeout>|null = null; 
@@ -243,14 +262,16 @@ export class ClientModel {
     day_info: Writable<{day: number; max: number}> = writable({day: 0, max: 8});
     clock_info: Writable<{cur: number; max: number}> = writable({cur: 0, max:60});
 
-    constructor(){
+    private listeners: Set<ClientModelListenerType> = new Set();
+
+    constructor(public readonly clockId: string = "default", public readonly config: Config = getDefaultConfig()){
 
     }
 
     init(audioPlayers: {finalBellAudioPlayer: HTMLAudioElement, reminderBellAudioPlayer: HTMLAudioElement}|undefined = undefined) {
         const self = this;
         if(this.sse_connection_manager === null){
-            this.sse_connection_manager = new SSEConnectionManager('/events/clock', {
+            this.sse_connection_manager = new SSEConnectionManager(`/events/clock/${this.clockId}`, {
                 onMessage(msg: WSMessage) {
                     self.handleClockMessage(msg);
                 }
@@ -279,12 +300,16 @@ export class ClientModel {
             const remaining = this.duration - elapsed;
             if(remaining <= 0) {
                 this.state.set('idle');
-                this.finalBellRinger?.ringBell();
-                this.clock_info.set({cur: 0, max: this.duration});
+                if(remaining > -2000) { // If over 2 seconds late, assume clock was reset and don't ring bell
+                    this.finalBellRinger?.ringBell();
+                    this.listeners.forEach(listener => listener.onFinalBellRing?.());
+                    this.clock_info.set({cur: 0, max: this.duration});
+                }
             } else {
                 if (this.ringBellAfter !== null) {
                     if (elapsed >= this.ringBellAfter) {
                         this.reminderBellRinger?.ringBell();
+                        this.listeners.forEach(listener => listener.onReminderBellRing?.());
                         this.ringBellAfter = null; // prevent multiple rings
                     }
                 }
@@ -303,7 +328,7 @@ export class ClientModel {
     }
 
     handleClockMessage(message: WSMessage) {
-        console.log("Received clock message:", message);
+        if(message.type !== 'sync') console.log("Received clock message:", message);
         switch(message.type) {
             case 'clock':
                 this.handleClockStateMessage(message as ClockMessage);
@@ -346,12 +371,15 @@ export class ClientModel {
             if(timeToSleep > 0){
                 setTimeout(()=>{
                     this.finalBellRinger?.ringBell();
+                    this.listeners.forEach(listener => listener.onBellRingRequest?.());
                 }, timeToSleep);
             } else {
                 this.finalBellRinger?.ringBell();
+                this.listeners.forEach(listener => listener.onBellRingRequest?.());
             }
         } else {
             this.finalBellRinger?.ringBell();
+            this.listeners.forEach(listener => listener.onBellRingRequest?.());
         }
     }
 
@@ -359,5 +387,16 @@ export class ClientModel {
         console.log("Closing ClientModel connections");
         this.sse_connection_manager?.close();
         this.clearTickTimeout();
+    }
+
+    addListener(listener: ClientModelListenerType) {
+        this.listeners.add(listener);
+        return ()=>{
+            this.listeners.delete(listener);
+        }
+    }
+
+    removeListener(listener: ClientModelListenerType) {
+        this.listeners.delete(listener);
     }
 }

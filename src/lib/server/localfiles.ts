@@ -1,4 +1,4 @@
-import { getExtensionForMimeType, getMimeTypeForExtension, getMimeTypeForFilename } from "$lib/common/util";
+import { fileFitsMimeType, getExtensionForMimeType, getMimeTypeForExtension, getMimeTypeForFilename } from "$lib/common/util";
 import { existsSync, mkdirSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -7,6 +7,29 @@ const DATA_DIR = process.env.DATA_DIR || './data';
 
 if(!existsSync(DATA_DIR)){
     mkdirSync(DATA_DIR, { recursive: true });
+}
+
+export function listLocalResources(relativeDir: string, opts: {mimeType?: string, checkExists?: boolean} = {}): {filepath: string, mimeType: string}[] {
+    const dirpath = path.join(DATA_DIR, relativeDir);
+    if(!existsSync(dirpath)){
+        if(opts.checkExists){
+            throw new Error(`Directory does not exist: ${dirpath}`);
+        }
+        return [];
+    }
+    const files = readdirSync(dirpath);
+    const resources: {filepath: string, mimeType: string}[] = [];
+    for(const file of files){
+        const filepath = path.join(dirpath, file);
+        if(opts.mimeType){
+            if(fileFitsMimeType(file, opts.mimeType)){
+                resources.push({filepath, mimeType: getMimeTypeForFilename(file)});
+            }
+        } else {
+            resources.push({filepath, mimeType: getMimeTypeForFilename(file)});
+        }
+    }
+    return resources;
 }
 
 export function getLocalResource(relativePath: string, opts: {makeDirs?: boolean, checkExists?: boolean, mimeType?: string} = {checkExists: true}): string {
@@ -64,4 +87,9 @@ export function saveLocalResource(relativePathBasename: string, data: Buffer, mi
     const filepath = getLocalResource(relativePathBasename, {makeDirs: true, mimeType, checkExists: false});
     writeFileSync(filepath, data);
     return filepath;
+}
+
+
+export function filepathToResourcePath(filepath: string): string {
+    return path.relative(DATA_DIR, filepath).replace(/\\/g, '/');
 }

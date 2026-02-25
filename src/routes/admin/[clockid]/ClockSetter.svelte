@@ -23,7 +23,7 @@
 
     onMount(()=>{
         console.log("ClockSetter mounted, fetching config...");
-        fetch('/admin/api/config').then(response => {
+        fetch(`/admin/api/clock/${model.clockId}/config`).then(response => {
             if (!response.ok) {
                 throw new Error('Failed to fetch config');
             }
@@ -38,7 +38,7 @@
 
 
     function onStop(){
-        fetch('/admin/api/clock/stop', {
+        fetch(`/admin/api/clock/${model.clockId}/stop`, {
             method: 'POST'
         }).then(response => {
             if (!response.ok) {
@@ -52,7 +52,7 @@
     }
 
     function onStart(){
-        fetch('/admin/api/clock/start', {
+        fetch(`/admin/api/clock/${model.clockId}/start`, {
             method: 'POST'
         }).then(response => {
             if (!response.ok) {
@@ -66,7 +66,7 @@
     }
 
     function onBell(){
-        fetch('/admin/api/clock/ringBell', {
+        fetch(`/admin/api/clock/${model.clockId}/ringBell`, {
             method: 'POST'
         }).then(response => {
             if (!response.ok) {
@@ -80,7 +80,7 @@
     }
 
     function setupClock(option: TimerOption){
-        fetch('/admin/api/clock/setup', {
+        fetch(`/admin/api/clock/${model.clockId}/setup`, {
             method: 'POST',
             body: JSON.stringify({
                 duration: option.duration,
@@ -126,7 +126,7 @@
         {/each}
     </div>
     <div style="display: grid; grid-template-columns: 2fr 3fr 3fr 2fr; font-size: 1em; gap: 5px;">
-        <a class="button-style" id="edit-button" href="/admin/config">
+        <a class="button-style" id="edit-button" href="/admin/{model.clockId}/config">
             <img class="button-icon-img" src="{gearshape}" alt="Config"/>
         </a>
         <button class="stop-btn" on:click={onStop} disabled={$state !== 'counting'}>Stop</button>

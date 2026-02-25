@@ -1,9 +1,9 @@
-import { getBOTCTClockInstance } from '$lib/server/model';
+import { getBOTCTClockInstanceManager } from '$lib/server/model';
 
-export async function POST({ request }) {
+export async function POST({ request, params}) {
     const data = await request.json();
     const { day, max } = data;
-    const clock = getBOTCTClockInstance();
+    const clock = getBOTCTClockInstanceManager().getInstance(params.clockid);
     if (typeof day === 'number' && typeof max === 'number') {
         clock.setDay(day, max);
         return new Response('Day updated', { status: 200 });

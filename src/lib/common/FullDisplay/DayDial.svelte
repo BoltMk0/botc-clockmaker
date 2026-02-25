@@ -2,13 +2,17 @@
     import type { Readable } from "svelte/store";
     import { getSkyColor } from "$lib/common/util";
     import clockhand from '$lib/assets/clockhand3.png';
-    export let day_info: Readable<{ day: number; max: number }>;
+    import type { ClientModel } from "$lib/client/model";
+    
+    export let model: ClientModel;
+    
+    let day_info: Readable<{ day: number; max: number }> = model.day_info;
     $: day = $day_info.day;
     $: max = $day_info.max;
 
     export let size: number = 700;
 
-    export let clockData: Readable<{ cur: number; max: number }> | undefined = undefined;
+    let clockData: Readable<{ cur: number; max: number }> | undefined = model.clock_info;
 
     $: rotationAngle = 70 - 140 * (day / max);
     // $: rotationAngle = 0;
@@ -24,11 +28,11 @@
         <div class="dial-tick-main">
             {#each {length: $day_info.max+1} as _, i}
             <div class="dial-tick-container" style="transform: rotate({(140 * (i / ($day_info.max)) - 70)}deg);">
-                <div class="dial-tick major"></div>
+                <div class="dial-tick major" style="background-color: {model.config.theme.tickColor};"></div>
             </div>
             {/each}
-            <div class="dial-tick-outer-rim"></div>
-            <div class="dial-tick-inner-rim"></div>
+            <div class="dial-tick-outer-rim" style="border-color: {model.config.theme.tickColor};"></div>
+            <div class="dial-tick-inner-rim" style="border-color: {model.config.theme.tickColor};"></div>
         </div>
 
         <div class="time-display">

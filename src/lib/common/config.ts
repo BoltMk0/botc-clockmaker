@@ -1,5 +1,3 @@
-import { readFileSync, writeFileSync } from "node:fs";
-
 export type TimerOption = {
     label: string|null;
     duration: number;
@@ -7,11 +5,21 @@ export type TimerOption = {
 }
 
 export type Config = {
+    teamName: string|null;
+    theme: {
+        rimColor: string;
+        tickColor: string;
+    };
     timerOptions: TimerOption[];
 }
 
 export function getDefaultConfig(): Config {
     return {
+        teamName: null,
+        theme: {
+            rimColor: "#223",
+            tickColor: "#000"
+        },
         timerOptions: [
             { label: '5 Seconds', duration: 5, ringBellWhenRemaining: null },
             { label: '15 Seconds', duration: 15, ringBellWhenRemaining: 5 },
@@ -25,6 +33,10 @@ export function getDefaultConfig(): Config {
 
 export function validateConfig(config: any): config is Config {
     if(typeof config !== 'object' || config === null) return false;
+    if(config.teamName !== null && typeof config.teamName !== 'string') return false;
+    if(config.theme === undefined || typeof config.theme !== 'object' || config.theme === null) return false;
+    if(typeof config.theme.rimColor !== 'string') return false;
+    if(typeof config.theme.tickColor !== 'string') return false;
     if(!Array.isArray(config.timerOptions)) return false;
     for(const option of config.timerOptions){
         if(typeof option !== 'object' || option === null) return false;

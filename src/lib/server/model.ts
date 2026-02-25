@@ -1,24 +1,17 @@
 import type { ClockMessage } from '$lib/common/comms';
 import { getDefaultConfig, type Config } from '$lib/common/config';
 import { EventEmitter } from 'node:events';
-import { loadConfigFromFile, saveConfigToFile } from './config';
+import { v7 } from 'uuid';
+import { loadAllConfigs, saveConfigWithId } from './config';
 
 console.log("Loading BOTCTClock model...");
 
 export class BOTCTClock extends EventEmitter {
-    config: Config
     timer_info: {startTime: number|null; duration: number; ringBellAfter: number|null}|null = null;
     day_info: {day: number; max: number} = {day: 0, max: 8};
 
-    constructor(){
+    constructor(public readonly id: string, private config: Config){
         super();
-        try {
-            this.config = loadConfigFromFile()
-        } catch (e) {
-            console.error("Error loading config file, using default config.", e);
-            this.config = getDefaultConfig();
-            saveConfigToFile(this.config);
-        }
     }
 
     on(event: 'dayChanged', listener: (dayInfo: {day: number; max: number}) => void): this;
@@ -72,13 +65,102 @@ export class BOTCTClock extends EventEmitter {
     makeDaBellNoise(){
         this.emit('bellRingRequest');
     }
+
+    getConfig(){
+        return this.config;
+    }
+
+    setConfig(config: Config, save: boolean = true){
+        this.config = config;
+        if (save) {
+            saveConfigWithId(config, this.id);
+        }
+    }
 };
 
-let clock_instance: BOTCTClock | null = null;
-
-export function getBOTCTClockInstance(): BOTCTClock {
-    if (clock_instance === null) {
-        clock_instance = new BOTCTClock();
+export class ClockError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "ClockError";
     }
-    return clock_instance;
+}
+
+export class InstanceNotFoundError extends ClockError {
+    constructor(instanceId: string) {
+        super(`No instance found with id: ${instanceId}`);
+        this.name = "InstanceNotFoundError";
+    }
+}
+
+
+class ClockInstanceManager extends EventEmitter {
+    private instances: Map<string, BOTCTClock> = new Map();
+
+    constructor(){
+        super();
+        const configs = loadAllConfigs();
+        for(const {id, config} of configs){
+            const instance = new BOTCTClock(id, config);
+            this.instances.set(id, instance);
+            console.log(`Loaded BOTCTClock instance with id: ${id} from config.`);
+        }
+        if(!this.hasInstance('default')){
+            const {id, instance} = this.newInstance('default');
+            instance.setConfig(getDefaultConfig());
+            console.log("Created default BOTCTClock instance with id: default");
+        }
+    }
+
+    listInstances(): {id: string, config: Config}[] {
+        return Array.from(this.instances.values()).map(instance => ({id: instance.id, config: instance.getConfig()}));
+    }
+
+    newInstance(id?: string): {id: string, instance: BOTCTClock} {
+        const instanceId = id ?? v7();
+        if(this.instances.has(instanceId)){
+            throw new Error(`Instance with id ${instanceId} already exists.`);
+        }
+        const instance = new BOTCTClock(instanceId, getDefaultConfig());
+        this.instances.set(instanceId, instance);
+        this.emit('instanceCreated', instanceId, instance);
+        console.log(`Created new BOTCTClock instance with id: ${instanceId}`);
+        return {id: instanceId, instance};
+    }
+
+    hasInstance(id: string): boolean {
+        return this.instances.has(id);
+    }
+
+    getInstance(id: string): BOTCTClock {
+        const instance = this.instances.get(id);
+        if(instance===undefined){
+            throw new InstanceNotFoundError(id);
+        }
+        return instance;
+    }
+
+    freeInstance(id: string) {
+        console.log(`Freeing BOTCTClock instance with id: ${id}`);
+        const instance = this.getInstance(id);
+        if (instance) {
+            instance.removeAllListeners();
+            this.emit('instanceFreed', id);
+        }
+        this.instances.delete(id);
+    }
+
+    on(event: 'instanceCreated', listener: (id: string, instance: BOTCTClock) => void): this;
+    on(event: 'instanceFreed', listener: (id: string) => void): this;
+    on(event: string, listener: (...args: any[]) => void): this {
+        return super.on(event, listener);
+    }
+}
+
+let clock_instance_manager: ClockInstanceManager | null = null;
+
+export function getBOTCTClockInstanceManager(): ClockInstanceManager {
+    if (clock_instance_manager === null) {
+        clock_instance_manager = new ClockInstanceManager();
+    }
+    return clock_instance_manager;
 }

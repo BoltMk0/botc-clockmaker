@@ -2,12 +2,13 @@
     import {formatTime, getSkyColor} from "$lib/common/util";
     import type { Readable } from "svelte/store";
     import clockhand from '$lib/assets/clockhand.png';
+    import type { ClientModel } from "$lib/client/model";
 
-    
-    export let clock_info: Readable<{cur: number; max: number}>;
+    export let model: ClientModel;
     export let size: number = 700;
     export let onTimeShift: ((delta: number)=>void) | undefined = undefined;
     
+    let clock_info: Readable<{cur: number; max: number}> = model.clock_info;
     $: rounded_cur = Math.round($clock_info.cur);
 
     // Calculate the rotation angle (0 = right/max, 180 = left/min)
@@ -37,7 +38,6 @@
 <div class="clock-container" style="width: {size}px; height: {size/2}px;">
     <!-- Dial that rotates from right (max) to left (min) -->
      <div class="dial-background" style="background-color: {getSkyColor(progress)}; box-shadow: 0 0 500px {getSkyColor(progress, 0.6)}, 0 30px 50px black;">
-        
 
         <div class="dial-sun-container">
             <div class="dial-sun" style="transform: rotate({-rotationAngle*0.4}deg); background-color: {getCircleColor(progress)}"></div>
@@ -47,7 +47,7 @@
             {#each {length: ticks} as _, i}
                 {@const angle = (80-160 * (i / (ticks - 1)))}
                 <div class="dial-tick-container" style="transform: rotate({angle}deg);">
-                    <div class="dial-tick"></div>
+                    <div class="dial-tick" style="background-color: {model.config.theme.tickColor};"></div>
                 </div>
             {/each}
 
@@ -56,12 +56,12 @@
             {#each {length: majorTicks} as _, i}
                 {@const angle = (80-160 * (i / (majorTicks - 1)))}
                 <div class="dial-tick-container" style="transform: rotate({angle}deg);">
-                    <div class="dial-tick major"></div>
+                    <div class="dial-tick major" style="background-color: {model.config.theme.tickColor};"></div>
                 </div>
             {/each}
 
-            <div class="dial-tick-outer-rim"></div>
-            <div class="dial-tick-inner-rim"></div>
+            <div class="dial-tick-outer-rim" style="border-color: {model.config.theme.tickColor};"></div>
+            <div class="dial-tick-inner-rim" style="border-color: {model.config.theme.tickColor};"></div>
 
         </div>
 

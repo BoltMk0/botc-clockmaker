@@ -1,3 +1,9 @@
+html, body {
+    --theme-highlight: #007BFF;
+    --theme-slider-accent: #77cc66;
+    --theme-slider-trim: #6f6e7a;
+}
+
 .button-style {
     padding: 5px 10px;
     font-size: inherit;
@@ -12,8 +18,24 @@
     text-decoration: none;
 }
 
+.button-style.highlight {
+    background-color: var(--theme-highlight);
+    color: #FFF;
+}
+
+.button-style.error {
+    background-color: #900;
+    color: #FFF;
+}
+
 .button-style:hover {
     color: #FFF;
     background-color: #666;
 }
 
+.button-style:disabled {
+    background-color: #acacac;
+    color: #666;
+    opacity: 0.5;
+    cursor: not-allowed;
+}
