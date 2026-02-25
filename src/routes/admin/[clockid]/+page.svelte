@@ -89,7 +89,7 @@
 
 {#if model}
 <div style="width: min-content; margin: auto;">
-    <FullDisplay {model} size={300} buttonColor={buttonColor} onDayShift={(delta)=>{bump_day(delta)}}/>
+    <FullDisplay {model} size={250} buttonColor={buttonColor} onDayShift={(delta)=>{bump_day(delta)}}/>
     <div style="max-width: 400px;">
         <ClockSetter {model}/>
     </div>
