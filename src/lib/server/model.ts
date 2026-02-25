@@ -3,12 +3,15 @@ import { getDefaultConfig, type Config } from '$lib/common/config';
 import { EventEmitter } from 'node:events';
 import { v7 } from 'uuid';
 import { loadAllConfigs, saveConfigWithId } from './config';
+import type { AudioParams } from '$lib/common/AudioParams';
 
 console.log("Loading BOTCTClock model...");
+
 
 export class BOTCTClock extends EventEmitter {
     timer_info: {startTime: number|null; duration: number; ringBellAfter: number|null}|null = null;
     day_info: {day: number; max: number} = {day: 0, max: 8};
+    private audioParams: AudioParams = {gain: 1, pan: 0};
 
     constructor(public readonly id: string, private config: Config){
         super();
@@ -17,6 +20,7 @@ export class BOTCTClock extends EventEmitter {
     on(event: 'dayChanged', listener: (dayInfo: {day: number; max: number}) => void): this;
     on(event: 'bellRingRequest', listener: () => void): this;
     on(event: 'stateChanged', listener: (state: ClockMessage) => void): this;
+    on(event: 'audioParamsChanged', listener: (params: AudioParams) => void): this;
     on(event: string, listener: (...args: any[]) => void): this {
         return super.on(event, listener);
     }
@@ -75,6 +79,33 @@ export class BOTCTClock extends EventEmitter {
         if (save) {
             saveConfigWithId(config, this.id);
         }
+    }
+
+    setAudioParams(params: AudioParams){
+        this.audioParams = params;
+        this.emit('audioParamsChanged', this.audioParams);
+    }
+
+    setAudioGain(gain: number){
+        this.audioParams.gain = gain;
+        this.emit('audioParamsChanged', this.audioParams);
+    }
+
+    setAudioPan(pan: number){
+        this.audioParams.pan = pan;
+        this.emit('audioParamsChanged', this.audioParams);
+    }
+
+    get gain(){
+        return this.audioParams.gain;
+    }
+
+    get pan(){
+        return this.audioParams.pan;
+    }
+
+    get audioSettings(){
+        return this.audioParams;
     }
 };
 

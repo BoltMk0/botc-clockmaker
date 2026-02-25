@@ -1,3 +1,5 @@
+import type { AudioParams } from "./AudioParams";
+
 export type WSMessage = {
     type: string;
 };
@@ -24,5 +26,9 @@ export type SyncMessage = WSMessage & {
 export type BellRingRequestMessage = WSMessage & {
     type: 'bellRingRequest';
     atTime?: number;
+};
+
+export type AudioParamsMessage = WSMessage & AudioParams & {
+    type: 'audioParams';
 };
 

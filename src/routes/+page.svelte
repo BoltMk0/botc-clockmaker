@@ -5,13 +5,20 @@
     import ChannelStrip from './admin/mixer/ChannelStrip.svelte';
     import FullDisplay from '$lib/common/FullDisplay/FullDisplay.svelte';
     import AmbienceChannelStrip from './admin/mixer/AmbienceChannelStrip.svelte';
+    import VSlider from './admin/mixer/VSlider.svelte';
 
     export let data;
 
     $: models = browser ? data.instances.map(({id, config}) => new ClientModel(id, config)) : [];
     let audioContext: AudioContext | null = null;
+    
+    
     let showMixer: boolean = false;
+    let showUISettings: boolean = false;
+
     let audioUnlocked = false;
+
+    let displaySize = 700;
 
     async function unlockAudio() {
         if (!browser || audioUnlocked || !audioContext) return;
@@ -39,6 +46,10 @@
             window.addEventListener('pointerdown', unlockAudio, { once: true, capture: true });
             window.addEventListener('keydown', unlockAudio, { once: true, capture: true });
             window.addEventListener('click', unlockAudio, { once: true, capture: true });
+
+            if(localStorage.getItem("displaySize")){
+                displaySize = parseFloat(localStorage.getItem("displaySize")!);
+            }
         }
     });
 
@@ -51,7 +62,7 @@
 <div class="clock-container">
     {#each models as model, index (model.clockId)}
         <div style="">
-            <FullDisplay model={model} models={models}/>
+            <FullDisplay model={model} models={models} size={displaySize}/>
         </div>
     {/each}
 </div>
@@ -71,12 +82,26 @@
     </div>
 </div>
 
-<div class="settings-button-container">
-    <button on:click={() => { showMixer = !showMixer; }}>
+
+<div class="mixer-container" style="height: {showUISettings ? "250px":"0"}">
+    <div style="display: flex; gap: 5px; height: 200px;">
+        <VSlider bind:value={displaySize} min={300} max={1000} step={50} onchangefinished={(value) => { localStorage.setItem("displaySize", value.toString()) }} />
+    </div>
+</div>
+
+<div class="settings-button-container" style="right: 10px;">
+    <button on:click={() => { showMixer = !showMixer; showUISettings = false;}}>
         {showMixer ? "Hide Mixer" : "Show Mixer"}
     </button>
 </div>
 
+
+<div class="settings-button-container" style="left: 10px;">
+    <button on:click={() => { showUISettings = !showUISettings; showMixer = false;}}>
+        {showUISettings ? "Hide UI Settings" : "Show UI Settings"}
+    </button>
+</div>
+    
 <style>
     .mixer-container {
         position: absolute;
@@ -97,7 +122,6 @@
     .settings-button-container {
         position: absolute;
         top: 10px;
-        right: 10px;
         display: flex;
         gap: 5px;
         opacity: 0;

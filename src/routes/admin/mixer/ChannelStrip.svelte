@@ -16,7 +16,15 @@
         panNode: StereoPannerNode;
         client: ClientModel;
     };
+
     let channelStrip: ChannelStripType;
+    let audioParams = clientModel.audioParams;
+
+    let audioParamsUnsubscribe: (() => void) | undefined = undefined;
+
+    function callUnsubscribes(){
+        if(audioParamsUnsubscribe) audioParamsUnsubscribe();
+    }
 
     function setupAudioForClient(client: ClientModel): ChannelStripType {
         const audio1 = new Audio();
@@ -31,57 +39,50 @@
         const destination = outputNode ?? audioContext.destination;
         source1.connect(gainNode).connect(panNode).connect(destination);
         source2.connect(gainNode).connect(panNode).connect(destination);
+        
+        callUnsubscribes();
+        audioParamsUnsubscribe = client.audioParams.subscribe(params => {
+            console.log("Applying new audio params:", params);
+            gainNode.gain.value = params.gain;
+            panNode.pan.value = params.pan;
+            if(channelStrip) channelStrip = channelStrip;
+        });
 
         client.init({finalBellAudioPlayer: audio1, reminderBellAudioPlayer: audio2});
 
         return {client, audio1, audio2, gainNode, panNode};
     }
 
-    function storeConfig(){
-        console.log("Storing config for client", channelStrip.client.clockId);
-        const config = {
-            gain: channelStrip.gainNode.gain.value,
-            pan: channelStrip.panNode.pan.value
-        };
-
-        localStorage.setItem(`mixerConfig_${channelStrip.client.clockId}`, JSON.stringify(config));
-    }
-
-     function loadConfig(){
-        const configString = localStorage.getItem(`mixerConfig_${channelStrip.client.clockId}`);
-        if(configString){
-            console.log("Loading config for client", channelStrip.client.clockId);
-            const config = JSON.parse(configString);
-            console.log("Loaded config", config);
-            channelStrip.gainNode.gain.value = config.gain;
-            channelStrip.panNode.pan.value = config.pan;
-        }   
-    }
-
     onMount(()=>{
         if(browser){
             channelStrip = setupAudioForClient(clientModel);
-            loadConfig();
         }
     });
 
     onDestroy(()=>{
-        storeConfig();
         channelStrip.client.close();
+        callUnsubscribes();
     });
 
-    let saveTimeout: NodeJS.Timeout | null = null;
-    function onGainOrPanChange(...vals: any) {
-        if (saveTimeout) {
-            clearTimeout(saveTimeout);
-        }
-        saveTimeout = setTimeout(() => {
-            storeConfig();
-            saveTimeout = null;
-        }, 1000);
+    function uploadAudioParams(){
+        fetch(`/admin/api/clock/${channelStrip.client.clockId}/audioParams`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                gain: channelStrip.gainNode.gain.value,
+                pan: channelStrip.panNode.pan.value
+            })
+        }).then(response => {
+            if (!response.ok) {
+                console.error('Failed to upload audio params');
+            }
+        }).catch(err => {
+            console.error('Error uploading audio params:', err);
+        });
     }
     
-    $: onGainOrPanChange(channelStrip?.gainNode.gain.value, channelStrip?.panNode.pan.value);
 </script>
 <div class="channel-strip-main">
 
@@ -99,7 +100,7 @@
             </div>
         </div>
     
-        <HSlider bind:value={channelStrip.panNode.pan.value} min={-1} max={1} step={0.1} />
+        <HSlider bind:value={channelStrip.panNode.pan.value} min={-1} max={1} step={0.1} onchange={(value) => { uploadAudioParams() }} />
     </div>
     <div>
         <div style="text-align: center;" class="strip-name-ele">
@@ -109,7 +110,7 @@
             </div>
         </div>
         <div style="margin: auto; width: fit-content; height: 200px; padding: 8px 0;">
-            <VSlider bind:value={channelStrip.gainNode.gain.value} min={-60} max={12} step={1} logarithmic/>
+            <VSlider bind:value={channelStrip.gainNode.gain.value} min={-60} max={12} step={1} logarithmic onchange={(value) => { uploadAudioParams() }} />
         </div>
     </div>
 {/if}

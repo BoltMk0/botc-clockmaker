@@ -67,7 +67,7 @@
         }
     }
 
-    let adjSize: number = size;
+    $: adjSize = size;
     
     const rimColor = model.config.theme.rimColor;
 

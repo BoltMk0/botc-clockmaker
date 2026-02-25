@@ -1,9 +1,10 @@
 import {produce, type Unsafe} from 'sveltekit-sse';
-import type { BellRingRequestMessage, ClockMessage, DayMessage, WSMessage } from '$lib/common/comms';
+import type { AudioParamsMessage, BellRingRequestMessage, ClockMessage, DayMessage, WSMessage } from '$lib/common/comms';
 
 import { BOTCTClock, getBOTCTClockInstanceManager, InstanceNotFoundError } from "$lib/server/model";
 import { v7 } from 'uuid';
 import { error } from '@sveltejs/kit';
+import type { AudioParams } from '$lib/common/AudioParams';
 
 export type emit_cb = (eventName: string, data: string)=>Unsafe<void, Error>;
 
@@ -15,6 +16,7 @@ class ClockInstanceCallbackHelper {
         instance.on('stateChanged', this.handleStateChanged.bind(this));
         instance.on('dayChanged', this.handleDayChanged.bind(this));
         instance.on('bellRingRequest', this.handleBellRingRequest.bind(this));
+        instance.on('audioParamsChanged', this.handleAudioParamsChanged.bind(this));
         
         this.syncInterval = setInterval(()=>{
             this.broadcast({type: 'sync', serverTime: Date.now() } as WSMessage);
@@ -57,6 +59,15 @@ class ClockInstanceCallbackHelper {
         this.broadcast(message);
     }
 
+    handleAudioParamsChanged(params: AudioParams) {
+        const message: AudioParamsMessage = {
+            type: 'audioParams',
+            gain: params.gain,
+            pan: params.pan
+        };
+        this.broadcast(message);
+    }
+
     addEmitter(id: string, emit: emit_cb) {
         if(this.emitters.has(id)){
             console.warn(`Emitter with id ${id} already exists, overwriting.`);
@@ -65,6 +76,7 @@ class ClockInstanceCallbackHelper {
         // Send initial state to new emitter
         emit('message', JSON.stringify(this.instance.getState()));
         emit('message', JSON.stringify({type: 'day', ...this.instance.day_info}));
+        emit('message', JSON.stringify({type: 'audioParams', ...this.instance.audioSettings}));
         console.log(`Added emitter with id: ${id}`);
     }
 
@@ -99,7 +111,6 @@ function sendSyncBurst(emit: emit_cb, count: number, interval: number = 100) {
 
 export function POST({params}) {
     console.log("SSE client connecting...");
-
     const id = v7();
     try {
         const helper = getHelperForInstance(params.clockid);

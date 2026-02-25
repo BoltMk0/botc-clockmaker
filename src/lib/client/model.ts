@@ -1,4 +1,5 @@
-import type { BellRingRequestMessage, ClockMessage, DayMessage, SyncMessage, WSMessage } from "$lib/common/comms";
+import type { AudioParams } from "$lib/common/AudioParams";
+import type { AudioParamsMessage, BellRingRequestMessage, ClockMessage, DayMessage, SyncMessage, WSMessage } from "$lib/common/comms";
 import { getDefaultConfig, type Config } from "$lib/common/config";
 import { get, writable, type Readable, type Writable } from "svelte/store";
 import { source } from "sveltekit-sse";
@@ -261,6 +262,7 @@ export class ClientModel {
 
     day_info: Writable<{day: number; max: number}> = writable({day: 0, max: 8});
     clock_info: Writable<{cur: number; max: number}> = writable({cur: 0, max:60});
+    audioParams: Writable<AudioParams> = writable({gain: 1, pan: 0});
 
     private listeners: Set<ClientModelListenerType> = new Set();
 
@@ -342,6 +344,9 @@ export class ClientModel {
             case 'bellRingRequest':
                 this.handleBellRingRequestMessage(message as BellRingRequestMessage)
                 break;
+            case 'audioParams':
+                this.handleAudioParamsChanged(message as AudioParamsMessage);
+                break;
             default:
                 console.warn("Unknown message type received:", message);
         }
@@ -381,6 +386,11 @@ export class ClientModel {
             this.finalBellRinger?.ringBell();
             this.listeners.forEach(listener => listener.onBellRingRequest?.());
         }
+    }
+
+    handleAudioParamsChanged(message: AudioParamsMessage){
+        console.log("Updating audio params from server message:", message);
+        this.audioParams.set({gain: message.gain, pan: message.pan});
     }
 
     close(){

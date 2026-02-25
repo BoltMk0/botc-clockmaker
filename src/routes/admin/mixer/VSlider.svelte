@@ -6,6 +6,7 @@
     export let step: number = 1;
     export let logarithmic: boolean = false;
     export let onchange: (value: number) => void = () => {};
+    export let onchangefinished: (value: number) => void = () => {};
 
     // Internal slider value
     let sliderValue = value;
@@ -18,16 +19,20 @@
         sliderValue = value;
     }
 
-    // When slider changes, update value
-    function handleInput(e: Event) {
+    function updateValueFromEvent(e: Event) {
         const v = parseFloat((e.target as HTMLInputElement).value);
-        if (logarithmic) {
-            // Convert dB to linear
-            value = Math.pow(10, v / 20);
-        } else {
-            value = v;
-        }
-        onchange(value);
+        value = logarithmic ? Math.pow(10, v / 20) : v;
+        return value;
+    }
+
+    // Live updates while dragging.
+    function handleInput(e: Event) {
+        onchange(updateValueFromEvent(e));
+    }
+
+    // Fires when the user finishes the change (typically on release).
+    function handleChange(e: Event) {
+        onchangefinished(updateValueFromEvent(e));
     }
 </script>
 
@@ -48,6 +53,7 @@
     step={step}
     value={sliderValue}
     on:input={handleInput}
+    on:change={handleChange}
     style=""
     class="vertical-slider"
 />

@@ -3,6 +3,20 @@
 	export let min: number = 0;
 	export let max: number = 100;
 	export let step: number = 1;
+	export let onchange: (value: number) => void = () => {};
+	export let onchangefinished: (value: number) => void = () => {};
+
+	function handleInput(e: Event) {
+		const v = parseFloat((e.target as HTMLInputElement).value);
+		value = v;
+		onchange(value);
+	}
+
+	function handleChange(e: Event) {
+		const v = parseFloat((e.target as HTMLInputElement).value);
+		value = v;
+		onchangefinished(value);
+	}
 </script>
 
 <style>
@@ -19,6 +33,8 @@
 	min={min}
 	max={max}
 	step={step}
-	bind:value
+	value={value}
+	on:input={handleInput}
+	on:change={handleChange}
 	class="horizontal-slider"
 />
