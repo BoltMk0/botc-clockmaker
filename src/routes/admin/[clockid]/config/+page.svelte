@@ -46,11 +46,11 @@
         }
 
         if(newFinalBellRingSoundFile){
-            await saveBellSound(newFinalBellRingSoundFile, 'final-bell');
+            await saveBellSound(newFinalBellRingSoundFile, `final-bell/${id}`);
         }
 
         if(newReminderBellSoundFile){
-            await saveBellSound(newReminderBellSoundFile, 'reminder-bell');
+            await saveBellSound(newReminderBellSoundFile, `reminder-bell/${id}`);
         }
         
         fetch(`/admin/api/clock/${id}/config`, {

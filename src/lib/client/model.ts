@@ -281,8 +281,8 @@ export class ClientModel {
         }
 
         if(audioPlayers) {
-            this.finalBellRinger = new BellRinger('final-bell', audioPlayers.finalBellAudioPlayer, this.deltaTimeManager);
-            this.reminderBellRinger = new BellRinger('reminder-bell', audioPlayers.reminderBellAudioPlayer, this.deltaTimeManager);
+            this.finalBellRinger = new BellRinger(`final-bell/${this.clockId}`, audioPlayers.finalBellAudioPlayer, this.deltaTimeManager);
+            this.reminderBellRinger = new BellRinger(`reminder-bell/${this.clockId}`, audioPlayers.reminderBellAudioPlayer, this.deltaTimeManager);
         }
     }
 

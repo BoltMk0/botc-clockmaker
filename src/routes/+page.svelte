@@ -6,6 +6,7 @@
     import FullDisplay from '$lib/common/FullDisplay/FullDisplay.svelte';
     import AmbienceChannelStrip from './admin/mixer/AmbienceChannelStrip.svelte';
     import VSlider from './admin/mixer/VSlider.svelte';
+    import HSlider from './admin/mixer/HSlider.svelte';
 
     export let data;
 
@@ -83,9 +84,10 @@
 </div>
 
 
-<div class="mixer-container" style="height: {showUISettings ? "250px":"0"}">
-    <div style="display: flex; gap: 5px; height: 200px;">
-        <VSlider bind:value={displaySize} min={300} max={1000} step={50} onchangefinished={(value) => { localStorage.setItem("displaySize", value.toString()) }} />
+<div class="mixer-container" style="height: {showUISettings ? "200px":"0"}">
+    <div style="display: grid; gap: 5px; width: 200px; box-sizing: border-box; background: var(--theme-bg); padding: 1em; border-radius: 0.5em;">
+        <div>Display Size: {displaySize}</div>
+        <HSlider bind:value={displaySize} min={300} max={1000} step={50} onchangefinished={(value) => { localStorage.setItem("displaySize", value.toString()) }} />
     </div>
 </div>
 
@@ -93,6 +95,13 @@
     <button on:click={() => { showMixer = !showMixer; showUISettings = false;}}>
         {showMixer ? "Hide Mixer" : "Show Mixer"}
     </button>
+</div>
+
+
+<div class="settings-button-container" style="left: 50%; transform: translateX(-50%);">
+    <a class="button-style" style="padding: 0.6em 1em;" href="/admin">
+        Admin Panel
+    </a>
 </div>
 
 
@@ -106,7 +115,7 @@
     .mixer-container {
         position: absolute;
         bottom: 0;
-        overflow: hidden;
+        /* overflow: hidden; */
         transition: height 0.5s ease;
     }
 

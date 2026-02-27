@@ -51,8 +51,8 @@ export function validateConfig(config: any): config is Config {
         if(option.label !== null && typeof option.label !== 'string') return false;
         if(option.ringBellWhenRemaining !== null && (typeof option.ringBellWhenRemaining !== 'number' || option.ringBellWhenRemaining < 0)) return false;
     }
-    if(config.audioConfig === undefined || typeof config.audioConfig !== 'object' || config.audioConfig === null) return false;
-    if(typeof config.audioConfig.pan !== 'number' || config.audioConfig.pan < -1 || config.audioConfig.pan > 1) return false;
-    if(typeof config.audioConfig.gain !== 'number' || config.audioConfig.gain < 0) return false;
+    if(config.audioParams === undefined || typeof config.audioParams !== 'object' || config.audioParams === null) return false;
+    if(typeof config.audioParams.pan !== 'number') return false;
+    if(typeof config.audioParams.gain !== 'number') return false;
     return true;
 }

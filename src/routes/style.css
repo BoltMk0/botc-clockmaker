@@ -2,6 +2,8 @@ html, body {
     --theme-highlight: #007BFF;
     --theme-slider-accent: #77cc66;
     --theme-slider-trim: #6f6e7a;
+    --theme-bg: #222;
+    --theme-on-bg: #eee;
 }
 
 .button-style {
