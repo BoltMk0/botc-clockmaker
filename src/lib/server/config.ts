@@ -18,7 +18,7 @@ export function loadConfigForId(id: string): Config {
 
 export function loadAllConfigs(){
     const configs: {id: string, config: Config}[] = [];
-    const configDir = getLocalResource('config', {makeDirs: true});
+    const configDir = getLocalResource('config', {makeDirs: true, isDir: true});
     const files = readdirSync(configDir);
     for (const file of files) {
         if(!file.endsWith('.json')) continue;

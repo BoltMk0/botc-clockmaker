@@ -32,7 +32,7 @@ export function listLocalResources(relativeDir: string, opts: {mimeType?: string
     return resources;
 }
 
-export function getLocalResource(relativePath: string, opts: {makeDirs?: boolean, checkExists?: boolean, mimeType?: string} = {checkExists: true}): string {
+export function getLocalResource(relativePath: string, opts: {isDir?: boolean, makeDirs?: boolean, checkExists?: boolean, mimeType?: string} = {checkExists: true, isDir: false}): string {
     if(opts.mimeType){
         const ext = getExtensionForMimeType(opts.mimeType);
         if(ext && !relativePath.endsWith(ext)){
@@ -42,7 +42,7 @@ export function getLocalResource(relativePath: string, opts: {makeDirs?: boolean
     }
 
     const fullpath = path.join(DATA_DIR, relativePath);
-    const dirpath = path.dirname(fullpath);
+    const dirpath = (opts.isDir ?? false) ? fullpath : path.dirname(fullpath);
     if(!existsSync(dirpath)){
         if(opts.makeDirs){
             mkdirSync(dirpath, { recursive: true });
@@ -50,9 +50,11 @@ export function getLocalResource(relativePath: string, opts: {makeDirs?: boolean
             throw new Error(`Directory does not exist: ${dirpath}`);
         }
     }
+
     if(opts.checkExists && !existsSync(fullpath)){
         throw new Error(`File does not exist: ${fullpath}`);
     }
+    
     return fullpath;
 }
 
