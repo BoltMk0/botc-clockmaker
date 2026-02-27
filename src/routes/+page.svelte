@@ -115,7 +115,8 @@
     .mixer-container {
         position: absolute;
         bottom: 0;
-        /* overflow: hidden; */
+        overflow: hidden;
+        left: 0; right: 0;
         transition: height 0.5s ease;
     }
 

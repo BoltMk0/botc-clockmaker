@@ -143,8 +143,8 @@
                             if(target.type !== 'file') return;
                             newFinalBellRingSoundFile = target.files ? target.files[0] : null
                         }} />
-                        <audio src="{newFinalBellRingSoundFile ? URL.createObjectURL(newFinalBellRingSoundFile) : '/resources/final-bell'}" controls></audio>
-                        <button class="reset-button" onclick={() => {resetResource('final-bell');}}>Reset to Default</button>
+                        <audio src="{newFinalBellRingSoundFile ? URL.createObjectURL(newFinalBellRingSoundFile) : `/resources/final-bell/${id}`}" controls></audio>
+                        <button class="reset-button" onclick={() => {resetResource(`final-bell/${id}`);}}>Reset to Default</button>
                         </div>
                     </td>
                 </tr>
@@ -158,8 +158,8 @@
                             if(target.type !== 'file') return;
                             newReminderBellSoundFile = target.files ? target.files[0] : null
                         }} />
-                        <audio src="{newReminderBellSoundFile ? URL.createObjectURL(newReminderBellSoundFile) : '/resources/reminder-bell'}" controls></audio>
-                        <button class="reset-button" onclick={() => {resetResource('reminder-bell');}}>Reset to Default</button>
+                        <audio src="{newReminderBellSoundFile ? URL.createObjectURL(newReminderBellSoundFile) : `/resources/reminder-bell/${id}`}" controls></audio>
+                        <button class="reset-button" onclick={() => {resetResource(`reminder-bell/${id}`);}}>Reset to Default</button>
                         </div>
                     </td>
                 </tr>

@@ -15,6 +15,6 @@ WORKDIR /app
 COPY --from=build /app/build ./build
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package*.json ./
-ENV BODY_SIZE_LIMIT=20mb
+ENV BODY_SIZE_LIMIT=10M
 EXPOSE 3000
 ENTRYPOINT ["node", "build"]
