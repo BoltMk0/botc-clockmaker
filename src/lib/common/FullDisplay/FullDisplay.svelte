@@ -117,7 +117,7 @@
 
 <div class="full-display-main" style="scale: {shouldHideClock ? 0.9 : 1}; opacity: {shouldHideClock ? 0.7 : 1}; transition: all 0.5s ease;">
     {#if model.config.teamName}
-    <a class="clock-name-title" style="font-size: {size/10}px" href="/{model.clockId}">{model.config.teamName}</a>
+    <a class="clock-name-title" style="font-family: var(--font-dumbledore); text-transform: uppercase; font-size: {size/10}px" href="/{model.clockId}">{model.config.teamName}</a>
     {/if}
     <div class="container" style="font-size: {fontScale*adjSize/15}px; width: {adjSize}px; height: {adjSize}px; padding: {border_radius}px; background: radial-gradient(closest-side at center, #0000 0px, #0000 {adjSize/2-border_radius}px, #000F {adjSize/2-border_radius}px, {getSkyColor(progress, 1, 1, 0.8)} {adjSize/2-border_radius*0.85}px, {rimColor} {adjSize/2-border_radius*0.5}px); box-shadow: {showInstructionText ? `0 0 50px ${model.config.theme.rimColor}` : "none"};">
         <ClockDisplay model={model} size={adjSize-border_radius*2}/>

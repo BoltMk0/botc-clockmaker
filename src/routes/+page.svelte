@@ -117,6 +117,9 @@
         bottom: 0;
         overflow: hidden;
         left: 0; right: 0;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
         transition: height 0.5s ease;
     }
 

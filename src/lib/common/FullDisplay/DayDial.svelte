@@ -35,9 +35,9 @@
             <div class="dial-tick-inner-rim" style="border-color: {model.config.theme.tickColor};"></div>
         </div>
 
-        <div class="time-display">
-            <div style="font-size: 0.3em; opacity: 0.7;">Day</div>
-            <div>{day}</div>
+        <div class="time-display dumbledore-font">
+            <div style="font-size: 0.6em; opacity: 0.7;">Day</div>
+            <div style="font-size: 1.2em;">{day}</div>
         </div>
         
         <!-- <div class="dial-shadow"></div> -->
@@ -151,8 +151,6 @@
     .time-display {
         opacity: 0.9;
         font-size: 2em;
-        font-weight: bold;
-        font-family: monospace;
         text-align: center;
         color: #FED;
         position: absolute;

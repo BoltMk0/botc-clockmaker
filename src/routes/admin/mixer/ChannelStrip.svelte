@@ -87,7 +87,7 @@
 <div class="channel-strip-main">
 
 {#if channelStrip}
-    <button class="strip-name-ele" on:click={()=>{clientModel.finalBellRinger?.ringBell()}} style="border-color: {clientModel.config.theme.rimColor};">
+    <button class="strip-name-ele" on:click={()=>{clientModel.finalBellRinger?.ringBell()}} style="border-color: {clientModel.config.theme.rimColor}; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">
         {channelStrip.client.config.teamName}
     </button>
     <div style="width: 6em;">
@@ -133,7 +133,7 @@
     }
 
     .channel-strip-main {
-        width: fit-content;
+        width: 100px;
         background-color: rgb(50, 50, 54);
         padding: 6px;
         border: 4px solid var(--theme-slider-trim);

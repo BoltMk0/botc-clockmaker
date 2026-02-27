@@ -68,7 +68,7 @@
 
 
         <div class="time-display">
-            <div style="font-size: 0.4em; opacity: 0.7;">Time Remaining</div>
+            <div class="dumbledore-font" style="font-size: 0.4em; opacity: 0.7;">Time Remaining</div>
             <div>{formatTime($clock_info.cur)}</div>
         </div>
         {#if onTimeShift !== undefined}
@@ -212,7 +212,7 @@
     }
 
     .time-display {
-        font-size: 1.7em;
+        font-size: 1.9em;
         font-weight: bold;
         font-family: monospace;
         text-align: center;

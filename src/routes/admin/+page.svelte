@@ -63,8 +63,12 @@
         </tbody>
     </table>
 
-    <a class="button-style" href="/admin/mixer">
+    <a class="button-style" href="/admin/mixer" style="margin-top: 1em;">
         Mixer
+    </a>
+
+    <a class="button-style" href="/" style="margin-top: 2em;">
+        Back
     </a>
 </div>
 

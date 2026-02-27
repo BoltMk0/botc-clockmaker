@@ -45,6 +45,9 @@
 
 {#if enterButtonClicked}
 <FullDisplay model={model} fontScale={fontScale} />
+<a class="button-style hidden-button" style="position: absolute; top: 0.5em; left: 0.5em; padding: 0.8em 1em;" href="/">
+    Back
+</a>
 {:else}
     <button on:click={() => { enterButtonClicked = true; onEnterButtonClicked(); }}>
         Enter
