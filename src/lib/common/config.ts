@@ -1,3 +1,5 @@
+import type { AudioParams } from "./AudioParams";
+
 export type TimerOption = {
     label: string|null;
     duration: number;
@@ -11,6 +13,7 @@ export type Config = {
         tickColor: string;
     };
     timerOptions: TimerOption[];
+    audioParams: AudioParams;
 }
 
 export function getDefaultConfig(): Config {
@@ -27,7 +30,11 @@ export function getDefaultConfig(): Config {
             { label: '3 Minutes', duration: 3 * 60, ringBellWhenRemaining: 30 },
             { label: '5 Minutes', duration: 5 * 60, ringBellWhenRemaining: 30 },
             { label: '8 Minutes', duration: 8 * 60, ringBellWhenRemaining: 30 },
-        ]
+        ],
+        audioParams: {
+            pan: 0,
+            gain: 1,
+        }
     };
 }
 
@@ -44,5 +51,8 @@ export function validateConfig(config: any): config is Config {
         if(option.label !== null && typeof option.label !== 'string') return false;
         if(option.ringBellWhenRemaining !== null && (typeof option.ringBellWhenRemaining !== 'number' || option.ringBellWhenRemaining < 0)) return false;
     }
+    if(config.audioConfig === undefined || typeof config.audioConfig !== 'object' || config.audioConfig === null) return false;
+    if(typeof config.audioConfig.pan !== 'number' || config.audioConfig.pan < -1 || config.audioConfig.pan > 1) return false;
+    if(typeof config.audioConfig.gain !== 'number' || config.audioConfig.gain < 0) return false;
     return true;
 }

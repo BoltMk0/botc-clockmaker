@@ -11,7 +11,8 @@ console.log("Loading BOTCTClock model...");
 export class BOTCTClock extends EventEmitter {
     timer_info: {startTime: number|null; duration: number; ringBellAfter: number|null}|null = null;
     day_info: {day: number; max: number} = {day: 0, max: 8};
-    private audioParams: AudioParams = {gain: 1, pan: 0};
+
+    private configSaveTimeout: NodeJS.Timeout | null = null;
 
     constructor(public readonly id: string, private config: Config){
         super();
@@ -27,6 +28,17 @@ export class BOTCTClock extends EventEmitter {
 
     private running(){
         return this.timer_info !== null && this.timer_info.startTime !== null;
+    }
+
+    private scheduleConfigSave(){
+        if(this.configSaveTimeout){
+            clearTimeout(this.configSaveTimeout);
+        }
+        this.configSaveTimeout = setTimeout(()=>{
+            saveConfigWithId(this.config, this.id);
+            console.log("Config auto-saved for instance", this.id);
+            this.configSaveTimeout = null;
+        }, 5000); // save config 5 seconds after last change
     }
 
 
@@ -77,35 +89,38 @@ export class BOTCTClock extends EventEmitter {
     setConfig(config: Config, save: boolean = true){
         this.config = config;
         if (save) {
-            saveConfigWithId(config, this.id);
+            this.scheduleConfigSave();
         }
     }
 
     setAudioParams(params: AudioParams){
-        this.audioParams = params;
-        this.emit('audioParamsChanged', this.audioParams);
+        this.config.audioParams = params;
+        this.scheduleConfigSave();
+        this.emit('audioParamsChanged', this.config.audioParams);
     }
 
     setAudioGain(gain: number){
-        this.audioParams.gain = gain;
-        this.emit('audioParamsChanged', this.audioParams);
+        this.config.audioParams.gain = gain;
+        this.scheduleConfigSave();
+        this.emit('audioParamsChanged', this.config.audioParams);
     }
 
     setAudioPan(pan: number){
-        this.audioParams.pan = pan;
-        this.emit('audioParamsChanged', this.audioParams);
+        this.config.audioParams.pan = pan;
+        this.scheduleConfigSave();
+        this.emit('audioParamsChanged', this.config.audioParams);
     }
 
     get gain(){
-        return this.audioParams.gain;
+        return this.config.audioParams.gain;
     }
 
     get pan(){
-        return this.audioParams.pan;
+        return this.config.audioParams.pan;
     }
 
     get audioSettings(){
-        return this.audioParams;
+        return this.config.audioParams;
     }
 };
 

@@ -117,7 +117,7 @@
 
 <div class="full-display-main" style="scale: {shouldHideClock ? 0.9 : 1}; opacity: {shouldHideClock ? 0.7 : 1}; transition: all 0.5s ease;">
     {#if model.config.teamName}
-    <a class="clock-name-title" style="text-align: center; font-family: monospace; font-size: {size/10}px" href="/{model.clockId}">{model.config.teamName}</a>
+    <a class="clock-name-title" style="font-size: {size/10}px" href="/{model.clockId}">{model.config.teamName}</a>
     {/if}
     <div class="container" style="font-size: {fontScale*adjSize/15}px; width: {adjSize}px; height: {adjSize}px; padding: {border_radius}px; background: radial-gradient(closest-side at center, #0000 0px, #0000 {adjSize/2-border_radius}px, #000F {adjSize/2-border_radius}px, {getSkyColor(progress, 1, 1, 0.8)} {adjSize/2-border_radius*0.85}px, {rimColor} {adjSize/2-border_radius*0.5}px); box-shadow: {showInstructionText ? `0 0 50px ${model.config.theme.rimColor}` : "none"};">
         <ClockDisplay model={model} size={adjSize-border_radius*2}/>
@@ -166,10 +166,15 @@ a {
 }
 
 .clock-name-title {
-    position: absolute;
-    left: 50%;
-    transform: translate(-50%, -100%);
-    z-index: 20;
+    display: block;
+    font-family: monospace;
+    text-align: center;
+    width: 100%;
+    height: 0.8em;
+    transform: translateY(-50%);
+    text-shadow: 0 0 5px #0008, 1px 2px 4px #000A;
+    opacity: 0.9;
+    margin: 0;
 }
 
     .instruction-text-container {
@@ -194,13 +199,6 @@ a {
         font-size: 1.5em; 
         border-radius: 10px; 
         box-shadow: 0 0 10px #0005, 0 0 20px #0008 inset;
-    }
-
-    .clock-name-title {
-        text-shadow: 0 0 5px #0008, 1px 2px 4px #000A;
-        opacity: 0.9;
-        margin: 0;
-        margin-bottom: 0.3em;
     }
 
     .shiftButtonsTopContainer {
@@ -268,7 +266,6 @@ a {
         box-sizing: border-box;
         background-color: black;
         aspect-ratio: 1/1;
-
         box-shadow: 0 0 5px #0005, 2px 8px 4px -7px #e9e2d1aa inset, 0px -3px 5px -1px #0009 inset, 2px -5px 3px -3px #F424 inset, 5px 10px 10px -5px #0005, 20px 40px 40px 0px #0002;
         border-radius: 99999em;
         transition: background 1s ease;
