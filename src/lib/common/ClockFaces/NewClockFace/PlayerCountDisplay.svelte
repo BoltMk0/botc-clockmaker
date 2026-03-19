@@ -10,11 +10,15 @@
         let outsiders: number;
         let minions: number;
         let demons: number = 1;
-
-        if(numPlayers < 7){
+        if(numPlayers < 5){
+            townsfolk = numPlayers-1;
+            minions = 0;
+            outsiders = 0;
+        }
+        else if(numPlayers < 7){
             townsfolk = 3;
             minions = 1;
-            outsiders = 6-numPlayers;
+            outsiders = numPlayers-5;
         } else if (numPlayers > 15) {
             townsfolk = 9;
             outsiders = 2;

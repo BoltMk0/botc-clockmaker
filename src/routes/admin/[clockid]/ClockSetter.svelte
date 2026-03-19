@@ -12,6 +12,9 @@
 
     $: state = model.state;
 
+    let day = model.day_info;
+    let players = model.playerCount;
+
     var options: TimerOption[] = [
         {duration: 0, ringBellWhenRemaining: null, label: null},
         {duration: 5, ringBellWhenRemaining: null, label: null},
@@ -97,12 +100,65 @@
             console.error("Error setting up clock:", error);
         });
     }
+
+    function setDay(day: number){
+        fetch(`/admin/api/clock/${model.clockId}/day`, {
+            method: 'POST',
+            body: JSON.stringify({day: day}),
+            headers: {'Content-Type': 'application/json'}
+        }).then(response => {
+            if (!response.ok) {
+                alert("Failed to set day");
+                throw new Error('Failed to set day');
+            }
+            console.log("Day set to", day);
+        }).catch(error => {
+            console.error("Error setting day:", error);
+        });
+    }
+
+    function setPlayers(players: number){
+        fetch(`/admin/api/clock/${model.clockId}/playerCount`, {
+            method: 'POST',
+            body: JSON.stringify({playerCount: players}),
+            headers: {'Content-Type': 'application/json'}
+        }).then(response => {
+            if (!response.ok) {
+                alert("Failed to set player count");
+                throw new Error('Failed to set player count');
+            }
+            console.log("Player count set to", players);
+        }).catch(error => {
+            console.error("Error setting player count:", error);
+        });
+    }
     
 </script>
 <div class="clock-setter-main">
     <div class="button-container">
+        <div class="button-container-button" style="padding: 5px;">
+            
+            <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px;">
+                <button class="button-style updown" on:click={()=>{setDay($day.day-1)}}>-</button>
+                <div>
+                    <div style="opacity: 0.5;">Day</div>
+                    <div>{$day.day}</div>
+                </div>
+                <button class="button-style updown" on:click={()=>{setDay($day.day+1)}}>+</button>
+            </div>
+        </div>
+        <div class="button-container-button" style="padding: 5px;">
+            <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px;">
+                <button class="button-style updown" on:click={()=>{setPlayers($players-1)}}>-</button>
+                <div>
+                    <div style="opacity: 0.5;">Players</div>
+                    <div>{$players}</div>
+                </div>
+                <button class="button-style updown" on:click={()=>{setPlayers($players+1)}}>+</button>
+            </div>
+        </div>
         {#each options as option, index}
-            <button on:click={() => setupClock(option)} disabled={$state === 'counting'} style="grid-column: span {(index === options.length - 1 && options.length%2 === 1) ? 2 : 1};">
+            <button class="button-container-button" on:click={() => setupClock(option)} disabled={$state === 'counting'} style="grid-column: span {(index === options.length - 1 && options.length%2 === 1) ? 2 : 1};">
                 <div>
                     <div class="timer-icons" style="font-size: {option.label ? '0.8em' : '1em'};">
                         <div>
@@ -129,9 +185,9 @@
         <a class="button-style" id="edit-button" href="/admin/{model.clockId}/config">
             <img class="button-icon-img" src="{gearshape}" alt="Config"/>
         </a>
-        <button class="stop-btn" on:click={onStop} disabled={$state !== 'counting'}>Stop</button>
-        <button class="start-btn" on:click={onStart} disabled={$state !== 'idle'}>Start</button>
-        <button class="ring-bell-btn" on:click={onBell}>
+        <button class="button-container-button stop-btn" on:click={onStop} disabled={$state !== 'counting'}>Stop</button>
+        <button class="button-container-button start-btn" on:click={onStart} disabled={$state !== 'idle'}>Start</button>
+        <button class="button-container-button ring-bell-btn" on:click={onBell}>
             <img class="button-icon-img" src="{bell_and_waves}" alt="Ring Bell"/>
         </button>
     </div>
@@ -169,13 +225,9 @@
         height: fit-content;
     }
 
-    .button-container button {
+    .button-container-button {
         flex-grow: 1;
         box-sizing: border-box;
-        /* height: 100%; */
-    }
-
-    button {
         padding: 15px;
         font-size: inherit;
         border-radius: 5px;
@@ -184,6 +236,7 @@
         color: white;
         cursor: pointer;
         transition: background-color 0.3s;
+        text-align: center;
     }
 
     button:disabled {
@@ -215,5 +268,10 @@
         height: 1em;
         vertical-align: middle;
         margin-right: 2px;
+    }
+
+    .button-style.updown {
+        font-size: 1.5em;
+        opacity: 0.4;
     }
 </style>

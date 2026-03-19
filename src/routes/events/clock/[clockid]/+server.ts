@@ -17,7 +17,7 @@ class ClockInstanceCallbackHelper {
         instance.on('dayChanged', this.handleDayChanged.bind(this));
         instance.on('bellRingRequest', this.handleBellRingRequest.bind(this));
         instance.on('audioParamsChanged', this.handleAudioParamsChanged.bind(this));
-        
+        instance.on('playerCountChanged', this.handlePlayerCountChanged.bind(this));
         this.syncInterval = setInterval(()=>{
             this.broadcast({type: 'sync', serverTime: Date.now() } as WSMessage);
         }, 500);
@@ -70,7 +70,7 @@ class ClockInstanceCallbackHelper {
 
     handlePlayerCountChanged(playerCount: number){
         const message: PlayerCountMessage = {
-            type: 'playerCout',
+            type: 'playerCount',
             playerCount: playerCount
         }
         this.broadcast(message);
@@ -85,6 +85,7 @@ class ClockInstanceCallbackHelper {
         emit('message', JSON.stringify(this.instance.getState()));
         emit('message', JSON.stringify({type: 'day', ...this.instance.day_info}));
         emit('message', JSON.stringify({type: 'audioParams', ...this.instance.audioSettings}));
+        emit('message', JSON.stringify({type: 'playerCount', playerCount: this.instance.playerCount}));
         console.log(`Added emitter with id: ${id}`);
     }
 
