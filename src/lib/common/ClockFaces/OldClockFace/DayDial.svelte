@@ -1,24 +1,17 @@
 <script lang="ts">
-    import type { Readable } from "svelte/store";
     import { getSkyColor } from "$lib/common/util";
     import clockhand from '$lib/assets/clockhand3.png';
-    import type { ClientModel } from "$lib/client/model";
     
-    export let model: ClientModel;
-    
-    let day_info: Readable<{ day: number; max: number }> = model.day_info;
-    $: day = $day_info.day;
-    $: max = $day_info.max;
-
     export let size: number = 700;
+    export let day: number;
+    export let max: number = 12;
 
-    let clockData: Readable<{ cur: number; max: number }> | undefined = model.clock_info;
+    export let progress: number;
 
     $: rotationAngle = 70 - 140 * (day / max);
     // $: rotationAngle = 0;
 
-    $: timeOfDayProgress = clockData !== undefined ? ($clockData!.max > 0 ? $clockData!.cur / $clockData!.max : 0): 0;
-    $: skyColor = clockData !== undefined? getSkyColor(1-timeOfDayProgress, 0.5) : '';
+    $: skyColor = getSkyColor(progress, 0.5);
 </script>
 
 <div class="clock-container" style="width: {size}px; height: {size / 2}px;">
@@ -26,13 +19,13 @@
      <div class="dial-background" style="background-color: {skyColor};">
         
         <div class="dial-tick-main">
-            {#each {length: $day_info.max+1} as _, i}
-            <div class="dial-tick-container" style="transform: rotate({(140 * (i / ($day_info.max)) - 70)}deg);">
-                <div class="dial-tick major" style="background-color: {model.config.theme.tickColor};"></div>
+            {#each {length: max+1} as _, i}
+            <div class="dial-tick-container" style="transform: rotate({(140 * (i / (max)) - 70)}deg);">
+                <div class="dial-tick major" style="background-color: var(--clock-tick-color);"></div>
             </div>
             {/each}
-            <div class="dial-tick-outer-rim" style="border-color: {model.config.theme.tickColor};"></div>
-            <div class="dial-tick-inner-rim" style="border-color: {model.config.theme.tickColor};"></div>
+            <div class="dial-tick-outer-rim" style="border-color: var(--clock-tick-color);"></div>
+            <div class="dial-tick-inner-rim" style="border-color: var(--clock-tick-color);"></div>
         </div>
 
         <div class="time-display dumbledore-font">
@@ -40,8 +33,6 @@
             <div style="font-size: 1.2em;">{day}</div>
         </div>
         
-        <!-- <div class="dial-shadow"></div> -->
-        <!-- <div class="dial-center-dot" style="box-shadow: 0 0 200px {getSkyColor(1-timeOfDayProgress, 1, 3)}, 0 0 70px {getSkyColor(1-timeOfDayProgress, 0.3)} inset;"></div> -->
      </div>
     <div class="dial-container" style="transform: translate(-50%, -6.5%);">
         <div class="dial" style="transform: rotate({rotationAngle}deg);">

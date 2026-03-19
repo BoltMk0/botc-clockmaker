@@ -1,8 +1,8 @@
 <script lang="ts">
-    import type { ClientModel } from "$lib/client/model";
+    import type { ClockClientModel } from "$lib/client/model";
     import { onDestroy, onMount } from "svelte";
 
-    export let model: ClientModel;
+    export let model: ClockClientModel;
 
 
     let values: number[] = [];

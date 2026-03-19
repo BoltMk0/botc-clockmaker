@@ -2,23 +2,17 @@
     import {formatTime, getSkyColor} from "$lib/common/util";
     import type { Readable } from "svelte/store";
     import clockhand from '$lib/assets/clockhand.png';
-    import type { ClientModel } from "$lib/client/model";
+    import type { ClockClientModel } from "$lib/client/model";
 
-    export let model: ClientModel;
+    export let progress: number;
+    export let timeRemaining: number;
     export let size: number = 700;
     export let onTimeShift: ((delta: number)=>void) | undefined = undefined;
     
-    let clock_info: Readable<{cur: number; max: number}> = model.clock_info;
-    $: rounded_cur = Math.round($clock_info.cur);
-
     // Calculate the rotation angle (0 = right/max, 180 = left/min)
-    $: rotationAngle = $clock_info.max > 0 ? 80-160 * (1 - rounded_cur / $clock_info.max) : -80;
+    $: rotationAngle = 80-160 * (Math.min(Math.max(progress, 0), 1));
     
-    // Calculate position (0 to 1, where 0 is left and 1 is right)
-    $: progress = $clock_info.max > 0 ? 1 - rounded_cur / $clock_info.max : 1;
     
-    // Calculate color interpolation from blue to orange
-    $: colorHue = 200 - (progress * 180); // 200 (blue) to 20 (orange)
     function getCircleColor(progress: number): string {
         if(progress >= 1){
             return "#F00"
@@ -37,7 +31,7 @@
 
 <div class="clock-container" style="width: {size}px; height: {size/2}px;">
     <!-- Dial that rotates from right (max) to left (min) -->
-     <div class="dial-background" style="background-color: {getSkyColor(progress)}; box-shadow: 0 0 500px {getSkyColor(progress, 0.6)}, 0 30px 50px black;">
+     <div class="dial-background" style="background-color: {getSkyColor(progress)};">
 
         <div class="dial-sun-container">
             <div class="dial-sun" style="transform: rotate({-rotationAngle*0.4}deg); background-color: {getCircleColor(progress)}"></div>
@@ -47,7 +41,7 @@
             {#each {length: ticks} as _, i}
                 {@const angle = (80-160 * (i / (ticks - 1)))}
                 <div class="dial-tick-container" style="transform: rotate({angle}deg);">
-                    <div class="dial-tick" style="background-color: {model.config.theme.tickColor};"></div>
+                    <div class="dial-tick" style="background-color: var(--clock-tick-color);"></div>
                 </div>
             {/each}
 
@@ -56,12 +50,12 @@
             {#each {length: majorTicks} as _, i}
                 {@const angle = (80-160 * (i / (majorTicks - 1)))}
                 <div class="dial-tick-container" style="transform: rotate({angle}deg);">
-                    <div class="dial-tick major" style="background-color: {model.config.theme.tickColor};"></div>
+                    <div class="dial-tick major" style="background-color: var(--clock-tick-color);"></div>
                 </div>
             {/each}
 
-            <div class="dial-tick-outer-rim" style="border-color: {model.config.theme.tickColor};"></div>
-            <div class="dial-tick-inner-rim" style="border-color: {model.config.theme.tickColor};"></div>
+            <div class="dial-tick-outer-rim" style="border-color: var(--clock-tick-color);"></div>
+            <div class="dial-tick-inner-rim" style="border-color: var(--clock-tick-color);"></div>
 
         </div>
 
@@ -69,7 +63,7 @@
 
         <div class="time-display">
             <div class="dumbledore-font" style="font-size: 0.4em; opacity: 0.7;">Time Remaining</div>
-            <div>{formatTime($clock_info.cur)}</div>
+            <div>{formatTime(timeRemaining)}</div>
         </div>
         {#if onTimeShift !== undefined}
         <div class="shift-button-container">
@@ -82,8 +76,6 @@
         </div>
         {/if}
         
-        <!-- <div class="dial-shadow"></div> -->
-
      </div>
     <div class="dial-container" style="transform: translate(-50%, 6.5%);">
         <div class="dial" style="transform: rotate({rotationAngle}deg);">
@@ -94,8 +86,6 @@
 
 <style>
     .clock-container {
-        width: 100%;
-        margin: 0 auto;
         position: relative;
     }
 
@@ -121,8 +111,6 @@
     }
 
     .dial-background {
-        box-sizing: border-box;
-        background-color: rgb(114, 131, 143);
         width: 100%;
         aspect-ratio: 1/0.5;
         overflow: hidden;

@@ -1,6 +1,7 @@
 <script lang="ts">
     import { goto, invalidateAll, refreshAll } from '$app/navigation';
     import { page } from '$app/state';
+    import HSlider from '$lib/common/AudioMixerComponents/HSlider.svelte';
 
     export let data;
 
@@ -106,18 +107,10 @@
                 <tr>
                     <td>Theme</td>
                     <td>
-                        <table>
-                            <tbody>
-                                <tr>
-                                    <td>Rim Color</td>
-                                    <td><input type="color" bind:value={config.theme.rimColor} /></td>
-                                </tr>
-                                <tr>
-                                    <td>Tick Color</td>
-                                    <td><input type="color" bind:value={config.theme.tickColor} /></td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <div style="background-color: hsl({config.theme.hue}, 80%, 60%); padding: 5px 20px; box-sizing: border-box; border-radius: 5px; color: black; font-weight: bold;">
+                            Color
+                            <HSlider bind:value={config.theme.hue} min={0} max={360}/>
+                        </div>
                     </td>
                 </tr>
             </tbody>

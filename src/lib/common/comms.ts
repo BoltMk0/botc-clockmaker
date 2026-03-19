@@ -32,3 +32,7 @@ export type AudioParamsMessage = WSMessage & AudioParams & {
     type: 'audioParams';
 };
 
+export type PlayerCountMessage = WSMessage & {
+    type: 'playerCount';
+    playerCount: number;
+}

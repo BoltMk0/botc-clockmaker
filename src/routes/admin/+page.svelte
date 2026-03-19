@@ -1,6 +1,7 @@
 <script lang="ts">
     import { goto, invalidateAll } from '$app/navigation';
     import type { Config } from '$lib/common/config.js';
+    import Navbar from '$lib/common/Navbar.svelte';
     import { v7 } from 'uuid';
 
     export let data;
@@ -49,7 +50,7 @@
         <tbody>
             {#each data.clocks as clockData(clockData.id)}
             <tr>
-                <td><a class="button-style" style="min-width: 10em; border-color: {clockData.config.theme.rimColor}" href="/admin/{clockData.id}">{clockData.config.teamName ?? clockData.id}</a></td>
+                <td><a class="button-style" style="min-width: 10em; border-color: hsl({clockData.config.theme.hue}, 70%, 50%)" href="/admin/{clockData.id}">{clockData.config.teamName ?? clockData.id}</a></td>
                 <td><button class="button-style error" on:click={() => deleteClock(clockData)} disabled={clockData.id==="default"}>Delete</button></td>
             </tr>
             {/each}
@@ -62,15 +63,9 @@
             </tr>
         </tbody>
     </table>
-
-    <a class="button-style" href="/admin/mixer" style="margin-top: 1em;">
-        Mixer
-    </a>
-
-    <a class="button-style" href="/" style="margin-top: 2em;">
-        Back
-    </a>
 </div>
+
+<Navbar clients={data.clocks.map(clock => ({id: clock.id, name: clock.config.teamName ?? clock.id}))}/>
 
 <style>
     table, td, th {

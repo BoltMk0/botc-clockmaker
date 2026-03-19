@@ -2,8 +2,8 @@
     import { onMount } from "svelte";
     import type { Config, TimerOption } from "$lib/common/config";
     import { formatTime } from "$lib/common/util";
-    import type { ClientModel } from "$lib/client/model";
-    export let model: ClientModel;
+    import type { ClockClientModel } from "$lib/client/model";
+    export let model: ClockClientModel;
     import bell_and_waves from '$lib/assets/bell.and.waves.left.and.right.png';
     import gearshape from '$lib/assets/gearshape.fill.png';
     import timer from '$lib/assets/timer.png';
@@ -162,9 +162,11 @@
     .button-container {
         display: grid;
         grid-template-columns: 1fr 1fr;
+        flex-wrap: wrap;
         gap: 5px;
         width: 100%;
-        height: 100%;
+        min-width: 300px;
+        height: fit-content;
     }
 
     .button-container button {

@@ -11,6 +11,7 @@ console.log("Loading BOTCTClock model...");
 export class BOTCTClock extends EventEmitter {
     timer_info: {startTime: number|null; duration: number; ringBellAfter: number|null}|null = null;
     day_info: {day: number; max: number} = {day: 0, max: 8};
+    playerCount: number = 0;
 
     private configSaveTimeout: NodeJS.Timeout | null = null;
 
@@ -19,6 +20,7 @@ export class BOTCTClock extends EventEmitter {
     }
 
     on(event: 'dayChanged', listener: (dayInfo: {day: number; max: number}) => void): this;
+    on(event: 'playerCountChanged', listener: (playerCount: number)=>void): this;
     on(event: 'bellRingRequest', listener: () => void): this;
     on(event: 'stateChanged', listener: (state: ClockMessage) => void): this;
     on(event: 'audioParamsChanged', listener: (params: AudioParams) => void): this;
@@ -54,6 +56,13 @@ export class BOTCTClock extends EventEmitter {
 
     setup(duration: number, {ringBellAfter = null}: {ringBellAfter?: number|null} = {}) {
         console.log("Setting up clock...", {duration, ringBellAfter});
+        if(this.timer_info && this.timer_info.startTime !== null && this.timer_info.startTime + this.timer_info.duration < Date.now()){
+            // Day had ended, so advance to next day
+            console.log("Advancing to next day...");
+            this.setDay(this.day_info.day + 1, this.day_info.max);
+        } else {
+            console.log("No active timer, not advancing day.", this.timer_info);
+        }
         this.timer_info = {startTime: null, duration, ringBellAfter};
         this.emit('stateChanged', this.getState());
     }
@@ -111,6 +120,11 @@ export class BOTCTClock extends EventEmitter {
         this.emit('audioParamsChanged', this.config.audioParams);
     }
 
+    setPlayerCount(playerCount: number){
+        this.playerCount = playerCount;
+        this.emit('playerCountChanged', this.playerCount);
+    }
+
     get gain(){
         return this.config.audioParams.gain;
     }
@@ -157,8 +171,8 @@ class ClockInstanceManager extends EventEmitter {
         }
     }
 
-    listInstances(): {id: string, config: Config}[] {
-        return Array.from(this.instances.values()).map(instance => ({id: instance.id, config: instance.getConfig()}));
+    listInstances(): {id: string, config: Config, audioParams: AudioParams}[] {
+        return Array.from(this.instances.values()).map(instance => ({id: instance.id, config: instance.getConfig(), audioParams: instance.audioSettings}));
     }
 
     newInstance(id?: string): {id: string, instance: BOTCTClock} {

@@ -1,12 +1,12 @@
 <script lang="ts">
-    import { ClientModel } from "$lib/client/model";
+    import { ClockClientModel } from "$lib/client/model";
     import FullDisplay from "$lib/common/FullDisplay/FullDisplay.svelte";
     import OffsetDisplay from "./OffsetDisplay.svelte";
     import { onMount } from "svelte";
 
     let audio: HTMLAudioElement;
     let audio2: HTMLAudioElement;
-    let model = new ClientModel();
+    let model = new ClockClientModel();
 
     let timeOnDevice = Date.now();
     $: timeOnServer = timeOnDevice - (model.deltaTimeManager.minDeltaToServerTime ?? 0);

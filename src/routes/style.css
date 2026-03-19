@@ -11,7 +11,10 @@
     --theme-slider-accent: #77cc66;
     --theme-slider-trim: #6f6e7a;
     --theme-bg: #222;
+    --theme-bg-secondary: #333;
+    --theme-shadow: #0007;
     --theme-on-bg: #eee;
+    --theme-on-bg-secondary: #ccc;
     --font-dumbledore: "Dumbledore", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
 
@@ -63,4 +66,9 @@
 
 .hidden-button:hover {
     opacity: 1;
+}
+
+.no-button-style {
+    all: unset;
+    cursor: pointer;
 }

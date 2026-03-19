@@ -36,7 +36,6 @@ export function getLocalResource(relativePath: string, opts: {isDir?: boolean, m
     if(opts.mimeType){
         const ext = getExtensionForMimeType(opts.mimeType);
         if(ext && !relativePath.endsWith(ext)){
-            console.log(relativePath, ext);
             relativePath += ext;
         }
     }

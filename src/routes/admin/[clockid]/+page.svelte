@@ -1,11 +1,12 @@
 <script lang="ts">
-    import { ClientModel } from "$lib/client/model";
+    import { ClockClientModel } from "$lib/client/model";
     import ClockSetter from "./ClockSetter.svelte";
     import FullDisplay from "$lib/common/FullDisplay/FullDisplay.svelte";
     import { commsStatusToColor } from "$lib/common/util";
     import { onDestroy, onMount } from "svelte";
     import { get, type Unsubscriber } from "svelte/store";
     import { page } from "$app/state";
+    import Navbar from "$lib/common/Navbar.svelte";
 
     export let data;
 
@@ -18,7 +19,7 @@
 
     let audio: HTMLAudioElement;
     let audio2: HTMLAudioElement;
-    let model: ClientModel = new ClientModel(id, data.config);
+    let model: ClockClientModel = new ClockClientModel(id, data.config);
 
     let commsStateUnsubscriber: Unsubscriber | undefined = undefined;
     let buttonColor: string = "red";
@@ -86,11 +87,13 @@
 </script>
 <audio bind:this={audio} preload="auto"></audio>
 <audio bind:this={audio2} preload="auto"></audio>
-
+<Navbar clients={data.clientIds}/>
 {#if model}
-<div style="width: min-content; margin: auto;">
-    <FullDisplay {model} size={250} buttonColor={buttonColor} onDayShift={(delta)=>{bump_day(delta)}}/>
-    <div style="max-width: 400px;">
+<div style="width: min-content; display: grid; grid-template-rows: auto auto; gap: 20px;">
+    <div style="height: 300px;">
+    <FullDisplay {model} size={240}/>
+    </div>
+    <div style="">
         <ClockSetter {model}/>
     </div>
 </div>

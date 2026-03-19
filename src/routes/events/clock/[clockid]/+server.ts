@@ -1,5 +1,5 @@
 import {produce, type Unsafe} from 'sveltekit-sse';
-import type { AudioParamsMessage, BellRingRequestMessage, ClockMessage, DayMessage, WSMessage } from '$lib/common/comms';
+import type { AudioParamsMessage, BellRingRequestMessage, ClockMessage, DayMessage, PlayerCountMessage, WSMessage } from '$lib/common/comms';
 
 import { BOTCTClock, getBOTCTClockInstanceManager, InstanceNotFoundError } from "$lib/server/model";
 import { v7 } from 'uuid';
@@ -65,6 +65,14 @@ class ClockInstanceCallbackHelper {
             gain: params.gain,
             pan: params.pan
         };
+        this.broadcast(message);
+    }
+
+    handlePlayerCountChanged(playerCount: number){
+        const message: PlayerCountMessage = {
+            type: 'playerCout',
+            playerCount: playerCount
+        }
         this.broadcast(message);
     }
 

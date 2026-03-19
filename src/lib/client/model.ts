@@ -1,5 +1,5 @@
 import type { AudioParams } from "$lib/common/AudioParams";
-import type { AudioParamsMessage, BellRingRequestMessage, ClockMessage, DayMessage, SyncMessage, WSMessage } from "$lib/common/comms";
+import type { AudioParamsMessage, BellRingRequestMessage, ClockMessage, DayMessage, PlayerCountMessage, SyncMessage, WSMessage } from "$lib/common/comms";
 import { getDefaultConfig, type Config } from "$lib/common/config";
 import { get, writable, type Readable, type Writable } from "svelte/store";
 import { source } from "sveltekit-sse";
@@ -58,7 +58,7 @@ class ServerDeltaTimeManager {
     }
 };
 
-class BellRinger {
+export class BellClientModelBellRinger {
     private audioPlayer: HTMLAudioElement;
     private dtm: ServerDeltaTimeManager;
 
@@ -129,6 +129,9 @@ class BellRinger {
 };
 
 type SSEConnectionManagerEventHandlerType = {onMessage?: (msg: WSMessage)=>void};
+/**
+ * Manages the SSE connection to the server for receiving clock updates, including automatic reconnection with exponential backoff and handling mobile background/foreground transitions. Provides a simple interface for the client model to receive messages and track connection status.
+ */
 class SSEConnectionManager{
     readonly sourceUrl: string;
     comms_state: Writable<CommsConnectionStatus> = writable('disconnected');
@@ -246,9 +249,10 @@ export type ClientModelListenerType = {
     onFinalBellRing?: () => void;
     onBellRingRequest?: () => void;
     onClockReset?: () => void;
+    onAudioParamsChanged?: (params: AudioParams) => void;
 }
 
-export class ClientModel {
+export class ClockClientModel {
     state: Writable<'counting' | 'idle'> = writable('idle');
     private tickTimeout: ReturnType<typeof setTimeout>|null = null; 
     private startTime: BOTCTimeType|null = null;
@@ -257,20 +261,26 @@ export class ClientModel {
     sse_connection_manager: SSEConnectionManager|null = null;
     
     deltaTimeManager: ServerDeltaTimeManager = new ServerDeltaTimeManager();
-    finalBellRinger?: BellRinger;
-    reminderBellRinger?: BellRinger;
+    
+    finalBellRinger?: BellClientModelBellRinger;
+    reminderBellRinger?: BellClientModelBellRinger;
 
     day_info: Writable<{day: number; max: number}> = writable({day: 0, max: 8});
     clock_info: Writable<{cur: number; max: number}> = writable({cur: 0, max:60});
     audioParams: Writable<AudioParams> = writable({gain: 1, pan: 0});
+    playerCount: Writable<number> = writable(0);
 
     private listeners: Set<ClientModelListenerType> = new Set();
 
-    constructor(public readonly clockId: string = "default", public readonly config: Config = getDefaultConfig()){
-
+    constructor(public readonly clockId: string = "default", public readonly config: Config = getDefaultConfig(), audioParams: AudioParams|undefined = undefined){
+        if(audioParams){
+            console.log("Initializing ClockClientModel with audio params:", audioParams);
+            this.audioParams.set(audioParams);
+        }
     }
 
-    init(audioPlayers: {finalBellAudioPlayer: HTMLAudioElement, reminderBellAudioPlayer: HTMLAudioElement}|undefined = undefined) {
+    init(audioPlayers: {finalBellAudioPlayer: HTMLAudioElement, reminderBellAudioPlayer: HTMLAudioElement}|undefined = undefined){
+        console.log("Initializing ClockClientModel connections for clockId:", this.clockId);
         const self = this;
         if(this.sse_connection_manager === null){
             this.sse_connection_manager = new SSEConnectionManager(`/events/clock/${this.clockId}`, {
@@ -281,8 +291,8 @@ export class ClientModel {
         }
 
         if(audioPlayers) {
-            this.finalBellRinger = new BellRinger(`final-bell/${this.clockId}`, audioPlayers.finalBellAudioPlayer, this.deltaTimeManager);
-            this.reminderBellRinger = new BellRinger(`reminder-bell/${this.clockId}`, audioPlayers.reminderBellAudioPlayer, this.deltaTimeManager);
+            this.finalBellRinger = new BellClientModelBellRinger(`final-bell/${this.clockId}`, audioPlayers.finalBellAudioPlayer, this.deltaTimeManager);
+            this.reminderBellRinger = new BellClientModelBellRinger(`reminder-bell/${this.clockId}`, audioPlayers.reminderBellAudioPlayer, this.deltaTimeManager);
         }
     }
 
@@ -329,7 +339,7 @@ export class ClientModel {
         }
     }
 
-    handleClockMessage(message: WSMessage) {
+    private handleClockMessage(message: WSMessage) {
         if(message.type !== 'sync') console.log("Received clock message:", message);
         switch(message.type) {
             case 'clock':
@@ -347,21 +357,28 @@ export class ClientModel {
             case 'audioParams':
                 this.handleAudioParamsChanged(message as AudioParamsMessage);
                 break;
+            case 'playerCount':
+                this.handlePlayerCountMessage(message as PlayerCountMessage);
+                break;
             default:
                 console.warn("Unknown message type received:", message);
         }
     }
 
-    handleDayMessage(message: DayMessage) {
+    private handlePlayerCountMessage(message: PlayerCountMessage){
+        this.playerCount.set(message.playerCount);
+    }
+
+    private handleDayMessage(message: DayMessage) {
         this.day_info.set({day: message.day, max: message.max});
     }
     
 
-    handleSyncMessage(message: SyncMessage) {
+    private handleSyncMessage(message: SyncMessage) {
         this.deltaTimeManager.handleSyncMessage(message);
     }
 
-    handleClockStateMessage(message: ClockMessage) {
+    private handleClockStateMessage(message: ClockMessage) {
         this.state.set(message.running ? 'counting' : 'idle');
         this.startTime = {time: message.startTime, reference: 'server'};
         this.duration = message.duration;
@@ -369,7 +386,7 @@ export class ClientModel {
         this.updateClock();
     }
 
-    handleBellRingRequestMessage(message: BellRingRequestMessage){
+    private handleBellRingRequestMessage(message: BellRingRequestMessage){
         if(message.atTime !== undefined){
             let targetTime = this.deltaTimeManager.toLocalTime({time: message.atTime, reference: 'server'}).time;
             let timeToSleep = targetTime - Date.now();
@@ -388,9 +405,9 @@ export class ClientModel {
         }
     }
 
-    handleAudioParamsChanged(message: AudioParamsMessage){
+    private handleAudioParamsChanged(message: AudioParamsMessage){
         console.log("Updating audio params from server message:", message);
-        this.audioParams.set({gain: message.gain, pan: message.pan});
+        this.setAudioParams({gain: message.gain, pan: message.pan}, false);
     }
 
     close(){
@@ -408,5 +425,47 @@ export class ClientModel {
 
     removeListener(listener: ClientModelListenerType) {
         this.listeners.delete(listener);
+    }
+
+    ringFinalBell(broadcast: boolean = false){
+        if(broadcast){
+            fetch(`/admin/api/clock/${this.clockId}/ringBell`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({atTime: Date.now()})
+            }).catch(err=>{
+                console.error("Error sending ringBell request to server:", err);
+            });
+            return;
+        } else {
+            this.finalBellRinger?.ringBell();
+            this.listeners.forEach(listener => listener.onFinalBellRing?.());
+        }
+    }
+
+    setAudioParams(params: AudioParams, broadcast: boolean = false){
+        this.audioParams.set(params);
+        this.listeners.forEach(listener => listener.onAudioParamsChanged?.(params));
+        if(broadcast){
+            fetch(`/admin/api/clock/${this.clockId}/audioParams`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(params)
+            }).catch(err=>{
+                console.error("Error sending audioParams update to server:", err);
+            });
+        }
+    }
+
+    finalBellURL(){
+        return `/resources/final-bell/${this.clockId}`;
+    }
+
+    reminderBellURL(){
+        return `/resources/reminder-bell/${this.clockId}`;
     }
 }
