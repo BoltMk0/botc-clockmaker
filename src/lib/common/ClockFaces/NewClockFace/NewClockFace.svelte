@@ -13,6 +13,7 @@
     export let hue: string|undefined = undefined;
     export let dayNumber: number = 0;
     export let playerCount: number = 10;
+    export let style: string = "";
 
     const windowSize = 0.79
 
@@ -26,7 +27,7 @@
 </script>
 
 
-<div style="position: relative; width: 100%; height: 100%; aspect-ratio: 1/1; {hue ? `--hue: ${hue};` : ""}; --hue-dark: hsl(from var(--hue) h calc(s*0.25) calc(l*0.5));">
+<div style="position: relative; width: 100%; height: 100%; aspect-ratio: 1/1; {hue ? `--hue: ${hue};` : ""}; --hue-dark: hsl(from var(--hue) h calc(s*0.25) calc(l*0.5)); {style};">
     <div style="position: absolute; inset: 0; box-shadow: 0 0 500px rgb(from var(--hue) r g b / 30%); border-radius: 50%; overflow: hidden;">
         <ClockBackgroundDaylight1 progress={progress} {windowSize}/>
     </div>
