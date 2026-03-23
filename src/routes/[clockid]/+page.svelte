@@ -17,12 +17,7 @@
     let displayMode: FullDisplayMode = "original";
 
     onMount(()=>{
-        model.init({finalBellAudioPlayer: audio, reminderBellAudioPlayer: audio2});
-
-        if(localStorage.getItem("displaySize")){
-            console.log("Found saved display size:", localStorage.getItem("displaySize"));
-            displaySize = parseFloat(localStorage.getItem("displaySize")!);
-        }
+        model.init();
     });
 
     function onEnterButtonClicked() {
@@ -30,31 +25,21 @@
     }
 
     onMount(() => {
-        if(localStorage.getItem("displayMode")){
-            displayMode = localStorage.getItem("displayMode") as FullDisplayMode;
-        }
-        if(localStorage.getItem("displaySize")){
-            displaySize = parseFloat(localStorage.getItem("displaySize")!);
-        }
+
     });
 
     onDestroy(()=>{
-        // model.close();
+        model.close();
     });
 
 </script>
-
-<audio bind:this={audio} preload="auto"></audio>
-<audio bind:this={audio2} preload="auto"></audio>
-
-
 {#if enterButtonClicked}
-<FullDisplay model={model}/>
+<FullDisplay model={model} size={displaySize} type={displayMode}/>
 {:else}
     <button on:click={() => { enterButtonClicked = true; onEnterButtonClicked(); }}>
         Enter
     </button>
 {/if}
-<Navbar clients={data.clientIds} />
+<Navbar clients={data.clientIds} bind:size={displaySize} bind:displayMode={displayMode}/>
 
 

@@ -161,7 +161,7 @@
     <button on:click={()=>{visible = false;}} class="close-button">
         X
     </button>
-    <ul style="list-style-type: none; padding: 0 4em 0 2em; margin: 0; margin-bottom: 1em;">
+    <ul style="list-style-type: none; padding: 0 2em 0 1em; margin: 0; margin-bottom: 1em;">
         <li><a href="/" target="_self">Home</a></li>
         <li>
             <a href="/admin">Admin Panel</a>
