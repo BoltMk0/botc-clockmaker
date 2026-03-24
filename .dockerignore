@@ -2,3 +2,4 @@
 build
 node_modules
 botc-clocktower.config.json
+*.tgz
