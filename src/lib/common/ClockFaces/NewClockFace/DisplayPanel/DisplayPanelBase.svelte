@@ -29,6 +29,8 @@
         text-align: center;
         /* border-radius: 5px 5px 0 0; */
         color: #FFFA;
+        text-overflow: clip;
+        white-space: nowrap;    
     }
 
     .display-panel-base-content {

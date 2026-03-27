@@ -1,6 +1,6 @@
 <script lang="ts">
     export let title: string;
-    export let value: boolean = false;
+    export let visible: boolean = false;
 </script>
 
 <style>
@@ -11,18 +11,20 @@
         display: flex;
         justify-content: center;
         align-items: center;
+        z-index: 9999;
     }
 
     .overlay-window-title {
         display: grid; 
-        grid-template: 1fr auto;
-        border-bottom: 1px solid #ccc;
+        grid-template-columns: 1fr auto;
+        background-color: var(--theme-bg-secondary);
     }
 
     .overlay-window {
-        background: white;
-        padding: 20px;
+        background: var(--theme-bg);
+        color: var(--theme-on-bg-secondary);
         border-radius: 8px;
+        overflow: hidden;
         min-width: 300px;
         max-width: 80%;
         max-height: 80%;
@@ -32,20 +34,25 @@
 
     .close-button {
         justify-self: end;
-        background-color: #f44336;
-        color: white;
+        background-color: var(--theme-error);
+        color: var(--theme-on-error);
+    }
+
+    .overlay-content {
+        padding: 20px;
+        overflow-y: auto;
     }
 </style>
 
-<button class="button-style" on:click={()=>{value = true;}}>
+<button class="button-style" on:click={()=>{visible = true;}}>
     {title}
 </button>
-{#if value}
-    <div class="overlay-background" on:click={()=>{value = false;}}>
-        <div on:click|preventDefault|stopPropagation class="overlay-window">
+{#if visible}
+    <div class="overlay-background" on:click={()=>{visible = false;}}>
+        <div on:click|stopPropagation class="overlay-window">
             <div class="overlay-window-title">
-                <div>{title}</div>
-                <button on:click={()=>{value = false;}} class="button-style close-button">
+                <div style="font-size: large; text-align: left; padding: 5px 10px;">{title}</div>
+                <button on:click={()=>{visible = false;}} class="button-style close-button">
                     Close
                 </button>
             </div>

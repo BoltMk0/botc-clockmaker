@@ -66,7 +66,7 @@
     <div class="clocktower-main" style="--sky-color: {getSkyColor(progress)}; --hue: var(--sky-color); width: {size}px; height: {size*1.5}px;">
         <ClocktowerSillhouette style="--clocktower-color-highlight: hsl({hue}, 60%, 80%, 15%);"/>
         <div style="top: 48%; width: 55%; left: 50%; transform: translate(-50%, -50%); padding: {size/5}px; font-size: 0.8em;">
-            <NewClockFace totalTime={totalTime} progress={progress} dayNumber={dayNumber} playerCount={playerCount} style="border: 10px solid var(--clocktower-color-highlight); border-radius: 50%; box-sizing: border-box; transition: border 1s;"/>
+            <NewClockFace totalTime={totalTime} progress={progress} dayNumber={dayNumber} playerCount={playerCount} style="border: 10px solid hsl({hue}, 60%, 50%); border-radius: 50%; box-sizing: border-box; transition: border 1s;"/>
         </div>
 
         <div style="top: 71%; width: 44%; margin: 0 28%; font-size: 1em;">
