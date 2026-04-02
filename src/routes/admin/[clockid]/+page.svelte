@@ -87,7 +87,7 @@
 </script>
 <audio bind:this={audio} preload="auto"></audio>
 <audio bind:this={audio2} preload="auto"></audio>
-<Navbar clients={data.clientIds}/>
+<Navbar/>
 {#if model}
 <div style="width: min-content; display: grid; grid-template-rows: auto auto; gap: 20px;">
     <div style="height: 300px;">
@@ -98,5 +98,3 @@
     </div>
 </div>
 {/if}
-
-<a href="/admin/" style="margin-bottom: 1em;">Back to Admin</a>

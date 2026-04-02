@@ -1,5 +1,6 @@
+import { ALL_RESOURCE_TYPES, isValidResourceType } from "$lib/common/resources";
 import { resourceManager } from "$lib/server/resourceManager";
-import type { Actions } from "./$types";
+import type { Actions } from "../../resources/$types";
 
 export async function load(){
     const resources = resourceManager.listResources();
@@ -11,14 +12,18 @@ export const actions: Actions = {
         const formData = await request.formData();
         const file = formData.get("file") as File;
         const name = formData.get("name") as string;
+        const type = formData.get("type") as string;
         if (!file) {
             return { success: false, error: "No file uploaded" };
+        }
+        if(!type || !isValidResourceType(type)){
+            return { success: false, error: "Invalid or missing resource type" };
         }
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         const nameFromFilename = file.name.replace(/\.[^/.]+$/, "").replaceAll(/[_-]+/g, " ").trim();
-        
-        const id = resourceManager.newResource(buffer, name.length > 0 ? name : nameFromFilename, file.type);
+
+        const id = resourceManager.newResource(buffer, name.length > 0 ? name : nameFromFilename, type, file.type);
         return { success: true, id };
     },
     deleteResource: async ({ request }) => {

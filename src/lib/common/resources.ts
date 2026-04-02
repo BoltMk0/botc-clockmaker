@@ -1,5 +1,5 @@
 
-export type ResourceType = "image" | "audio" | "video" | "document" | "other";
+export type ResourceType = "sfx" | "music";
 
 export type Resource = {
     id: string;
@@ -8,15 +8,26 @@ export type Resource = {
     mimetype: string;
 }
 
-
-export function typeFromMimetype(mimetype: string): ResourceType {
-    if (mimetype.startsWith("image/")) return "image";
-    if (mimetype.startsWith("audio/")) return "audio";
-    if (mimetype.startsWith("video/")) return "video";
-    if (mimetype === "application/pdf" || mimetype.startsWith("application/")) return "document";
-    return "other";
+export function resourceTimeToMimeType(resourceType: ResourceType): string {
+    switch (resourceType) {
+        case "sfx":
+            return "audio/*";
+        case "music":
+            return "audio/*";
+    }
 }
 
-export const ACCEPTED_RESOURCE_EXTENSIONS = [".wav", ".mp3"] as const;
-export const ALL_RESOURCE_TYPES = ["image", "audio", "video", "document", "other"] as const;
+export function resourceTimeToAcceptedExtensions(resourceType: ResourceType): string[] {
+    switch (resourceType) {
+        case "sfx":
+        case "music":
+            return [".wav", ".mp3"];
+    }   
+}
+
+export const ALL_RESOURCE_TYPES = ["sfx", "music"] as const;
+export function isValidResourceType(type: string): type is ResourceType {
+    return ALL_RESOURCE_TYPES.includes(type as any);
+}
+
 

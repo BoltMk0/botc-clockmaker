@@ -10,15 +10,17 @@
         let newClockId = v7();
         const trimmedId = newClockId.trim();
         if(trimmedId){
-            fetch(`/admin/api/clock/${trimmedId}/create`, {
+            fetch(`/admin/api/clock/create`, {
                 method: 'POST'
             }).then(response => {
                 if (!response.ok) {
                     alert("Failed to create clock");
                     throw new Error('Failed to create clock');
                 }
-                console.log("Clock created");
-                goto(`/admin/${trimmedId}/config`);
+                response.text().then(id => {
+                    console.log("Clock created with id:", id);
+                    goto(`/admin/${id}/config`);
+                });
             }).catch(error => {
                 console.error("Error creating clock:", error);
             });
@@ -65,7 +67,7 @@
     </table>
 </div>
 
-<Navbar clients={data.clocks.map(clock => ({id: clock.id, name: clock.config.teamName ?? clock.id}))}/>
+<Navbar/>
 
 <style>
     table, td, th {

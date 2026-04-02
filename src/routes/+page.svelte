@@ -65,7 +65,7 @@
     {/each}
 </div>
 
-<Navbar bind:size={displaySize} bind:displayMode={displayMode} clients={clients.map(client => ({ id: client.clockId, name: client.config.teamName ?? client.clockId }))} visible={showNavbar}></Navbar>
+<Navbar bind:size={displaySize} bind:displayMode={displayMode} visible={showNavbar}></Navbar>
     
 <style>
     .clock-container{

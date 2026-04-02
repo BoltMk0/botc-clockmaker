@@ -2,6 +2,7 @@
     import { goto, invalidateAll, refreshAll } from '$app/navigation';
     import { page } from '$app/state';
     import HSlider from '$lib/common/AudioMixerComponents/HSlider.svelte';
+    import Navbar from '$lib/common/Navbar.svelte';
 
     export let data;
 
@@ -12,6 +13,8 @@
 
     let newFinalBellRingSoundFile: File | null = null;
     let newReminderBellSoundFile: File | null = null;
+
+    $: sfx_resources = data.resources.filter((res: any) => res.type === 'sfx');
 
     async function saveBellSound(file: File | null, resourceName: string): Promise<void> {
         return new Promise((resolve, reject) => {
@@ -94,7 +97,7 @@
     }
 </script>
 
-
+<Navbar/>
 <div class="main">
     <div class="panel">
         <h2>General</h2>
@@ -117,7 +120,11 @@
         </table>
     </div>
     <div class="panel">
-        <h2>Sound Effects</h2>
+        
+        <div style="display: grid; grid-template-columns: 1fr auto; align-items: center;">
+            <h2>Sound Effects</h2>
+            <a href="/admin/resources" class="button-style">Manage Resources</a>
+        </div>
         <table>
             <thead>
                 <tr>
@@ -130,14 +137,13 @@
                     <td>Final Bell Sound</td>
                     <td>
                         <div class="audio-file-input-container">
-                        <input type="file" onchange={(e) => {
-                            if(e.target === null) return;
-                            let target: HTMLInputElement = e.target as HTMLInputElement;
-                            if(target.type !== 'file') return;
-                            newFinalBellRingSoundFile = target.files ? target.files[0] : null
-                        }} />
-                        <audio src="{newFinalBellRingSoundFile ? URL.createObjectURL(newFinalBellRingSoundFile) : `/resources/final-bell/${id}`}" controls></audio>
-                        <button class="reset-button" onclick={() => {resetResource(`final-bell/${id}`);}}>Reset to Default</button>
+                        <select bind:value={config.resourceMapping.finalBell.url}>
+                            <option value={null}>Default ({config.resourceMapping.finalBell.defaultUrl})</option>
+                            {#each sfx_resources as res}
+                                <option value={`/admin/api/resources/${res.id}`}>{res.name}</option>
+                            {/each}
+                        </select>
+                        <audio src="{config.resourceMapping.finalBell.url ?? config.resourceMapping.finalBell.defaultUrl}" controls bind:volume={config.resourceMapping.finalBell.gain}></audio>
                         </div>
                     </td>
                 </tr>
@@ -145,14 +151,13 @@
                     <td>Reminder Bell Sound<br>(Defaults to Final Bell Sound)</td>
                     <td>
                         <div class="audio-file-input-container">
-                        <input type="file" onchange={(e) => {
-                            if(e.target === null) return;
-                            let target: HTMLInputElement = e.target as HTMLInputElement;
-                            if(target.type !== 'file') return;
-                            newReminderBellSoundFile = target.files ? target.files[0] : null
-                        }} />
-                        <audio src="{newReminderBellSoundFile ? URL.createObjectURL(newReminderBellSoundFile) : `/resources/reminder-bell/${id}`}" controls></audio>
-                        <button class="reset-button" onclick={() => {resetResource(`reminder-bell/${id}`);}}>Reset to Default</button>
+                        <select bind:value={config.resourceMapping.reminderBell.url}>
+                            <option value={null}>Default ({config.resourceMapping.reminderBell.defaultUrl})</option>
+                            {#each sfx_resources as res}
+                                <option value={`/admin/api/resources/${res.id}`}>{res.name}</option>
+                            {/each}
+                        </select>
+                        <audio src="{config.resourceMapping.reminderBell.url ?? config.resourceMapping.reminderBell.defaultUrl}" controls bind:volume={config.resourceMapping.reminderBell.gain}></audio>
                         </div>
                     </td>
                 </tr>
@@ -222,6 +227,7 @@
     .main {
         display: grid;
         gap: 10px;
+        height: 100%;
     }
 
     table {

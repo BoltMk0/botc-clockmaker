@@ -33,3 +33,6 @@ botc-clocktower.config.json
 data/
 
 *.tgz
+
+
+*.bat

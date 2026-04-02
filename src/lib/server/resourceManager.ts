@@ -1,4 +1,4 @@
-import { typeFromMimetype as resourceTypeFromMimetype, type Resource, type ResourceType } from "$lib/common/resources";
+import { type Resource, type ResourceType } from "$lib/common/resources";
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { v7 } from "uuid";
 
@@ -51,11 +51,10 @@ class ResourceManager {
         return rest;
     }
 
-    newResource(blob: Buffer, name: string, mimetype: string): string {
+    newResource(blob: Buffer, name: string, type: ResourceType, mimetype: string): string {
         const id = v7();
         const filepath = `${this.resourceDataDir}/${id}`;
         writeFileSync(filepath, blob);
-        const type = resourceTypeFromMimetype(mimetype);
         const resource: ResourceRecord = { id, name, type, mimetype, filepath };
         this.resources.set(id, resource);
         this.saveResourceMap();

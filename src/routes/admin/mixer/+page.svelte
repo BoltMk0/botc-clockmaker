@@ -33,4 +33,4 @@
 
 <AudioMixer {audioEngine}/>
 
-<Navbar clients={clients.map(client => ({id: client.clockId, name: client.config.teamName ?? client.clockId}))}/>
+<Navbar/>

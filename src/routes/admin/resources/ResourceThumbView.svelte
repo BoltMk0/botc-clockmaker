@@ -1,8 +1,11 @@
 <script lang="ts">
     import type { Resource } from "$lib/common/resources";
 
-    export let data: Resource;
-    export let onDelete: (id: string) => void;
+    export let title: string;
+    export let tags: string[];
+    export let style: string = "";
+    
+    export let onDelete: (() => void) | undefined = undefined;
 </script>
 
 <style>
@@ -19,6 +22,9 @@
     .resource-thumb-header {
         font-weight: bold;
         font-size: 1.2em;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 1em;
     }
 
     .resource-thumb-footer {
@@ -38,23 +44,20 @@
     }
 </style>
 
-<div class="resource-thumb">
+<div class="resource-thumb" style={style}>
     <div class="resource-thumb-header">
-        {data.name}
-        
-        <div class="resource-tag">{data.type}</div>
+        <div>
+            <span>{title}</span>
+            {#each tags as tag}
+                <div class="resource-tag">{tag}</div>
+            {/each}
+        </div>
+        {#if onDelete}
+            <button on:click={() => onDelete()} class="button-style error">Delete</button>
+        {/if}
     </div>
     <div style="display: flex; justify-content: center; align-items: center; gap: 10px;">
-    {#if data.type === 'image'}
-        <img src={`/admin/api/resources/${data.id}`} alt={data.name} style="max-width: 100%; max-height: 200px;"/>
-    {/if}
-    {#if data.type === 'video'}
-    <video controls src={`/admin/api/resources/${data.id}`} style="max-width: 100%; max-height: 200px;"></video>
-    {/if}
-    {#if data.type === 'audio'}
-        <audio controls src={`/admin/api/resources/${data.id}`}></audio>
-    {/if}
-    <button on:click={() => onDelete(data.id)} class="button-style error">Delete</button>
+        <slot></slot>
     </div>
     <div class="resource-thumb-footer">
     </div>

@@ -1,5 +1,5 @@
 import type { ClockMessage } from '$lib/common/comms';
-import { getDefaultConfig, type Config } from '$lib/common/config';
+import { getDefaultConfig, type ClockInstanceInfo, type Config } from '$lib/common/config';
 import { EventEmitter } from 'node:events';
 import { v7 } from 'uuid';
 import { loadAllConfigs, saveConfigWithId } from './config';
@@ -171,7 +171,7 @@ class ClockInstanceManager extends EventEmitter {
         }
     }
 
-    listInstances(): {id: string, config: Config, audioParams: AudioParams}[] {
+    listInstances(): ClockInstanceInfo[] {
         return Array.from(this.instances.values()).map(instance => ({id: instance.id, config: instance.getConfig(), audioParams: instance.audioSettings}));
     }
 
@@ -181,6 +181,9 @@ class ClockInstanceManager extends EventEmitter {
             throw new Error(`Instance with id ${instanceId} already exists.`);
         }
         const instance = new BOTCTClock(instanceId, getDefaultConfig());
+        const cfg = instance.getConfig();
+        cfg.teamName = `Team ${this.instances.size + 1}`;
+        cfg.theme.hue = (this.instances.size * 137) % 360; // use golden angle to distribute hues
         this.instances.set(instanceId, instance);
         this.emit('instanceCreated', instanceId, instance);
         console.log(`Created new BOTCTClock instance with id: ${instanceId}`);

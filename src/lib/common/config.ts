@@ -6,6 +6,12 @@ export type TimerOption = {
     ringBellWhenRemaining: number|null;
 }
 
+export type ResourceMappingType = {
+    url: string|null;
+    defaultUrl: string;
+    gain: number;
+}
+
 export type Config = {
     teamName: string|null;
     theme: {
@@ -13,11 +19,21 @@ export type Config = {
     };
     timerOptions: TimerOption[];
     audioParams: AudioParams;
+    resourceMapping: {
+        finalBell: ResourceMappingType;
+        reminderBell: ResourceMappingType;
+    }
+}
+
+export type ClockInstanceInfo = {
+    id: string;
+    config: Config;
+    audioParams: AudioParams;
 }
 
 export function getDefaultConfig(): Config {
     return {
-        teamName: null,
+        teamName: "Team 1",
         theme: {
             hue: 0,
         },
@@ -32,8 +48,21 @@ export function getDefaultConfig(): Config {
         audioParams: {
             pan: 0,
             gain: 1,
+        },
+        resourceMapping: {
+            finalBell: { url: null, defaultUrl:'/resources/final-bell', gain: 1 },
+            reminderBell: { url: null, defaultUrl:'/resources/reminder-bell', gain: 1 },
         }
+
     };
+}
+
+function validateResourceMapping(mapping: any): mapping is ResourceMappingType {
+    if (typeof mapping !== 'object' || mapping === null) return false;
+    if (mapping.url !== null && typeof mapping.url !== 'string') return false;
+    if (typeof mapping.defaultUrl !== 'string') return false;
+    if (typeof mapping.gain !== 'number') return false;
+    return true;
 }
 
 export function validateConfig(config: any): config is Config {
@@ -51,5 +80,10 @@ export function validateConfig(config: any): config is Config {
     if(config.audioParams === undefined || typeof config.audioParams !== 'object' || config.audioParams === null) return false;
     if(typeof config.audioParams.pan !== 'number') return false;
     if(typeof config.audioParams.gain !== 'number') return false;
+    if(config.resourceMapping === undefined || typeof config.resourceMapping !== 'object' || config.resourceMapping === null) return false;
+    for(const key of ['finalBell', 'reminderBell'] as const){
+        const mapping = config.resourceMapping[key];
+        if(!validateResourceMapping(mapping)) return false;
+    }
     return true;
 }

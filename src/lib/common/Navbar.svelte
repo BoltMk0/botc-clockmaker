@@ -3,12 +3,14 @@
     import type { FullDisplayMode } from "./FullDisplay/fullDisplayTypes";
     import { browser } from "$app/environment";
     import HSlider from "./AudioMixerComponents/HSlider.svelte";
+    import type { ClockInstanceInfo } from "./config";
 
-    export let clients: { id: string, name: string }[] | undefined = undefined;
     export let visible: boolean = false;
 
-    export let size: number;
+    export let size: number = 600;
     export let displayMode: FullDisplayMode = 'clocktower';
+
+    let clients: ClockInstanceInfo[] | undefined = undefined;
 
     let storedSize: number;
     let autosize: boolean = true;
@@ -16,6 +18,16 @@
     function updateSize(){
         console.log("Updating size, autosize:", autosize);
         size = autosize ? calculateIdealSize() : storedSize;
+    }
+
+    async function loadClockData(){
+        const response = await fetch('/admin/api/clock');
+        if(response.ok){
+            const data = await response.json() as { instances: ClockInstanceInfo[] };
+            return data.instances;
+        } else {
+            throw new Error("Failed to load clock data: " + response.statusText);
+        }
     }
 
     onMount(()=>{
@@ -41,6 +53,13 @@
             console.log("Initial size:", size, "Autosize:", autosize, "Display mode:", displayMode);
             updateSize();
         }
+
+        loadClockData().then(instances => {
+            console.log("Clock instances loaded:", instances);
+            clients = instances;
+        }).catch(error => {
+            console.error("Error loading clock instances:", error);
+        });
 
         return ()=>{
             if(browser){
@@ -168,8 +187,9 @@
             {#if clients !== undefined && clients.length > 0}
             <ul>
                 {#each clients as client}
-                    <li><a href="/admin/{client.id}" target="_self">{client.name}</a></li>
+                    <li><a href="/admin/{client.id}" target="_self">{client.config.teamName}</a></li>
                 {/each}
+                <li><a href="/admin/resources" target="_self">Resources</a></li>
             </ul>
             {/if}
         </li>
@@ -179,7 +199,7 @@
             <div style="opacity: 0.4;">Clocks:</div>
             <ul>
                 {#each clients as client}
-                    <li><a href="/{client.id}" target="_self">{client.name}</a></li>
+                    <li><a href="/{client.id}" target="_self">{client.config.teamName}</a></li>
                 {/each}
             </ul>
         </li>

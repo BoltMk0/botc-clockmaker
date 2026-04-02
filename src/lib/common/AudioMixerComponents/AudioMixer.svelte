@@ -1,17 +1,14 @@
 <script lang="ts">
-    import { browser } from "$app/environment";
     import { ClocktowerAudioEngine } from "$lib/client/audio/AudioEngine";
-    import type { ClockClientModel } from "$lib/client/model";
-    import { onDestroy, onMount } from "svelte";
-    import ChannelStrip from "./ChannelStrip.svelte";
+    import ChannelStrip from "./ChannelStrip/ChannelStrip.svelte";
     import type { AudioTrackBase } from "$lib/client/audio/AudioTrackBase";
 
     export let audioEngine: ClocktowerAudioEngine;
     
 
     function handleAudioParamsChange(track: AudioTrackBase, params: {gain: number, pan: number}){
-        track.pan = params.pan;
-        track.gain = params.gain;
+        track.pan.set(params.pan);
+        track.gain.set(params.gain);
     }
 </script>
 
