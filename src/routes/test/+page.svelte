@@ -1,33 +1,17 @@
 <script lang="ts">
-    import NewClockFace from "$lib/common/ClockFaces/NewClockFace/NewClockFace.svelte";
-    import OldClockFace from "$lib/common/ClockFaces/OldClockFace/OldClockFace.svelte";
-    import SkyDisplay from "$lib/common/ClockFaces/OldClockFace/SkyDisplay.svelte";
-    import ClocktowerSillhouette from "$lib/common/ClocktowerSillhouette/ClocktowerSillhouette.svelte";
-    import GodraysLayer from "$lib/common/GodraysLayer.svelte";
-    import NewClocktower from "$lib/common/NewClocktower.svelte";
-    import { getSkyColor } from "$lib/common/util";
+    import DrawableCanvas from "./DrawableCanvas.svelte";
 
-    let minuteHandProgress = 0; // 0 to 1
+    let buttonClicked = false;
 
-    $: secondClockProgress = (minuteHandProgress+0.5) % 1;
-
-    $: color = getSkyColor(minuteHandProgress);
-
-    setInterval(()=>{
-        minuteHandProgress = (minuteHandProgress + 1/10) % 1;
-    }, 1000);
+    let viewTx: number = 0;
+    let viewTy: number = 0;
+    let viewScale: number = 1;
 </script>
 
-<div style="display: grid; grid-template-columns: 1fr 1fr; height: 100%; width: 100%; justify-items: center; gap: 20px;">
-    <div style="height: 100%;  width: 100%; overflow: hidden; position: relative;">
-        <SkyDisplay progress={minuteHandProgress} style=""/>
-        <!-- <NewClocktower totalTime={220} timeRemaining={220*(1-minuteHandProgress)} hue={200} dayNumber={3} playerCount={10} style="top: 0; position: absolute;"/> -->
-        <NewClocktower totalTime={500} timeRemaining={500*(1-minuteHandProgress)} hue={0} dayNumber={6} playerCount={8} style="top: 0; position: absolute;"/>
-    </div>
-
-    <div style="height: 100%;  width: 100%; overflow: hidden; position: relative;">
-        <SkyDisplay progress={secondClockProgress} style=""/>
-        <NewClocktower totalTime={120} timeRemaining={120*(1-secondClockProgress)} hue={190} dayNumber={3} playerCount={10} style="top: 0; position: absolute;"/>
-        <!-- <GodraysLayer rotation={45+secondClockProgress*90}/> -->
-    </div>
+<div style="position: absolute; inset: 0; transform: translate({viewTx}px, {viewTy}px) scale({viewScale}); transform-origin: 0 0;">
+    <h1>Test Page</h1>
+<button style="position: absolute; left: 50%; top: 50%;" on:click={() => buttonClicked = !buttonClicked}>{buttonClicked ? "Clicked" : "Click me"}</button>
 </div>
+<DrawableCanvas bind:viewTx bind:viewTy bind:viewScale />
+
+<div>{`viewTx: ${viewTx}, viewTy: ${viewTy}, viewScale: ${viewScale}`}</div>
