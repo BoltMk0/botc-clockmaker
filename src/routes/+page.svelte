@@ -4,7 +4,7 @@
     import { onDestroy, onMount } from 'svelte';
     import FullDisplay from '$lib/components/FullDisplay/FullDisplay.svelte';
     import Navbar from '$lib/components/Navbar.svelte';
-    import type { FullDisplayMode } from '$lib/common/FullDisplay/fullDisplayTypes.js';
+    import type { FullDisplayMode } from '$lib/components/FullDisplay/fullDisplayTypes.js';
 
     export let data;
 

@@ -33,6 +33,22 @@
         data = data;
     }
 
+    function save() {
+        fetch(`?/saveScript`, { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data.script)
+        }).then(response => {
+            if (!response.ok) {
+                alert('Failed to save script');
+            } else {
+                alert('Script saved successfully');
+            }
+        }).catch(er => {
+            alert(`Failed to save script: ${er}`);
+        });
+    }
+
 </script>
     
 <style>
@@ -73,7 +89,8 @@
 <div style="width: 100%; height: 100%;">
     <div style="width: 100%; height: 100%; display: grid; grid-template-rows: auto 1fr; gap: 1em; overflow: hidden; padding: 1em; box-sizing: border-box;" class="scripts-main">
         <div>
-        <input type="text" placeholder="Script Name" bind:value={data.script.name} style="font-size: larger; padding: 0.5em;"/>
+            <input type="text" placeholder="Script Name" bind:value={data.script.name} style="font-size: larger; padding: 0.5em;"/>
+            <button on:click={()=>save}>Save</button>
         </div>
         <div style="width: 100%; height: 100%; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 1em; overflow: hidden;">
             {#each CHARACTER_CATEGORIES as category}
