@@ -1,9 +1,9 @@
 import { ALL_RESOURCE_TYPES, isValidResourceType } from "$lib/common/resources";
-import { resourceManager } from "$lib/server/resourceManager";
-import type { Actions } from "../../resources/$types";
+import { createResource, deleteResource, listResources } from "$lib/server/resources";
+import type { Actions } from "./$types";
 
 export async function load(){
-    const resources = resourceManager.listResources();
+    const resources = ALL_RESOURCE_TYPES.flatMap(listResources);
     return { resources };
 }
 
@@ -23,9 +23,10 @@ export const actions: Actions = {
         const buffer = Buffer.from(arrayBuffer);
         const nameFromFilename = file.name.replace(/\.[^/.]+$/, "").replaceAll(/[_-]+/g, " ").trim();
 
-        const id = resourceManager.newResource(buffer, name.length > 0 ? name : nameFromFilename, type, file.type);
+        const id = createResource(name.length > 0 ? name : nameFromFilename, type, file.type, buffer);
         return { success: true, id };
     },
+
     deleteResource: async ({ request }) => {
         console.log("deleteResource action called");
         const formData = await request.json();
@@ -33,7 +34,7 @@ export const actions: Actions = {
         if (!id) {
             return { success: false, error: "No resource ID provided" };
         }
-        const success = resourceManager.deleteResource(id);
+        const success = deleteResource(id);
         if (!success) {
             return { success: false, error: "Failed to delete resource" };
         }

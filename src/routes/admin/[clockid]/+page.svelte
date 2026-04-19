@@ -1,12 +1,12 @@
 <script lang="ts">
     import { ClockClientModel } from "$lib/client/model";
     import ClockSetter from "./ClockSetter.svelte";
-    import FullDisplay from "$lib/common/FullDisplay/FullDisplay.svelte";
+    import FullDisplay from "$lib/components/FullDisplay/FullDisplay.svelte";
     import { commsStatusToColor } from "$lib/common/util";
     import { onDestroy, onMount } from "svelte";
     import { get, type Unsubscriber } from "svelte/store";
     import { page } from "$app/state";
-    import Navbar from "$lib/common/Navbar.svelte";
+    import Navbar from "$lib/components/Navbar.svelte";
 
     export let data;
 

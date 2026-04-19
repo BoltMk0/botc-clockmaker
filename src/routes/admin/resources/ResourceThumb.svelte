@@ -1,5 +1,6 @@
 <script lang="ts">
     import type { Resource } from "$lib/common/resources";
+    import TokenBackground from "$lib/components/TokenBackground.svelte";
 
     export let data: Resource;
     export let onDelete: (id: string) => void;
@@ -52,6 +53,10 @@
 
     {#if data.type === 'sfx' || data.type === 'music'}
         <audio controls src={`/admin/api/resources/${data.id}`}></audio>
+    {:else if data.type === 'reminder-token'}
+        <TokenBackground style="width: 100px; height: 100px;">
+            <img src={`/admin/api/resources/${data.id}`} alt={data.name} style="width: 100%; height: 100%; object-fit: contain;"/>
+        </TokenBackground>
     {/if}
     </div>
     <div class="resource-thumb-footer">

@@ -3,14 +3,18 @@
     import type { Config, TimerOption } from "$lib/common/config";
     import { formatTime } from "$lib/common/util";
     import type { ClockClientModel } from "$lib/client/model";
-    export let model: ClockClientModel;
     import bell_and_waves from '$lib/assets/bell.and.waves.left.and.right.png';
     import gearshape from '$lib/assets/gearshape.fill.png';
     import timer from '$lib/assets/timer.png';
     import bell from '$lib/assets/bell.fill.png';
     import bell_slash from '$lib/assets/bell.slash.png';
 
+
+    export let model: ClockClientModel;
+    export let onstart: () => void = () => {};
+
     $: state = model.state;
+    let clock_info = model.clock_info;
 
     let day = model.day_info;
     let players = model.playerCount;
@@ -63,6 +67,7 @@
                 throw new Error('Failed to start clock');
             }
             console.log("Clock started");
+            onstart();
         }).catch(error => {
             console.error("Error starting clock:", error);
         });
@@ -158,7 +163,7 @@
             </div>
         </div>
         {#each options as option, index}
-            <button class="button-container-button" on:click={() => setupClock(option)} disabled={$state === 'counting'} style="grid-column: span {(index === options.length - 1 && options.length%2 === 1) ? 2 : 1};">
+            <button class="button-container-button" class:active={option.duration === $clock_info.max} on:click={() => setupClock(option)} disabled={$state === 'counting'} style="grid-column: span {(index === options.length - 1 && options.length%2 === 1) ? 2 : 1};">
                 <div>
                     <div class="timer-icons" style="font-size: {option.label ? '0.8em' : '1em'};">
                         <div>
@@ -237,6 +242,10 @@
         cursor: pointer;
         transition: background-color 0.3s;
         text-align: center;
+    }
+
+    .button-container-button.active {
+        background-color: #27ae60;
     }
 
     button:disabled {

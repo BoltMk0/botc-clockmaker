@@ -2,9 +2,8 @@
     import { browser } from '$app/environment';
     import { ClockClientModel } from '$lib/client/model.js';
     import { onDestroy, onMount } from 'svelte';
-    import FullDisplay from '$lib/common/FullDisplay/FullDisplay.svelte';
-    import HSlider from '../lib/common/AudioMixerComponents/HSlider.svelte';
-    import Navbar from '$lib/common/Navbar.svelte';
+    import FullDisplay from '$lib/components/FullDisplay/FullDisplay.svelte';
+    import Navbar from '$lib/components/Navbar.svelte';
     import type { FullDisplayMode } from '$lib/common/FullDisplay/fullDisplayTypes.js';
 
     export let data;

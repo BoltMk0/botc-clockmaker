@@ -1,6 +1,6 @@
 <script lang="ts">
     import { ClockClientModel } from "$lib/client/model";
-    import FullDisplay from "$lib/common/FullDisplay/FullDisplay.svelte";
+    import FullDisplay from "$lib/components/FullDisplay/FullDisplay.svelte";
     import OffsetDisplay from "./OffsetDisplay.svelte";
     import { onMount } from "svelte";
 

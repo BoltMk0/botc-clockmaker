@@ -5,5 +5,14 @@ services:
       - "3000:3000"
     volumes:
       - data:/data
+  database:
+    image: mysql:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+      MYSQL_DATABASE: botct_clock
+    ports:
+      - "3306:3306"
+    volumes:
+      - "./db-init.sql:/docker-entrypoint-initdb.d/init.sql:ro"
 volumes:
   data:

@@ -1,13 +1,13 @@
 <script lang="ts">
     import { enhance } from "$app/forms";
     import { invalidateAll } from "$app/navigation";
-    import CustomOverlay from "$lib/common/CustomOverlay.svelte";
-    import { ALL_RESOURCE_TYPES, resourceTimeToAcceptedExtensions, type Resource, type ResourceType } from "$lib/common/resources";
+    import CustomOverlay from "$lib/components/CustomOverlay.svelte";
+    import { ALL_RESOURCE_TYPES, getAcceptedExtensionsForResourceType, type Resource, type ResourceType } from "$lib/common/resources";
     import { onMount, tick } from "svelte";
     import { writable } from "svelte/store";
     import ResourceThumb from "./ResourceThumb.svelte";
-    import Navbar from "$lib/common/Navbar.svelte";
-    import SFXResourceThumb from "./SFXResourceThumb.svelte";
+    import Navbar from "$lib/components/Navbar.svelte";
+    import AudioResourceThumb from "./AudioResourceThumb.svelte";
 
 
     export let data: { resources: Resource[] };
@@ -23,7 +23,7 @@
     let fileInput: HTMLInputElement | null = null;
 
     const supportedExtensions = new Set(
-        ALL_RESOURCE_TYPES.flatMap((type) => resourceTimeToAcceptedExtensions(type)).map((ext) => ext.toLowerCase())
+        ALL_RESOURCE_TYPES.flatMap((type) => getAcceptedExtensionsForResourceType(type)).map((ext) => ext.toLowerCase())
     );
 
     function isSupportedResourceFile(file: File): boolean {
@@ -235,7 +235,7 @@
                             <tr>
                                 <th>File</th>
                                 <td>
-                                      <input bind:this={fileInput} type="file" name="file" required={!droppedFile} multiple={false} accept="{resourceTimeToAcceptedExtensions(selectedResourceType).join(',')}"/>
+                                      <input bind:this={fileInput} type="file" name="file" required={!droppedFile} multiple={false} accept="{getAcceptedExtensionsForResourceType(selectedResourceType).join(',')}"/>
                                 </td>
                             </tr>
                         {/if}
@@ -270,7 +270,7 @@
         >
             {#each sortedResources.find(r => r.type === $visibleResourceType)?.resources ?? [] as resource}
                 {#if resource.type === 'sfx' || resource.type === 'music' }
-                     <SFXResourceThumb resource={resource} style="flex-grow: 1;"/>
+                     <AudioResourceThumb resource={resource} style="flex-grow: 1; max-width: 400px;"/>
                 {:else}
                      <ResourceThumb data={resource} onDelete={deleteResource} />
                 {/if}

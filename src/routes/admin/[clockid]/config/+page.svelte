@@ -1,8 +1,8 @@
 <script lang="ts">
     import { goto, invalidateAll, refreshAll } from '$app/navigation';
     import { page } from '$app/state';
-    import HSlider from '$lib/common/AudioMixerComponents/HSlider.svelte';
-    import Navbar from '$lib/common/Navbar.svelte';
+    import HSlider from '$lib/components/AudioMixerComponents/HSlider.svelte';
+    import Navbar from '$lib/components/Navbar.svelte';
 
     export let data;
 
@@ -14,7 +14,7 @@
     let newFinalBellRingSoundFile: File | null = null;
     let newReminderBellSoundFile: File | null = null;
 
-    $: sfx_resources = data.resources.filter((res: any) => res.type === 'sfx');
+    $: sfx_resources = data.sfx_resources;
 
     async function saveBellSound(file: File | null, resourceName: string): Promise<void> {
         return new Promise((resolve, reject) => {
@@ -128,27 +128,27 @@
         <table>
             <thead>
                 <tr>
-                    <th>Event</th>
+                    <th style="width: fit-content;">Event</th>
                     <th>Sound File</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td>Final Bell Sound</td>
+                    <td style="width: fit-content;">Final Bell Sound</td>
                     <td>
                         <div class="audio-file-input-container">
-                        <select bind:value={config.resourceMapping.finalBell.url}>
-                            <option value={null}>Default ({config.resourceMapping.finalBell.defaultUrl})</option>
-                            {#each sfx_resources as res}
-                                <option value={`/admin/api/resources/${res.id}`}>{res.name}</option>
-                            {/each}
-                        </select>
-                        <audio src="{config.resourceMapping.finalBell.url ?? config.resourceMapping.finalBell.defaultUrl}" controls bind:volume={config.resourceMapping.finalBell.gain}></audio>
+                            <select bind:value={config.resourceMapping.finalBell.url}>
+                                <option value={null}>Default ({config.resourceMapping.finalBell.defaultUrl})</option>
+                                {#each sfx_resources as res}
+                                    <option value={`/admin/api/resources/${res.id}`}>{res.name}</option>
+                                {/each}
+                            </select>
+                            <audio src="{config.resourceMapping.finalBell.url ?? config.resourceMapping.finalBell.defaultUrl}" controls bind:volume={config.resourceMapping.finalBell.gain}></audio>
                         </div>
                     </td>
                 </tr>
                 <tr>
-                    <td>Reminder Bell Sound<br>(Defaults to Final Bell Sound)</td>
+                    <td style="width: fit-content;">Reminder Bell Sound</td>
                     <td>
                         <div class="audio-file-input-container">
                         <select bind:value={config.resourceMapping.reminderBell.url}>
@@ -205,16 +205,18 @@
 
 <style>
 
+
     .audio-file-input-container {
-        display: grid;
-        grid-template-columns: min-content;
-        gap: 5px;
-        align-items: center;
-        justify-content: center;
+        width: 100%;
     }
 
-    .audio-file-input-container>.reset-button {
-        background-color: #A44;
+    .audio-file-input-container > * {
+        width: 100%;
+    }
+
+
+    .audio-file-input-container > audio{
+        margin-top: 5px;
     }
 
     .panel {

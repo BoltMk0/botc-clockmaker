@@ -101,3 +101,31 @@ export function getMimeTypeForFilename(filename: string): string {
     const ext = filename.substring(filename.lastIndexOf('.'));
     return getMimeTypeForExtension(ext);
 }
+
+export function getPlayerCount(numPlayers: number){
+    let townsfolk: number;
+    let outsiders: number;
+    let minions: number;
+    let demons: number = 1;
+    if(numPlayers < 5){
+        townsfolk = numPlayers-1;
+        minions = 0;
+        outsiders = 0;
+    }
+    else if(numPlayers < 7){
+        townsfolk = 3;
+        minions = 1;
+        outsiders = numPlayers-5;
+    } else if (numPlayers > 15) {
+        townsfolk = 9;
+        outsiders = 2;
+        minions = 3;
+    }
+    else {
+        townsfolk = 5 + 2*Math.floor((numPlayers-7)/3);
+        outsiders = (numPlayers-7)%3;
+        minions = 1 + Math.floor((numPlayers-7)/3);
+    }
+
+    return {townsfolk, outsiders, minions, demons};
+}

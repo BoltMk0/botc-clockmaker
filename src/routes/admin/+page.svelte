@@ -1,7 +1,7 @@
 <script lang="ts">
     import { goto, invalidateAll } from '$app/navigation';
     import type { Config } from '$lib/common/config.js';
-    import Navbar from '$lib/common/Navbar.svelte';
+    import Navbar from '$lib/components/Navbar.svelte';
     import { v7 } from 'uuid';
 
     export let data;

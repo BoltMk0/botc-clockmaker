@@ -1,11 +1,11 @@
-import { resourceManager } from '$lib/server/resourceManager.js';
+import { deleteResource, findResourceById, getResourceData } from '$lib/server/resources';
 
 export async function GET({params}){
-    const resource =resourceManager.findResourceById(params.id);
+    const resource =findResourceById(params.id);
     if (!resource) {
         return new Response("Resource not found", { status: 404 });
     }
-    const data = resourceManager.getResourceData(params.id);
+    const data = getResourceData(resource);
     if (!data) {
         return new Response("Resource data not found", { status: 404 });
     }
@@ -19,7 +19,7 @@ export async function GET({params}){
 }
 
 export async function DELETE({params}){
-    const success = resourceManager.deleteResource(params.id);
+    const success = deleteResource(params.id);
     if (!success) {
         return new Response("Failed to delete resource", { status: 500 });
     }

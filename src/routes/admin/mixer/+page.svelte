@@ -3,8 +3,8 @@
     import { onDestroy, onMount } from 'svelte';
     import { browser } from '$app/environment';
     import { ClocktowerAudioEngine } from '$lib/client/audio/AudioEngine.js';
-    import AudioMixer from '$lib/common/AudioMixerComponents/AudioMixer.svelte';
-    import Navbar from '$lib/common/Navbar.svelte';
+    import AudioMixer from '$lib/components/AudioMixerComponents/AudioMixer.svelte';
+    import Navbar from '$lib/components/Navbar.svelte';
 
     export let data;
 

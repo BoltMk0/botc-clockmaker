@@ -1,10 +1,10 @@
 <script lang="ts">
     import { onDestroy, onMount } from 'svelte';
     import { ClockClientModel } from '$lib/client/model';
-    import FullDisplay from '$lib/common/FullDisplay/FullDisplay.svelte';
+    import FullDisplay from '$lib/components/FullDisplay/FullDisplay.svelte';
     import { page } from '$app/state';
-    import Navbar from '$lib/common/Navbar.svelte';
-    import type { FullDisplayMode } from '$lib/common/FullDisplay/fullDisplayTypes.js';
+    import Navbar from '$lib/components/Navbar.svelte';
+    import type { FullDisplayMode } from '$lib/components/FullDisplay/fullDisplayTypes.js';
 
     export let data;
 
@@ -40,6 +40,6 @@
         Enter
     </button>
 {/if}
-<Navbar clients={data.clientIds} bind:size={displaySize} bind:displayMode={displayMode}/>
+<Navbar bind:size={displaySize} bind:displayMode={displayMode}/>
 
 
