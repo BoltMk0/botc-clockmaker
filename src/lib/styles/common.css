@@ -1,0 +1,21 @@
+.in-a-row {
+    display: flex;
+    flex-direction: row;
+    gap: 1em;
+}
+
+.padded {
+    padding: 1em;
+    box-sizing: border-box;
+}
+
+.rounded {
+    border-radius: 0.5em;
+    box-sizing: border-box;
+}
+
+.center-content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}

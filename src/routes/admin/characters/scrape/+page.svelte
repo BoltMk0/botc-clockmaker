@@ -1,5 +1,6 @@
 <script lang="ts">
     import type { Character } from "$lib/common/database/types";
+    import Navbar from "$lib/components/Navbar.svelte";
     import type { ScrapeResult } from "$lib/scraper/common/types";
     import { writable } from "svelte/store";
 
@@ -18,11 +19,11 @@
     }
 
     let progress = writable(0);
-    let statusMap = writable(new Map<number, JobStatus>(data.characters.map(c => [c.id, { character: c, status: 'pending' }])));
+    let statusMap = writable(new Map<number, JobStatus>());
 
     const statusToColor: Record<string, string> = {
         'pending': 'gray',
-        'exists': 'blue',
+        'exists': 'green',
         'not_found': 'orange',
         'scraped': 'green',
         'error': 'red'
@@ -37,6 +38,8 @@
     async function scrapeAll(){
         running.set(true);
         progress.set(0);
+        successCount.set(0);
+        errorCount.set(0);
         for(const character of data.characters){
             if(!$running) break;
             processing.set(character);
@@ -70,16 +73,65 @@
 
 </script>
 
-<div style="width: 600px;">
+<Navbar/>
+
+<div style="width: 100%; height: 100%; padding: 2em; box-sizing: border-box;">
+    
+<div class="scraper-main">
     <div>
-        <progress value={$progress} max={data.characters.length} style="width: 100%;">Test</progress>
-    </div>
-    <button on:click={()=>{$running ? running.set(false) : scrapeAll()}} style="margin-top: 10px; width: 100%;">{$running ? 'Stop' : 'Scrape All'}</button>
-    {#if $processing}
+        <div>
+            <progress value={$progress} max={data.characters.length} style="width: 100%;">Test</progress>
+        </div>
+        <button on:click={()=>{$running ? running.set(false) : scrapeAll()}} style="margin-top: 10px; width: 100%;">{$running ? 'Stop' : 'Scrape All'}</button>
+        {#if $processing}
         {#if $progress === data.characters.length}
-            <div>All characters processed ({$successCount} success, {$errorCount} error)</div>
+        <div>All characters processed ({$successCount} success, {$errorCount} error)</div>
         {:else}
         <div>Processing: {$processing.name} ({$progress}/{data.characters.length})</div>
         {/if}
-    {/if}
+        {/if}
+    </div>
+   
+    <div class="completed-jobs-display">
+        <table style="width: fit-content; margin: auto;">
+            <tbody>
+                {#each Array.from($statusMap.values()) as jobStatus}
+                    <tr>
+                        <td>{jobStatus.character.name}</td>
+                        <td style="color: {statusToColor[jobStatus.status]}">{jobStatus.status}</td>
+                        <td>{jobStatus.error}</td>
+                    </tr>
+                {/each}
+            </tbody>
+        </table>
+    </div>
 </div>
+
+</div>
+
+
+<style>
+    .completed-jobs-display {
+        height: 100%;
+        overflow-y: auto;
+        background-color: var(--theme-bg-secondary);
+        color: var(--theme-on-bg-secondary);
+        box-sizing: border-box;
+        padding: 1em;
+    }
+
+    table {
+        /* margin: 1em; */
+    }
+
+    .scraper-main {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        gap: 1em;
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        background-color: var(--theme-bg);
+        /* box-sizing: border-box; */
+    }
+</style>

@@ -2,6 +2,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { onMount } from 'svelte';
 	import "./style.css"
+	import "$lib/styles/common.css";
 	let { children } = $props();
 	let bodyContentEl: HTMLDivElement | null = null;
 

@@ -520,19 +520,6 @@
 <svelte:window on:pointermove={onPointerMove} on:pointerup={onPointerUp}/>
 
 <style>
-    .grimoire-header {
-        display: flex;
-        gap: 1em;
-        justify-content: center;
-        align-items: center;
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 1;
-        pointer-events: none;
-    }
-
     .grimoire-board {
         position: absolute;
         inset: 0;
@@ -970,7 +957,7 @@
     {/if}
 
     {#if $showTimerOptions || $clockClientManagerConfig?.showClock && !$clockClientManagerClient}
-        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: 20;" on:click={() => {showTimerOptions.set(false); if ($clockClientManagerConfig?.showClock && !$clockClientManagerClient) clockClientManager?.setVisible(false);}}>
+        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: 20;" on:click={() => {showTimerOptions.set(false); if ($clockClientManagerConfig?.showClock && !$clockClientManagerClient) clockClientManager?.setVisible(false);}} role="dialog" tabindex="0">
             <div style="background: var(--theme-bg-secondary); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px;" on:click|stopPropagation>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em;">
                     <h2 style="margin: 0;">Clock Controls</h2>

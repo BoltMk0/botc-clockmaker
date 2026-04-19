@@ -1,43 +1,57 @@
 <script lang="ts">
+    import { enhance } from '$app/forms';
+    import { page } from '$app/stores';
     import { deleteReminderToken, fetchReminderTokensForCharacter, updateReminderToken } from '$lib/client/database/reminder_tokens.js';
-    import { CHARACTER_CATEGORIES, type ReminderToken } from '$lib/common/database/types.js';
+    import { CHARACTER_CATEGORIES, type Character, type ReminderToken } from '$lib/common/database/types.js';
+    import CustomOverlay from '$lib/components/CustomOverlay.svelte';
+    import Navbar from '$lib/components/Navbar.svelte';
     import ReminderTokenView from '$lib/components/ReminderTokenView.svelte';
     import { writable, type Writable } from 'svelte/store';
 
-    export let data;
+    let {data}: {
+        data: {
+            characters: Character[]
+        }
+    } = $props();
 
+    let newCharacterOverlayIsVisible = $state(false);
 
+    let characters = $derived(data.characters);
 
-    $: dataCopy = JSON.parse(JSON.stringify(data));
+    let selectedCharacterId = $state<number|null>($page.url.searchParams.has('characterId') ? parseInt($page.url.searchParams.get('characterId')!) : null);
+    let selectedReminderTokenId = $state<number|null>(null);
+    let searchQuery = $state<string>('');
 
-    let selectedCharacterId: number | null = null;
-    let selectedReminderTokenId: number | null = null;
-    let searchQuery = '';
     let imageInput: HTMLInputElement | null = null;
 
 
     function selectCharacter(characterId: number) {
         selectedCharacterId = characterId;
         selectedReminderTokenId = null;
+        // Update URL query parameter without reloading the page
+        const url = new URL(window.location.href);
+        url.searchParams.set('characterId', characterId.toString());
+        history.pushState(null, '', url.toString());
     }
 
-    $: selectedCharacter = data.characters.find((char) => char.id === selectedCharacterId) || null;
-    $: selectedReminderToken = $selectedCharacterTokens.find(token => token.id === selectedReminderTokenId) || null;
-    let selectedCharacterTokens: Writable<ReminderToken[]> = writable([]);
-    $: if (selectedCharacterId !== null) {
+    let selectedCharacterTokens = $state<ReminderToken[]>([]);
+
+    const selectedCharacter = $derived(characters.find((char) => char.id === selectedCharacterId) || null);
+    const selectedReminderToken = $derived(selectedCharacterTokens.find(token => token.id === selectedReminderTokenId) || null);
+    $effect(()=>{if (selectedCharacterId !== null && selectedCharacterId !== null) {
         fetchReminderTokensForCharacter(selectedCharacterId).then(tokens => {
-            selectedCharacterTokens.set(tokens);
+            selectedCharacterTokens = tokens;
         });
-    }
+    }});
 
-    let pendingImageFile: File | null = null;
-    let previewUrl: string | null = null;
-    let uploading = false;
+    let pendingImageFile = $state<File | null>(null);
+    let previewUrl = $state<string|null>(null);
+    let uploading = $state(false);
 
     // Reset preview when switching characters
-    $: if (selectedCharacterId !== null) {
+    $effect(()=>{if (selectedCharacterId !== null) {
         clearPreview();
-    }
+    }});
 
     function clearPreview() {
         if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -87,12 +101,14 @@
             return res.json();
         }).then(responseData => {
             console.log('Created token:', responseData);
-            // Optionally, you could also refresh the token list here to show the new token immediately
-            fetchReminderTokensForCharacter(selectedCharacterId!).then(tokens => {
-                selectedCharacterTokens.set(tokens);
+            if(selectedCharacterId) {
+                // Optionally, you could also refresh the token list here to show the new token immediately
+                fetchReminderTokensForCharacter(selectedCharacterId).then(tokens => {
+                    selectedCharacterTokens = tokens;
 
-                selectedReminderTokenId = responseData.id;
-            });
+                    selectedReminderTokenId = responseData.id;
+                });
+            }
         }).catch(err => {
             console.error(err);
             alert('Failed to create reminder token.');
@@ -106,7 +122,7 @@
             // Refresh token list after deletion
             if (selectedCharacterId) {
                 fetchReminderTokensForCharacter(selectedCharacterId).then(tokens => {
-                    selectedCharacterTokens.set(tokens);
+                    selectedCharacterTokens = tokens;
                 });
             }
         }).finally(()=>{
@@ -119,7 +135,7 @@
             updateReminderToken(selectedReminderToken.id, { text: selectedReminderToken.text }).then(()=>{
                 return fetchReminderTokensForCharacter(selectedCharacterId!)
             }).then(tokens => {
-                selectedCharacterTokens.set(tokens);
+                selectedCharacterTokens = tokens;
                 selectedReminderTokenId = null;
             }).finally(() => {
                 selectedReminderTokenId = null;
@@ -129,11 +145,30 @@
         };
     }
 
-    let imgCacheBust = Date.now();
-    let hasImage = true;
+    function deleteCharacter(characterId: number) {
+        if (!confirm('Are you sure you want to delete this character? This action cannot be undone.')) return;
+        fetch(`/api/characters/${characterId}`, { method: 'DELETE' }).then(response => {
+            if (!response.ok) {
+                alert('Failed to delete character');
+            } else {
+                // Remove deleted character from local state
+                characters = characters.filter(char => char.id !== characterId);
+                if (selectedCharacterId === characterId) {
+                    selectedCharacterId = null;
+                }
+            }
+        }).catch(er => {
+            alert(`Failed to delete character: ${er}`);
+        });
+    }
+
+    let imgCacheBust = $state<number>(Date.now());
+    let hasImage = $state<boolean>(true);
 
     // Reset hasImage when switching characters
-    $: if (selectedCharacterId) hasImage = true;
+    $effect(() => {
+        if (selectedCharacterId) hasImage = true;
+    });
 
 </script>
 
@@ -142,6 +177,7 @@
         height: 100%;
         width: 100%;
         padding: 2em;
+        padding-top: 4em;
         box-sizing: border-box;
         overflow: hidden;
     }
@@ -154,14 +190,19 @@
         box-sizing: border-box;
     }
 
-    li.selected {
+    li > button {
+        width: 100%;
+        cursor: pointer;
+        padding: 0.2em 0.6em;
+        box-sizing: border-box;
+    }
+
+    li > button.selected {
         background-color: #555;
     }
 
     li {
         list-style: none;
-        cursor: pointer;
-        padding: 0.2em 0.6em;
     }
 
     ul {
@@ -212,44 +253,72 @@
 
 </style>
 
+<Navbar/>
+
 <div class="character-list-main">
     <div class="character-list-grid">
-        <div style="height: 100%; overflow: hidden; display: grid; grid-template-rows: auto 1fr; gap: 1em;">
-            <h2 style="padding: 0; margin: 0;">Characters</h2>
+        <div style="height: 100%; overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; gap: 1em;">
+            <div class="in-a-row">
+                <h2 style="padding: 0; margin: 0;">Characters</h2>
+                <CustomOverlay title="Create New Character" buttonTitle="+" bind:visible={newCharacterOverlayIsVisible}>
+                    <form action="?/createCharacter" method="POST" use:enhance={()=>{
+                        return async ({result}) => {
+                            if(result.type === 'success'){
+                                const newCharacter = result.data as Character;
+                                characters = [...characters, newCharacter].sort((a, b) => a.name.localeCompare(b.name));
+                                selectCharacter(newCharacter.id);
+                                newCharacterOverlayIsVisible = false;
+                            }
+                        }
+                    }}>
+                        <input type="text" name="name" placeholder="Character Name (Required)" required style="width: 100%; margin-bottom: 1em;"/>
+                        <select name="category" style="width: 100%; margin-bottom: 1em;" required>
+                            <option value="" disabled selected>Character Category (Required)</option>
+                            {#each CHARACTER_CATEGORIES as group}
+                                <option value={group}>{group}</option>
+                            {/each}
+                        </select>
+                        <button type="submit">Submit</button>
+                    </form>
+                </CustomOverlay>
+            </div>
             <div class="character-list">
                 <input placeholder="Search..." bind:value={searchQuery} />
                 <ul>
-                    {#each data.characters.filter(char => char.name.toLowerCase().includes(searchQuery.toLowerCase())) as character (character.id)}
-                        <li on:click={() => selectCharacter(character.id)} class:selected={selectedCharacterId === character.id}>
-                            {character.name}
+                    {#each characters.filter(char => char.name.toLowerCase().includes(searchQuery.toLowerCase())) as character (character.id)}
+                        <li>
+                            <button class="no-button-style" onclick={() => selectCharacter(character.id)} class:selected={selectedCharacterId === character.id}>
+                                {character.name}
+                            </button>
                         </li>
                     {/each}
                 </ul>
             </div>
+                <a class="button-style" style="width: 100%;" href="characters/scrape">Image Scraper</a>
 
         </div>
         <div class="character-info">
             {#if selectedCharacter}
                 {#if selectedReminderToken}
                     
-                <button on:click={onReminderTokenViewBackButtonClicked}>Back</button>
+                <button onclick={onReminderTokenViewBackButtonClicked}>Back</button>
 
                 <div class="reminder-token-editor-container">
                     <ReminderTokenView data={selectedReminderToken} size="200px" />
                     <textarea style="width: 100%; max-width: 400px;" bind:value={selectedReminderToken.text}></textarea>
-                    <button on:click={()=>onDeleteReminderToken(selectedReminderTokenId)}>Delete Token</button>
+                    <button onclick={()=>onDeleteReminderToken(selectedReminderTokenId)}>Delete Token</button>
                 </div>
 
                 {:else}
                 <div style="display: flex; justify-content: start; align-items: center; gap: 1em; margin-bottom: 1em;">
                     
-                <button type="button" class="no-button-style" on:click={() => imageInput?.click()} style="">
+                <button type="button" class="no-button-style" onclick={() => imageInput?.click()} style="">
                 {#if previewUrl || hasImage}
                     <img
                         src={previewUrl || `/api/characters/${selectedCharacter.id}/img?v=${imgCacheBust}`}
                         alt={selectedCharacter.name}
                         style="width: 110px; display: block; margin-bottom: 0.5em; aspect-ratio: 1 / 1; object-fit: cover; border: 1px solid #ccc; border-radius: 50%;"
-                        on:error={() => hasImage = false}
+                        onerror={() => hasImage = false}
                     />
                 {:else}
                     <span style="width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; margin-bottom: 0.5em; border: 1px dashed #ccc; border-radius: 50%; color: #999;">No image</span>
@@ -259,12 +328,12 @@
                 <h1 style="margin: 0; padding: 0;">{selectedCharacter.name}</h1>
                 </div>
 
-                <input hidden bind:this={imageInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif" on:change={onFileSelected} />
+                <input hidden bind:this={imageInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif" onchange={onFileSelected} />
                 {#if pendingImageFile}
-                    <button type="button" on:click={uploadImage} disabled={uploading}>
+                    <button type="button" onclick={uploadImage} disabled={uploading}>
                         {uploading ? 'Uploading…' : 'Upload Image'}
                     </button>
-                    <button type="button" on:click={clearPreview}>Cancel</button>
+                    <button type="button" onclick={clearPreview}>Cancel</button>
                 {/if}
 
                 <form>
@@ -306,14 +375,16 @@
 
                 <h3>Reminder Tokens</h3>
                 <div class="reminder-token-container">
-                    {#each $selectedCharacterTokens as token(token.id)}
-                        <button class="no-button-style" on:click={() => selectedReminderTokenId = token.id} style="position: relative;">
+                    {#each selectedCharacterTokens as token(token.id)}
+                        <button class="no-button-style" onclick={() => selectedReminderTokenId = token.id} style="position: relative;">
                         <ReminderTokenView data={token} size="80px" />
                         </button>
                     {/each}
-                    <button id="add-reminder-token-button" on:click={createNewReminderToken} >+</button>
+                    <button id="add-reminder-token-button" onclick={createNewReminderToken} >+</button>
                 </div>
                 {/if}
+
+                <button style="margin-top: 2em; width: 100%;" onclick={() => deleteCharacter(selectedCharacter.id)}>Delete</button>
             {:else}
                 <p>Select a character to view details</p>
             {/if}

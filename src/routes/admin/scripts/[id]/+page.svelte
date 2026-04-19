@@ -52,12 +52,6 @@
 </script>
     
 <style>
-    ul, li {
-        margin: 0;
-        padding: 0.1em;
-        list-style: none;
-    }
-
     .character-list-item button {
         width: 100%;
         padding: 0.5em;
