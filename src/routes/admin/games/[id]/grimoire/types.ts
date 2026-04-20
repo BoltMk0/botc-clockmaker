@@ -3,6 +3,7 @@ import type { CanvasLayer, CanvasToolType } from "$lib/components/DrawableCanvas
 
 export type PlacedToken = {
     character: ScriptCharacter;
+    isDead: boolean;
     x: number;
     y: number;
 };
@@ -13,7 +14,7 @@ export type PlacedReminder = {
     y: number;
 };
 
-export type SavedToken = { characterId: number; x: number; y: number };
+export type SavedToken = { characterId: number; isDead: boolean; x: number; y: number };
 export type SavedReminder = { tokenId: number; characterId: number; text: string | null; x: number; y: number };
 
 

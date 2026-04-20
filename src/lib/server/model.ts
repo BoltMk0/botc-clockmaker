@@ -56,7 +56,7 @@ export class BOTCTClock extends EventEmitter {
 
     setup(duration: number, {ringBellAfter = null}: {ringBellAfter?: number|null} = {}) {
         console.log("Setting up clock...", {duration, ringBellAfter});
-        if(this.timer_info && this.timer_info.startTime !== null && this.timer_info.startTime + this.timer_info.duration < Date.now()){
+        if(this.day_info.day === 0 || this.timer_info && this.timer_info.startTime !== null && this.timer_info.startTime + this.timer_info.duration < Date.now()){
             // Day had ended, so advance to next day
             console.log("Advancing to next day...");
             this.setDay(this.day_info.day + 1, this.day_info.max);

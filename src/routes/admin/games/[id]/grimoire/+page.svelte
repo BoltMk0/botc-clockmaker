@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { ScriptCharacter, ReminderToken } from "$lib/common/database/types.js";
+    import type { ScriptCharacter, ReminderToken, Character, GameWithCharacters } from "$lib/common/database/types.js";
     import AnotatableView from "$lib/components/AnotatableView.svelte";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import ReminderTokenView from "$lib/components/ReminderTokenView.svelte";
@@ -17,17 +17,35 @@
     import type { CanvasLayer, CanvasToolType, LayerControls } from "$lib/components/DrawableCanvas2/types.js";
     import AnotatableViewV2 from "$lib/components/DrawableCanvas2/AnotatableViewV2.svelte";
     import type { GrimoireStateSnapshot, PlacedReminder, PlacedToken, SavedReminder, SavedToken } from "./types.js";
+    import Navbar from "$lib/components/Navbar.svelte";
 
-    export let data;
+    let {data}: {
+        data: {
+            gameid: number;
+            game: GameWithCharacters;
+            gameState: GrimoireStateSnapshot | null;
+            availableClocks: ClockInstanceInfo[];
+            error: string|null;
+        }
+    } = $props();
 
     // Token size control
-    const showTokenSizeSlider = writable(false);
+    let showTokenSizeSlider = $state(false);
     const TOKEN_SIZE_KEY = 'grimoire-token-size';
-    const initialTokenSize = browser ? Number(localStorage.getItem(TOKEN_SIZE_KEY)) || 150 : 150;
-    const tokenSize = writable(initialTokenSize);
-    const trayTokenSize = derived(tokenSize, $tokenSize => Math.max(40, Math.round($tokenSize * 0.53)));
+    let tokenSize = $state(browser ? Number(localStorage.getItem(TOKEN_SIZE_KEY)) || 150 : 150);
+    let trayTokenSize = $derived(Math.max(40, Math.round(tokenSize * 0.53)));
 
-    const tools = writable<CanvasToolType[]>(data.gameState?.canvas.tools || [
+    let placedTokens = $derived(data.gameState?.placedTokens ?? loadTokens());
+    let placedReminders = $derived(data.gameState?.placedReminders ?? loadReminders());
+
+    // Cache of fetched reminder tokens per character
+    let reminderCache = $state< Record<number, ReminderToken[]> >({});
+
+    // Which board token's reminder tray is open
+    let activeReminderCharId = $state<number | null>(null);
+    let activeReminderPos = $state<{ x: number; y: number } | null>(null);
+
+    const tools = $derived<CanvasToolType[]>(data.gameState?.canvas.tools || [
         {
             type: 'pen',
             color: '#cccccc',
@@ -58,7 +76,8 @@
             width: 4,
         }
     ]);
-    const activeTool = writable<CanvasToolType>($tools[0]);
+
+    let activeTool = $derived<CanvasToolType>(tools[0]);
 
     let canvasLayerController: LayerControls; // Initialized by AnotatableView on mount
     let canvasLayers: Writable<CanvasLayer[]>; // Set on mount by AnotatableView, source of truth for layers
@@ -73,9 +92,12 @@
             tokenSizeSaveTimeout = null;
         }, 400); // Save 400ms after last change
     }
-    if (browser) {
-        tokenSize.subscribe(saveTokenSizeDebounced);
-    }
+
+    $effect(()=>{
+        if (browser) {
+            saveTokenSizeDebounced(tokenSize);
+        }
+    });
 
     type ClockClientManagerConfig = {
         connectedClock: ClockInstanceInfo|null;
@@ -84,8 +106,8 @@
 
     class ClockClientManager {
         private config_: Writable<ClockClientManagerConfig>;
-        readonly config: Readable<ClockClientManagerConfig>;
         private client_: Writable<ClockClientModel|null> = writable(null);
+        readonly config: Readable<ClockClientManagerConfig>;
         readonly client = this.client_ as Readable<ClockClientModel|null>;
         readonly gameId: number;
         private readonly configKey: string;
@@ -150,20 +172,22 @@
     const clockClientManager = browser && data.game !== null ? new ClockClientManager(data.game.id) : null;
     const clockClientManagerConfig = clockClientManager ? clockClientManager.config : null;
     const clockClientManagerClient = clockClientManager ? clockClientManager.client : null;
+    const dayInfo = $derived($clockClientManagerClient?.day_info);
     const showTimerOptions = writable(false);
 
-    
+    // NIGHT ORDER LOGIC
+    const nightOrderFunction = $derived(($dayInfo?.day || 0) > 0 ? (c: ScriptCharacter) => c.otherNightOrder : (c: ScriptCharacter) => c.firstNightOrder);
+    const nightOrderByCharacterId = $derived((placedTokens.filter((c, i, a)=>a.indexOf(c) === i).map(c=>{return [c.character.id, nightOrderFunction(c.character)]}).filter(([_, order])=>order !== null) as [number, number][]).sort((a, b) => a[1] - b[1]).map(([id, _])=>id) ?? []);
+
     let gameState: GrimoireStateSnapshot | null = data.gameState;
 
-    let showFooter = writable(false);
-    let tokensLocked = writable(browser ? localStorage.getItem(`grimoire-locked-${data.game?.id}`) === 'true' : false);
-    let editing = writable(false);
+    let showFooter = $state(false);
+    let tokensLocked = $state(browser ? localStorage.getItem(`grimoire-locked-${data.game?.id}`) === 'true' : false);
+    let editing = $state(false);
 
 
     // When annotate mode is entered: hide tray
-    $: if (editing) {
-        showFooter.set(false);
-    }
+    $effect(()=>{ if (editing) showFooter = false; });
 
     async function takeSnapshotRightNow(){
         if(!data.game){
@@ -180,7 +204,7 @@
             placedReminders,
             canvas: {
                 layers: get(canvasLayers),
-                tools: get(tools),
+                tools: tools,
             },
         };
         try {
@@ -213,9 +237,9 @@
     }
 
     function setTokensLocked(val: boolean) {
-        tokensLocked.set(val);
-        if(get(tokensLocked)){
-            showFooter.set(false);
+        tokensLocked = val;
+        if(tokensLocked){
+            showFooter = false;
         }
         if (browser && data.game) {
             localStorage.setItem(`grimoire-locked-${data.game.id}`, String(val));
@@ -223,25 +247,12 @@
     }
 
     function toggleTray() {
-        showFooter.update((v) => !v);
+        showFooter = !showFooter;
         if (showFooter) {
             setTokensLocked(false);
-            editing.set(false);
+            editing = false;
         }
     }
-
-    $: storageKey = data.game ? `grimoire-${data.game.id}` : null;
-    $: reminderStorageKey = data.game ? `grimoire-reminders-${data.game.id}` : null;
-
-    let placedTokens: PlacedToken[] = data.gameState?.placedTokens ?? loadTokens();
-    let placedReminders: PlacedReminder[] = data.gameState?.placedReminders ?? loadReminders();
-
-    // Cache of fetched reminder tokens per character
-    let reminderCache: Record<number, ReminderToken[]> = {};
-
-    // Which board token's reminder tray is open
-    let activeReminderCharId: number | null = null;
-    let activeReminderPos: { x: number; y: number } | null = null;
 
     function loadTokens(): PlacedToken[] {
         if (!browser || !data.game) return [];
@@ -285,28 +296,26 @@
         return tokens;
     }
 
-    $: trayTokens = data.game
-        ? data.game.script.characters
-        : [];
+    const trayTokens = $derived(data.game ? data.game.script.characters : []);
 
-    $: placedCharIds = new Set(placedTokens.map(t => t.character.id));
+    const placedCharIds = $derived(new Set(placedTokens.map(t => t.character.id)));
 
     function isInPlay(characterId: number): boolean {
         return placedCharIds.has(characterId);
     }
 
-    $: charactersByFirstNightOrder = placedTokens.filter(c=>c.character.firstNightOrder !== undefined).sort((a, b)=> (b.character.firstNightOrder ?? 0) - (a.character.firstNightOrder ?? 0));
-    $: charactersByOtherNightOrder = placedTokens.filter(c=>c.character.otherNightOrder !== undefined).sort((a, b) => (b.character.otherNightOrder ?? 0) - (a.character.otherNightOrder ?? 0));
+    const charactersByFirstNightOrder = $derived(placedTokens.filter(c=>c.character.firstNightOrder !== undefined).sort((a, b)=> (b.character.firstNightOrder ?? 0) - (a.character.firstNightOrder ?? 0)));
+    const charactersByOtherNightOrder = $derived(placedTokens.filter(c=>c.character.otherNightOrder !== undefined).sort((a, b) => (b.character.otherNightOrder ?? 0) - (a.character.otherNightOrder ?? 0)));
 
-    $: gameTokens = trayTokens.filter((c: ScriptCharacter) => data.game?.character_ids.includes(c.id));
-    $: otherTokens = trayTokens.filter((c: ScriptCharacter) => !data.game?.character_ids.includes(c.id));
+    const gameTokens = $derived(trayTokens.filter((c: ScriptCharacter) => data.game?.character_ids.includes(c.id)));
+    const otherTokens = $derived(trayTokens.filter((c: ScriptCharacter) => !data.game?.character_ids.includes(c.id)));
 
-    let dragging: { character: ScriptCharacter; source: 'tray' | 'board' } | null = null;
-    let draggingReminder: { token: ReminderToken; source: 'popup' | 'board' } | null = null;
-    let ghostPos: { x: number; y: number } | null = null;
-    let dragOffset: { x: number; y: number } = { x: 0, y: 0 };
-    let boardEl: HTMLDivElement;
-    let footerEl: HTMLDivElement;
+    let dragging = $state<{ character: ScriptCharacter; source: 'tray' | 'board' } | null>(null);
+    let draggingReminder = $state<{ token: ReminderToken; source: 'popup' | 'board' } | null>(null);
+    let ghostPos = $state<{ x: number; y: number } | null>(null);
+    let dragOffset = $state<{ x: number; y: number }>({ x: 0, y: 0 });
+    let boardEl = $state<HTMLDivElement | null>(null);
+    let footerEl = $state<HTMLDivElement | null>(null);
 
     // Edge threshold in px for deleting reminder tokens
     const EDGE_THRESHOLD = 40;
@@ -327,7 +336,7 @@
 
     function startDragFromBoard(e: PointerEvent, token: PlacedToken) {
         e.preventDefault();
-        if ($tokensLocked) {
+        if (tokensLocked) {
             // Still allow tap for reminder tray, just no drag
             pointerStartPos = { x: e.clientX, y: e.clientY };
             pointerStartToken = token;
@@ -338,7 +347,8 @@
     }
 
     function actuallyStartBoardDrag(e: PointerEvent, token: PlacedToken) {
-        if ($tokensLocked) return;
+        if (tokensLocked) return;
+        if(!boardEl) return;
         closeReminderTray();
         const rect = boardEl.getBoundingClientRect();
         const tokenScreenX = rect.left + rect.width / 2 + token.x;
@@ -378,11 +388,12 @@
             return;
         }
         activeReminderCharId = token.character.id;
+        if(!boardEl) return;
         const boardRect = boardEl.getBoundingClientRect();
         // Use the current token size for vertical offset, plus a small gap (10px)
         let tokenSizeVal = 150;
         try {
-            tokenSizeVal = $tokenSize;
+            tokenSizeVal = tokenSize;
         } catch {}
         const gap = 10;
         activeReminderPos = {
@@ -471,7 +482,7 @@
                 const dropY = e.clientY - dragOffset.y;
                 const x = dropX - boardRect.left - boardRect.width / 2;
                 const y = dropY - boardRect.top - boardRect.height / 2;
-                placedTokens = [...placedTokens, { character: dragging.character, x, y }];
+                placedTokens = [...placedTokens, { character: dragging.character, x, y, isDead: false }];
                 rescheduleSnapshot();
             }
             // If near edge or over footer: token returns to tray (not re-added)
@@ -704,6 +715,7 @@
 
 </style>
 
+
 {#if data.error || data.game === null}
     <h1>Game Not Found</h1>
     <p>The specified game could not be found.</p>
@@ -712,22 +724,22 @@
     <div class="sidebar">
         <!-- Canvas control -->
          <div style="position: relative">
-            <button class="sidebar-btn" class:active={$editing} on:click={() => {
-                editing.update((v) => !v);
-                showTokenSizeSlider.set(false);
-                if ($editing) {
-                    showFooter.set(false);
+            <button class="sidebar-btn" class:active={editing} onclick={() => {
+                editing = !editing;
+                showTokenSizeSlider = false;
+                if (editing) {
+                    showFooter = false;
                 }
-            }} title="{$editing ? 'Exit annotate mode' : 'Enter annotate mode'}">
+            }} title="{editing ? 'Exit annotate mode' : 'Enter annotate mode'}">
                 <svg viewBox="0 0 24 24">
                     <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.83z"/>
                 </svg>
             </button>
-            {#if $editing}
+            {#if editing}
             <div style="position: absolute; left: 52px; top: 0; display: flex; flex-direction: column; gap: 8px; z-index: 100;">
                 <!-- TOOLS -->
-                {#each $tools as tool, index}
-                    <button class="sidebar-btn" class:active={tool === $activeTool} on:click={() => activeTool.set(tool)} title={tool.type === 'pen' ? `Pen tool (color: ${tool.color})` : 'Eraser tool'}>
+                {#each tools as tool, index}
+                    <button class="sidebar-btn" class:active={tool === activeTool} onclick={() => activeTool = tool} title={tool.type === 'pen' ? `Pen tool (color: ${tool.color})` : 'Eraser tool'}>
                         {#if tool.type === 'pen'}
                             <svg viewBox="0 0 24 24">
                                 <circle cx="12" cy="12" r="9" fill={tool.color} stroke="currentColor" stroke-width="2"/>
@@ -742,7 +754,7 @@
                 <div style="height: 2px; background-color: #FFF9;"></div>
                 {#each $canvasLayers as layer, index}
                 <div style="position: relative;">
-                    <button class="sidebar-btn" class:active={$activeCanvasLayerIndex === index} on:click={() => activeCanvasLayerIndex.set(index)} title={`Activate layer ${index + 1}`}>
+                    <button class="sidebar-btn" class:active={$activeCanvasLayerIndex === index} onclick={() => activeCanvasLayerIndex.set(index)} title={`Activate layer ${index + 1}`}>
                         <div>
                             {index + 1}
                         </div>
@@ -751,7 +763,7 @@
 
                     <div style="display: flex; gap: 4px; position: absolute; left: 52px; top: 0; z-index: 100;">
                         <!-- Reset button -->
-                        <button class="sidebar-btn" on:click={()=>{canvasLayerController.clearLayer(index)}} title="Clear layer">
+                        <button class="sidebar-btn" onclick={()=>{canvasLayerController.clearLayer(index)}} title="Clear layer">
                             <svg viewBox="0 0 24 24">
                                 <path d="M12 5V2M12 22v-3M5.64 5.64l-2.12-2.12M18.36 18.36l-2.12-2.12M1 12H4M20 12h3M5.64 18.36l-2.12 2.12M18.36 5.64l-2.12 2.12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                             </svg>
@@ -760,13 +772,15 @@
                         {#if $canvasLayers.length > 1}
 
                         <!-- Delete Button -->
-                        <button class="sidebar-btn" on:click={()=>{canvasLayers.update(layers => {
-                            const newLayers = [...layers];
-                            newLayers.splice(index, 1);
-                            return newLayers;
-                        }); if($activeCanvasLayerIndex === index){
-                            activeCanvasLayerIndex.set(0);
-                        }}} title="Delete layer">
+                        <button class="sidebar-btn" onclick={()=>{
+                            canvasLayers.update(layers => {
+                                layers.splice(index, 1);
+                                return layers;
+                            });
+                            if($activeCanvasLayerIndex === index){
+                                activeCanvasLayerIndex.set(0);
+                            }
+                        }} title="Delete layer">
                             <svg viewBox="0 0 24 28">
                                 <rect x="5" y="7" width="14" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
                                 <path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -782,7 +796,7 @@
                 </div>
                 {/each}
                 <!-- Add layer button -->
-                <button class="sidebar-btn" on:click={() => canvasLayerController.createLayer()} title="Add new layer">
+                <button class="sidebar-btn" onclick={() => canvasLayerController.createLayer()} title="Add new layer">
                 <svg viewBox="0 0 24 24">
                     <path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
@@ -793,22 +807,22 @@
 
         <!-- Token size control -->
         <div style="position: relative;">
-            <button class="sidebar-btn" class:active={$showTokenSizeSlider} on:click={() => {showTokenSizeSlider.set(!$showTokenSizeSlider); editing.set(false)}} title="Adjust token size">
+            <button class="sidebar-btn" class:active={showTokenSizeSlider} onclick={() => {showTokenSizeSlider = !showTokenSizeSlider; editing = false}} title="Adjust token size">
                 <svg viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
                     <!-- Dual-ended arrow at 45 degrees, fits inside circle -->
                     <path d="M7 17 L17 7 M15 7 L17 7 L17 9 M7 15 L7 17 L9 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/>
                 </svg>
             </button>
-            {#if $showTokenSizeSlider}
+            {#if showTokenSizeSlider}
                 <div style="position: absolute; left: 52px; top: 0; height: 180px; display: flex; align-items: center; z-index: 100;">
-                    <input type="range" min="80" max="240" step="1" bind:value={$tokenSize} aria-orientation="vertical" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; width: 32px; height: 180px; margin-left: 8px; background: transparent;" />
+                    <input type="range" min="80" max="240" step="1" bind:value={tokenSize} aria-orientation="vertical" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; width: 32px; height: 180px; margin-left: 8px; background: transparent;" />
                 </div>
             {/if}
         </div>
         
         <!-- Show/Hide token tray -->
-        <button class="sidebar-btn" class:active={$showFooter} on:click={toggleTray} title="{$showFooter ? 'Hide' : 'Show'} token tray">
+        <button class="sidebar-btn" class:active={showFooter} onclick={toggleTray} title="{showFooter ? 'Hide' : 'Show'} token tray">
             <svg viewBox="0 0 24 24">
                 <circle cx="6" cy="6" r="5" fill="currentColor"/>
                 <circle cx="6" cy="18" r="5" fill="currentColor"/>
@@ -818,8 +832,8 @@
         </button>
 
         <!-- Lock/Unlock token positions -->
-        <button class="sidebar-btn" class:active={$tokensLocked} on:click={() => setTokensLocked(!($tokensLocked))} title="{$tokensLocked ? 'Unlock' : 'Lock'} token positions">
-            {#if $tokensLocked}
+        <button class="sidebar-btn" class:active={tokensLocked} onclick={() => setTokensLocked(!(tokensLocked))} title="{tokensLocked ? 'Unlock' : 'Lock'} token positions">
+            {#if tokensLocked}
                 <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2z"/></svg>
             {:else}
                 <svg viewBox="0 0 24 24"><path d="M12 17c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6h1.9c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm0 12H6V10h12v10z"/></svg>
@@ -827,7 +841,7 @@
         </button>
 
         <!-- Show/Hide clock -->
-        <button class="sidebar-btn" class:active={$clockClientManagerConfig?.showClock} on:click={() => clockClientManager?.setVisible(!($clockClientManagerConfig?.showClock ?? false))} title="{$clockClientManagerConfig?.showClock ? 'Hide' : 'Show'} clock">
+        <button class="sidebar-btn" class:active={$clockClientManagerConfig?.showClock} onclick={() => clockClientManager?.setVisible(!($clockClientManagerConfig?.showClock ?? false))} title="{$clockClientManagerConfig?.showClock ? 'Hide' : 'Show'} clock">
             <svg viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"/>
                 <line x1="12" y1="12" x2="12" y2="7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -835,9 +849,9 @@
             </svg>
         </button>
 
-        {#if !$tokensLocked}
+        {#if !tokensLocked}
         <!-- Reset tokens button -->
-        <button class="sidebar-btn" on:click={() => {
+        <button class="sidebar-btn" onclick={() => {
             if (confirm('Are you sure you want to reset all tokens?')) resetAllTokens();
         }} title="Reset all tokens">
             <svg viewBox="0 0 24 24">
@@ -847,22 +861,22 @@
         {/if}
         
         <!-- Go back -->
-        <button class="sidebar-btn" on:click={() => {takeSnapshotRightNow().then(()=>goto(`/admin/games`))} } title="Back to game">
+        <button class="sidebar-btn" onclick={() => {takeSnapshotRightNow().then(()=>goto(`/admin/games`))} } title="Back to game">
             <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
         </button>
 
     </div>
 
-    <AnotatableViewV2 remember bind:layerControls={canvasLayerController} tool={$editing ? $activeTool : null} onchange={rescheduleSnapshot}>
+    <AnotatableViewV2 remember bind:layerControls={canvasLayerController} tool={editing ? activeTool : null} onchange={rescheduleSnapshot}>
     
     <div class="grimoire-board" bind:this={boardEl}>
         {#each placedTokens as token, i (token.character.id + '-' + i)}
             <div
                 class="board-token"
                 style="left: calc(50% + {token.x}px); top: calc(50% + {token.y}px);"
-                on:pointerdown={(e) => startDragFromBoard(e, token)}
+                onpointerdown={(e) => startDragFromBoard(e, token)}
             >
-                <CharacterToken character={token.character} nightOrder={getNightOrder(token.character.id)} style="position: relative;" size={$tokenSize + 'px'}/>
+                <CharacterToken character={token.character} nightOrder={nightOrderByCharacterId.indexOf(token.character.id)} style="position: relative;" size={tokenSize + 'px'}/>
             </div>
         {/each}
 
@@ -870,7 +884,7 @@
             <div
                 class="board-reminder"
                 style="left: calc(50% + {reminder.x}px); top: calc(50% + {reminder.y}px);"
-                on:pointerdown={(e) => startDragReminderFromBoard(e, reminder)}
+                onpointerdown={(e) => startDragReminderFromBoard(e, reminder)}
             >
                 <ReminderTokenView data={reminder.token} size="60px"/>
             </div>
@@ -879,7 +893,7 @@
         {#if activeReminderCharId !== null && activeReminderPos && reminderCache[activeReminderCharId]}
             <div class="reminder-popup" style="left: {activeReminderPos.x}px; top: {activeReminderPos.y}px;">
                 {#each reminderCache[activeReminderCharId] as rToken (rToken.id)}
-                    <div class="reminder-popup-token" on:pointerdown={(e) => startDragReminderFromPopup(e, rToken)}>
+                    <div class="reminder-popup-token" onpointerdown={(e) => startDragReminderFromPopup(e, rToken)}>
                         <ReminderTokenView data={rToken} size="55px"/>
                     </div>
                 {/each}
@@ -893,8 +907,8 @@
     {#if $clockClientManagerConfig?.showClock}
         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 5; color: white; font-size: 2em; text-shadow: 0 0 10px rgba(0,0,0,0.7); z-index: 0;">
             {#if clockClientManagerClient && $clockClientManagerClient}
-            <button class="no-button-style" style="position: relative; width: {$tokenSize * 1.5 + 50}px; height: {$tokenSize * 1.5 + 50}px; margin: 0 auto;" on:click={()=>showTimerOptions.set(true)}>
-                <FullDisplay model={$clockClientManagerClient} size={$tokenSize * 1.5}/>
+            <button class="no-button-style" style="position: relative; width: {tokenSize * 1.5 + 50}px; height: {tokenSize * 1.5 + 50}px; margin: 0 auto;" onclick={()=>showTimerOptions.set(true)}>
+                <FullDisplay model={$clockClientManagerClient} size={tokenSize * 1.5}/>
             </button>
             {/if}
         </div>
@@ -902,7 +916,7 @@
         
     </AnotatableViewV2>
 
-    <div class="grimoire-footer" bind:this={footerEl} style="transform: translateY({$showFooter && !dragging && !draggingReminder ? '0' : '100%'});">
+    <div class="grimoire-footer" bind:this={footerEl} style="transform: translateY({showFooter && !dragging && !draggingReminder ? '0' : '100%'});">
         <div class="token-tray-container">
             <div class="token-tray">
                 <!-- Removed reset button from tray -->
@@ -914,9 +928,9 @@
                                     class="tray-token"
                                     class:dragging={dragging?.character.id === character.id}
                                     class:in-play={isInPlay(character.id)}
-                                    on:pointerdown={(e) => startDragFromTray(e, character)}
+                                    onpointerdown={(e) => startDragFromTray(e, character)}
                                 >
-                                    <CharacterToken {character} style="position: relative;" size={$trayTokenSize + 'px'} norules/>
+                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} norules/>
                                 </div>
                         {/each}
                     </div>
@@ -929,9 +943,9 @@
                                     class="tray-token"
                                     class:dragging={dragging?.character.id === character.id}
                                     class:in-play={isInPlay(character.id)}
-                                    on:pointerdown={(e) => startDragFromTray(e, character)}
+                                    onpointerdown={(e) => startDragFromTray(e, character)}
                                 >
-                                    <CharacterToken {character} style="position: relative;" size={$trayTokenSize + 'px'} norules/>
+                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} norules/>
                                 </div>
                         {/each}
                     </div>
@@ -942,7 +956,7 @@
 
     {#if dragging && ghostPos}
         <div class="drag-ghost" style="left: {ghostPos.x}px; top: {ghostPos.y}px;">
-            <CharacterToken character={dragging.character} style="position: relative;" size={$tokenSize + 'px'}/>
+            <CharacterToken character={dragging.character} style="position: relative;" size={tokenSize + 'px'}/>
         </div>
         {#if dragging.source === 'board'}
             <div class="edge-delete-indicator" class:active={isNearEdge(ghostPos.x, ghostPos.y)}></div>
@@ -957,20 +971,20 @@
     {/if}
 
     {#if $showTimerOptions || $clockClientManagerConfig?.showClock && !$clockClientManagerClient}
-        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: 20;" on:click={() => {showTimerOptions.set(false); if ($clockClientManagerConfig?.showClock && !$clockClientManagerClient) clockClientManager?.setVisible(false);}} role="dialog" tabindex="0">
-            <div style="background: var(--theme-bg-secondary); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px;" on:click|stopPropagation>
+        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: 20;" onclick={() => {showTimerOptions.set(false); if ($clockClientManagerConfig?.showClock && !$clockClientManagerClient) clockClientManager?.setVisible(false);}} role="dialog" tabindex="0">
+            <div style="background: var(--theme-bg-secondary); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px;" onclick={(e) => e.stopPropagation()} >
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em;">
                     <h2 style="margin: 0;">Clock Controls</h2>
-                    <button class="button-style error" on:click={()=>showTimerOptions.set(false)}>X</button>
+                    <button class="button-style error" onclick={()=>showTimerOptions.set(false)}>X</button>
                 </div>
                 {#if clockClientManagerClient && $clockClientManagerClient}
                     <ClockSetter model={$clockClientManagerClient} onstart={()=>{showTimerOptions.set(false)}}/>
-                    <button class="button-style" on:click={() => clockClientManager?.setConnectedClock(null)}>Disconnect Clock</button>
+                    <button class="button-style" onclick={() => clockClientManager?.setConnectedClock(null)}>Disconnect Clock</button>
                 {:else}
                     <div>
                         <div>Select Clock</div>
                         {#each data.availableClocks as clock(clock.id)}
-                            <button class="button-style" on:click={() => clockClientManager?.setConnectedClock(clock)}>
+                            <button class="button-style" onclick={() => clockClientManager?.setConnectedClock(clock)}>
                                 {clock.config.teamName} - {clock.id}
                             </button>
                         {/each}
@@ -981,3 +995,5 @@
         </div>
     {/if}
 {/if}
+
+<Navbar/>

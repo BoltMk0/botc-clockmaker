@@ -3,7 +3,7 @@
     import TokenBackground from "./TokenBackground.svelte";
 
     export let character: Character;
-    export let nightOrder: number|null = null;
+    export let nightOrder: number|undefined = undefined;
 
     export let style: string = '';
     export let size: string = '200px';
@@ -23,8 +23,11 @@
     $: color = categoryColors[character.category] ?? '#666';
 </script>
 
+
 <div style="position: absolute; {style}">
-    <TokenBackground {size} style="border: calc({size} / 40) solid {color};">
+    <div style="position:relative">
+        
+        <TokenBackground {size} style="border: calc({size} / 40) solid {color};">
         
         <div class="token-content" style="--token-size: {size}; --token-color: {color}; grid-template-rows: {norules ? '4fr 2fr' : '3fr 4fr'};">
             <div class="category-icon-container">
@@ -33,7 +36,6 @@
                 {:else}
                     <div class="category-icon-default dumbledore-font">{character.name.split(' ').map(word => word[0].toUpperCase()).join('')}</div>
                 {/if}
-                {nightOrder ?? ""}
             </div>
             <div class="rules-text">
                 <div class="token-name dumbledore-font">{character.name}</div>
@@ -42,10 +44,32 @@
                 {/if}
             </div>
         </div>
-    </TokenBackground>
+        {#if nightOrder !== undefined && nightOrder >= 0}
+            <div class="night-order" style="position: absolute; top: 40%; left: 80%; transform: translate(-50%, -100%);">
+                {nightOrder+1}
+            </div>
+        {/if}
+        </TokenBackground>
+    </div>
+    
 </div>
 
 <style>
+
+    .night-order {
+        border-radius: 50%;
+        background-color: rgb(194, 120, 15);
+        border: 1px solid white;
+        box-shadow: 0 3px 4px #0008;
+        color: white;
+        text-shadow: 0 0 5px #0004;
+        height: 1.5em;
+        width: 1.5em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
     .token-content {
         display: grid;
         color: black;
