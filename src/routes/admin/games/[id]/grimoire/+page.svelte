@@ -76,7 +76,12 @@
     const tools: CanvasToolType[] = [
         {
             type: 'pen',
-            color: '#cccccc',
+            color: '#dddddd',
+            width: 2,
+        },
+        {
+            type: 'pen',
+            color: '#111111',
             width: 2,
         },
         {
@@ -769,8 +774,7 @@
     .sidebar {
         position: absolute;
         left: 0;
-        top: 50%;
-        transform: translateY(-50%);
+        top: 50px;
         display: flex;
         flex-direction: column;
         gap: 8px;

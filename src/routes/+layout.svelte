@@ -48,7 +48,9 @@
 	:global(html){
 		height: 100%;
 		width: 100%;
+		color-scheme: only light;
 	}
+	
 	:global(body){
 		margin: 0;
 		padding: 0;
