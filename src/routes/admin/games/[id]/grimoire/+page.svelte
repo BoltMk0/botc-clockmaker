@@ -32,7 +32,20 @@
 
     let {data}: Props = $props();
 
-    const gameState = $state(data.gameState ?? newGrimoireStateHistory());
+    function getInitialGameState(data: Props['data']): GrimoireStateHistory {
+        const locallySavedState = getLocallyStoredGrimoireState();
+
+        const selectedState = (data.gameState?.present.timestamp || 0) > (locallySavedState?.present.timestamp || 0) ? data.gameState : locallySavedState;
+        if(selectedState) {
+            console.log("Using grimoire state with timestamp", selectedState.present.timestamp);
+            return selectedState;
+        } else {
+            console.log("No existing grimoire state found, initializing new state");
+            return newGrimoireStateHistory();
+        }
+    }
+
+    const gameState = $state(getInitialGameState(data));
 
     const game = $derived(data.game);
     const availableClocks = $derived(data.availableClocks);
@@ -210,6 +223,12 @@
         }
 
         gameState.present.timestamp = Date.now();
+
+        if(browser){
+            // Also save to localStorage immediately so that if the user reloads before the debounced save, they won't lose more than a few seconds of changes
+            localStorage.setItem(`grimoire-state-${game.id}`, JSON.stringify(gameState));
+        }
+
         try {
             const response = await fetch(`grimoire/state`, {
                 method: 'POST',
@@ -217,12 +236,24 @@
                 body: JSON.stringify(gameState),
             });
             if (!response.ok) {
-                alert('Failed to save grimoire state');
+                console.error("Failed to save grimoire state:", response.statusText);
             } else {
                 console.log("Grimoire state saved successfully");
             }
         } catch (er) {
-            alert(`Failed to save grimoire state: ${er}`);
+            console.error(`Failed to save grimoire state: ${er}`);
+        }
+    }
+
+    function getLocallyStoredGrimoireState(): GrimoireStateHistory | null {
+        if (!browser || !data.game) return null;
+        const key = `grimoire-state-${data.game.id}`;
+        try {
+            const saved = localStorage.getItem(key);
+            if (!saved) return null;
+            return JSON.parse(saved) as GrimoireStateHistory;
+        } catch {
+            return null;
         }
     }
 

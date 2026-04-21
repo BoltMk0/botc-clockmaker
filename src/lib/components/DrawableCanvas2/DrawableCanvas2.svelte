@@ -75,20 +75,12 @@
     $effect(()=>{
         layers; // Triggers when layers updates
         activeLayerIndex; // And when active layer changes, since we draw it with full opacity and others faded.
+        viewTx; viewTy; viewScale; // tracked as reactive dependencies
         redrawFromStrokes();
     });
 
     // Reset view when tool is set to null (e.g. after finishing editing).
     $effect(()=>{if(tool === null) {viewScale = 1; viewTx = 0; viewTy = 0;}}); // Reset zoom and pan when no tool is active.
-
-
-    // Redraw whenever the view transform changes — handles external updates (e.g. bound
-    // sliders in a parent) as well as ensuring the canvas context transform stays in sync.
-    $effect(()=>{if (browser && ctx && canvas) {
-        viewTx; viewTy; viewScale; // tracked as reactive dependencies
-        redrawFromStrokes();
-    }});
-
 
 
 
