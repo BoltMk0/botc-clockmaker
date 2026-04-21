@@ -1,57 +1,106 @@
 <script lang="ts">
     import { browser } from '$app/environment';
-    import PenIcon from '$lib/components/PenIcon.svelte';
-    import RubberIcon from '$lib/components/RubberIcon.svelte';
     import { onDestroy, onMount } from 'svelte';
-    import { isPoint, isTool, type CanvasLayer, type CanvasPoint, type CanvasStroke, type CanvasToolType, type LayerControls } from './types';
-    import { get, writable } from 'svelte/store';
-    import { getPlayerCount } from '$lib/common/util';
+    import { type CanvasLayer, type CanvasPoint, type CanvasStroke, type CanvasToolType } from './types';
 
-    export let tool: CanvasToolType | null = null;
-    export let canvasStyle: string = '';
-    export let exportedDimensions: { width: number; height: number } | null = null;
-    export let onchange: () => void = () => {};
+    const MIN_SCALE = 0.2;
+    const MAX_SCALE = 10;
 
-    export const layerControls: LayerControls = {
-        createLayer() {
-            layers.update((ls) => [...ls, { strokes: [] }]);
-            activeLayerIndex.set(get(layers).length - 1);
-            onchange();
-        },
-        layers() {
-            return layers;
-        },
-        activeLayerIndex() {
-            return activeLayerIndex;
-        },
-        deleteLayer(index?: number) {
-            index = index ?? get(activeLayerIndex);
-            layers.update((ls) => {
-                if (index < 0 || index >= ls.length) return ls;
-                const newLayers = [...ls];
-                newLayers.splice(index, 1);
-                return newLayers;
-            });
-            activeLayerIndex.update((i) => Math.max(0, Math.min(get(layers).length - 1, i)));
-            onchange();
-        },
-        setActiveLayer(index: number) {
-            if (index < 0 || index >= get(layers).length) return;
-            activeLayerIndex.set(index);
-        },
-        clearLayer(index: number){
-            console.log(`Clearing layer ${index}...`);
-            layers.update((ls) => {
-                if (index < 0 || index >= ls.length) return ls;
-                const newLayers = [...ls];
-                newLayers[index] = { strokes: [] };
-                console.log(`Layer ${index} cleared.`);
-                return newLayers;
-            });
-            redrawFromStrokes();
-            onchange();
-        }
-    }
+    interface Props {
+        canvasStyle?: string;
+        exportedDimensions?: { width: number; height: number };
+        onchange?: () => void;
+        activeLayerIndex: number;
+        layers: CanvasLayer[];
+        tool: CanvasToolType | null;
+        viewScale: number;
+        viewTx: number;
+        viewTy: number;
+    };
+
+    let {
+        canvasStyle,
+        exportedDimensions,
+        onchange,
+        activeLayerIndex,
+        layers = $bindable<CanvasLayer[]>([]),
+        tool = $bindable<CanvasToolType|null>(null),
+        viewScale = $bindable<number>(1),
+        viewTx = $bindable<number>(0),
+        viewTy = $bindable<number>(0),
+    }: Props = $props();
+
+
+
+    /////// INTERNAL VARIABLES /////////
+    let canvas: HTMLCanvasElement;
+    let ctx: CanvasRenderingContext2D | null = null;
+    let drawing = false;
+    let activePointerId: number | null = null;
+    const activePointers = new Set<number>();
+
+    let pendingTouch:
+        | {
+                pointerId: number;
+                start: {x: number; y: number};
+                timeoutId: number;
+          }
+        | null = null;
+
+    let currentStroke = $state<CanvasStroke | null>(null);
+
+    
+
+    // Per-touch pointer screen-space positions (CSS px relative to canvas rect) for pinch.
+    const touchScreenPos = new Map<number, {x: number; y: number}>();
+    let pinchPrevMid: {x: number; y: number} | null = null;
+    let pinchPrevDist = 1;
+
+    // Two-finger tap detection for undo.
+    let twoFingerStart: number = 0;
+    let twoFingerMoved: boolean = false;
+    const TWO_FINGER_TAP_MAX_MS = 300;
+    const TWO_FINGER_TAP_MOVE_THRESHOLD = 15;
+
+    // Internal canvas center offset — added to viewTx/viewTy for the actual screen translation.
+    // Keeps exported viewTx/viewTy center-relative (0,0 = no pan).
+    let canvasCenterX = 0;
+    let canvasCenterY = 0;
+
+
+
+
+    ////// EFFECTS /////
+    // Redraw canvas when layers is updated
+    $effect(()=>{
+        layers; // Triggers when layers updates
+        activeLayerIndex; // And when active layer changes, since we draw it with full opacity and others faded.
+        redrawFromStrokes();
+    });
+
+    // Reset view when tool is set to null (e.g. after finishing editing).
+    $effect(()=>{if(tool === null) {viewScale = 1; viewTx = 0; viewTy = 0;}}); // Reset zoom and pan when no tool is active.
+
+
+    // Redraw whenever the view transform changes — handles external updates (e.g. bound
+    // sliders in a parent) as well as ensuring the canvas context transform stays in sync.
+    $effect(()=>{if (browser && ctx && canvas) {
+        viewTx; viewTy; viewScale; // tracked as reactive dependencies
+        redrawFromStrokes();
+    }});
+
+
+
+
+
+
+
+
+    ////// DERIVED //////
+    const activeLayer = $derived(activeLayerIndex < 0 || activeLayerIndex >= layers.length ? null : layers[activeLayerIndex]);
+
+
+
 
     export async function saveCanvasAsBlob(): Promise<Blob | null> {
         if (!canvas) return null;
@@ -71,7 +120,7 @@
         const offCtx = offscreen.getContext('2d');
         if (!offCtx) return null;
         offCtx.setTransform(1, 0, 0, 1, width / 2, height / 2);
-        for (const layer of get(layers)) {
+        for (const layer of layers) {
             for (const stroke of layer.strokes) {
                 drawStrokeOnCtx(offCtx, stroke);
             }
@@ -80,63 +129,7 @@
             offscreen.toBlob((blob) => resolve(blob));
         });
     }
-    
-    let canvas: HTMLCanvasElement;
-    let layers = writable<CanvasLayer[]>([{ strokes: [] }]);
-    let activeLayerIndex = writable<number>(0);
-    let ctx: CanvasRenderingContext2D | null = null;
-    let drawing = false;
-    let activePointerId: number | null = null;
-    const activePointers = new Set<number>();
 
-    let pendingTouch:
-        | {
-                pointerId: number;
-                start: {x: number; y: number};
-                timeoutId: number;
-          }
-        | null = null;
-
-    let currentStroke: CanvasStroke | null = null;
-
-    // View transform: strokes are stored in world space; the canvas applies pan + zoom.
-    export let viewScale = 1;
-    export let viewTx = 0;
-    export let viewTy = 0;
-    const MIN_SCALE = 0.2;
-    const MAX_SCALE = 10;
-
-    $: if(tool === null) {viewScale = 1; viewTx = 0; viewTy = 0;} // Reset zoom and pan when no tool is active.
-
-    // Per-touch pointer screen-space positions (CSS px relative to canvas rect) for pinch.
-    const touchScreenPos = new Map<number, {x: number; y: number}>();
-    let pinchPrevMid: {x: number; y: number} | null = null;
-    let pinchPrevDist = 1;
-
-    // Two-finger tap detection for undo.
-    let twoFingerStart: number = 0;
-    let twoFingerMoved: boolean = false;
-    const TWO_FINGER_TAP_MAX_MS = 300;
-    const TWO_FINGER_TAP_MOVE_THRESHOLD = 15;
-
-    // Internal canvas center offset — added to viewTx/viewTy for the actual screen translation.
-    // Keeps exported viewTx/viewTy center-relative (0,0 = no pan).
-    let canvasCenterX = 0;
-    let canvasCenterY = 0;
-
-    function getActiveLayer(): CanvasLayer {
-        const index = get(activeLayerIndex);
-        const currentLayers = get(layers);
-        if (index < 0 || index >= currentLayers.length) {
-            throw new Error('Invalid active layer index');
-        }
-        return currentLayers[index];
-    }
-
-
-    function getActiveStrokes(): CanvasStroke[] {
-        return getActiveLayer().strokes;
-    }
 
 
     function applyStrokeStyle(targetCtx: CanvasRenderingContext2D, stroke: CanvasStroke) {
@@ -210,18 +203,18 @@
     }
 
     function eraseAlongPath(from: CanvasPoint, to: CanvasPoint, eraserWidth: number) {
+        if(!activeLayer) return;
         const radius = eraserWidth / 2;
         let erased = false;
-        const activeStrokes = getActiveStrokes();
-        for (let i = activeStrokes.length - 1; i >= 0; i--) {
-            if (strokeHitsEraser(activeStrokes[i], from, to, radius)) {
-                activeStrokes.splice(i, 1);
+        for (let i = activeLayer.strokes.length - 1; i >= 0; i--) {
+            if (strokeHitsEraser(activeLayer.strokes[i], from, to, radius)) {
+                activeLayer.strokes.splice(i, 1);
                 erased = true;
             }
         }
         if (erased) {
             redrawFromStrokes();
-            onchange();
+            onchange?.();
         }
     }
 
@@ -253,8 +246,9 @@
 
         // Eraser strokes are not stored — they remove other strokes via hit-testing.
         if (tool?.type !== 'eraser') {
-            getActiveStrokes().push(currentStroke);
-            onchange();
+            if(!activeLayer) return;
+            activeLayer.strokes.push(currentStroke);
+            onchange?.();
         }
     }
 
@@ -301,8 +295,8 @@
 
     function clearDrawing() {
         console.debug("Clearing drawing...");
-        const activeStrokes = getActiveStrokes();
-        activeStrokes.splice(0, activeStrokes.length);
+        if(!activeLayer) return;
+        activeLayer.strokes.splice(0, activeLayer.strokes.length);
         currentStroke = null;
         drawing = false;
 
@@ -314,7 +308,7 @@
             ctx.restore();
         }
 
-        onchange();
+        onchange?.();
     }
 
     function redrawFromStrokes() {
@@ -344,7 +338,8 @@
     }
 
     function undoLastStroke() {
-        if (getActiveStrokes().length === 0) return;
+        if(!activeLayer) return;
+        if (activeLayer.strokes.length === 0) return;
         console.debug("Undoing last stroke...");
 
         // If a stroke is currently in progress, cancel it.
@@ -363,19 +358,17 @@
         touchScreenPos.clear();
         pinchPrevMid = null;
 
-        getActiveStrokes().pop();
+        activeLayer.strokes.pop();
         redrawFromStrokes();
-        onchange();
+        onchange?.();
     }
 
     function replayStrokes() {
         if (!ctx) return;
-        const layersValue = get(layers);
-        const activeLayerIndexValue = get(activeLayerIndex);
-        for (let i = 0; i < layersValue.length; i++) {
+        for (let i = 0; i < layers.length; i++) {
             ctx.save();
-            ctx.globalAlpha = i === activeLayerIndexValue ? 1 : 0.6;
-            for (const stroke of layersValue[i].strokes) {
+            ctx.globalAlpha = i === activeLayerIndex ? 1 : 0.6;
+            for (const stroke of layers[i].strokes) {
                 drawStroke(stroke);
             }
             ctx.restore();
@@ -549,7 +542,7 @@
             eraseAlongPath(prev, next, currentStroke.tool.width);
         } else {
             drawSegment(prev, next, currentStroke);
-            onchange();
+            onchange?.();
         }
     }
 
@@ -583,9 +576,10 @@
                             points: [tapStart],
                             tool
                         };
-                        getActiveStrokes().push(tapStroke);
+                        if(!activeLayer) return;
+                        activeLayer.strokes.push(tapStroke);
                         drawDot(tapStart, tapStroke);
-                        onchange();
+                        onchange?.();
                         break;
                     default:
                         break;
@@ -609,64 +603,12 @@
         activePointerId = null;
     }
 
-    function addLayer() {
-        layers.update(current => {
-            const newName = `Layer ${current.length + 1}`;
-            return [...current, { name: newName, strokes: [] }];
-        });
-        activeLayerIndex.set(get(layers).length - 1);
-        onchange();
-    }
 
-    function removeLayer(index: number) {
-        layers.update(current => {
-            if (current.length <= 1) return current;
-            return current.filter((_, i) => i !== index);
-        });
-        const currentLayers = get(layers);
-        activeLayerIndex.update(i => {
-            if (i === index) return 0;
-            if (i > index) return i - 1;
-            return i;
-        });
-        redrawFromStrokes();
-        onchange();
-    }
-
-    function setActiveLayer(index: number) {
-        const layersValue = get(layers);
-        if (index < 0 || index >= layersValue.length) return;
-        activeLayerIndex.set(index);
-        redrawFromStrokes();
-    }
-
-    $: exportBoxStyle = exportedDimensions
+    let exportBoxStyle = $derived(exportedDimensions
         ? `left:${(-exportedDimensions.width / 2) * viewScale + viewTx + canvasCenterX}px; top:${(-exportedDimensions.height / 2) * viewScale + viewTy + canvasCenterY}px; width:${exportedDimensions.width * viewScale}px; height:${exportedDimensions.height * viewScale}px;`
-        : '';
-
-    // Redraw whenever the view transform changes — handles external updates (e.g. bound
-    // sliders in a parent) as well as ensuring the canvas context transform stays in sync.
-    $: if (browser && ctx && canvas) {
-        viewTx; viewTy; viewScale; // tracked as reactive dependencies
-        redrawFromStrokes();
-    }
+        : '');
 
     let resizeObserver: ResizeObserver | null = null;
-
-    let layerChangeUnsubscribe = activeLayerIndex.subscribe(() => {
-        // When layers change, we may need to adjust the active layer index or redraw.
-        redrawFromStrokes();
-    });
-
-    let layersChangeUnsubscribe = layers.subscribe(() => {
-        // When layers change, we may need to adjust the active layer index or redraw.
-        const currentLayers = get(layers);
-        const currentActiveIndex = get(activeLayerIndex);
-        if (currentActiveIndex >= currentLayers.length) {
-            activeLayerIndex.set(currentLayers.length - 1);
-        }
-        redrawFromStrokes();
-    });
 
     onMount(() => {
         ctx = canvas.getContext('2d');
@@ -691,8 +633,6 @@
             window.removeEventListener('resize', resizeCanvasAndRedraw);
         }
         resizeObserver?.disconnect();
-        layerChangeUnsubscribe();
-        layersChangeUnsubscribe();
     });
 </script>
 

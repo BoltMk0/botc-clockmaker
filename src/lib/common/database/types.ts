@@ -49,7 +49,8 @@ export type NewGame = Omit<Game, 'id' | 'created' | 'last_played'>;
 export type ReminderToken = {
     id: number;
     character_id: number | null;
-    text: string | null;
+    text: string;
+    textSize: number;
 };
 
 export type NewReminderToken = Omit<ReminderToken, 'id'>;
@@ -57,4 +58,16 @@ export type NewReminderToken = Omit<ReminderToken, 'id'>;
 
 export function isValidCharacterCategory(category: string): category is CharacterCategory {
     return CHARACTER_CATEGORIES.includes(category as CharacterCategory);
+}
+
+export function isReminderToken(obj: any): obj is ReminderToken {
+    const result = typeof obj === "object" &&
+        typeof obj.id === "number" &&
+        (typeof obj.character_id === "number" || obj.character_id === null) &&
+        typeof obj.text === "string" &&
+        typeof obj.textSize === "number" && isFinite(obj.textSize) && obj.textSize > 0;
+    if(!result){
+        console.error("Invalid ReminderToken object:", obj);
+    }
+    return result;
 }

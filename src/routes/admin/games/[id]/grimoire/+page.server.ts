@@ -1,7 +1,7 @@
 import { getGameSetupWithCharacters } from '$lib/server/database/games';
 import { getBOTCTClockInstanceManager } from '$lib/server/model.js';
 import { findResourceById, generateResourceId, getResourceData, parseResourceId, saveResource } from '$lib/server/resources.js';
-import { validateGrimoireState } from './types.js';
+import { validateGrimoireState, validateGrimoireStateHistory } from './types.js';
 
 export async function load({params}){
     const id = Number(params.id);
@@ -17,7 +17,7 @@ export async function load({params}){
                     console.error(`Game state data is not an object for resource ${gameStateResourceId}`);
                     gameState = null;
                 }
-                if(validateGrimoireState(gameState)){
+                if(validateGrimoireStateHistory(gameState)){
                     console.log(`Successfully loaded and validated game state for game ${params.id}`);
                 } else {
                     console.error(`Game state data failed validation for resource ${gameStateResourceId}`);

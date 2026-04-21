@@ -53,11 +53,15 @@ export function isPoint(obj: any): obj is CanvasPoint{
         typeof obj.y === 'number' && isFinite(obj.y);
 }
 
-export type LayerControls = {
-    createLayer: () => void;
-    layers: () => Writable<CanvasLayer[]>;
-    activeLayerIndex: () => Writable<number>;
-    clearLayer: (index: number) => void;
-    deleteLayer: (index: number) => void;
-    setActiveLayer: (index: number) => void;
+export function isCanvasStroke(obj: any): obj is CanvasStroke {
+    return typeof obj === 'object' &&
+        isTool(obj.tool) &&
+        Array.isArray(obj.points) &&
+        obj.points.every(isPoint);
+}
+
+export function isCanvasLayer(obj: any): obj is CanvasLayer {
+    return typeof obj === 'object' &&
+        Array.isArray(obj.strokes) &&
+        obj.strokes.every(isCanvasStroke);
 }

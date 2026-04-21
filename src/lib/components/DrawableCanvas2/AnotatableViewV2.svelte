@@ -1,19 +1,36 @@
 <script lang="ts">
+    import type { Snippet } from "svelte";
     import DrawableCanvas2 from "./DrawableCanvas2.svelte";
-    import type { CanvasToolType, LayerControls } from "./types";
+    import type { CanvasLayer, CanvasToolType } from "./types";
 
-    export let tool: CanvasToolType|null = null;
-    export let style: string = '';
-    export let canvasStyle: string = '';
-    export let saveCanvasAsBlob: (() => Promise<Blob | null>) | undefined = undefined;
-    export let exportedDimensions: { width: number, height: number } | null = null;
-    export let remember: boolean = false;
-    export let layerControls: LayerControls;
-    export let onchange: ()=>void = () => {};
+    interface Props {
+        tool: CanvasToolType|null;
+        style?: string;
+        canvasStyle?: string;
+        exportedDimensions?: { width: number, height: number };
+        layers: CanvasLayer[];
+        activeLayerIndex: number;
+        viewScale?: number;
+        viewTx?: number;
+        viewTy?: number;
+        children: Snippet;
+        onchange?: ()=>void;
+    }
 
-    let viewTx: number = 0;
-    let viewTy: number = 0;
-    export let viewScale: number = 1;
+    let {
+        tool,
+        style,
+        canvasStyle,
+        exportedDimensions,
+        layers,
+        activeLayerIndex,
+        onchange,
+        viewScale = $bindable(1),
+        viewTx = $bindable(0),
+        viewTy = $bindable(0),
+        children,
+    }: Props = $props();
+
 </script>
 
 
@@ -40,9 +57,9 @@
 
 <div class="anotatable-view-main" style="{style}">
     <div class="content-wrapper" style="transform: translate({viewTx}px, {viewTy}px) scale({viewScale});">
-        <slot/>
+        {@render children?.()}
     </div>
-    <DrawableCanvas2 {onchange} bind:saveCanvasAsBlob bind:viewTx bind:viewTy bind:viewScale  bind:tool bind:layerControls {canvasStyle} {exportedDimensions}/>
+    <DrawableCanvas2 {onchange} bind:viewTx bind:viewTy bind:viewScale {tool} {canvasStyle} {exportedDimensions} {layers} {activeLayerIndex}/>
 </div>
 
 

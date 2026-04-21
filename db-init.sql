@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS reminder_tokens (
     id              INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
     character_id    INT UNSIGNED    DEFAULT NULL,
     text            VARCHAR(512)    DEFAULT NULL,
+    text_size       INT UNSIGNED    DEFAULT 100,
     CONSTRAINT fk_rt_character
         FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

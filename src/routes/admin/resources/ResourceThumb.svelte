@@ -1,6 +1,8 @@
 <script lang="ts">
     import type { Resource } from "$lib/common/resources";
+    import CustomOverlay from "$lib/components/CustomOverlay.svelte";
     import TokenBackground from "$lib/components/TokenBackground.svelte";
+    import type { GrimoireStateHistory } from "../games/[id]/grimoire/types";
 
     export let data: Resource;
     export let onDelete: (id: string) => void;
@@ -42,7 +44,7 @@
 </style>
 
 <div class="resource-thumb">
-    <div class="resource-thumb-header">
+    <div class="resource-thumb-header in-a-row">
         <div>
             <span>{data.name}</span>
             <div class="resource-tag">{data.type}</div>
@@ -53,10 +55,23 @@
 
     {#if data.type === 'sfx' || data.type === 'music'}
         <audio controls src={`/admin/api/resources/${data.id}`}></audio>
-    {:else if data.type === 'reminder-token'}
-        <TokenBackground style="width: 100px; height: 100px;">
-            <img src={`/admin/api/resources/${data.id}`} alt={data.name} style="width: 100%; height: 100%; object-fit: contain;"/>
-        </TokenBackground>
+    {:else if data.type === 'grimoirestate'}
+            {#await fetch(`/admin/api/resources/${data.id}`).then(res => res.json()) as Promise<GrimoireStateHistory>}
+                <div>Loading...</div>
+            {:then result}
+                <div class="in-a-column">
+                    <div>Updated {new Date(result.present.timestamp).toLocaleString()}</div>
+                    <div>
+                        <CustomOverlay title="View JSON">
+                            <div>
+                                <pre style="white-space: pre-wrap; word-break: break-word;">{JSON.stringify(result, null, 2)}</pre>
+                            </div>
+                        </CustomOverlay>
+                    </div>
+                </div>
+            {:catch error}
+                <div>Error loading resource data</div>
+            {/await}
     {/if}
     </div>
     <div class="resource-thumb-footer">

@@ -4,6 +4,13 @@
     gap: 1em;
 }
 
+.in-a-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1em;
+    align-items: center;
+}
+
 .padded {
     padding: 1em;
     box-sizing: border-box;
@@ -18,4 +25,31 @@
     display: flex;
     justify-content: center;
     align-items: center;
+}
+
+
+table.info-grid {
+    border-collapse: collapse;
+    width: 100%;
+    background-color: var(--theme-bg-secondary);
+}
+
+table.info-grid td, table.info-grid th {
+    border: 1px solid #ddd4;
+    padding: 8px;
+    box-sizing: border-box;
+}
+
+table.info-grid th {
+    text-align: end;
+    /* padding-right: 0.5em; */
+    width: fit-content;
+    border-collapse: collapse;
+    box-sizing: border-box;
+}
+
+table.info-grid td > * {
+    width: 100%;
+    margin: 0;
+    box-sizing: border-box;
 }

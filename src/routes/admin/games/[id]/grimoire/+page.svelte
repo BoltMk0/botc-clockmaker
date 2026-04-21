@@ -14,20 +14,35 @@
     import { onMount } from "svelte";
     import ClockSetter from "../../../[clockid]/ClockSetter.svelte";
     import { derived } from "svelte/store";
-    import type { CanvasLayer, CanvasToolType, LayerControls } from "$lib/components/DrawableCanvas2/types.js";
+    import type { CanvasLayer, CanvasToolType } from "$lib/components/DrawableCanvas2/types.js";
     import AnotatableViewV2 from "$lib/components/DrawableCanvas2/AnotatableViewV2.svelte";
-    import type { GrimoireStateSnapshot, PlacedReminder, PlacedToken, SavedReminder, SavedToken } from "./types.js";
+    import { newGrimoireStateHistory, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken, type SavedReminder, type SavedToken } from "./types.js";
     import Navbar from "$lib/components/Navbar.svelte";
+    import { v7 } from "uuid";
 
-    let {data}: {
+    interface Props {
         data: {
             gameid: number;
-            game: GameWithCharacters;
-            gameState: GrimoireStateSnapshot | null;
+            game: GameWithCharacters|null;
+            gameState: GrimoireStateHistory | null;
             availableClocks: ClockInstanceInfo[];
             error: string|null;
         }
-    } = $props();
+    }
+
+    let {data}: Props = $props();
+
+    const gameState = $state(data.gameState ?? newGrimoireStateHistory());
+
+    const game = $derived(data.game);
+    const availableClocks = $derived(data.availableClocks);
+
+    // STATE SELECTION
+    const workingGameSnapshot = $derived<GrimoireStateSnapshot>(gameState.present);
+
+
+    const canvasLayers = $derived(workingGameSnapshot.canvas.layers); // Set on mount by AnotatableView, source of truth for layers
+    let activeCanvasLayerIndex = $state<number>(0); // Set on mount by AnotatableView, source of truth for active layer index
 
     // Token size control
     let showTokenSizeSlider = $state(false);
@@ -35,8 +50,8 @@
     let tokenSize = $state(browser ? Number(localStorage.getItem(TOKEN_SIZE_KEY)) || 150 : 150);
     let trayTokenSize = $derived(Math.max(40, Math.round(tokenSize * 0.53)));
 
-    let placedTokens = $derived(data.gameState?.placedTokens ?? loadTokens());
-    let placedReminders = $derived(data.gameState?.placedReminders ?? loadReminders());
+    const placedTokens = $derived(gameState.present.placedTokens ?? loadTokens());
+    const placedReminders = $derived(gameState.present.placedReminders);
 
     // Cache of fetched reminder tokens per character
     let reminderCache = $state< Record<number, ReminderToken[]> >({});
@@ -45,7 +60,7 @@
     let activeReminderCharId = $state<number | null>(null);
     let activeReminderPos = $state<{ x: number; y: number } | null>(null);
 
-    const tools = $derived<CanvasToolType[]>(data.gameState?.canvas.tools || [
+    const tools: CanvasToolType[] = [
         {
             type: 'pen',
             color: '#cccccc',
@@ -75,13 +90,11 @@
             type: 'eraser',
             width: 4,
         }
-    ]);
+    ];
 
-    let activeTool = $derived<CanvasToolType>(tools[0]);
+    let activeToolIndex = $state<number>(0);
+    let activeTool = $derived(tools[activeToolIndex]);
 
-    let canvasLayerController: LayerControls; // Initialized by AnotatableView on mount
-    let canvasLayers: Writable<CanvasLayer[]>; // Set on mount by AnotatableView, source of truth for layers
-    let activeCanvasLayerIndex: Writable<number>; // Set on mount by AnotatableView, source of truth for active layer index
 
     // Persist token size to localStorage only after user finishes changing (debounced)
     let tokenSizeSaveTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -169,71 +182,85 @@
         }
     }
 
-    const clockClientManager = browser && data.game !== null ? new ClockClientManager(data.game.id) : null;
-    const clockClientManagerConfig = clockClientManager ? clockClientManager.config : null;
-    const clockClientManagerClient = clockClientManager ? clockClientManager.client : null;
+    const clockClientManager = $derived(browser && game !== null ? new ClockClientManager(game.id) : null);
+    const clockClientManagerConfig = $derived(clockClientManager ? clockClientManager.config : null);
+    const clockClientManagerClient = $derived(clockClientManager ? clockClientManager.client : null);
     const dayInfo = $derived($clockClientManagerClient?.day_info);
-    const showTimerOptions = writable(false);
+    let showTimerOptions = $state(false);
 
     // NIGHT ORDER LOGIC
     const nightOrderFunction = $derived(($dayInfo?.day || 0) > 0 ? (c: ScriptCharacter) => c.otherNightOrder : (c: ScriptCharacter) => c.firstNightOrder);
     const nightOrderByCharacterId = $derived((placedTokens.filter((c, i, a)=>a.indexOf(c) === i).map(c=>{return [c.character.id, nightOrderFunction(c.character)]}).filter(([_, order])=>order !== null) as [number, number][]).sort((a, b) => a[1] - b[1]).map(([id, _])=>id) ?? []);
 
-    let gameState: GrimoireStateSnapshot | null = data.gameState;
-
     let showFooter = $state(false);
-    let tokensLocked = $state(browser ? localStorage.getItem(`grimoire-locked-${data.game?.id}`) === 'true' : false);
+    let tokensLocked = $derived((browser && game) ? localStorage.getItem(`grimoire-locked-${game.id}`) === 'true' : false);
     let editing = $state(false);
 
 
     // When annotate mode is entered: hide tray
     $effect(()=>{ if (editing) showFooter = false; });
 
-    async function takeSnapshotRightNow(){
-        if(!data.game){
+    async function saveGrimoire(){
+        if(!game || !workingGameSnapshot){
+            console.error("Cannot save grimoire: game or working snapshot not available");
             return;
         }
-        snapshotTimeout.update(current => {
-            if(current){
-                clearTimeout(current);
-            }
-            return null;
-        });
-        const snapshot: GrimoireStateSnapshot = {
-            placedTokens,
-            placedReminders,
-            canvas: {
-                layers: get(canvasLayers),
-                tools: tools,
-            },
-        };
+        if(saveGrimoireTimeout){
+            clearTimeout(saveGrimoireTimeout);
+        }
+
+        gameState.present.timestamp = Date.now();
         try {
             const response = await fetch(`grimoire/state`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(snapshot),
+                body: JSON.stringify(gameState),
             });
             if (!response.ok) {
                 alert('Failed to save grimoire state');
+            } else {
+                console.log("Grimoire state saved successfully");
             }
         } catch (er) {
             alert(`Failed to save grimoire state: ${er}`);
         }
     }
 
-    let snapshotTimeout = writable<NodeJS.Timeout | null>(null);
-    async function rescheduleSnapshot(){
-        snapshotTimeout.update(current => {
-            if(current){
-                clearTimeout(current);
-            }
-            return null;
-        });
-        snapshotTimeout.set(setTimeout(() => {
-            snapshotTimeout.set(null);
-            takeSnapshotRightNow();
-        }, 1000));
+    let saveGrimoireTimeout: NodeJS.Timeout | null = null;
+    async function rescheduleSaveGrimoire(){
+        if(saveGrimoireTimeout){
+            clearTimeout(saveGrimoireTimeout);
+        }
+        saveGrimoireTimeout = setTimeout(() => {
+            saveGrimoireTimeout = null;
+            saveGrimoire();
+        }, 1000);
+    }
 
+    function quickSaveState(index: number) {
+        if (!gameState) return;
+        while(gameState.saveslots.length < index + 1){
+            gameState.saveslots.push(null);
+        }
+        gameState.present.timestamp = Date.now();
+        const snapshot: GrimoireStateSnapshot = JSON.parse(JSON.stringify(gameState.present)); // Deep copy
+        gameState.saveslots[index] = snapshot;
+        gameState.present.id = v7();
+        gameState.present.previousSnapshotId = snapshot.id;
+    }
+
+    function quickLoadState(index: number) {
+        if (!gameState) return;
+        if(index < 0 || index >= gameState.saveslots.length){
+            alert("Invalid snapshot index");
+            return;
+        }
+        const snapshot = gameState.saveslots[index];
+        if (!snapshot) return;
+        gameState.present = JSON.parse(JSON.stringify(snapshot)); // Deep copy
+        gameState.present.previousSnapshotId = snapshot.id;
+        gameState.present.id = v7();
+        gameState.present.timestamp = Date.now();
     }
 
     function setTokensLocked(val: boolean) {
@@ -272,22 +299,30 @@
         }
     }
 
-    function loadReminders(): PlacedReminder[] {
-        if (!browser || !data.game) return [];
-        const key = `grimoire-reminders-${data.game.id}`;
-        try {
-            const saved = localStorage.getItem(key);
-            if (!saved) return [];
-            const parsed: SavedReminder[] = JSON.parse(saved);
-            return parsed.map((s) => ({
-                token: { id: s.tokenId, character_id: s.characterId, text: s.text },
-                x: s.x,
-                y: s.y,
-            }));
-        } catch {
-            return [];
-        }
-    }
+    // async function loadReminders(): Promise<PlacedReminder[]> {
+    //     if (!browser || !data.game) return [];
+    //     const key = `grimoire-reminders-${data.game.id}`;
+    //     try {
+    //         const saved = localStorage.getItem(key);
+    //         if (!saved) return [];
+    //         const parsed: SavedReminder[] = JSON.parse(saved);
+ 
+    //         return await Promise.all(parsed.map((s) =>
+    //             fetch(`/api/reminder_tokens/${s.tokenId}`).then(res => res.json() as Promise<ReminderToken>).then(token => {
+    //                 if (!token) {
+    //                     throw new Error(`Failed to load reminder token with id ${s.tokenId}`);
+    //                 }
+    //                 return {
+    //                     token,
+    //                     x: s.x,
+    //                     y: s.y
+    //                 } as PlacedReminder;
+    //             })
+    //         ));
+    //     } catch {
+    //         return [];
+    //     }
+    // }
 
     async function loadRemindersForCharacter(characterId: number): Promise<ReminderToken[]> {
         if (reminderCache[characterId]) return reminderCache[characterId];
@@ -356,8 +391,8 @@
         dragOffset = { x: e.clientX - tokenScreenX, y: e.clientY - tokenScreenY };
         dragging = { character: token.character, source: 'board' };
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
-        placedTokens = placedTokens.filter(t => t !== token);
-        rescheduleSnapshot();
+        gameState.present.placedTokens = placedTokens.filter(t => t !== token);
+        rescheduleSaveGrimoire();
     }
 
     function startDragReminderFromPopup(e: PointerEvent, token: ReminderToken) {
@@ -378,8 +413,8 @@
         dragOffset = { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) };
         draggingReminder = { token: reminder.token, source: 'board' };
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
-        placedReminders = placedReminders.filter(r => !(r.token.id === reminder.token.id && r.x === reminder.x && r.y === reminder.y));
-        rescheduleSnapshot();
+        gameState.present.placedReminders = placedReminders.filter(r => !(r.token.id === reminder.token.id && r.x === reminder.x && r.y === reminder.y));
+        rescheduleSaveGrimoire();
     }
 
     async function toggleReminderTray(token: PlacedToken) {
@@ -454,8 +489,8 @@
                 const dropY = e.clientY - dragOffset.y;
                 const x = dropX - boardRect.left - boardRect.width / 2;
                 const y = dropY - boardRect.top - boardRect.height / 2;
-                placedReminders = [...placedReminders, { token: draggingReminder.token, x, y }];
-                rescheduleSnapshot();
+                gameState.present.placedReminders = [...placedReminders, { token: draggingReminder.token, x, y }];
+                rescheduleSaveGrimoire();
             }
             // If near edge, it's deleted (not re-added)
             draggingReminder = null;
@@ -482,8 +517,8 @@
                 const dropY = e.clientY - dragOffset.y;
                 const x = dropX - boardRect.left - boardRect.width / 2;
                 const y = dropY - boardRect.top - boardRect.height / 2;
-                placedTokens = [...placedTokens, { character: dragging.character, x, y, isDead: false }];
-                rescheduleSnapshot();
+                gameState.present.placedTokens = [...gameState.present.placedTokens, { character: dragging.character, x, y, isDead: false }];
+                rescheduleSaveGrimoire();
             }
             // If near edge or over footer: token returns to tray (not re-added)
         }
@@ -500,32 +535,60 @@
     }
 
     function resetAllTokens() {
-        placedTokens = [];
-        placedReminders = [];
-        canvasLayers.set([{ strokes: [] }]);
-        takeSnapshotRightNow();
+        gameState.present.placedTokens = [];
+        gameState.present.placedReminders = [];
+        activeCanvasLayerIndex = 0;
+        gameState.present.canvas.layers = [{ strokes: [] }];
+        saveGrimoire();
         closeReminderTray();
     }
 
 
     onMount(()=>{
-        if(!data.game){
+        if(!game || !workingGameSnapshot){
+            alert("Game data failed to load. Please try refreshing the page.");
             return;
         }
         clockClientManager?.initializeClient();
-        canvasLayers = canvasLayerController.layers();
-        canvasLayers.set(data.gameState?.canvas.layers || [{ strokes: [] }]);
-        activeCanvasLayerIndex = canvasLayerController.activeLayerIndex();
         return () => {
-            snapshotTimeout.update(current => {
-                if(current){
-                    clearTimeout(current);
-                }
-                return null;
-            });
+            if(saveGrimoireTimeout){
+                clearTimeout(saveGrimoireTimeout);
+            }
             clockClientManager?.closeClient();
         }
     });
+
+    function clearLayer(index: number){
+        if(!workingGameSnapshot) return;
+        gameState.present.canvas.layers = gameState.present.canvas.layers.map((layer, i) => {
+            if(i === index){
+                return { strokes: [] };
+            }
+            return layer;
+        });
+        saveGrimoire();
+    }
+
+    function addLayer(){
+        if(!workingGameSnapshot) return;
+        gameState.present.canvas.layers.push({ strokes: [] });
+        activeCanvasLayerIndex = gameState.present.canvas.layers.length - 1;
+        saveGrimoire();
+    }
+
+    function deleteLayer(index: number){
+        if(!workingGameSnapshot) return;
+        if(gameState.present.canvas.layers.length <= 1){
+            alert("Cannot delete the last layer.");
+            return;
+        }
+        gameState.present.canvas.layers = gameState.present.canvas.layers.filter((_, i) => i !== index);
+        if(activeCanvasLayerIndex >= gameState.present.canvas.layers.length){
+            activeCanvasLayerIndex = gameState.present.canvas.layers.length - 1;
+        }
+        saveGrimoire();
+    }
+
 </script>
 
 <svelte:window on:pointermove={onPointerMove} on:pointerup={onPointerUp}/>
@@ -739,7 +802,7 @@
             <div style="position: absolute; left: 52px; top: 0; display: flex; flex-direction: column; gap: 8px; z-index: 100;">
                 <!-- TOOLS -->
                 {#each tools as tool, index}
-                    <button class="sidebar-btn" class:active={tool === activeTool} onclick={() => activeTool = tool} title={tool.type === 'pen' ? `Pen tool (color: ${tool.color})` : 'Eraser tool'}>
+                    <button class="sidebar-btn" class:active={index === activeToolIndex} onclick={() => activeToolIndex = index} title={tool.type === 'pen' ? `Pen tool (color: ${tool.color})` : 'Eraser tool'}>
                         {#if tool.type === 'pen'}
                             <svg viewBox="0 0 24 24">
                                 <circle cx="12" cy="12" r="9" fill={tool.color} stroke="currentColor" stroke-width="2"/>
@@ -752,34 +815,28 @@
                     </button>
                 {/each}
                 <div style="height: 2px; background-color: #FFF9;"></div>
-                {#each $canvasLayers as layer, index}
+                {#each canvasLayers as layer, index}
                 <div style="position: relative;">
-                    <button class="sidebar-btn" class:active={$activeCanvasLayerIndex === index} onclick={() => activeCanvasLayerIndex.set(index)} title={`Activate layer ${index + 1}`}>
+                    <button class="sidebar-btn" class:active={activeCanvasLayerIndex === index} onclick={() => activeCanvasLayerIndex = index} title={`Activate layer ${index + 1}`}>
                         <div>
                             {index + 1}
                         </div>
                     </button>
-                    {#if $activeCanvasLayerIndex === index}
+                    {#if activeCanvasLayerIndex === index}
 
                     <div style="display: flex; gap: 4px; position: absolute; left: 52px; top: 0; z-index: 100;">
                         <!-- Reset button -->
-                        <button class="sidebar-btn" onclick={()=>{canvasLayerController.clearLayer(index)}} title="Clear layer">
+                        <button class="sidebar-btn" onclick={()=>{clearLayer(index)}} title="Clear layer">
                             <svg viewBox="0 0 24 24">
                                 <path d="M12 5V2M12 22v-3M5.64 5.64l-2.12-2.12M18.36 18.36l-2.12-2.12M1 12H4M20 12h3M5.64 18.36l-2.12 2.12M18.36 5.64l-2.12 2.12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                             </svg>
                         </button>
 
-                        {#if $canvasLayers.length > 1}
+                        {#if canvasLayers.length > 1}
 
                         <!-- Delete Button -->
                         <button class="sidebar-btn" onclick={()=>{
-                            canvasLayers.update(layers => {
-                                layers.splice(index, 1);
-                                return layers;
-                            });
-                            if($activeCanvasLayerIndex === index){
-                                activeCanvasLayerIndex.set(0);
-                            }
+                            deleteLayer(index);
                         }} title="Delete layer">
                             <svg viewBox="0 0 24 28">
                                 <rect x="5" y="7" width="14" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -796,7 +853,7 @@
                 </div>
                 {/each}
                 <!-- Add layer button -->
-                <button class="sidebar-btn" onclick={() => canvasLayerController.createLayer()} title="Add new layer">
+                <button class="sidebar-btn" onclick={addLayer} title="Add new layer">
                 <svg viewBox="0 0 24 24">
                     <path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
@@ -861,13 +918,13 @@
         {/if}
         
         <!-- Go back -->
-        <button class="sidebar-btn" onclick={() => {takeSnapshotRightNow().then(()=>goto(`/admin/games`))} } title="Back to game">
+        <button class="sidebar-btn" onclick={() => {saveGrimoire().then(()=>goto(`/admin/games`))} } title="Back to game">
             <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
         </button>
 
     </div>
 
-    <AnotatableViewV2 remember bind:layerControls={canvasLayerController} tool={editing ? activeTool : null} onchange={rescheduleSnapshot}>
+    <AnotatableViewV2 tool={editing ? activeTool : null} onchange={rescheduleSaveGrimoire} layers={canvasLayers} activeLayerIndex={activeCanvasLayerIndex}>
     
     <div class="grimoire-board" bind:this={boardEl}>
         {#each placedTokens as token, i (token.character.id + '-' + i)}
@@ -886,7 +943,7 @@
                 style="left: calc(50% + {reminder.x}px); top: calc(50% + {reminder.y}px);"
                 onpointerdown={(e) => startDragReminderFromBoard(e, reminder)}
             >
-                <ReminderTokenView data={reminder.token} size="60px"/>
+                <ReminderTokenView data={reminder.token} size="{tokenSize * 0.4}px"/>
             </div>
         {/each}
 
@@ -907,7 +964,7 @@
     {#if $clockClientManagerConfig?.showClock}
         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 5; color: white; font-size: 2em; text-shadow: 0 0 10px rgba(0,0,0,0.7); z-index: 0;">
             {#if clockClientManagerClient && $clockClientManagerClient}
-            <button class="no-button-style" style="position: relative; width: {tokenSize * 1.5 + 50}px; height: {tokenSize * 1.5 + 50}px; margin: 0 auto;" onclick={()=>showTimerOptions.set(true)}>
+            <button class="no-button-style" style="position: relative; width: {tokenSize * 1.5 + 50}px; height: {tokenSize * 1.5 + 50}px; margin: 0 auto;" onclick={()=>showTimerOptions = true}>
                 <FullDisplay model={$clockClientManagerClient} size={tokenSize * 1.5}/>
             </button>
             {/if}
@@ -970,28 +1027,27 @@
         <div class="edge-delete-indicator" class:active={isNearEdge(ghostPos.x, ghostPos.y)}></div>
     {/if}
 
-    {#if $showTimerOptions || $clockClientManagerConfig?.showClock && !$clockClientManagerClient}
-        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: 20;" onclick={() => {showTimerOptions.set(false); if ($clockClientManagerConfig?.showClock && !$clockClientManagerClient) clockClientManager?.setVisible(false);}} role="dialog" tabindex="0">
+    {#if showTimerOptions || ($clockClientManagerConfig?.showClock && $clockClientManagerClient === null)}
+        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: 20;" onclick={() => {showTimerOptions = false; if ($clockClientManagerConfig?.showClock && !$clockClientManagerClient) clockClientManager?.setVisible(false);}} role="dialog" tabindex="0">
             <div style="background: var(--theme-bg-secondary); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px;" onclick={(e) => e.stopPropagation()} >
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em; gap: 0.7em;">
                     <h2 style="margin: 0;">Clock Controls</h2>
-                    <button class="button-style error" onclick={()=>showTimerOptions.set(false)}>X</button>
+                    <button class="button-style error" onclick={()=>{showTimerOptions = false; if($clockClientManagerClient === null) clockClientManager?.setVisible(false);}}>X</button>
                 </div>
                 {#if clockClientManagerClient && $clockClientManagerClient}
-                    <ClockSetter model={$clockClientManagerClient} onstart={()=>{showTimerOptions.set(false)}}/>
+                    <ClockSetter model={$clockClientManagerClient} onstart={()=>{showTimerOptions = false}}/>
                     <button class="button-style" onclick={() => clockClientManager?.setConnectedClock(null)}>Disconnect Clock</button>
                 {:else}
-                    <div>
-                        <div>Select Clock</div>
-                        {#each data.availableClocks as clock(clock.id)}
-                            <button class="button-style" onclick={() => clockClientManager?.setConnectedClock(clock)}>
-                                {clock.config.teamName} - {clock.id}
+                    <div style="display: flex; flex-direction: column; gap: 5px;">
+                        <div style="text-align: center;">Connect to Clock</div>
+                        {#each availableClocks as clock(clock.id)}
+                            <button class="button-style" onclick={() => {clockClientManager?.setConnectedClock(clock); showTimerOptions = false;}} style="width: 100%; text-align: center; border: 1px solid {typeof clock.config.theme.hue === 'number' ? `hsl(${clock.config.theme.hue} 70% 50%)` : 'currentColor'};">
+                                {clock.config.teamName || `${clock.id}`}
                             </button>
                         {/each}
                     </div>
                 {/if}
             </div>
-
         </div>
     {/if}
 {/if}

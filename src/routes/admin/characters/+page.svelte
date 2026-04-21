@@ -3,6 +3,7 @@
     import { page } from '$app/stores';
     import { deleteReminderToken, fetchReminderTokensForCharacter, updateReminderToken } from '$lib/client/database/reminder_tokens.js';
     import { CHARACTER_CATEGORIES, type Character, type ReminderToken } from '$lib/common/database/types.js';
+    import HSlider from '$lib/components/AudioMixerComponents/HSlider.svelte';
     import CustomOverlay from '$lib/components/CustomOverlay.svelte';
     import Navbar from '$lib/components/Navbar.svelte';
     import ReminderTokenView from '$lib/components/ReminderTokenView.svelte';
@@ -132,7 +133,7 @@
 
     function onReminderTokenViewBackButtonClicked(){
         if(selectedReminderToken){
-            updateReminderToken(selectedReminderToken.id, { text: selectedReminderToken.text }).then(()=>{
+            updateReminderToken(selectedReminderToken.id, { text: selectedReminderToken.text, textSize: selectedReminderToken.textSize }).then(()=>{
                 return fetchReminderTokensForCharacter(selectedCharacterId!)
             }).then(tokens => {
                 selectedCharacterTokens = tokens;
@@ -301,13 +302,39 @@
             {#if selectedCharacter}
                 {#if selectedReminderToken}
                     
-                <button onclick={onReminderTokenViewBackButtonClicked}>Back</button>
 
                 <div class="reminder-token-editor-container">
-                    <ReminderTokenView data={selectedReminderToken} size="200px" />
-                    <textarea style="width: 100%; max-width: 400px;" bind:value={selectedReminderToken.text}></textarea>
-                    <button onclick={()=>onDeleteReminderToken(selectedReminderTokenId)}>Delete Token</button>
+                    <div style="display: grid; grid-template-columns: auto auto; align-items: end; gap: 10px;">
+                        <ReminderTokenView data={selectedReminderToken} size="200px" />
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <ReminderTokenView data={selectedReminderToken} size="50px" />
+                            <ReminderTokenView data={selectedReminderToken} size="100px" />
+                        </div>
+                    </div>
+
+                    <table class="info-grid">
+                        <tbody>
+                            <tr>
+                                <th>Text</th>
+                                <td>
+                                    <textarea style="width: 100%; height: 8em;" bind:value={selectedReminderToken.text}></textarea>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Text Size</th>
+                                <td>
+                                    <div style="text-align: center;">{selectedReminderToken.textSize}%</div>
+                                    <HSlider bind:value={selectedReminderToken.textSize} min={10} max={100} step={1} />
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="in-a-row">
+                        <button onclick={()=>onDeleteReminderToken(selectedReminderTokenId)}>Delete Token</button>
+                        <button onclick={onReminderTokenViewBackButtonClicked}>Save Changes</button>
+                    </div>
                 </div>
+
 
                 {:else}
                 <div style="display: flex; justify-content: start; align-items: center; gap: 1em; margin-bottom: 1em;">
@@ -336,21 +363,40 @@
                     <button type="button" onclick={clearPreview}>Cancel</button>
                 {/if}
 
-                <form>
-                    <table style="width: 100%;">
+                <form action="?/updateCharacter" method="POST" use:enhance={()=>{
+                    return async ({result}) => {
+                        switch(result.type){
+                            case 'success': {
+                                const updatedCharacter = result.data as Character;
+                                characters = characters.map(char => char.id === updatedCharacter.id ? updatedCharacter : char).sort((a, b) => a.name.localeCompare(b.name));
+                                alert('Character updated successfully');
+                                break;
+                            }
+                            case 'error': {
+                                alert(`Error when updating character: ${result.error.message}`);
+                                break;
+                            }
+                            case 'failure': {
+                                alert(`Failed to update character: ${result.data?.error || "Unknown error"}`);
+                                break;
+                            }
+                        }
+                    }
+                }}>
+                    <table class="info-grid">
                         <tbody>
                             <tr>
                                 <th>ID:</th>
-                                <td><input style="width: 100%;" type="text" placeholder="Character ID" value={selectedCharacter.id} readonly /></td>
+                                <td><input name="id" style="width: 100%;" type="number" placeholder="Character ID" value={selectedCharacter.id} readonly /></td>
                             </tr>
                             <tr>
                                 <th>Name</th>
-                                <td><input style="width: 100%;" type="text" placeholder="Character Name" bind:value={selectedCharacter.name} /></td>
+                                <td><input name="name" style="width: 100%;" type="text" placeholder="Character Name" bind:value={selectedCharacter.name} /></td>
                             </tr>
                             <tr>
                                 <th>Group</th>
                                 <td>
-                                    <select style="width: 100%;" bind:value={selectedCharacter.category}>
+                                    <select name="category" style="width: 100%;" bind:value={selectedCharacter.category}>
                                         <option value="">(None)</option>
                                         {#each CHARACTER_CATEGORIES as group}
                                             <option value={group}>{group}</option>
@@ -360,7 +406,7 @@
                             </tr>
                             <tr>
                                 <th>Text</th>
-                                <td><textarea style="width: 100%; height: 5em;" placeholder="Rules Text" bind:value={selectedCharacter.rules}></textarea></td>
+                                <td><textarea name="rules" style="width: 100%; height: 5em;" placeholder="Rules Text" bind:value={selectedCharacter.rules}></textarea></td>
                             </tr>
 
                             <tr>
@@ -382,9 +428,11 @@
                     {/each}
                     <button id="add-reminder-token-button" onclick={createNewReminderToken} >+</button>
                 </div>
-                {/if}
+
 
                 <button style="margin-top: 2em; width: 100%;" onclick={() => deleteCharacter(selectedCharacter.id)}>Delete</button>
+                {/if}
+
             {:else}
                 <p>Select a character to view details</p>
             {/if}

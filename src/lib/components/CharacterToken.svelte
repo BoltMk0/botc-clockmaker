@@ -45,7 +45,7 @@
             </div>
         </div>
         {#if nightOrder !== undefined && nightOrder >= 0}
-            <div class="night-order" style="position: absolute; top: 40%; left: 80%; transform: translate(-50%, -100%);">
+            <div class="night-order" style="font-size: calc({size} / 8); border-width: calc({size} / 80); position: absolute; top: 40%; left: 80%; transform: translate(-50%, -100%);">
                 {nightOrder+1}
             </div>
         {/if}
