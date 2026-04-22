@@ -1,6 +1,7 @@
 import pool from './db';
-import type { NewScript, Script, ScriptCharacter, ScriptWithCharacters } from '../../common/database/types';
-import { getScriptBluffs } from './script_bluffs';
+import type { NewScript, Script, ScriptCharacter, ScriptWithCharacters } from '../common/types';
+import { getReminderTokensForCharacter } from './reminder_tokens';
+import { getGameBluffs } from './games';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -15,7 +16,15 @@ export async function fetchCharactersForScript(scriptId: number): Promise<Script
          ORDER BY c.category, c.name`,
         [scriptId]
     );
-    return rows as ScriptCharacter[];
+
+
+    const chars = rows as ScriptCharacter[];
+
+    for(const char of chars) {
+        char.reminderTokens = await getReminderTokensForCharacter(char.id);
+    }
+
+    return chars;
 }
 
 // ── scripts ───────────────────────────────────────────────────────────────────
@@ -39,7 +48,6 @@ export async function listScriptsWithCharacters(): Promise<ScriptWithCharacters[
         scripts.map(async (s) => ({
             ...s,
             characters: await fetchCharactersForScript(s.id),
-            bluffs: await getScriptBluffs(s.id)
         }))
     );
 }
@@ -64,8 +72,7 @@ export async function getScriptWithCharacters(id: number): Promise<ScriptWithCha
         console.warn(`Failed to find script with id "${id}" - not found`);
         return null;
     }
-    const bluffs = await getScriptBluffs(script.id);
-    return { ...script, characters: await fetchCharactersForScript(id), bluffs };
+    return { ...script, characters: await fetchCharactersForScript(id) };
 }
 
 /**
@@ -142,22 +149,33 @@ export async function removeCharacterFromScript(
     return result.affectedRows > 0;
 }
 
+export type ScriptCharacterInput = {
+    characterId: number;
+    firstNightOrder: number | null;
+    otherNightOrder: number | null;
+};
+
 /**
  * Replace the entire character list for a script in a single transaction.
- * Any character ids not in the new list are unlinked; any new ones are added.
+ * Persists first/other night order columns for each entry.
  */
 export async function setScriptCharacters(
     scriptId: number,
-    characterIds: number[]
+    entries: ScriptCharacterInput[]
 ): Promise<void> {
     const conn = await pool.getConnection();
     try {
         await conn.beginTransaction();
         await conn.query('DELETE FROM script_characters WHERE script_id = ?', [scriptId]);
-        if (characterIds.length > 0) {
-            const rows = characterIds.map((cid) => [scriptId, cid]);
+        if (entries.length > 0) {
+            const rows = entries.map((e) => [
+                scriptId,
+                e.characterId,
+                e.firstNightOrder,
+                e.otherNightOrder,
+            ]);
             await conn.query(
-                'INSERT INTO script_characters (script_id, character_id) VALUES ?',
+                'INSERT INTO script_characters (script_id, character_id, first_night_order, other_night_order) VALUES ?',
                 [rows]
             );
         }

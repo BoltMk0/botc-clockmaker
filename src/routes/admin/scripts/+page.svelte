@@ -1,7 +1,7 @@
 <script lang="ts">
     import { enhance } from "$app/forms";
     import { goto } from "$app/navigation";
-    import type { Character } from "$lib/common/database/types";
+    import type { Character } from "$lib/database/common/types";
     import CustomOverlay from "$lib/components/CustomOverlay.svelte";
     import Navbar from "$lib/components/Navbar.svelte";
 

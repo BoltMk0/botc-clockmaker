@@ -1,7 +1,6 @@
-import { ALL_RESOURCE_TYPES, getAcceptedExtensionsForResourceType, getAcceptedMimeTypeForResourceType, type Resource, type ResourceType } from "$lib/common/resources";
-import { getExtensionForMimeType, getMimeTypeForExtension } from "$lib/common/util";
+import { ALL_RESOURCE_TYPES, getAcceptedExtensionsForResourceType, type Resource, type ResourceType } from "../common/types";
+import { getExtensionForMimeType, getMimeTypeForExtension, prettifyResourceName} from "../common/util";
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
-import { get } from "http";
 
 
 const RESOURCE_DATA_DIR =  process.env.RESOURCE_DATA_DIR || "data/resources";
@@ -18,19 +17,18 @@ function getResourceDirpath(resourceType: ResourceType, create: boolean = false)
     return dirpath;
 }
 
-function prettifyResourceName(name: string): string {
-    return name.replace(/[-_]+/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-}
 
-
-function idToResourceName(id: string, type: ResourceType|null = null): string {
+function encodedIdToResourceName(id: string, type: ResourceType|null = null): string {
+    let found = false;
     for(const t of type ? [type] : ALL_RESOURCE_TYPES){
         if(id.startsWith(`${t}-`)){
             id = id.slice(t.length + 1);
+            found = true;
             break;
         }
     }
-    return prettifyResourceName(id.split('.', 2)[0].replace(/[-_]+/g, " ").trim());
+    if(!found) throw new Error(`Invalid resource ID: ${id}`);
+    return id.split('.', 2)[0];
 }
 
 export function parseResourceId(resourceId: string): Resource | null {
@@ -54,7 +52,7 @@ export function parseResourceId(resourceId: string): Resource | null {
     let mimeType = getMimeTypeForExtension(ext);
     if(mimeType == null) return null;
 
-    return { id: resourceId, name: idToResourceName(resourceId, localType), type: localType, mimetype: mimeType };
+    return { id: resourceId, name: encodedIdToResourceName(resourceId, localType), type: localType, mimetype: mimeType };
 }
 
 
@@ -70,7 +68,15 @@ export function findResourceById(id: string): Resource | null {
     const filepath = getResourceFilePath(resource);
     if (!existsSync(filepath)) return null;
     return resource;
-}   
+}
+
+export function findResourceByName(name: string, type: ResourceType): Resource | null {
+    const resources = listResources(type);
+    console.debug(`Finding resource by name: ${name} (type: ${type}). Total resources of this type: ${resources.length}`);
+    const resource = resources.find(r => r.name === name);
+    console.debug(`Resources: ${resources.map(r => r.name).join(", ")}. Found: ${resource ? resource.name : "none"}`);
+    return resource || null;
+}
 
 export function getResourceFilePath(resource: Omit<Resource, 'name'|'mimetype'>, createDirs: boolean = false): string {
     return `${getResourceDirpath(resource.type, createDirs)}/${resource.id}`;
@@ -95,8 +101,8 @@ export function createResource(name: string, type: ResourceType, mimeType: strin
     return id;
 }
 
-export function deleteResource(id: string): boolean {
-    const resource = findResourceById(id);
+export function deleteResource(id: string|Resource): boolean {
+    const resource = typeof id === 'string' ? findResourceById(id) : id;
     if(!resource) return false;
     const filepath = getResourceFilePath(resource);
     if (!existsSync(filepath)) return false;
@@ -109,8 +115,8 @@ export function deleteResource(id: string): boolean {
     }
 }
 
-export function generateResourceId(type: ResourceType, name: string): string {
-    const mimeType = getAcceptedMimeTypeForResourceType(type);
+export function encodeResourceId(type: ResourceType, name: string, mimeType: string): string {
     const ext = getExtensionForMimeType(mimeType);
+    if(name.includes('.')) throw new Error("Resource name cannot contain dots");
     return `${type}-${name.replace(/\s+/g, "_").toLowerCase()}${ext}`;
 };

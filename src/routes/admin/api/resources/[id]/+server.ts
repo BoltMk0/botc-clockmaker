@@ -1,4 +1,4 @@
-import { deleteResource, findResourceById, getResourceData } from '$lib/server/resources';
+import { deleteResource, findResourceById, getResourceData } from '$lib/resources/server/resources';
 
 export async function GET({params}){
     const resource =findResourceById(params.id);

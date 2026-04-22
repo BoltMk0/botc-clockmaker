@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { addCharacterToScript, removeCharacterFromScript, getScriptById } from '$lib/server/database/scripts';
-import { getCharacterById } from '$lib/server/database/characters';
+import { addCharacterToScript, removeCharacterFromScript, getScriptById } from '$lib/database/server/scripts';
+import { getCharacterById } from '$lib/database/server/characters';
 
 export async function POST({ params }) {
     const scriptId = Number(params.id);

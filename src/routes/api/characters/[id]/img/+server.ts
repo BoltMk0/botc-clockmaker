@@ -1,10 +1,8 @@
 import { json } from '@sveltejs/kit';
-import { getCharacterById } from '$lib/server/database/characters';
-import {
-    getCharacterImage,
-    setCharacterImage,
-    deleteCharacterImage
-} from '$lib/server/database/Images_base';
+import { getCharacterById } from '$lib/database/server/characters';
+import { getCharacterImageResource, setCharacterImageResource, deleteCharacterImageResource } from '$lib/resources/server/character-images';
+import { getResourceData } from '$lib/resources/server/resources';
+
 
 const ALLOWED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 
@@ -20,11 +18,14 @@ export async function GET({ params }) {
     const { character, error } = await resolveCharacter(params.id);
     if (error) return error;
 
-    const image = getCharacterImage(character);
-    if (!image) return json({ error: 'No image found for this character' }, { status: 404 });
+    const res = getCharacterImageResource(character.id);
+    if (!res) return json({ error: 'No image found for this character' }, { status: 404 });
 
-    return new Response(new Uint8Array(image.data), {
-        headers: { 'Content-Type': image.mimetype }
+    const data = getResourceData(res);
+    if (!data) return json({ error: 'Failed to read image data' }, { status: 500 });
+
+    return new Response(new Uint8Array(data), {
+        headers: { 'Content-Type': res.mimetype }
     });
 }
 
@@ -45,7 +46,7 @@ export async function PUT({ params, request }) {
     const buffer = Buffer.from(await request.arrayBuffer());
     if (buffer.byteLength === 0) return json({ error: 'Empty body' }, { status: 400 });
 
-    setCharacterImage(character, buffer, mimeType);
+    setCharacterImageResource(character.id, buffer);
     return new Response(null, { status: 204 });
 }
 
@@ -53,7 +54,7 @@ export async function DELETE({ params }) {
     const { character, error } = await resolveCharacter(params.id);
     if (error) return error;
 
-    const deleted = deleteCharacterImage(character);
+    const deleted = deleteCharacterImageResource(character.id);
     if (!deleted) return json({ error: 'No image found for this character' }, { status: 404 });
     return new Response(null, { status: 204 });
 }

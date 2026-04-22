@@ -70,10 +70,10 @@
 <Navbar/>
 
 <style>
-    table, td, th {
+    table, td {
         border-collapse: collapse;
     }
-    td, th {
+    td {
         padding: 2px;
     }
 

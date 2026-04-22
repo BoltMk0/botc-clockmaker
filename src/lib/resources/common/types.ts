@@ -1,5 +1,6 @@
 
-export type ResourceType = "sfx" | "music" | "grimoirestate";
+export type ResourceType = "sfx" | "music" | "grimoirestate" | "charactertokenimage";
+export const ALL_RESOURCE_TYPES = ["sfx", "music", "grimoirestate", "charactertokenimage"] as const;
 
 export type Resource = {
     id: string;
@@ -22,6 +23,8 @@ export function getAcceptedMimeTypeForResourceType(resourceType: ResourceType): 
             return "audio/*";
         case "grimoirestate":
             return "application/json";
+        case "charactertokenimage":
+            return "image/*";
     }
 }
 
@@ -32,10 +35,10 @@ export function getAcceptedExtensionsForResourceType(resourceType: ResourceType)
             return [".wav", ".mp3"];
         case "grimoirestate":
             return [".json"];
+        case "charactertokenimage":
+            return [".png", ".jpg", ".jpeg", ".webp", ".gif"];
     }   
 }
-
-export const ALL_RESOURCE_TYPES = ["sfx", "music", "grimoirestate"] as const;
 
 export function isValidResourceType(type: string): type is ResourceType {
     return ALL_RESOURCE_TYPES.includes(type as any);

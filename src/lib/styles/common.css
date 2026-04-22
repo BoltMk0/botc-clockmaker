@@ -1,13 +1,14 @@
 .in-a-row {
     display: flex;
     flex-direction: row;
-    gap: 1em;
+    gap: 0.7em;
+    align-items: center;
 }
 
 .in-a-column {
     display: flex;
     flex-direction: column;
-    gap: 1em;
+    gap: 0.4em;
     align-items: center;
 }
 
@@ -40,10 +41,12 @@ table.info-grid td, table.info-grid th {
     box-sizing: border-box;
 }
 
+table.info-grid td {
+    width: 100%;
+}
+
 table.info-grid th {
     text-align: end;
-    /* padding-right: 0.5em; */
-    width: fit-content;
     border-collapse: collapse;
     box-sizing: border-box;
 }
@@ -52,4 +55,10 @@ table.info-grid td > * {
     width: 100%;
     margin: 0;
     box-sizing: border-box;
+}
+
+.input-style {
+    background-color: var(--theme-bg-tertiary);
+    color: var(--theme-on-bg-tertiary);
+    border: 1px solid var(--theme-bg);
 }

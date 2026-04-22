@@ -116,7 +116,7 @@
         box-sizing: border-box;
         transition: transform 0.3s ease;
         background-color: var(--theme-bg-secondary);
-        font-size: xx-large;
+        font-size: x-large;
         padding-top: 60px;
         z-index: 1000;
     }
@@ -190,10 +190,6 @@
                 {#each clients as client}
                     <li><a href="/admin/{client.id}" target="_self">{client.config.teamName}</a></li>
                 {/each}
-                <li><a href="/admin/resources" target="_self">Resources</a></li>
-                <li><a href="/admin/games" target="_self">Games</a></li>
-                <li><a href="/admin/characters" target="_self">Characters</a></li>
-                <li><a href="/admin/scripts" target="_self">Scripts</a></li>
             </ul>
             {/if}
         </li>
@@ -208,6 +204,11 @@
             </ul>
         </li>
          {/if}
+
+        <li><a href="/admin/games" target="_self">Games</a></li>
+        <li><a href="/admin/characters" target="_self">Manage Characters</a></li>
+        <li><a href="/admin/scripts" target="_self">Manage Scripts</a></li>
+        <li><a href="/admin/resources" target="_self">Manage Resources</a></li>
     </ul>
 
     <div style="display: grid; gap: 10px;">

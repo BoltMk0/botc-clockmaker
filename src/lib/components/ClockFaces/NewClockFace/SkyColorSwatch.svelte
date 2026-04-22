@@ -1,5 +1,6 @@
 <script lang="ts">
-    import { getSkyColor } from "../../util";
+    import { getSkyColor } from "$lib/common/util";
+
 
     export let nsteps: number = 10;
 

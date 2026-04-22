@@ -1,4 +1,4 @@
-import { createReminderToken, getReminderTokensForCharacter, listReminderTokensForScript } from '$lib/server/database/reminder_tokens';
+import { createReminderToken, getReminderTokensForCharacter, listReminderTokensForScript } from '$lib/database/server/reminder_tokens';
 import { json } from '@sveltejs/kit';
 
 export async function GET({url}){

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { Character } from "$lib/common/database/types";
+    import type { Character } from "$lib/database/common/types";
 
     export let character: Character;
     export let size: string = '2.5em';

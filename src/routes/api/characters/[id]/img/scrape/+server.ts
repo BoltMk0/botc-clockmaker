@@ -1,5 +1,5 @@
 import { scrape } from '$lib/scraper/server/char_icon_scraper.js';
-import { getCharacterById } from '$lib/server/database/characters';
+import { getCharacterById } from '$lib/database/server/characters';
 import { json } from '@sveltejs/kit';
 
 export async function POST({ params, request, fetch}) {

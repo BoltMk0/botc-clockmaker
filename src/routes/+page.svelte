@@ -76,9 +76,4 @@
         justify-content: space-evenly;
         box-sizing: border-box;
     }
-
-    .navbar-hamburger-container {
-        position: absolute;
-        top: 10px; left: 10px;
-    }
 </style>

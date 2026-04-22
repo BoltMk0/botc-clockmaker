@@ -1,14 +1,15 @@
-import { listGameSetupsWithCharacters } from "$lib/server/database/games";
-import { listScriptsWithCharacters } from "$lib/server/database/scripts";
-import type { Actions } from "./$types";
+import { listFullGames } from "$lib/database/server/games";
+import { listScriptsWithCharacters } from "$lib/database/server/scripts";
+import { get_grimoire_state_history_resource_for_game } from "$lib/server/grimoire_resource_helper";
 
 export async function load(){
     try{
-        const games = await listGameSetupsWithCharacters();
+        const games = await listFullGames();
         const scripts = await listScriptsWithCharacters();
-        return {games, scripts};
+        const gamesWithStates = games.map(game => ({game, grimoireState: get_grimoire_state_history_resource_for_game(game.id)}));
+        return {games: gamesWithStates, scripts, error: null};
     } catch(e){
         console.error("Failed to load games or scripts", e);
-        return {games: [], scripts: []};
+        return {games: [], scripts: [], error: e};
     }
 }

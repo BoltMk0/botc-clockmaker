@@ -1,5 +1,5 @@
-import { isValidCharacterCategory } from "$lib/common/database/types";
-import { addCharacter, listCharacters, updateCharacter } from "$lib/server/database/characters";
+import { isValidCharacterCategory } from "$lib/database/common/types";
+import { addCharacter, listCharacters, updateCharacter } from "$lib/database/server/characters";
 import { fail } from "@sveltejs/kit";
 
 export async function load(){
@@ -28,6 +28,7 @@ export const actions = {
 
         return { success: true, ...character};
     },
+
     updateCharacter: async ({ request }) => {
         const formData = await request.formData();
         const id = formData.get('id');
@@ -53,8 +54,16 @@ export const actions = {
             return fail(400, {error: 'Rules must be a string' });
         }
 
-        
-        const character = await updateCharacter(Number(id), {name, category, rules});
+        const wakes_first_night = formData.get('wakes_first_night') === 'on';
+        const wakes_other_nights = formData.get('wakes_other_nights') === 'on';
+        const counts_as_player = formData.get('counts_as_player') === 'on';
+        const player_count = counts_as_player ? 1 : 0;
+        const playerCountNumber = Number(player_count);
+        if (isNaN(playerCountNumber) || playerCountNumber < 0) {
+            return fail(400, {error: 'Player count must be a non-negative number' });
+        }
+
+        const character = await updateCharacter(Number(id), {name, category, rules, wakes_first_night, wakes_other_nights, player_count: playerCountNumber});
 
         if(!character){
             return fail(404, {error: 'Character not found'});

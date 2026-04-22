@@ -1,4 +1,4 @@
-import type { ReminderToken } from "$lib/common/database/types";
+import type { ReminderToken } from "../common/types";
 
 export async function fetchReminderTokensForCharacter(characterId: number): Promise<ReminderToken[]> {
     const response = await fetch(`/api/reminder_tokens?characterId=${characterId}`);

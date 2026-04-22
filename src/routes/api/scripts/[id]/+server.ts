@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { getScriptWithCharacters, updateScript, deleteScript } from '$lib/server/database/scripts';
+import { getScriptWithCharacters, updateScript, deleteScript } from '$lib/database/server/scripts';
 
 export async function GET({ params }) {
     const id = Number(params.id);

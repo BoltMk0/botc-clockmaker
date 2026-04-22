@@ -12,7 +12,6 @@
     export let totalTime: number = 60; // in seconds
     export let hue: string|undefined = undefined;
     export let dayNumber: number = 0;
-    export let playerCount: number = 10;
     export let style: string = "";
 
     const windowSize = 0.79
@@ -29,28 +28,9 @@
 
 <div style="position: relative; width: 100%; height: 100%; aspect-ratio: 1/1; {hue ? `--hue: ${hue};` : ""}; --hue-dark: hsl(from var(--hue) h calc(s*0.25) calc(l*0.5)); {style};">
     <div style="position: absolute; inset: 0; box-shadow: 0 0 500px rgb(from var(--hue) r g b / 30%); border-radius: 50%; overflow: hidden;">
-        <ClockBackgroundDaylight1 progress={progress} {windowSize}/>
+        <ClockBackgroundDaylight1 {windowSize}/>
     </div>
 
-    <!-- <div style="position: absolute; inset: calc(({1-windowSize}/2)*100%); border-radius: 50%; overflow: hidden;">
-        <div style="position: absolute; inset: 0; bottom: 50%; box-shadow: 0 0 60px {skyColor}; border-radius: 999em 999em 0 0; transition: box-shadow 1s ease;">
-            <SkyDisplay progress={progress}/>
-        </div>
-    </div> -->
-
-    <!-- <div style="position: absolute; top: 16%; display: flex; justify-content: center; gap: 5px; width: 100%; font-size: 1.4em;">
-        <CountdownDisplay {progress} minutes={Math.floor(minutes)} seconds={seconds} style="display: inline-block;"/>
-    </div> -->
-
-
-    <!-- <div style="position: absolute; top: 59%; display: flex; justify-content: center; width: 100%; font-size: 1em; align-items: stretch; gap: 5px;">
-        {#if dayNumber > 0}
-            <DaysDisplay day={dayNumber}/>
-        {/if}
-        {#if playerCount > 0}
-        <PlayerCountDisplay numPlayers={playerCount}/>
-        {/if}
-    </div> -->
     {#if dayNumber > 0}
     <div style="position: absolute; top: 50%; left: 60%; transform: translateY(-50%); font-size: 1.6em;">
         <div style="display: flex; border-radius: 5px; overflow: hidden; border: 1px solid var(--hue); box-shadow: 0 0 10px #0007; color: #FFF9; transition: border-color 1s;">

@@ -1,23 +1,18 @@
-import type { ReminderToken, ScriptCharacter } from "$lib/common/database/types";
-import { isCanvasLayer, type CanvasLayer, type CanvasToolType } from "$lib/components/DrawableCanvas2/types";
+import { isCanvasLayer, type CanvasLayer } from "$lib/components/DrawableCanvas2/types";
 import { v7 } from "uuid";
 
 export type PlacedToken = {
-    character: ScriptCharacter;
+    characterId: number;
     isDead: boolean;
     x: number;
     y: number;
 };
 
 export type PlacedReminder = {
-    token: ReminderToken;
+    tokenId: number;
     x: number;
     y: number;
 };
-
-export type SavedToken = { characterId: number; isDead: boolean; x: number; y: number };
-export type SavedReminder = { tokenId: number; x: number; y: number; textSize: number };
-
 
 export type GrimoireStateSnapshot = {
     id: string;
@@ -35,36 +30,11 @@ export type GrimoireStateHistory = {
     present: GrimoireStateSnapshot;
 };
 
-export function isSavedToken(obj: any): obj is SavedToken {
-    const result = typeof obj === "object" &&
-        typeof obj.characterId === "number" &&
-        typeof obj.isDead === "boolean" &&
-        typeof obj.x === "number" && isFinite(obj.x) &&
-        typeof obj.y === "number" && isFinite(obj.y);
-    if(!result){
-        console.error("Invalid SavedToken object:", obj);
-    }
-    return result;
-}
-
-export function isSavedReminder(obj: any): obj is SavedReminder {
-    const result = typeof obj === "object" &&
-        typeof obj.tokenId === "number" &&
-        typeof obj.x === "number" && isFinite(obj.x) &&
-        typeof obj.y === "number" && isFinite(obj.y) &&
-        typeof obj.textSize === "number" && isFinite(obj.textSize) && obj.textSize > 0;
-    if(!result){
-        console.error("Invalid SavedReminder object:", obj);
-    }
-    return result;
-}
-
 function isPlacedToken(obj: any): obj is PlacedToken {
     const result = typeof obj === "object" &&
         typeof obj.x === "number" && isFinite(obj.x) &&
         typeof obj.y === "number" && isFinite(obj.y) &&
-        typeof obj.character === "object" &&
-        typeof obj.character.id === "number" &&
+        typeof obj.characterId === "number" &&
         typeof obj.isDead === "boolean";
     if(!result){
         console.error("Invalid PlacedToken object:", obj);
@@ -76,8 +46,7 @@ function isPlacedReminder(obj: any): obj is PlacedReminder {
     const result = typeof obj === "object" &&
         typeof obj.x === "number" && isFinite(obj.x) &&
         typeof obj.y === "number" && isFinite(obj.y) &&
-        typeof obj.token === "object" &&
-        typeof obj.token.id === "number";
+        typeof obj.tokenId === "number";
     if(!result){
         console.error("Invalid PlacedReminder object:", obj);
     }

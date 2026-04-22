@@ -1,5 +1,5 @@
-import { listCharacters } from "$lib/server/database/characters";
-import { createScript, deleteScript, listScripts, listScriptsWithCharacters } from "$lib/server/database/scripts";
+import { listCharacters } from "$lib/database/server/characters";
+import { createScript, deleteScript, listScripts, listScriptsWithCharacters } from "$lib/database/server/scripts";
 import { fail } from "@sveltejs/kit";
 
 export async function load() {

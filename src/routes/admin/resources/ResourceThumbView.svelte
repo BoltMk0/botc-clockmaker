@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { Resource } from "$lib/common/resources";
+    import type { Resource } from "$lib/resources/common/types";
 
     export let title: string;
     export let tags: string[];

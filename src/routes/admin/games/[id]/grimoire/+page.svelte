@@ -1,29 +1,26 @@
 <script lang="ts">
-    import type { ScriptCharacter, ReminderToken, Character, GameWithCharacters } from "$lib/common/database/types.js";
-    import AnotatableView from "$lib/components/AnotatableView.svelte";
+    import type { ScriptCharacter, ReminderToken, Character, GameFull } from "$lib/database/common/types.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import ReminderTokenView from "$lib/components/ReminderTokenView.svelte";
-    import { fetchReminderTokensForCharacter } from "$lib/client/database/reminder_tokens";
+    import { fetchReminderTokensForCharacter } from "$lib/database/client/reminder_tokens.js";
     import { browser } from "$app/environment";
 
     import { goto } from '$app/navigation';
     import { ClockClientModel } from "$lib/client/model.js";
-    import type { ClockInstanceInfo, Config } from "$lib/common/config.js";
+    import type { ClockInstanceInfo } from "$lib/common/config.js";
     import { get, writable, type Readable, type Writable } from "svelte/store";
     import FullDisplay from "$lib/components/FullDisplay/FullDisplay.svelte";
     import { onMount } from "svelte";
     import ClockSetter from "../../../[clockid]/ClockSetter.svelte";
-    import { derived } from "svelte/store";
-    import type { CanvasLayer, CanvasToolType } from "$lib/components/DrawableCanvas2/types.js";
+    import type { CanvasToolType } from "$lib/components/DrawableCanvas2/types.js";
     import AnotatableViewV2 from "$lib/components/DrawableCanvas2/AnotatableViewV2.svelte";
-    import { newGrimoireStateHistory, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken, type SavedReminder, type SavedToken } from "./types.js";
-    import Navbar from "$lib/components/Navbar.svelte";
+    import { newGrimoireStateHistory, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "./types.js";
     import { v7 } from "uuid";
 
     interface Props {
         data: {
             gameid: number;
-            game: GameWithCharacters|null;
+            game: GameFull|null;
             gameState: GrimoireStateHistory | null;
             availableClocks: ClockInstanceInfo[];
             error: string|null;
@@ -45,10 +42,17 @@
         }
     }
 
+    // svelte-ignore state_referenced_locally
     const gameState = $state(getInitialGameState(data));
 
     const game = $derived(data.game);
     const availableClocks = $derived(data.availableClocks);
+    const availableReminderTokens = $derived<Record<number, ReminderToken>>(
+        game ? Object.fromEntries(game.script.characters.flatMap(c => c.reminderTokens.map(t => [t.id, t]))) : {}
+    )
+    const availableCharacters = $derived<Record<number, ScriptCharacter>>(
+        game ? Object.fromEntries(game.script.characters.map(c => [c.id, c])) : {}
+    );
 
     // STATE SELECTION
     const workingGameSnapshot = $derived<GrimoireStateSnapshot>(gameState.present);
@@ -63,7 +67,7 @@
     let tokenSize = $state(browser ? Number(localStorage.getItem(TOKEN_SIZE_KEY)) || 150 : 150);
     let trayTokenSize = $derived(Math.max(40, Math.round(tokenSize * 0.53)));
 
-    const placedTokens = $derived(gameState.present.placedTokens ?? loadTokens());
+    const placedTokens = $derived(gameState.present.placedTokens);
     const placedReminders = $derived(gameState.present.placedReminders);
 
     // Cache of fetched reminder tokens per character
@@ -145,8 +149,9 @@
         constructor(gameId: number){
             this.gameId = gameId;
             this.configKey = `grimoire-${gameId}-clock-config`;
-            const storedClockConfig: ClockClientManagerConfig|null = browser ? JSON.parse(localStorage.getItem(this.configKey) ?? 'null') : null;
-            this.config_ = writable(storedClockConfig ?? { connectedClock: null, showClock: false });
+            // const storedClockConfig: ClockClientManagerConfig|null = browser ? JSON.parse(localStorage.getItem(this.configKey) ?? 'null') : null;
+            // this.config_ = writable(storedClockConfig ?? { connectedClock: null, showClock: false });
+            this.config_ = writable({ connectedClock: null, showClock: false });
             this.config = this.config_;
         }
 
@@ -188,7 +193,7 @@
             this.config_.update(current => {
                 return { connectedClock: clockInfo, showClock: current.showClock };
             });
-            this.saveConfig();
+            // this.saveConfig();
             this.initializeClient();
         }
 
@@ -196,7 +201,7 @@
             this.config_.update(current => {
                 return { connectedClock: current?.connectedClock ?? null, showClock: visible };
             });
-            this.saveConfig();
+            // this.saveConfig();
         }
     }
 
@@ -208,7 +213,12 @@
 
     // NIGHT ORDER LOGIC
     const nightOrderFunction = $derived(($dayInfo?.day || 0) > 0 ? (c: ScriptCharacter) => c.otherNightOrder : (c: ScriptCharacter) => c.firstNightOrder);
-    const nightOrderByCharacterId = $derived((placedTokens.filter((c, i, a)=>a.indexOf(c) === i).map(c=>{return [c.character.id, nightOrderFunction(c.character)]}).filter(([_, order])=>order !== null) as [number, number][]).sort((a, b) => a[1] - b[1]).map(([id, _])=>id) ?? []);
+    const nightOrderByCharacterId = $derived((placedTokens.filter((c, i, a)=>a.indexOf(c) === i)
+        .map(c=>game?.script.characters.find(ch => ch.id === c.characterId))
+        .filter(c => c !== undefined)
+        .map(c=>{return [c.id, nightOrderFunction(c)]})
+        .filter(([_, order])=>order !== null) as [number, number][]).sort((a, b) => a[1] - b[1])
+        .map(([id, _])=>id) ?? []);
 
     let showFooter = $state(false);
     let tokensLocked = $derived((browser && game) ? localStorage.getItem(`grimoire-locked-${game.id}`) === 'true' : false);
@@ -317,23 +327,23 @@
         }
     }
 
-    function loadTokens(): PlacedToken[] {
-        if (!browser || !data.game) return [];
-        const key = `grimoire-${data.game.id}`;
-        try {
-            const saved = localStorage.getItem(key);
-            if (!saved) return [];
-            const parsed: SavedToken[] = JSON.parse(saved);
-            return parsed
-                .map((s) => {
-                    const character = data.game!.script.characters.find((c: ScriptCharacter) => c.id === s.characterId);
-                    return character ? { character, x: s.x, y: s.y } : null;
-                })
-                .filter((t): t is PlacedToken => t !== null);
-        } catch {
-            return [];
-        }
-    }
+    // function loadTokens(): PlacedToken[] {
+    //     if (!browser || !data.game) return [];
+    //     const key = `grimoire-${data.game.id}`;
+    //     try {
+    //         const saved = localStorage.getItem(key);
+    //         if (!saved) return [];
+    //         const parsed: SavedToken[] = JSON.parse(saved);
+    //         return parsed
+    //             .map((s) => {
+    //                 const character = data.game!.script.characters.find((c: ScriptCharacter) => c.id === s.characterId);
+    //                 return character ? { character, x: s.x, y: s.y } : null;
+    //             })
+    //             .filter((t): t is PlacedToken => t !== null);
+    //     } catch {
+    //         return [];
+    //     }
+    // }
 
     // async function loadReminders(): Promise<PlacedReminder[]> {
     //     if (!browser || !data.game) return [];
@@ -369,17 +379,11 @@
 
     const trayTokens = $derived(data.game ? data.game.script.characters : []);
 
-    const placedCharIds = $derived(new Set(placedTokens.map(t => t.character.id)));
+    const placedCharIds = $derived(new Set(placedTokens.map(t => t.characterId)));
 
     function isInPlay(characterId: number): boolean {
         return placedCharIds.has(characterId);
     }
-
-    const charactersByFirstNightOrder = $derived(placedTokens.filter(c=>c.character.firstNightOrder !== undefined).sort((a, b)=> (b.character.firstNightOrder ?? 0) - (a.character.firstNightOrder ?? 0)));
-    const charactersByOtherNightOrder = $derived(placedTokens.filter(c=>c.character.otherNightOrder !== undefined).sort((a, b) => (b.character.otherNightOrder ?? 0) - (a.character.otherNightOrder ?? 0)));
-
-    const gameTokens = $derived(trayTokens.filter((c: ScriptCharacter) => data.game?.character_ids.includes(c.id)));
-    const otherTokens = $derived(trayTokens.filter((c: ScriptCharacter) => !data.game?.character_ids.includes(c.id)));
 
     let dragging = $state<{ character: ScriptCharacter; source: 'tray' | 'board' } | null>(null);
     let draggingReminder = $state<{ token: ReminderToken; source: 'popup' | 'board' } | null>(null);
@@ -420,12 +424,19 @@
     function actuallyStartBoardDrag(e: PointerEvent, token: PlacedToken) {
         if (tokensLocked) return;
         if(!boardEl) return;
+
+        const character = game?.script.characters.find(c => c.id === token.characterId);
+        if (!character) {
+            console.error("Character not found for token:", token);
+            return;
+        }
+
         closeReminderTray();
         const rect = boardEl.getBoundingClientRect();
         const tokenScreenX = rect.left + rect.width / 2 + token.x;
         const tokenScreenY = rect.top + rect.height / 2 + token.y;
         dragOffset = { x: e.clientX - tokenScreenX, y: e.clientY - tokenScreenY };
-        dragging = { character: token.character, source: 'board' };
+        dragging = { character: character, source: 'board' };
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
         gameState.present.placedTokens = placedTokens.filter(t => t !== token);
         rescheduleSaveGrimoire();
@@ -445,20 +456,27 @@
         e.preventDefault();
         e.stopPropagation();
         closeReminderTray();
+
+        const token = availableReminderTokens[reminder.tokenId];
+        if (!token) {
+            console.error("Reminder token not found for placed reminder:", reminder);
+            return;
+        }
+
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
         dragOffset = { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) };
-        draggingReminder = { token: reminder.token, source: 'board' };
+        draggingReminder = { token, source: 'board' };
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
-        gameState.present.placedReminders = placedReminders.filter(r => !(r.token.id === reminder.token.id && r.x === reminder.x && r.y === reminder.y));
+        gameState.present.placedReminders = placedReminders.filter(r => !(r.tokenId === reminder.tokenId && r.x === reminder.x && r.y === reminder.y));
         rescheduleSaveGrimoire();
     }
 
     async function toggleReminderTray(token: PlacedToken) {
-        if (activeReminderCharId === token.character.id) {
+        if (activeReminderCharId === token.characterId) {
             closeReminderTray();
             return;
         }
-        activeReminderCharId = token.character.id;
+        activeReminderCharId = token.characterId;
         if(!boardEl) return;
         const boardRect = boardEl.getBoundingClientRect();
         // Use the current token size for vertical offset, plus a small gap (10px)
@@ -471,7 +489,7 @@
             x: boardRect.width / 2 + token.x,
             y: boardRect.height / 2 + token.y + tokenSizeVal / 2 + gap, // below the token
         };
-        await loadRemindersForCharacter(token.character.id);
+        await loadRemindersForCharacter(token.characterId);
         reminderCache = reminderCache; // trigger reactivity
     }
 
@@ -525,7 +543,7 @@
                 const dropY = e.clientY - dragOffset.y;
                 const x = dropX - boardRect.left - boardRect.width / 2;
                 const y = dropY - boardRect.top - boardRect.height / 2;
-                gameState.present.placedReminders = [...placedReminders, { token: draggingReminder.token, x, y }];
+                gameState.present.placedReminders = [...placedReminders, { tokenId: draggingReminder.token.id, x, y }];
                 rescheduleSaveGrimoire();
             }
             // If near edge, it's deleted (not re-added)
@@ -553,7 +571,8 @@
                 const dropY = e.clientY - dragOffset.y;
                 const x = dropX - boardRect.left - boardRect.width / 2;
                 const y = dropY - boardRect.top - boardRect.height / 2;
-                gameState.present.placedTokens = [...gameState.present.placedTokens, { character: dragging.character, x, y, isDead: false }];
+                const newPlacedToken: PlacedToken = { characterId: dragging.character.id, x, y, isDead: false };
+                gameState.present.placedTokens = [...gameState.present.placedTokens, newPlacedToken];
                 rescheduleSaveGrimoire();
             }
             // If near edge or over footer: token returns to tray (not re-added)
@@ -561,13 +580,6 @@
 
         dragging = null;
         ghostPos = null;
-    }
-
-    function getNightOrder(characterId: number): number | null {
-        const index = charactersByFirstNightOrder.findIndex(c=>c.character.id === characterId);
-        if(index === -1) return null;
-        if(charactersByFirstNightOrder[index].character.firstNightOrder === null) return null;
-        return index + 1;
     }
 
     function resetAllTokens() {
@@ -814,7 +826,7 @@
 </style>
 
 
-{#if data.error || data.game === null}
+{#if data.error || game === null}
     <h1>Game Not Found</h1>
     <p>The specified game could not be found.</p>
     <p>{data.error}</p>
@@ -962,24 +974,30 @@
     <AnotatableViewV2 tool={editing ? activeTool : null} onchange={rescheduleSaveGrimoire} layers={canvasLayers} activeLayerIndex={activeCanvasLayerIndex}>
     
     <div class="grimoire-board" bind:this={boardEl}>
-        {#each placedTokens as token, i (token.character.id + '-' + i)}
+        {#each placedTokens as token, i (token.characterId + '-' + i)}
+            {@const character = data.game?.script.characters.find(c => c.id === token.characterId)}
+            {#if character}
             <div
                 class="board-token"
                 style="left: calc(50% + {token.x}px); top: calc(50% + {token.y}px);"
                 onpointerdown={(e) => startDragFromBoard(e, token)}
             >
-                <CharacterToken character={token.character} nightOrder={nightOrderByCharacterId.indexOf(token.character.id)} style="position: relative;" size={tokenSize + 'px'}/>
+                <CharacterToken {character} nightOrder={nightOrderByCharacterId.indexOf(token.characterId)} style="position: relative;" size={tokenSize + 'px'}/>
             </div>
+            {/if}
         {/each}
 
         {#each placedReminders as reminder}
+            {@const token = availableReminderTokens[reminder.tokenId]}
+            {#if token}
             <div
                 class="board-reminder"
                 style="left: calc(50% + {reminder.x}px); top: calc(50% + {reminder.y}px);"
                 onpointerdown={(e) => startDragReminderFromBoard(e, reminder)}
             >
-                <ReminderTokenView data={reminder.token} size="{tokenSize * 0.4}px"/>
+                <ReminderTokenView data={token} size="{tokenSize * 0.4}px"/>
             </div>
+            {/if}
         {/each}
 
         {#if activeReminderCharId !== null && activeReminderPos && reminderCache[activeReminderCharId]}
@@ -1011,11 +1029,13 @@
     <div class="grimoire-footer" bind:this={footerEl} style="transform: translateY({showFooter && !dragging && !draggingReminder ? '0' : '100%'});">
         <div class="token-tray-container">
             <div class="token-tray">
-                <!-- Removed reset button from tray -->
+                {#if game.character_ids.length > 0}
                 <div>
                     <div style="text-align: center;">In-play</div>
                     <div class="sub-tray">
-                        {#each gameTokens as character (character.id)}
+                        {#each game.character_ids as character_id}
+                        {@const character = data.game?.script.characters.find(c => c.id === character_id)}
+                        {#if character}
                                 <div
                                     class="tray-token"
                                     class:dragging={dragging?.character.id === character.id}
@@ -1024,13 +1044,35 @@
                                 >
                                     <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} norules/>
                                 </div>
+                        {/if}
                         {/each}
                     </div>
                 </div>
+                {/if}
+                {#if game.bluff_ids.length > 0}
+                <div>
+                    <div style="text-align: center;">Bluffs</div>
+                    <div class="sub-tray">
+                        {#each game.bluff_ids as character_id}
+                        {@const character = data.game?.script.characters.find(c => c.id === character_id)}
+                        {#if character}
+                                <div
+                                    class="tray-token"
+                                    class:dragging={dragging?.character.id === character_id}
+                                    class:in-play={isInPlay(character_id)}
+                                    onpointerdown={(e) => startDragFromTray(e, character)}
+                                >
+                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} norules/>
+                                </div>
+                        {/if}
+                        {/each}
+                    </div>
+                </div>
+                {/if}
                 <div>
                     <div style="text-align: center;">Other</div>
                     <div class="sub-tray">
-                        {#each otherTokens as character (character.id)}
+                        {#each game.script.characters.filter(c => !game?.character_ids.includes(c.id) && !game?.bluff_ids.includes(c.id)) as character (character.id)}
                                 <div
                                     class="tray-token"
                                     class:dragging={dragging?.character.id === character.id}
@@ -1063,7 +1105,9 @@
     {/if}
 
     {#if showTimerOptions || ($clockClientManagerConfig?.showClock && $clockClientManagerClient === null)}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: 20;" onclick={() => {showTimerOptions = false; if ($clockClientManagerConfig?.showClock && !$clockClientManagerClient) clockClientManager?.setVisible(false);}} role="dialog" tabindex="0">
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div style="background: var(--theme-bg-secondary); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px;" onclick={(e) => e.stopPropagation()} >
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em; gap: 0.7em;">
                     <h2 style="margin: 0;">Clock Controls</h2>

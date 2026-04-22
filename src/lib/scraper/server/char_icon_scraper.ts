@@ -1,5 +1,5 @@
-import type { Character } from "$lib/common/database/types";
-import { setCharacterImage } from "$lib/server/database/Images_base";
+import type { Character } from "$lib/database/common/types";
+import { setCharacterImageResource } from "$lib/resources/server/character-images";
 import type { ScrapeResult } from "../common/types";
 
 export async function scrape(origin: string, character: Character): Promise<ScrapeResult> {
@@ -42,7 +42,7 @@ export async function scrape(origin: string, character: Character): Promise<Scra
                 const mimeType = iconResponse.headers.get('Content-Type') || 'application/octet-stream';
                 const buf = Buffer.from(await iconResponse.arrayBuffer());
 
-                setCharacterImage(character, buf, mimeType);
+                setCharacterImageResource(character.id, buf, mimeType);
 
                 console.log(`Successfully uploaded scraped icon for character ${character.name} to server`);
                 return { status: 'scraped' } as ScrapeResult;

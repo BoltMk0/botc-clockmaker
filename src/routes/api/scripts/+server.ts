@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { listScripts, listScriptsWithCharacters, createScript } from '$lib/server/database/scripts';
+import { listScripts, listScriptsWithCharacters, createScript } from '$lib/database/server/scripts';
 
 export async function GET({ url }) {
     const withCharacters = url.searchParams.get('characters') === 'true';

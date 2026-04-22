@@ -1,7 +1,9 @@
 <script lang="ts">
     import { goto, invalidateAll } from '$app/navigation';
+    import type { GameFull } from '$lib/database/common/types.js';
     import CustomOverlay from '$lib/components/CustomOverlay.svelte';
     import Navbar from '$lib/components/Navbar.svelte';
+    import { formatTimeAgo } from '$lib/common/util';
 
     export let data;
 
@@ -31,6 +33,12 @@
             alert(`Failed to delete game: ${er}`);
         }
     }
+
+    function get_player_count(game: GameFull){
+        return game.script.characters.filter(scriptChar => game.character_ids.includes(scriptChar.id)).reduce((count, scriptChar) => count + scriptChar.player_count, 0);
+    }
+
+
 </script>
 
 <style>
@@ -61,7 +69,7 @@
     <div class="table-container">
         <div style="display: flex; width: 100%; justify-content: space-between; align-items: center;">
             <h3>Games</h3>
-            <CustomOverlay title="Create Game">
+            <CustomOverlay title="+ Create Game">
                 <form on:submit|preventDefault={createGame}>
                     <select name="script_id" required>
                         <option disabled>Select script id</option>
@@ -78,20 +86,22 @@
                 <tr>
                     <th>Script</th>
                     <th>Players</th>
-                    <th>Last played</th>
+                    <th>Created</th>
+                    <th>Last Change</th>
                     <th></th>
                 </tr>
             </thead>
             <tbody>
-                {#each data.games.sort((a, b)=>a.character_ids.length - b.character_ids.length) as game(game.id)}
+                {#each data.games.sort((a, b)=>new Date(a.game.created).getTime() - new Date(b.game.created).getTime()) as game(game.game.id)}
                     <tr>
-                        <td>{game.script.name}</td>
-                        <td>{game.character_ids.length}</td>
-                        <td>{game.last_played ? new Date(game.last_played).toLocaleDateString() : "Never"}</td>
+                        <td>{game.game.script.name}</td>
+                        <td>{get_player_count(game.game) || ""}</td>
+                        <td>{formatTimeAgo(new Date(game.game.created).getTime())}</td>
+                        <td>{game.grimoireState ? formatTimeAgo(new Date(game.grimoireState.present.timestamp).getTime()) : ''}</td>
                         <td>
-                            <a class="button-style" href="/admin/games/{game.id}">Edit</a>
-                            <button on:click={() => deleteGame(game.id)} class="button-style">Delete</button>
-                            <a class="button-style" href="/admin/games/{game.id}/grimoire">Grimoire</a>
+                            <a class="button-style" href="/admin/games/{game.game.id}">Edit</a>
+                            <button on:click={() => deleteGame(game.game.id)} class="button-style">Delete</button>
+                            <a class="button-style" href="/admin/games/{game.game.id}/grimoire">Grimoire</a>
                         </td>
                     </tr>
                 {/each}

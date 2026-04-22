@@ -1,8 +1,9 @@
 <script lang="ts">
-    import type { Resource } from "$lib/common/resources";
+    import type { Resource } from "$lib/resources/common/types";
     import CustomOverlay from "$lib/components/CustomOverlay.svelte";
     import TokenBackground from "$lib/components/TokenBackground.svelte";
     import type { GrimoireStateHistory } from "../games/[id]/grimoire/types";
+    import { prettifyResourceName } from "$lib/resources/common/util";
 
     export let data: Resource;
     export let onDelete: (id: string) => void;
@@ -46,8 +47,8 @@
 <div class="resource-thumb">
     <div class="resource-thumb-header in-a-row">
         <div>
-            <span>{data.name}</span>
-            <div class="resource-tag">{data.type}</div>
+            <span>{prettifyResourceName(data.name)}</span>
+            <!-- <div class="resource-tag">{data.type}</div> -->
         </div>
         <button on:click={() => onDelete(data.id)} class="button-style error">Delete</button>
     </div>
@@ -55,6 +56,10 @@
 
     {#if data.type === 'sfx' || data.type === 'music'}
         <audio controls src={`/admin/api/resources/${data.id}`}></audio>
+    {:else if data.type === 'charactertokenimage'}
+        <TokenBackground>
+            <img src={`/admin/api/resources/${data.id}`} alt="Character Image" style="max-width: 100%; max-height: 100%; border-radius: 4px;"/>
+        </TokenBackground>
     {:else if data.type === 'grimoirestate'}
             {#await fetch(`/admin/api/resources/${data.id}`).then(res => res.json()) as Promise<GrimoireStateHistory>}
                 <div>Loading...</div>

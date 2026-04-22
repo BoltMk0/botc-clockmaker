@@ -1,8 +1,7 @@
 <script lang="ts">
     import minuteHand from '$lib/assets/clockhand.png';
     import hourHand from '$lib/assets/clockhand3.png';
-    import gothicWindowCircle from '$lib/assets/gothic-window-circle-2.png';
-    import { getColorForProgress } from './util';
+
 
     export let style: string = "";
     export let minuteHandProgress: number|null = null; // 0 to 1
@@ -132,11 +131,11 @@
     {/if}
 
     {#if minuteHandProgress !== null}
-    <img src="{minuteHand}" class="clockhand minute" style="transform: translate(-7%, -50%) rotate({-90 + minuteHandProgress * 360}deg);"/>
+    <img src="{minuteHand}" class="clockhand minute" style="transform: translate(-7%, -50%) rotate({-90 + minuteHandProgress * 360}deg);" alt="minute hand"/>
     {/if}
 
     {#if hourHandProgress !== null}
-    <img src="{hourHand}" class="clockhand hour" style="transform: translate(-6.5%, -50%) rotate({-90 + hourHandProgress * 360}deg);"/>
+    <img src="{hourHand}" class="clockhand hour" style="transform: translate(-6.5%, -50%) rotate({-90 + hourHandProgress * 360}deg);" alt="hour hand"/>
     {/if}
     <div style="width: 10%; height: 10%; border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: black; position: absolute; box-shadow: 0 0 50px black; border: 3px solid var(--border-color)"></div>
 </div>

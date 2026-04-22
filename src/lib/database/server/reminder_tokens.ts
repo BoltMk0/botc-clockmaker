@@ -1,4 +1,4 @@
-import type { NewReminderToken, ReminderToken } from "$lib/common/database/types";
+import type { NewReminderToken, ReminderToken } from "../common/types";
 import pool from "./db";
 
 export async function getReminderTokensForCharacter(characterId: number): Promise<ReminderToken[]> {
@@ -38,8 +38,8 @@ export async function getReminderTokenById(id: number): Promise<ReminderToken | 
 
 export async function createReminderToken(data: NewReminderToken): Promise<ReminderToken> {
     const { character_id, text, textSize} = data;
-    const [result] = await pool.query<any>('INSERT INTO reminder_tokens (character_id, text, text_size) VALUES (?, ?, ?)', [character_id, text, textSize]);
-    return { id: result.insertId, character_id, text, textSize };
+    const [result] = await pool.query<any>('INSERT INTO reminder_tokens (character_id, text, text_size) VALUES (?, ?, ?)', [character_id, text, textSize ?? 100]);
+    return { id: result.insertId, character_id, text, textSize: textSize ?? 100 };
 }
 
 export async function updateReminderToken(id: number, data: Partial<NewReminderToken>): Promise<ReminderToken | null> {

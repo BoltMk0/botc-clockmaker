@@ -639,12 +639,12 @@
     <canvas
         bind:this={canvas}
         class:inactive={tool === null}
-        on:pointerdown={onPointerDown}
-        on:pointermove={onPointerMove}
-        on:pointerup={endStroke}
-        on:pointercancel={endStroke}
-        on:pointerleave={endStroke}
-        on:pointerout={endStroke}
+        onpointerdown={onPointerDown}
+        onpointermove={onPointerMove}
+        onpointerup={endStroke}
+        onpointercancel={endStroke}
+        onpointerleave={endStroke}
+        onpointerout={endStroke}
         aria-hidden="{tool === null}"
     ></canvas>
 </div>
@@ -678,144 +678,5 @@
         border: 2px solid red;
         pointer-events: none;
         z-index: 1;
-    }
-
-    .toolbar {
-        position: absolute;
-        top: 12px;
-        left: 12px;
-        z-index: 10;
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        padding: 8px;
-        border-radius: 8px;
-        background: color-mix(in srgb, var(--theme-bg-secondary) 85%, transparent);
-        backdrop-filter: blur(4px);
-    }
-
-    .tool-group {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-    }
-
-    .save-status {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-    }
-
-    .save-icon {
-        width: 22px;
-        height: 22px;
-    }
-
-    .save-icon.saved {
-        color: var(--theme-slider-accent);
-    }
-
-    .save-icon.unsaved {
-        color: var(--theme-on-bg-secondary);
-    }
-
-    .tool-button {
-        position: relative;
-        height: 2.5em;
-        width: 2.5em;
-        padding: 4px;
-    }
-
-    .pen-color-input {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        padding: 0;
-        border: 0;
-        opacity: 0;
-        pointer-events: none;
-    }
-
-    .tool-button.highlight .pen-color-input {
-        pointer-events: auto;
-    }
-
-    .layer-dropdown-wrapper {
-        position: relative;
-    }
-
-    .layer-dropdown {
-        position: absolute;
-        top: 100%;
-        right: 0;
-        margin-top: 4px;
-        min-width: 150px;
-        background: var(--theme-bg-secondary, #2a2a2a);
-        border-radius: 6px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        z-index: 20;
-        overflow: hidden;
-    }
-
-    .layer-item {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-
-    .layer-item.active {
-        background: color-mix(in srgb, var(--theme-slider-accent, #5080ff) 25%, transparent);
-    }
-
-    .layer-select-btn {
-        flex: 1;
-        text-align: left;
-        padding: 6px 10px;
-        background: none;
-        border: none;
-        color: inherit;
-        cursor: pointer;
-        font-size: 0.85em;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .layer-select-btn:hover {
-        background: color-mix(in srgb, var(--theme-on-bg-secondary, #fff) 10%, transparent);
-    }
-
-    .layer-delete-btn {
-        flex-shrink: 0;
-        padding: 4px 8px;
-        background: none;
-        border: none;
-        color: var(--theme-on-bg-secondary, #aaa);
-        cursor: pointer;
-        font-size: 1em;
-        line-height: 1;
-    }
-
-    .layer-delete-btn:hover {
-        color: #ff4444;
-    }
-
-    .layer-add-btn {
-        width: 100%;
-        padding: 6px 10px;
-        background: none;
-        border: none;
-        border-top: 1px solid color-mix(in srgb, var(--theme-on-bg-secondary, #fff) 15%, transparent);
-        color: var(--theme-slider-accent, #5080ff);
-        cursor: pointer;
-        font-size: 0.85em;
-        text-align: left;
-    }
-
-    .layer-add-btn:hover {
-        background: color-mix(in srgb, var(--theme-on-bg-secondary, #fff) 10%, transparent);
     }
 </style>

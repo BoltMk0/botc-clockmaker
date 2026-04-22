@@ -1,8 +1,6 @@
 <script lang="ts">
-    import clocktowerSillhouette from "$lib/assets/clocktower.sillhouette.png";
     import { getSkyColor } from "$lib/common/util";
     import CountdownDisplay from "./ClockFaces/NewClockFace/CountdownDisplay.svelte";
-    import DaysDisplay from "./ClockFaces/NewClockFace/DaysDisplay.svelte";
     import NewClockFace from "./ClockFaces/NewClockFace/NewClockFace.svelte";
     import PlayerCountDisplay from "./ClockFaces/NewClockFace/PlayerCountDisplay.svelte";
     import Bunting from "./ClocktowerSillhouette/Bunting.svelte";
@@ -48,12 +46,6 @@
     .clocktower-main>*{
         position: absolute;
     }
-
-    .sillhouette {
-        pointer-events: none;
-        object-fit:contain;
-        /* opacity: 0.8; */
-    }
 </style>
 <div style="position: relative; width: 100%; height: 100%; bottom: 0; --clocktower-color-base: {clocktowerColorBase}; {style}; --clocktower-color-highlight: hsl(from var(--clocktower-color-base) calc(h + 20) calc(s*1.2) 70% / 0.1);">
     
@@ -66,7 +58,7 @@
     <div class="clocktower-main" style="--sky-color: {getSkyColor(progress)}; --hue: var(--sky-color); width: {size}px; height: {size*1.5}px;">
         <ClocktowerSillhouette style="--clocktower-color-highlight: hsl({hue}, 60%, 80%, 15%);"/>
         <div style="top: 48%; width: 55%; left: 50%; transform: translate(-50%, -50%); padding: {size/5}px; font-size: 0.8em;">
-            <NewClockFace totalTime={totalTime} progress={progress} dayNumber={dayNumber} playerCount={playerCount} style="border: 10px solid hsl({hue}, 60%, 50%); border-radius: 50%; box-sizing: border-box; transition: border 1s;"/>
+            <NewClockFace totalTime={totalTime} progress={progress} dayNumber={dayNumber} style="border: 10px solid hsl({hue}, 60%, 50%); border-radius: 50%; box-sizing: border-box; transition: border 1s;"/>
         </div>
 
         <div style="top: 71%; width: 44%; margin: 0 28%; font-size: 1em;">

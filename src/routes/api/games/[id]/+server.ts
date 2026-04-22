@@ -1,4 +1,5 @@
-import { deleteGameSetup, getGameSetupById, getGameSetupWithCharacters } from '$lib/server/database/games.js';
+import { deleteGameSetup, getGameSetup, getFullGame } from '$lib/database/server/games.js';
+import { delete_grimoire_state_history_resource_for_game } from '$lib/server/grimoire_resource_helper.js';
 import { error, json } from '@sveltejs/kit';
 
 export async function GET({ params, url }) {
@@ -6,13 +7,13 @@ export async function GET({ params, url }) {
     if(!Number.isInteger(id)) return json({erorr: "invalid id"}, {status: 400});
     const withCharacters = url.searchParams.get('characters') === 'true';
     if(withCharacters){
-        const game = await getGameSetupWithCharacters(id);
+        const game = await getFullGame(id);
         if(game === null){
             return json({error: `Game setup with id "${id}" not found`}, {status: 404});
         }
         return json(game);
     }
-    const game = await getGameSetupById(id);
+    const game = await getGameSetup(id);
     if(game === null){
         return json({error: `Game setup with id "${id}" not found`}, {status: 404});
     }
@@ -27,5 +28,7 @@ export async function DELETE({params}){
     if(!success){
         return json({error: `Game setup with id "${id}" not found`}, {status: 400});
     }
+    delete_grimoire_state_history_resource_for_game(id);
+
     return new Response(null, {status: 204});
 }

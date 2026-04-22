@@ -14,9 +14,7 @@ import DisplayPanelBase from "./DisplayPanel/DisplayPanelBase.svelte";
     $: timeRemainingString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 </script>
 
-<style>
-</style>
-<DisplayPanelBase title={title}>
+<DisplayPanelBase title={title} {style}>
     {#if sky}
     <div style="position: relative;">
         <SkyDisplay progress={progress} style={"width: 100%; height: 100px;"}/>

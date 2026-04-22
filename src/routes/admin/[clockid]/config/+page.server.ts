@@ -1,5 +1,5 @@
 import { getBOTCTClockInstanceManager } from "$lib/server/model";
-import { listResources } from "$lib/server/resources";
+import { listResources } from "$lib/resources/server/resources";
 import type { Actions } from "./$types";
 
 export async function load({ params }){

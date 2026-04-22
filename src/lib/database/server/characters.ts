@@ -1,5 +1,5 @@
 import pool from './db';
-import type { Character, CharacterCategory, NewCharacter } from '../../common/database/types';
+import type { Character, CharacterCategory, NewCharacter } from '../common/types';
 
 /**
  * Return every character in the database.

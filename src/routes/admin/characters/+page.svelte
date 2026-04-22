@@ -1,13 +1,12 @@
 <script lang="ts">
     import { enhance } from '$app/forms';
-    import { page } from '$app/stores';
-    import { deleteReminderToken, fetchReminderTokensForCharacter, updateReminderToken } from '$lib/client/database/reminder_tokens.js';
-    import { CHARACTER_CATEGORIES, type Character, type ReminderToken } from '$lib/common/database/types.js';
+    import { page } from '$app/state';
+    import { deleteReminderToken, fetchReminderTokensForCharacter, updateReminderToken } from '$lib/database/client/reminder_tokens.js';
+    import { CHARACTER_CATEGORIES, type Character, type ReminderToken } from '$lib/database/common/types.js';
     import HSlider from '$lib/components/AudioMixerComponents/HSlider.svelte';
     import CustomOverlay from '$lib/components/CustomOverlay.svelte';
     import Navbar from '$lib/components/Navbar.svelte';
     import ReminderTokenView from '$lib/components/ReminderTokenView.svelte';
-    import { writable, type Writable } from 'svelte/store';
 
     let {data}: {
         data: {
@@ -19,11 +18,12 @@
 
     let characters = $derived(data.characters);
 
-    let selectedCharacterId = $state<number|null>($page.url.searchParams.has('characterId') ? parseInt($page.url.searchParams.get('characterId')!) : null);
+    let selectedCharacterId = $state<number|null>(page.url.searchParams.has('characterId') ? parseInt(page.url.searchParams.get('characterId')!) : null);
     let selectedReminderTokenId = $state<number|null>(null);
     let searchQuery = $state<string>('');
 
-    let imageInput: HTMLInputElement | null = null;
+    // svelte-ignore non_reactive_update
+    let imageInput: HTMLInputElement;
 
 
     function selectCharacter(characterId: number) {
@@ -96,7 +96,7 @@
         fetch('/api/reminder_tokens', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ character_id: selectedCharacterId, text: '' }),
+            body: JSON.stringify({ character_id: selectedCharacterId, text: '', textSize: 60 }),
         }).then(res => {
             if (!res.ok) throw new Error(`Failed to create token: ${res.statusText}`);
             return res.json();
@@ -337,22 +337,29 @@
 
 
                 {:else}
-                <div style="display: flex; justify-content: start; align-items: center; gap: 1em; margin-bottom: 1em;">
-                    
-                <button type="button" class="no-button-style" onclick={() => imageInput?.click()} style="">
-                {#if previewUrl || hasImage}
-                    <img
-                        src={previewUrl || `/api/characters/${selectedCharacter.id}/img?v=${imgCacheBust}`}
-                        alt={selectedCharacter.name}
-                        style="width: 110px; display: block; margin-bottom: 0.5em; aspect-ratio: 1 / 1; object-fit: cover; border: 1px solid #ccc; border-radius: 50%;"
-                        onerror={() => hasImage = false}
-                    />
-                {:else}
-                    <span style="width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; margin-bottom: 0.5em; border: 1px dashed #ccc; border-radius: 50%; color: #999;">No image</span>
-                {/if}
-                </button>
+                <div class="in-a-row">
+                        
+                    <button type="button" class="no-button-style" onclick={() => imageInput?.click()} style="">
+                    {#if previewUrl || hasImage}
+                        <img
+                            src={previewUrl || `/api/characters/${selectedCharacter.id}/img?v=${imgCacheBust}`}
+                            alt={selectedCharacter.name}
+                            style="width: 110px; display: block; margin-bottom: 0.5em; aspect-ratio: 1 / 1; object-fit: cover; border: 1px solid #ccc; border-radius: 50%;"
+                            onerror={() => hasImage = false}
+                        />
+                    {:else}
+                        <span style="width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; margin-bottom: 0.5em; border: 1px dashed #ccc; border-radius: 50%; color: #999;">No image</span>
+                    {/if}
+                    </button>
 
-                <h1 style="margin: 0; padding: 0;">{selectedCharacter.name}</h1>
+                    <div class="in-a-column" style="align-items: start;">
+                        <h1 style="margin: 0; padding: 0;">{selectedCharacter.name}</h1>
+
+                        <div class="in-a-row center-content">
+                            <button class="button-style highlight" type="submit" form="update-character-form">Save Changes</button>
+                            <button class="button-style error" onclick={() => deleteCharacter(selectedCharacter.id)}>Delete</button>
+                        </div>
+                    </div>
                 </div>
 
                 <input hidden bind:this={imageInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif" onchange={onFileSelected} />
@@ -363,7 +370,7 @@
                     <button type="button" onclick={clearPreview}>Cancel</button>
                 {/if}
 
-                <form action="?/updateCharacter" method="POST" use:enhance={()=>{
+                <form id="update-character-form" action="?/updateCharacter" method="POST" use:enhance={()=>{
                     return async ({result}) => {
                         switch(result.type){
                             case 'success': {
@@ -408,11 +415,20 @@
                                 <th>Text</th>
                                 <td><textarea name="rules" style="width: 100%; height: 5em;" placeholder="Rules Text" bind:value={selectedCharacter.rules}></textarea></td>
                             </tr>
-
                             <tr>
-                                <th></th>
+                                <th>Other</th>
                                 <td>
-                                    <button style="width: 100%;">Save Changes</button>
+                                    <div class="in-a-row">
+                                        <label for="wakes_first_night">Wakes First Night</label>
+                                        <input type="checkbox" id="wakes_first_night" name="wakes_first_night" bind:checked={selectedCharacter.wakes_first_night} />
+
+                                        <label for="wakes_other_nights">Wakes Other Nights</label>
+                                        <input type="checkbox" id="wakes_other_nights" name="wakes_other_nights" bind:checked={selectedCharacter.wakes_other_nights} />
+
+
+                                        <label for="counts_as_player">Counts as Player</label>
+                                        <input type="checkbox" id="counts_as_player" name="counts_as_player" checked={selectedCharacter.player_count > 0} onchange={(e)=>selectedCharacter.player_count = (e.target as HTMLInputElement).checked ? 1 : 0}/>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>
@@ -429,8 +445,6 @@
                     <button id="add-reminder-token-button" onclick={createNewReminderToken} >+</button>
                 </div>
 
-
-                <button style="margin-top: 2em; width: 100%;" onclick={() => deleteCharacter(selectedCharacter.id)}>Delete</button>
                 {/if}
 
             {:else}

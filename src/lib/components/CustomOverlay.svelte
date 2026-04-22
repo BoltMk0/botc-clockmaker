@@ -49,8 +49,9 @@
     {buttonTitle}
 </button>
 {#if visible}
-    <div class="overlay-background" on:click={()=>{visible = false;}}>
-        <div on:click|stopPropagation class="overlay-window">
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div class="overlay-background" on:click={()=>{visible = false;}} role="dialog" tabindex="-1">
+        <div on:click|stopPropagation class="overlay-window" role="dialog" tabindex="-1">
             <div class="overlay-window-title">
                 <div style="font-size: large; text-align: left; padding: 5px 10px;">{title}</div>
                 <button on:click={()=>{visible = false;}} class="button-style close-button">

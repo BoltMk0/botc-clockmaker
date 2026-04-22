@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { getCharacterById, updateCharacter, deleteCharacter } from '$lib/server/database/characters';
-import type { CharacterCategory } from '$lib/common/database/types';
+import { getCharacterById, updateCharacter, deleteCharacter } from '$lib/database/server/characters';
+import type { CharacterCategory } from '$lib/database/common/types';
 
 const VALID_CATEGORIES: CharacterCategory[] = ['townsfolk', 'outsider', 'minion', 'demon', 'traveler'];
 

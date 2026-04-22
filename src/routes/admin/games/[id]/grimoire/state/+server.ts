@@ -1,31 +1,29 @@
-import { findResourceById, generateResourceId, getResourceData, saveResource } from '$lib/server/resources';
+import { get_grimoire_state_history_resource_for_game, set_grimoire_state_history_resource_for_game } from '$lib/server/grimoire_resource_helper.js';
+import { findResourceById, encodeResourceId, getResourceData, saveResource } from '$lib/resources/server/resources';
 import { json } from '@sveltejs/kit';
+import { validateGrimoireStateHistory } from '../types';
 
 export async function GET({params}){
-    const gameStateResourceId = generateResourceId("grimoirestate", `game-${params.id}`);
-    const resource = findResourceById(gameStateResourceId);
-    if(!resource){
-        console.error(`Game state resource not found for game ${params.id} (expected ID: ${gameStateResourceId})`);
-        return json({error: "Game state not found"}, {status: 404});
-    }
-    const data = getResourceData(resource);
+    const data = get_grimoire_state_history_resource_for_game(Number(params.id));
     if(!data){
-        console.error(`Game state data not found for resource ${gameStateResourceId}`);
-        return json({error: "Game state data not found"}, {status: 404});
+        return json({error: "Grimoire state not found"}, {status: 404});
     }
     return json(JSON.parse(data.toString()));
 }
 
-
-export async function POST({request, params}){
-    const gameStateResourceId = generateResourceId("grimoirestate", `game-${params.id}`);
+export async function POST({params, request}){
     try{
-        const data = await request.json();
-        saveResource(gameStateResourceId, Buffer.from(JSON.stringify(data)));
-        console.log(`Saved grimoire state for game ${params.id}:`, data);
-        return json({success: true});
+        const body = await request.json();
+        const valid = validateGrimoireStateHistory(body);
+        if(!valid){
+            return json({error: "Invalid grimoire state history data"}, {status: 400});
+        }
+        
+        set_grimoire_state_history_resource_for_game(Number(params.id), body);
+        console.log("Saved grimoire state history for game", params.id);
+        return json({message: "Grimoire state history saved successfully"});
     }catch(e){
-        console.error(`Failed to save grimoire state for game ${params.id}:`, e);
-        return json({success: false, error: "Tokens must be valid JSON"}, {status: 400});
+        console.error("Error saving grimoire state history:", e);
+        return json({error: "Invalid JSON data"}, {status: 400});
     }
 }

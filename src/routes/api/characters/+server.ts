@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { listCharacters, listCharactersByCategory, addCharacter } from '$lib/server/database/characters';
-import type { CharacterCategory } from '$lib/common/database/types';
+import { listCharacters, listCharactersByCategory, addCharacter } from '$lib/database/server/characters';
+import { isCharacter, type CharacterCategory } from '$lib/database/common/types';
 
 const VALID_CATEGORIES: CharacterCategory[] = ['townsfolk', 'outsider', 'minion', 'demon', 'traveler'];
 
@@ -19,7 +19,7 @@ export async function POST({ request }) {
     const body = await request.json().catch(() => null);
     if (!body) return json({ error: 'Invalid JSON body' }, { status: 400 });
 
-    const { name, category, rules } = body;
+    const { name, category, rules, player_count, wakes_first_night, wakes_other_nights } = body;
     if (!name || !category || !rules) {
         return json({ error: 'name, category and rules are required' }, { status: 400 });
     }
@@ -27,6 +27,10 @@ export async function POST({ request }) {
         return json({ error: `Invalid category. Must be one of: ${VALID_CATEGORIES.join(', ')}` }, { status: 400 });
     }
 
-    const character = await addCharacter({ name, category, rules });
+    if(!isCharacter(body)){
+        return json({ error: 'Invalid character data' }, { status: 400 });
+    }
+
+    const character = await addCharacter({ name, category, rules, player_count: player_count ?? 1, wakes_first_night: wakes_first_night ?? false, wakes_other_nights: wakes_other_nights ?? false });
     return json(character, { status: 201 });
 }

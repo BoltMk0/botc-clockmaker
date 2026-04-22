@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { Character } from "$lib/common/database/types";
+    import type { Character } from "$lib/database/common/types";
     import TokenBackground from "./TokenBackground.svelte";
 
     export let character: Character;
@@ -75,10 +75,6 @@
         color: black;
         text-align: center;
         height: var(--token-size);
-    }
-
-    .category-icon {
-        background-color: var(--token-color);
     }
 
     .category-icon-container {

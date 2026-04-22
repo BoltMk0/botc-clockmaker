@@ -1,4 +1,4 @@
-import { deleteReminderToken, getReminderTokenById, updateReminderToken } from "$lib/server/database/reminder_tokens";
+import { deleteReminderToken, getReminderTokenById, updateReminderToken } from "$lib/database/server/reminder_tokens";
 import { json } from "@sveltejs/kit";
 
 export async function GET({ params }: { params: { id: string } }) {

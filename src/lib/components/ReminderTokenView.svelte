@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { ReminderToken } from "$lib/common/database/types";
+    import type { ReminderToken } from "$lib/database/common/types";
 
     interface Props {
         data: ReminderToken;
@@ -23,40 +23,37 @@
         height: var(--size);
 
         position: relative;
-        overflow: hidden;
-        overflow: hidden;
 
 
-        background-color: #7b563b;
+        background-color: hsl(30, 20%, 37%);
         color: white;
-        border: 3px solid #BA9;
-        border-radius: 35%;
-    }
-
-    .reminder-token-placeholder {
-        width: 100%;
-        color: #000;
-        text-align: center;
-        overflow-wrap: normal;
-        word-wrap: normal;
-        box-sizing: border-box;
+        border: 3px solid hsl(40, 72%, 45%);
+        border-radius: 50%;
     }
 
     .reminder-token-text {
-        width: 100%;
         font-size: var(--font-size);
         text-align: center;
-        overflow-wrap: normal;
-        word-wrap: normal;
         box-sizing: border-box;
+        white-space: normal;
         position: absolute;
-        bottom: 0;
-        min-height: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        top: 70%;
+        transform: translateY(-40%);
         text-shadow: 0 0 calc(var(--font-size) * 0.5) black;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        left:-15%;
+        width: 130%;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        text-transform: uppercase;
+    }
+
+    .reminder-token-text > * {
         width: 100%;
+        padding: 0;
+        margin: 0;
     }
 
     .img-container {
@@ -86,7 +83,9 @@
 
         </div>
     {/if}
-    <div class="reminder-token-text dumbledore-font" style="--font-size: calc({size} * {data.textSize/250});">
-        {data.text}
+    <div class="reminder-token-text" style="--font-size: calc({size} * {data.textSize/250});">
+        {#each data.text.split('\n') as line}
+            <div>{line}</div>
+        {/each}
     </div>
 </div>

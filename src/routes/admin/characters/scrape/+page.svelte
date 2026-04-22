@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { Character } from "$lib/common/database/types";
+    import type { Character } from "$lib/database/common/types";
     import Navbar from "$lib/components/Navbar.svelte";
     import type { ScrapeResult } from "$lib/scraper/common/types";
     import { writable } from "svelte/store";
@@ -82,7 +82,7 @@
         <div>
             <progress value={$progress} max={data.characters.length} style="width: 100%;">Test</progress>
         </div>
-        <button on:click={()=>{$running ? running.set(false) : scrapeAll()}} style="margin-top: 10px; width: 100%;">{$running ? 'Stop' : 'Scrape All'}</button>
+        <button onclick={()=>{$running ? running.set(false) : scrapeAll()}} style="margin-top: 10px; width: 100%;">{$running ? 'Stop' : 'Scrape All'}</button>
         {#if $processing}
         {#if $progress === data.characters.length}
         <div>All characters processed ({$successCount} success, {$errorCount} error)</div>
@@ -118,10 +118,6 @@
         color: var(--theme-on-bg-secondary);
         box-sizing: border-box;
         padding: 1em;
-    }
-
-    table {
-        /* margin: 1em; */
     }
 
     .scraper-main {

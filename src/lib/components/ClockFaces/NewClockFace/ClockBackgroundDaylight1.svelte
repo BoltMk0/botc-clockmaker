@@ -1,19 +1,10 @@
 <script lang="ts">
     import gothicWindowCircle from '$lib/assets/gothic-window-circle-2.png';
-    import { getColorForProgress } from "./util";
 
-    export let progress: number = 0; // 0 to 1
     export let windowSize: number = 0.85;
-
 </script>
 
 <style>
-    .godray-container {
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        transition: all 1s;
-    }
 
     .window-light {
         position: absolute;

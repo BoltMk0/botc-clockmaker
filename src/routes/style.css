@@ -15,9 +15,12 @@
     --theme-slider-trim: #6f6e7a;
     --theme-bg: #222;
     --theme-bg-secondary: #333;
+    --theme-bg-tertiary: #444;
+
     --theme-shadow: #0007;
     --theme-on-bg: #eee;
     --theme-on-bg-secondary: #ccc;
+    --theme-on-bg-tertiary: #eee;
     --font-dumbledore: "Dumbledore", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
 
@@ -31,8 +34,8 @@
     font-size: inherit;
     border-radius: 5px;
     border: none;
-    background-color: #444;
-    color: #CCC;
+    background-color: var(--theme-bg-tertiary);
+    color: var(--theme-on-bg-tertiary);
     cursor: pointer;
     transition: background-color 0.3s, color 0.3s;
     text-align: center;
@@ -53,6 +56,11 @@
 .button-style:hover {
     color: #FFF;
     background-color: #666;
+}
+
+.button-style.highlight:hover {
+    background-color: var(--theme-highlight);
+    filter: brightness(1.2);
 }
 
 .button-style:disabled {

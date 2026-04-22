@@ -1,5 +1,5 @@
-import { ALL_RESOURCE_TYPES, isValidResourceType } from "$lib/common/resources";
-import { createResource, deleteResource, listResources } from "$lib/server/resources";
+import { ALL_RESOURCE_TYPES, isValidResourceType } from "$lib/resources/common/types";
+import { createResource, deleteResource, listResources } from "$lib/resources/server/resources";
 import type { Actions } from "./$types";
 
 export async function load(){

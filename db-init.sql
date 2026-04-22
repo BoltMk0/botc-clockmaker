@@ -39,16 +39,6 @@ CREATE TABLE IF NOT EXISTS script_characters (
         FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS script_bluffs (
-    script_id           INT UNSIGNED    NOT NULL,
-    character_id        INT UNSIGNED    NOT NULL,
-    PRIMARY KEY (script_id, character_id),
-    CONSTRAINT fk_sb_script
-        FOREIGN KEY (script_id)    REFERENCES scripts(id)    ON DELETE CASCADE,
-    CONSTRAINT fk_sb_character
-        FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
 CREATE TABLE IF NOT EXISTS reminder_tokens (
     id              INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
     character_id    INT UNSIGNED    DEFAULT NULL,
@@ -76,6 +66,35 @@ CREATE TABLE IF NOT EXISTS game_characters(
     CONSTRAINT fk_gc_character
         FOREIGN KEY (character_id)  REFERENCES characters(id)   ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS game_bluffs (
+    game_id             INT UNSIGNED    NOT NULL,
+    character_id        INT UNSIGNED    NOT NULL,
+    PRIMARY KEY (game_id, character_id),
+    CONSTRAINT fk_gb_game
+        FOREIGN KEY (game_id)       REFERENCES games(id)    ON DELETE CASCADE,
+    CONSTRAINT fk_gb_character
+        FOREIGN KEY (character_id)  REFERENCES characters(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE IF NOT EXISTS clocks (
+    id INT UNSIGNED     AUTO_INCREMENT PRIMARY KEY,
+    team_name VARCHAR(100) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS clock_timer_options (
+    id                          INT UNSIGNED                AUTO_INCREMENT PRIMARY KEY,
+    clock_id                    INT UNSIGNED NOT NULL,
+    duration_seconds            INT UNSIGNED NOT NULL,
+    bell_ring_when_remaining    INT UNSIGNED                DEFAULT NULL,
+    label                       VARCHAR(100)                DEFAULT NULL,
+    CONSTRAINT fk_cto_clock
+        FOREIGN KEY (clock_id) REFERENCES clocks(id) ON DELETE CASCADE
+);
+
+
+
 
 -- --------------------------------------------------------
 -- Scripts

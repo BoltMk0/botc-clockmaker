@@ -1,12 +1,12 @@
-import { createGameSetup, listGameSetups, listGameSetupsWithCharacters } from '$lib/server/database/games.js';
+import { createGameSetup, listGames, listFullGames } from '$lib/database/server/games.js';
 import { json } from '@sveltejs/kit';
 
 export async function GET({ url }) {
     const withCharacters = url.searchParams.get('characters') === 'true';
     if (withCharacters) {
-        return json(await listGameSetupsWithCharacters());
+        return json(await listFullGames());
     }
-    return json(await listGameSetups());
+    return json(await listGames());
 }
 
 export async function POST({ request }) {

@@ -2,12 +2,13 @@
     import { enhance } from "$app/forms";
     import { invalidateAll } from "$app/navigation";
     import CustomOverlay from "$lib/components/CustomOverlay.svelte";
-    import { ALL_RESOURCE_TYPES, getAcceptedExtensionsForResourceType, type Resource, type ResourceType } from "$lib/common/resources";
+    import { ALL_RESOURCE_TYPES, getAcceptedExtensionsForResourceType, type Resource, type ResourceType } from "$lib/resources/common/types";
     import { onMount, tick } from "svelte";
     import { writable } from "svelte/store";
     import ResourceThumb from "./ResourceThumb.svelte";
     import Navbar from "$lib/components/Navbar.svelte";
     import AudioResourceThumb from "./AudioResourceThumb.svelte";
+    import { prettifyResourceType } from "$lib/resources/common/util";
 
 
     export let data: { resources: Resource[] };
@@ -226,7 +227,7 @@
                                 <select name="type" required bind:value={selectedResourceType}>
                                     <option value="" disabled selected>Select Resource Type</option>
                                     {#each ALL_RESOURCE_TYPES as type}
-                                        <option value={type}>{type}</option>
+                                        <option value={type}>{prettifyResourceType(type)}</option>
                                     {/each}
                                 </select>
                             </td>
@@ -254,7 +255,7 @@
         <div class="resource-explorer-type-list">
             {#each resourceTypes as type}
                 <button class="resource-type-item" class:active={$visibleResourceType === type} on:click={() => visibleResourceType.set(type)}>
-                    {type}
+                    {prettifyResourceType(type)}
                 </button>
             {/each}
         </div>
@@ -270,7 +271,7 @@
         >
             {#each sortedResources.find(r => r.type === $visibleResourceType)?.resources ?? [] as resource}
                 {#if resource.type === 'sfx' || resource.type === 'music' }
-                     <AudioResourceThumb resource={resource} style="flex-grow: 1; max-width: 400px;"/>
+                     <AudioResourceThumb resource={resource} style="flex-grow: 1; max-width: 400px;" onDelete={deleteResource} />
                 {:else}
                      <ResourceThumb data={resource} onDelete={deleteResource} />
                 {/if}

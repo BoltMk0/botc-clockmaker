@@ -8,7 +8,6 @@
     export let progress: number;
     export let totalTime: number|undefined = 800;
     export let dayNumber: number|undefined = undefined;
-    export let playerCount: number|undefined = undefined;
     export let style: string = "";
 
     $: border_thickness = size/30;

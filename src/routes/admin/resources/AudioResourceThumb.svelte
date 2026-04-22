@@ -1,12 +1,14 @@
 <script lang="ts">
-    import type { Resource } from "$lib/common/resources";
+    import type { Resource } from "$lib/resources/common/types";
     import { formatTime } from "$lib/common/util";
     import ResourceThumbView from "./ResourceThumbView.svelte";
     import PlayIcon from "$lib/components/PlayIcon.svelte";
     import PauseIcon from "$lib/components/PauseIcon.svelte";
+    import { prettifyResourceName } from "$lib/resources/common/util";
 
     export let resource: Resource;
     export let style: string = "";
+    export let onDelete: (id: string) => void;
 
     let audioElement: HTMLAudioElement | null = null;
 
@@ -23,7 +25,7 @@
 
 </script>
 
-<ResourceThumbView title={resource.name} tags={[resource.type]} onDelete={() => {}} style={style}>
+<ResourceThumbView title={prettifyResourceName(resource.name)} tags={[resource.type]} onDelete={() => onDelete(resource.id)} style={style}>
     {#if resource.type === 'sfx' || resource.type === 'music'}
         <audio bind:this={audioElement}
         src={`/admin/api/resources/${resource.id}`} 
