@@ -33,15 +33,6 @@
         font-size: 0.9em;
         color: var(--theme-on-bg-secondary);
     }
-
-    .resource-tag {
-        background-color: var(--theme-highlight);
-        color: var(--theme-on-highlight);
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-size: 0.8em;
-        display: inline-block;
-    }
 </style>
 
 <div class="resource-thumb">
@@ -58,7 +49,7 @@
         <audio controls src={`/admin/api/resources/${data.id}`}></audio>
     {:else if data.type === 'charactertokenimage'}
         <TokenBackground>
-            <img src={`/admin/api/resources/${data.id}`} alt="Character Image" style="max-width: 100%; max-height: 100%; border-radius: 4px;"/>
+            <img src={`/admin/api/resources/${data.id}`} alt="Character" style="max-width: 100%; max-height: 100%; border-radius: 4px;"/>
         </TokenBackground>
     {:else if data.type === 'grimoirestate'}
             {#await fetch(`/admin/api/resources/${data.id}`).then(res => res.json()) as Promise<GrimoireStateHistory>}

@@ -1,5 +1,5 @@
 import { deleteGameSetup, getGameSetup, getFullGame } from '$lib/database/server/games.js';
-import { delete_grimoire_state_history_resource_for_game } from '$lib/server/grimoire_resource_helper.js';
+import { delete_grimoire_state_history_resource_for_game } from '$lib/resources/server/grimoire-state.js';
 import { error, json } from '@sveltejs/kit';
 
 export async function GET({ params, url }) {

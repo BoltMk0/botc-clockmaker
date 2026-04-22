@@ -68,11 +68,11 @@ export class BellClientModelBellRinger {
         ringBellAtTimeServer?: BOTCTimeType;
     }|null = null;
 
-    constructor(resourceName: string, audioPlayer: HTMLAudioElement, dtm: ServerDeltaTimeManager){
+    constructor(readonly resource_id: string, audioPlayer: HTMLAudioElement, dtm: ServerDeltaTimeManager){
         this.audioPlayer = audioPlayer;
         this.dtm = dtm;
 
-        this.audioPlayer.src = `/resources/${resourceName}`;
+        this.audioPlayer.src = `/admin/api/resources/${this.resource_id}`;
         this.audioPlayer.preload = 'auto';
         this.audioPlayer.load();
         this.audioPlayer.addEventListener('ended', () => {
@@ -291,8 +291,12 @@ export class ClockClientModel {
         }
 
         if(audioPlayers) {
-            this.finalBellRinger = new BellClientModelBellRinger(`final-bell/${this.clockId}`, audioPlayers.finalBellAudioPlayer, this.deltaTimeManager);
-            this.reminderBellRinger = new BellClientModelBellRinger(`reminder-bell/${this.clockId}`, audioPlayers.reminderBellAudioPlayer, this.deltaTimeManager);
+            if(this.config.resourceMapping.finalBell.resource_id) {
+                this.finalBellRinger = new BellClientModelBellRinger(this.config.resourceMapping.finalBell.resource_id, audioPlayers.finalBellAudioPlayer, this.deltaTimeManager);
+            }
+            if(this.config.resourceMapping.reminderBell.resource_id) {
+                this.reminderBellRinger = new BellClientModelBellRinger(this.config.resourceMapping.reminderBell.resource_id, audioPlayers.reminderBellAudioPlayer, this.deltaTimeManager);
+            }
         }
     }
 
@@ -312,7 +316,8 @@ export class ClockClientModel {
             const remaining = this.duration - elapsed;
             if(remaining <= 0) {
                 this.state.set('idle');
-                if(remaining > -2000) { // If over 2 seconds late, assume clock was reset and don't ring bell
+                 // If over 2 seconds late, assume clock was reset and don't ring bell
+                if(remaining > -2) {
                     this.finalBellRinger?.ringBell();
                     this.listeners.forEach(listener => listener.onFinalBellRing?.());
                     this.clock_info.set({cur: 0, max: this.duration});

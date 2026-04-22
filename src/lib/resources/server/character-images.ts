@@ -1,6 +1,5 @@
-import { getExtensionForMimeType } from "$lib/common/util";
 import type { Resource } from "../common/types";
-import { createResource, deleteResource, findResourceById, findResourceByName, encodeResourceId, saveResource } from "./resources";
+import { deleteResource, findResourceByName, encodeResourceId, saveResource } from "./resources";
 
 function character_id_to_resource_name(characterid: number): string {
     return `character-${characterid}-img`;

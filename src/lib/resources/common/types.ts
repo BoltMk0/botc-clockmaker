@@ -1,6 +1,6 @@
 
-export type ResourceType = "sfx" | "music" | "grimoirestate" | "charactertokenimage";
-export const ALL_RESOURCE_TYPES = ["sfx", "music", "grimoirestate", "charactertokenimage"] as const;
+export type ResourceType = "sfx" | "music" | "grimoirestate" | "charactertokenimage" | 'ambience' | 'clockconfig';
+export const ALL_RESOURCE_TYPES = ["sfx", "music", "grimoirestate", "charactertokenimage", "ambience", "clockconfig"] as const;
 
 export type Resource = {
     id: string;
@@ -22,9 +22,13 @@ export function getAcceptedMimeTypeForResourceType(resourceType: ResourceType): 
         case "music":
             return "audio/*";
         case "grimoirestate":
+        case "clockconfig":
             return "application/json";
         case "charactertokenimage":
             return "image/*";
+        case "ambience":
+            return "audio/*";
+
     }
 }
 
@@ -32,8 +36,10 @@ export function getAcceptedExtensionsForResourceType(resourceType: ResourceType)
     switch (resourceType) {
         case "sfx":
         case "music":
+        case "ambience":
             return [".wav", ".mp3"];
         case "grimoirestate":
+        case "clockconfig":
             return [".json"];
         case "charactertokenimage":
             return [".png", ".jpg", ".jpeg", ".webp", ".gif"];

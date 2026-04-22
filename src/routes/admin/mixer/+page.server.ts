@@ -1,4 +1,4 @@
-import { listAmbienceResources } from "$lib/server/ambience";
+import { listAmbienceResources } from "$lib/resources/server/ambience";
 import { getBOTCTClockInstanceManager } from "$lib/server/model";
 
 export async function load(){

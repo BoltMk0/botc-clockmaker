@@ -1,7 +1,6 @@
-import { validateGrimoireStateHistory, type GrimoireStateHistory } from "../../routes/admin/games/[id]/grimoire/types";
-import { deleteResource, findResourceById, encodeResourceId, getResourceData, saveResource } from "../resources/server/resources";
+import { deleteResource, findResourceById, encodeResourceId, getResourceData, saveResource } from "./resources";
 
-export function get_grimoire_state_history_resource_for_game(gameid: number): GrimoireStateHistory | null {
+export function get_grimoire_state_history_resource_for_game(gameid: number): object | null {
     const resourceid = encodeResourceId('grimoirestate', `game-${gameid}`, 'application/json');
     let resource = findResourceById(resourceid);
     if(!resource){
@@ -15,13 +14,7 @@ export function get_grimoire_state_history_resource_for_game(gameid: number): Gr
             return null;
         }
         try{
-            const parsed = JSON.parse(raw.toString());
-            if(validateGrimoireStateHistory(parsed)){
-                return parsed;
-            } else {
-                console.error(`Grimoire state history resource data failed validation for game ${gameid}`);
-                return null;
-            }
+            return JSON.parse(raw.toString());
         }catch(e){
             console.error(`Error parsing grimoire state history resource for game ${gameid}:`, e);
             return null;
@@ -29,7 +22,7 @@ export function get_grimoire_state_history_resource_for_game(gameid: number): Gr
     }
 }
 
-export function set_grimoire_state_history_resource_for_game(gameid: number, history: GrimoireStateHistory) {
+export function set_grimoire_state_history_resource_for_game(gameid: number, history: object) {
     const resourceid = encodeResourceId('grimoirestate', `game-${gameid}`, 'application/json');
     const data = Buffer.from(JSON.stringify(history));
     saveResource(resourceid, data);

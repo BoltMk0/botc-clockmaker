@@ -2,8 +2,9 @@ import type { ClockMessage } from '$lib/common/comms';
 import { getDefaultConfig, type ClockInstanceInfo, type Config } from '$lib/common/config';
 import { EventEmitter } from 'node:events';
 import { v7 } from 'uuid';
-import { loadAllConfigs, saveConfigWithId } from './config';
 import type { AudioParams } from '$lib/common/AudioParams';
+import { listClockConfigResources, setClockConfigResource } from '$lib/resources/server/clock-config';
+import { getResourceData } from '$lib/resources/server/resources';
 
 console.log("Loading BOTCTClock model...");
 
@@ -37,7 +38,7 @@ export class BOTCTClock extends EventEmitter {
             clearTimeout(this.configSaveTimeout);
         }
         this.configSaveTimeout = setTimeout(()=>{
-            saveConfigWithId(this.config, this.id);
+            setClockConfigResource(this.id, Buffer.from(JSON.stringify(this.config)), 'application/json');
             console.log("Config auto-saved for instance", this.id);
             this.configSaveTimeout = null;
         }, 5000); // save config 5 seconds after last change
@@ -158,11 +159,23 @@ class ClockInstanceManager extends EventEmitter {
 
     constructor(){
         super();
-        const configs = loadAllConfigs();
-        for(const {id, config} of configs){
-            const instance = new BOTCTClock(id, config);
-            this.instances.set(id, instance);
-            console.log(`Loaded BOTCTClock instance with id: ${id} from config.`);
+        const configResources = listClockConfigResources();
+        for(const res of configResources){
+            const config = getResourceData(res);
+            if(!config){
+                console.warn(`Failed to load config resource ${res.name} (id: ${res.id}), skipping...`);
+                continue;
+            }
+            let parsedConfig: Config;
+            try {
+                parsedConfig = JSON.parse(config.toString()) as Config;
+            } catch (e) {
+                console.warn(`Failed to parse config resource ${res.name} (id: ${res.id}), skipping...`, e);
+                continue;
+            }
+            const instance = new BOTCTClock(res.clockid, parsedConfig);
+            this.instances.set(res.clockid, instance);
+            console.log(`Loaded BOTCTClock instance with id: ${res.clockid} from config.`);
         }
         if(!this.hasInstance('default')){
             const {id, instance} = this.newInstance('default');

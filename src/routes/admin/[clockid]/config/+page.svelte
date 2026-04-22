@@ -1,20 +1,28 @@
 <script lang="ts">
     import { goto, invalidateAll, refreshAll } from '$app/navigation';
     import { page } from '$app/state';
+    import type { Config } from '$lib/common/config.js';
     import HSlider from '$lib/components/AudioMixerComponents/HSlider.svelte';
     import Navbar from '$lib/components/Navbar.svelte';
 
-    export let data;
+    interface ConfigPageData {
+        config: Config;
+        sfx_resources: {id: string, name: string}[];
+    };
+
+    let {data}: {data: ConfigPageData} = $props();
 
     const id = page.params.clockid;
+    
+    // svelte-ignore state_referenced_locally
+    const config = $state(data.config);
 
-    let config = data.config;
-    $: if(config.teamName === null) config.teamName = page.params.clockid!;
+    $effect.pre(()=>{if(config.teamName === null) config.teamName = page.params.clockid!});
 
     let newFinalBellRingSoundFile: File | null = null;
     let newReminderBellSoundFile: File | null = null;
 
-    $: sfx_resources = data.sfx_resources;
+    const sfx_resources = $derived(data.sfx_resources);
 
     async function saveBellSound(file: File | null, resourceName: string): Promise<void> {
         return new Promise((resolve, reject) => {
@@ -137,13 +145,15 @@
                     <td style="width: fit-content;">Final Bell Sound</td>
                     <td>
                         <div class="audio-file-input-container">
-                            <select bind:value={config.resourceMapping.finalBell.url}>
-                                <option value={null}>Default ({config.resourceMapping.finalBell.defaultUrl})</option>
+                            <select bind:value={config.resourceMapping.finalBell.resource_id}>
+                                <option value={null}>None</option>
                                 {#each sfx_resources as res}
-                                    <option value={`/admin/api/resources/${res.id}`}>{res.name}</option>
+                                    <option value={`${res.id}`}>{res.name}</option>
                                 {/each}
                             </select>
-                            <audio src="{config.resourceMapping.finalBell.url ?? config.resourceMapping.finalBell.defaultUrl}" controls bind:volume={config.resourceMapping.finalBell.gain}></audio>
+                            {#if config.resourceMapping.finalBell.resource_id}
+                                <audio src="/admin/api/resources/{config.resourceMapping.finalBell.resource_id}" controls bind:volume={config.resourceMapping.finalBell.gain}></audio>
+                            {/if}
                         </div>
                     </td>
                 </tr>
@@ -151,13 +161,15 @@
                     <td style="width: fit-content;">Reminder Bell Sound</td>
                     <td>
                         <div class="audio-file-input-container">
-                        <select bind:value={config.resourceMapping.reminderBell.url}>
-                            <option value={null}>Default ({config.resourceMapping.reminderBell.defaultUrl})</option>
+                        <select bind:value={config.resourceMapping.reminderBell.resource_id}>
+                            <option value={null}>None</option>
                             {#each sfx_resources as res}
-                                <option value={`/admin/api/resources/${res.id}`}>{res.name}</option>
+                                <option value={`${res.id}`}>{res.name}</option>
                             {/each}
                         </select>
-                        <audio src="{config.resourceMapping.reminderBell.url ?? config.resourceMapping.reminderBell.defaultUrl}" controls bind:volume={config.resourceMapping.reminderBell.gain}></audio>
+                        {#if config.resourceMapping.reminderBell.resource_id}
+                            <audio src="/admin/api/resources/{config.resourceMapping.reminderBell.resource_id}" controls bind:volume={config.resourceMapping.reminderBell.gain}></audio>
+                        {/if}
                         </div>
                     </td>
                 </tr>
@@ -182,15 +194,14 @@
                         <td><input bind:value={option.duration} type="number" required/></td>
                         <td><input bind:value={option.ringBellWhenRemaining} type="number" /></td>
                         <td>
-                            <button onclick={()=>{config.timerOptions.splice(index, 1); config = config;}}>Delete</button>
+                            <button onclick={()=>{config.timerOptions.splice(index, 1);}}>Delete</button>
                         </td>
                     </tr>
                 {/each}
                 <tr>
-                    <td colspan="3">
+                    <td colspan="4">
                         <button style="width: 100%;" onclick={()=>{
                             config.timerOptions.push({duration: 0, ringBellWhenRemaining: null, label: null});
-                            config = config;
                         }}>Add Timer Option</button>
                     </td>
                 </tr>

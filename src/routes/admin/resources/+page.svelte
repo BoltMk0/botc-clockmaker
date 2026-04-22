@@ -13,10 +13,9 @@
 
     export let data: { resources: Resource[] };
 
-    let selectedResourceType: ResourceType = ALL_RESOURCE_TYPES[0];
+    let selectedResourceType: ResourceType = 'grimoirestate';
 
     let showUploadOverlay = false;
-    $: console.log(showUploadOverlay);
 
     let isDropActive = false;
     let dragDepth = 0;

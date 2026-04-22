@@ -7,8 +7,7 @@ export type TimerOption = {
 }
 
 export type ResourceMappingType = {
-    url: string|null;
-    defaultUrl: string;
+    resource_id: string|null;
     gain: number;
 }
 
@@ -38,20 +37,20 @@ export function getDefaultConfig(): Config {
             hue: 0,
         },
         timerOptions: [
-            { label: '5 Seconds', duration: 5, ringBellWhenRemaining: null },
-            { label: '15 Seconds', duration: 15, ringBellWhenRemaining: 5 },
+            { label: 'Example', duration: 5, ringBellWhenRemaining: 4 },
             { label: '1 Minute', duration: 60, ringBellWhenRemaining: null },
             { label: '3 Minutes', duration: 3 * 60, ringBellWhenRemaining: 30 },
             { label: '5 Minutes', duration: 5 * 60, ringBellWhenRemaining: 30 },
             { label: '8 Minutes', duration: 8 * 60, ringBellWhenRemaining: 30 },
+            { label: '10 Minutes', duration: 10 * 60, ringBellWhenRemaining: 30 },
         ],
         audioParams: {
             pan: 0,
             gain: 1,
         },
         resourceMapping: {
-            finalBell: { url: null, defaultUrl:'/resources/final-bell', gain: 1 },
-            reminderBell: { url: null, defaultUrl:'/resources/reminder-bell', gain: 1 },
+            finalBell: { resource_id: null, gain: 1 },
+            reminderBell: { resource_id: null, gain: 1 },
         }
 
     };
@@ -59,8 +58,7 @@ export function getDefaultConfig(): Config {
 
 function validateResourceMapping(mapping: any): mapping is ResourceMappingType {
     if (typeof mapping !== 'object' || mapping === null) return false;
-    if (mapping.url !== null && typeof mapping.url !== 'string') return false;
-    if (typeof mapping.defaultUrl !== 'string') return false;
+    if (mapping.resource_id !== null && typeof mapping.resource_id !== 'string') return false;
     if (typeof mapping.gain !== 'number') return false;
     return true;
 }
@@ -81,7 +79,7 @@ export function validateConfig(config: any): config is Config {
     if(typeof config.audioParams.pan !== 'number') return false;
     if(typeof config.audioParams.gain !== 'number') return false;
     if(config.resourceMapping === undefined || typeof config.resourceMapping !== 'object' || config.resourceMapping === null) return false;
-    for(const key of ['finalBell', 'reminderBell'] as const){
+    for(const key of Object.keys(config.resourceMapping) as (keyof typeof config.resourceMapping)[]){
         const mapping = config.resourceMapping[key];
         if(!validateResourceMapping(mapping)) return false;
     }
