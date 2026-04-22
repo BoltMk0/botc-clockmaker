@@ -20,7 +20,7 @@
     const z_indecies = {
         tokens: 20,
         reminders: 30,
-        canvas: 40,
+        canvas: 10,
         ui: 50,
         clock: 10
     };
@@ -108,6 +108,7 @@
     let activeReminderCharId = $state<number | null>(null);
     let activeReminderPos = $state<{ x: number; y: number } | null>(null);
     let activeReminderAbove = $state(false);
+    let reminderPopupEl = $state<HTMLDivElement | null>(null);
     const activeToken = $derived<PlacedToken | null>(
         activeReminderCharId === null
             ? null
@@ -188,7 +189,7 @@
             this.configKey = `grimoire-${gameId}-clock-config`;
             // const storedClockConfig: ClockClientManagerConfig|null = browser ? JSON.parse(localStorage.getItem(this.configKey) ?? 'null') : null;
             // this.config_ = writable(storedClockConfig ?? { connectedClock: null, showClock: false });
-            this.config_ = writable({ connectedClock: null, showClock: false });
+            this.config_ = writable({ connectedClock: null, showClock: true });
             this.config = this.config_;
         }
 
@@ -265,6 +266,26 @@
 
     // When annotate mode is entered: hide tray
     $effect(()=>{ if (editing) showFooter = false; });
+
+    // Keep the popup on-screen horizontally by clamping its x after measuring its rendered width.
+    $effect(() => {
+        if (activeReminderCharId === null || !activeReminderPos || !reminderPopupEl || !boardEl) return;
+        // Touch reactive content so the effect re-runs when the popup's contents (and thus width) change.
+        void reminderCache[activeReminderCharId];
+        void activeToken?.isDead;
+        void activeToken?.alignment;
+        const boardRect = boardEl.getBoundingClientRect();
+        const popupRect = reminderPopupEl.getBoundingClientRect();
+        const margin = 8;
+        const halfWidth = popupRect.width / 2;
+        const minX = halfWidth + margin;
+        const maxX = boardRect.width - halfWidth - margin;
+        if (maxX < minX) return;
+        const clampedX = Math.max(minX, Math.min(maxX, activeReminderPos.x));
+        if (clampedX !== activeReminderPos.x) {
+            activeReminderPos = { ...activeReminderPos, x: clampedX };
+        }
+    });
 
     // Close the reminder popup when tapping anywhere outside a board token, the popup itself, or a board reminder.
     $effect(() => {
@@ -655,16 +676,6 @@
         ghostPos = null;
     }
 
-    function resetAllTokens() {
-        gameState.present.placedTokens = [];
-        gameState.present.placedReminders = [];
-        activeCanvasLayerIndex = 0;
-        gameState.present.canvas.layers = [{ strokes: [] }];
-        saveGrimoire();
-        closeReminderTray();
-    }
-
-
     onMount(()=>{
         if(!game || !workingGameSnapshot){
             alert("Game data failed to load. Please try refreshing the page.");
@@ -1053,22 +1064,6 @@
             </div>
             {/if}
          </div>
-
-        <!-- Token size control -->
-        <div style="position: relative;">
-            <button class="sidebar-btn" class:active={showTokenSizeSlider} onclick={() => {showTokenSizeSlider = !showTokenSizeSlider; editing = false}} title="Adjust token size">
-                <svg viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <!-- Dual-ended arrow at 45 degrees, fits inside circle -->
-                    <path d="M7 17 L17 7 M15 7 L17 7 L17 9 M7 15 L7 17 L9 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/>
-                </svg>
-            </button>
-            {#if showTokenSizeSlider}
-                <div style="position: absolute; left: 52px; top: 0; height: 180px; display: flex; align-items: center;">
-                    <input type="range" min="80" max="240" step="1" bind:value={tokenSize} aria-orientation="vertical" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; width: 32px; height: 180px; margin-left: 8px; background: transparent;" />
-                </div>
-            {/if}
-        </div>
         
         <!-- Show/Hide token tray -->
         <button class="sidebar-btn" class:active={showFooter} onclick={toggleTray} title="{showFooter ? 'Hide' : 'Show'} token tray">
@@ -1089,6 +1084,25 @@
             {/if}
         </button>
 
+
+        {#if !tokensLocked}
+        <!-- Token size control -->
+        <div style="position: relative;">
+            <button class="sidebar-btn" class:active={showTokenSizeSlider} onclick={() => {showTokenSizeSlider = !showTokenSizeSlider; editing = false}} title="Adjust token size">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <!-- Dual-ended arrow at 45 degrees, fits inside circle -->
+                    <path d="M7 17 L17 7 M15 7 L17 7 L17 9 M7 15 L7 17 L9 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+                </svg>
+            </button>
+            {#if showTokenSizeSlider}
+                <div style="position: absolute; left: 52px; top: 0; height: 180px; display: flex; align-items: center;">
+                    <input type="range" min="80" max="240" step="1" bind:value={tokenSize} aria-orientation="vertical" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; width: 32px; height: 180px; margin-left: 8px; background: transparent;" />
+                </div>
+            {/if}
+        </div>
+        {/if}
+
         <!-- Show/Hide clock -->
         <button class="sidebar-btn" class:active={$clockClientManagerConfig?.showClock} onclick={() => clockClientManager?.setVisible(!($clockClientManagerConfig?.showClock ?? false))} title="{$clockClientManagerConfig?.showClock ? 'Hide' : 'Show'} clock">
             <svg viewBox="0 0 24 24">
@@ -1098,16 +1112,12 @@
             </svg>
         </button>
 
-        {#if !tokensLocked}
-        <!-- Reset tokens button -->
-        <button class="sidebar-btn" onclick={() => {
-            if (confirm('Are you sure you want to reset all tokens?')) resetAllTokens();
-        }} title="Reset all tokens">
+        <!-- Refresh page button -->
+        <button class="sidebar-btn" onclick={() => location.reload()} title="Refresh page">
             <svg viewBox="0 0 24 24">
                 <path d="M12 5V2L8 6l4 4V7c3.31 0 6 2.69 6 6 0 1.3-.42 2.5-1.13 3.47l1.46 1.46C19.07 16.07 20 14.15 20 12c0-4.42-3.58-8-8-8zm-6.87 3.53L3.67 7.07C2.93 7.93 2 9.85 2 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3c-3.31 0-6-2.69-6-6 0-1.3.42-2.5 1.13-3.47z"/>
             </svg>
         </button>
-        {/if}
         
         <!-- Go back -->
         <button class="sidebar-btn" onclick={() => {saveGrimoire().then(()=>goto(`/admin/games`))} } title="Back to game">
@@ -1150,8 +1160,24 @@
             {/if}
         {/each}
 
+    </div>
+
+    {#if $clockClientManagerConfig?.showClock}
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 2em; text-shadow: 0 0 10px rgba(0,0,0,0.7); z-index: {z_indecies.clock};">
+            {#if clockClientManagerClient && $clockClientManagerClient}
+            <button class="no-button-style" style="position: relative; width: {tokenSize * 1.5 + 50}px; height: {tokenSize * 1.5 + 50}px; margin: 0 auto;" onclick={()=>showTimerOptions = true}>
+                <FullDisplay model={$clockClientManagerClient} size={tokenSize * 1.5}/>
+            </button>
+            {/if}
+        </div>
+    {/if}
+    
+        
+    </AnotatableViewV2>
+
+
         {#if activeReminderCharId !== null && activeReminderPos && reminderCache[activeReminderCharId]}
-            <div class="reminder-popup" class:above={activeReminderAbove} style="font-size: {tokenSize * 0.12}px; left: {activeReminderPos.x}px; top: {activeReminderPos.y}px; z-index: {z_indecies.ui};">
+            <div bind:this={reminderPopupEl} class="reminder-popup" class:above={activeReminderAbove} style="font-size: {tokenSize * 0.12}px; left: {activeReminderPos.x}px; top: {activeReminderPos.y}px; z-index: {z_indecies.ui};">
                 {#if activeToken}
                     {@const activeChar = data.game?.script.characters.find(c => c.id === activeReminderCharId)}
                     <div class="popup-meta">
@@ -1182,20 +1208,6 @@
                 {/if}
             </div>
         {/if}
-    </div>
-
-    {#if $clockClientManagerConfig?.showClock}
-        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 2em; text-shadow: 0 0 10px rgba(0,0,0,0.7); z-index: {z_indecies.clock};">
-            {#if clockClientManagerClient && $clockClientManagerClient}
-            <button class="no-button-style" style="position: relative; width: {tokenSize * 1.5 + 50}px; height: {tokenSize * 1.5 + 50}px; margin: 0 auto;" onclick={()=>showTimerOptions = true}>
-                <FullDisplay model={$clockClientManagerClient} size={tokenSize * 1.5}/>
-            </button>
-            {/if}
-        </div>
-    {/if}
-        
-    </AnotatableViewV2>
-
 
     <!-- FOOTER -->
     <div class="grimoire-footer" bind:this={footerEl} style="transform: translateY({showFooter && !dragging && !draggingReminder ? '0' : '100%'}); z-index: {z_indecies.ui};">
@@ -1281,8 +1293,8 @@
         <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {z_indecies.ui};" onclick={() => {showTimerOptions = false; if ($clockClientManagerConfig?.showClock && !$clockClientManagerClient) clockClientManager?.setVisible(false);}} role="dialog" tabindex="0">
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div style="background: var(--theme-bg-secondary); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px;" onclick={(e) => e.stopPropagation()} >
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em; gap: 0.7em;">
-                    <h2 style="margin: 0;">Clock Controls</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em; gap: 2em;">
+                    <h2 style="margin: 0; padding: 0;">{$clockClientManagerClient ? "Clock Controls" : "Connect to Clock"}</h2>
                     <button class="button-style error" onclick={()=>{showTimerOptions = false; if($clockClientManagerClient === null) clockClientManager?.setVisible(false);}}>X</button>
                 </div>
                 {#if clockClientManagerClient && $clockClientManagerClient}
@@ -1290,7 +1302,6 @@
                     <button class="button-style" onclick={() => clockClientManager?.setConnectedClock(null)}>Disconnect Clock</button>
                 {:else}
                     <div style="display: flex; flex-direction: column; gap: 5px;">
-                        <div style="text-align: center;">Connect to Clock</div>
                         {#each availableClocks as clock(clock.id)}
                             <button class="button-style" onclick={() => {clockClientManager?.setConnectedClock(clock); showTimerOptions = false;}} style="width: 100%; text-align: center; border: 1px solid {typeof clock.config.theme.hue === 'number' ? `hsl(${clock.config.theme.hue} 70% 50%)` : 'currentColor'};">
                                 {clock.config.teamName || `${clock.id}`}

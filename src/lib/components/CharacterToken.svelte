@@ -43,7 +43,7 @@
                 </div>
                 <svg class="curved-name" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
                     <path id={curvedPathId} d="M 10 50 A 40 40 0 0 0 90 50" fill="none" stroke="none"/>
-                    <text class="curved-name-text dumbledore-font" text-anchor="middle" font-size="10">
+                    <text class="curved-name-text dumbledore-font" text-anchor="middle" font-size="12">
                         <textPath href="#{curvedPathId}" startOffset="50%">{character.name.toUpperCase()}</textPath>
                     </text>
                 </svg>

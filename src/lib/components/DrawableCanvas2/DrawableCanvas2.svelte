@@ -631,7 +631,6 @@
 <div class="canvas-wrapper"
     aria-hidden="{tool === null}"
     class:inactive={tool === null}
-    style="{canvasStyle}"
     >
     {#if exportedDimensions}
         <div class="export-box" style={exportBoxStyle} aria-hidden="true"></div>
@@ -646,6 +645,7 @@
         onpointerleave={endStroke}
         onpointerout={endStroke}
         aria-hidden="{tool === null}"
+        style="{canvasStyle}"
     ></canvas>
 </div>
 
