@@ -27,7 +27,7 @@
 
         background-color: hsl(30, 20%, 37%);
         color: white;
-        border: 3px solid hsl(40, 72%, 45%);
+        border: calc(var(--size) * 0.05) solid hsl(40, 72%, 45%);
         border-radius: 50%;
     }
 

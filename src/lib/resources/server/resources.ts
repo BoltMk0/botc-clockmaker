@@ -72,9 +72,7 @@ export function findResourceById(id: string): Resource | null {
 
 export function findResourceByName(name: string, type: ResourceType): Resource | null {
     const resources = listResources(type);
-    console.debug(`Finding resource by name: ${name} (type: ${type}). Total resources of this type: ${resources.length}`);
     const resource = resources.find(r => r.name === name);
-    console.debug(`Resources: ${resources.map(r => r.name).join(", ")}. Found: ${resource ? resource.name : "none"}`);
     return resource || null;
 }
 

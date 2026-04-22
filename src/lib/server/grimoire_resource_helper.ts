@@ -2,7 +2,7 @@ import { validateGrimoireStateHistory, type GrimoireStateHistory } from "../../r
 import { deleteResource, findResourceById, encodeResourceId, getResourceData, saveResource } from "../resources/server/resources";
 
 export function get_grimoire_state_history_resource_for_game(gameid: number): GrimoireStateHistory | null {
-    const resourceid = encodeResourceId('grimoirestate', `game-${gameid}`);
+    const resourceid = encodeResourceId('grimoirestate', `game-${gameid}`, 'application/json');
     let resource = findResourceById(resourceid);
     if(!resource){
         console.debug("No grimoire state history resource found for game", gameid);

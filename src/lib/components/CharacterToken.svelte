@@ -12,6 +12,8 @@
 
     let imageFailed = false;
 
+    const curvedPathId = `curved-name-${Math.random().toString(36).slice(2, 10)}`;
+
     const categoryColors: Record<string, string> = {
         townsfolk: '#2563eb',
         outsider: '#16a34a',
@@ -29,6 +31,24 @@
         
         <TokenBackground {size} style="border: calc({size} / 40) solid {color};">
         
+
+        {#if norules}
+            <div style="position: relative; width: 100%; height: 100%;">
+                <div style="position: absolute; width: 70%; height: 70%; top: 45%; left: 50%; transform: translate(-50%, -50%);">
+                    {#if !imageFailed}
+                        <img src={`/api/characters/${character.id}/img`} alt={character.name} class="category-icon-img" onerror={() => imageFailed = true} />
+                    {:else}
+                        <div class="category-icon-default dumbledore-font">{character.name.split(' ').map(word => word[0].toUpperCase()).join('')}</div>
+                    {/if}
+                </div>
+                <svg class="curved-name" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                    <path id={curvedPathId} d="M 10 50 A 40 40 0 0 0 90 50" fill="none" stroke="none"/>
+                    <text class="curved-name-text dumbledore-font" text-anchor="middle" font-size="10">
+                        <textPath href="#{curvedPathId}" startOffset="50%">{character.name.toUpperCase()}</textPath>
+                    </text>
+                </svg>
+            </div>
+        {:else}
         <div class="token-content" style="--token-size: {size}; --token-color: {color}; grid-template-rows: {norules ? '4fr 2fr' : '3fr 4fr'};">
             <div class="category-icon-container">
                 {#if !imageFailed}
@@ -44,11 +64,14 @@
                 {/if}
             </div>
         </div>
+        {/if}
+
         {#if nightOrder !== undefined && nightOrder >= 0}
             <div class="night-order" style="font-size: calc({size} / 8); border-width: calc({size} / 80); position: absolute; top: 40%; left: 80%; transform: translate(-50%, -100%);">
                 {nightOrder+1}
             </div>
         {/if}
+        
         </TokenBackground>
     </div>
     
@@ -123,5 +146,19 @@
         font-size: calc(var(--token-size) / 14);
         line-height: 1.2;
         opacity: 0.65;
+    }
+
+    .curved-name {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        overflow: visible;
+    }
+    .curved-name-text {
+        fill: black;
+        font-weight: bold;
+        letter-spacing: 0.5px;
     }
 </style>

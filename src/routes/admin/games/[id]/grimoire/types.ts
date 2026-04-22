@@ -1,9 +1,12 @@
 import { isCanvasLayer, type CanvasLayer } from "$lib/components/DrawableCanvas2/types";
 import { v7 } from "uuid";
 
+export type Alignment = 'good' | 'evil';
+
 export type PlacedToken = {
     characterId: number;
     isDead: boolean;
+    alignment: Alignment;
     x: number;
     y: number;
 };
@@ -35,7 +38,8 @@ function isPlacedToken(obj: any): obj is PlacedToken {
         typeof obj.x === "number" && isFinite(obj.x) &&
         typeof obj.y === "number" && isFinite(obj.y) &&
         typeof obj.characterId === "number" &&
-        typeof obj.isDead === "boolean";
+        typeof obj.isDead === "boolean" &&
+        (obj.alignment === undefined || obj.alignment === "good" || obj.alignment === "evil");
     if(!result){
         console.error("Invalid PlacedToken object:", obj);
     }

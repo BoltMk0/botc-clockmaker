@@ -46,7 +46,7 @@ export async function PUT({ params, request }) {
     const buffer = Buffer.from(await request.arrayBuffer());
     if (buffer.byteLength === 0) return json({ error: 'Empty body' }, { status: 400 });
 
-    setCharacterImageResource(character.id, buffer);
+    setCharacterImageResource(character.id, buffer, mimeType);
     return new Response(null, { status: 204 });
 }
 

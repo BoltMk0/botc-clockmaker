@@ -14,8 +14,16 @@
     import ClockSetter from "../../../[clockid]/ClockSetter.svelte";
     import type { CanvasToolType } from "$lib/components/DrawableCanvas2/types.js";
     import AnotatableViewV2 from "$lib/components/DrawableCanvas2/AnotatableViewV2.svelte";
-    import { newGrimoireStateHistory, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "./types.js";
+    import { newGrimoireStateHistory, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "./types.js";
     import { v7 } from "uuid";
+
+    const z_indecies = {
+        tokens: 20,
+        reminders: 30,
+        canvas: 40,
+        ui: 50,
+        clock: 10
+    };
 
     interface Props {
         data: {
@@ -29,13 +37,35 @@
 
     let {data}: Props = $props();
 
+    function defaultAlignmentForCharacterId(characterId: number): Alignment {
+        const char = data.game?.script.characters.find(c => c.id === characterId);
+        return (char?.category === 'demon' || char?.category === 'minion') ? 'evil' : 'good';
+    }
+
+    function normaliseSnapshot(snap: GrimoireStateSnapshot): GrimoireStateSnapshot {
+        return {
+            ...snap,
+            placedTokens: snap.placedTokens.map(t => ({
+                ...t,
+                alignment: (t as any).alignment ?? defaultAlignmentForCharacterId(t.characterId),
+            })),
+        };
+    }
+
+    function normaliseHistory(hist: GrimoireStateHistory): GrimoireStateHistory {
+        return {
+            saveslots: hist.saveslots.map(s => s ? normaliseSnapshot(s) : null),
+            present: normaliseSnapshot(hist.present),
+        };
+    }
+
     function getInitialGameState(data: Props['data']): GrimoireStateHistory {
         const locallySavedState = getLocallyStoredGrimoireState();
 
         const selectedState = (data.gameState?.present.timestamp || 0) > (locallySavedState?.present.timestamp || 0) ? data.gameState : locallySavedState;
         if(selectedState) {
             console.log("Using grimoire state with timestamp", selectedState.present.timestamp);
-            return selectedState;
+            return normaliseHistory(selectedState);
         } else {
             console.log("No existing grimoire state found, initializing new state");
             return newGrimoireStateHistory();
@@ -65,7 +95,8 @@
     let showTokenSizeSlider = $state(false);
     const TOKEN_SIZE_KEY = 'grimoire-token-size';
     let tokenSize = $state(browser ? Number(localStorage.getItem(TOKEN_SIZE_KEY)) || 150 : 150);
-    let trayTokenSize = $derived(Math.max(40, Math.round(tokenSize * 0.53)));
+    const reminderTokenSize = $derived(Math.round(tokenSize * 0.5));
+    const trayTokenSize = $derived(Math.max(40, Math.round(tokenSize * 0.53)));
 
     const placedTokens = $derived(gameState.present.placedTokens);
     const placedReminders = $derived(gameState.present.placedReminders);
@@ -76,37 +107,43 @@
     // Which board token's reminder tray is open
     let activeReminderCharId = $state<number | null>(null);
     let activeReminderPos = $state<{ x: number; y: number } | null>(null);
+    let activeReminderAbove = $state(false);
+    const activeToken = $derived<PlacedToken | null>(
+        activeReminderCharId === null
+            ? null
+            : (gameState.present.placedTokens.find(t => t.characterId === activeReminderCharId) ?? null)
+    );
 
     const tools: CanvasToolType[] = [
         {
             type: 'pen',
             color: '#dddddd',
-            width: 2,
+            width: 1.5,
         },
         {
             type: 'pen',
             color: '#111111',
-            width: 2,
+            width: 1.5,
         },
         {
             type: 'pen',
             color: '#e74c3c',
-            width: 2,
+            width: 1.5,
         },
         {
             type: 'pen',
             color: '#27ae60',
-            width: 2,
+            width: 1.5,
         },
         {
             type: 'pen',
             color: '#2980b9',
-            width: 2,
+            width: 1.5,
         },
         {
             type: 'pen',
             color: '#f1c40f',
-            width: 2,
+            width: 1.5,
         },
         {
             type: 'eraser',
@@ -214,6 +251,7 @@
     // NIGHT ORDER LOGIC
     const nightOrderFunction = $derived(($dayInfo?.day || 0) > 0 ? (c: ScriptCharacter) => c.otherNightOrder : (c: ScriptCharacter) => c.firstNightOrder);
     const nightOrderByCharacterId = $derived((placedTokens.filter((c, i, a)=>a.indexOf(c) === i)
+        .filter(c=>!c.isDead)
         .map(c=>game?.script.characters.find(ch => ch.id === c.characterId))
         .filter(c => c !== undefined)
         .map(c=>{return [c.id, nightOrderFunction(c)]})
@@ -227,6 +265,19 @@
 
     // When annotate mode is entered: hide tray
     $effect(()=>{ if (editing) showFooter = false; });
+
+    // Close the reminder popup when tapping anywhere outside a board token, the popup itself, or a board reminder.
+    $effect(() => {
+        if (activeReminderCharId === null) return;
+        const handler = (e: PointerEvent) => {
+            const target = e.target as HTMLElement | null;
+            if (!target) return;
+            if (target.closest('.board-token, .reminder-popup, .board-reminder')) return;
+            closeReminderTray();
+        };
+        document.addEventListener('pointerdown', handler, true);
+        return () => document.removeEventListener('pointerdown', handler, true);
+    });
 
     async function saveGrimoire(){
         if(!game || !workingGameSnapshot){
@@ -385,7 +436,7 @@
         return placedCharIds.has(characterId);
     }
 
-    let dragging = $state<{ character: ScriptCharacter; source: 'tray' | 'board' } | null>(null);
+    let dragging = $state<{ character: ScriptCharacter; source: 'tray' | 'board'; sourceToken?: PlacedToken } | null>(null);
     let draggingReminder = $state<{ token: ReminderToken; source: 'popup' | 'board' } | null>(null);
     let ghostPos = $state<{ x: number; y: number } | null>(null);
     let dragOffset = $state<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -436,7 +487,7 @@
         const tokenScreenX = rect.left + rect.width / 2 + token.x;
         const tokenScreenY = rect.top + rect.height / 2 + token.y;
         dragOffset = { x: e.clientX - tokenScreenX, y: e.clientY - tokenScreenY };
-        dragging = { character: character, source: 'board' };
+        dragging = { character: character, source: 'board', sourceToken: token };
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
         gameState.present.placedTokens = placedTokens.filter(t => t !== token);
         rescheduleSaveGrimoire();
@@ -480,17 +531,34 @@
         if(!boardEl) return;
         const boardRect = boardEl.getBoundingClientRect();
         // Use the current token size for vertical offset, plus a small gap (10px)
-        let tokenSizeVal = 150;
-        try {
-            tokenSizeVal = tokenSize;
-        } catch {}
         const gap = 10;
+        activeReminderAbove = token.y > 0;
         activeReminderPos = {
             x: boardRect.width / 2 + token.x,
-            y: boardRect.height / 2 + token.y + tokenSizeVal / 2 + gap, // below the token
+            y: activeReminderAbove
+                ? boardRect.height / 2 + token.y - tokenSize / 2 - gap
+                : boardRect.height / 2 + token.y + tokenSize / 2 + gap,
         };
         await loadRemindersForCharacter(token.characterId);
         reminderCache = reminderCache; // trigger reactivity
+    }
+
+    function toggleAlive() {
+        if (!activeToken) return;
+        const target = activeToken;
+        gameState.present.placedTokens = gameState.present.placedTokens.map(t =>
+            t === target ? { ...t, isDead: !t.isDead } : t
+        );
+        rescheduleSaveGrimoire();
+    }
+
+    function toggleAlignment() {
+        if (!activeToken) return;
+        const target = activeToken;
+        gameState.present.placedTokens = gameState.present.placedTokens.map(t =>
+            t === target ? { ...t, alignment: t.alignment === 'evil' ? 'good' : 'evil' } : t
+        );
+        rescheduleSaveGrimoire();
     }
 
     function closeReminderTray() {
@@ -571,7 +639,12 @@
                 const dropY = e.clientY - dragOffset.y;
                 const x = dropX - boardRect.left - boardRect.width / 2;
                 const y = dropY - boardRect.top - boardRect.height / 2;
-                const newPlacedToken: PlacedToken = { characterId: dragging.character.id, x, y, isDead: false };
+                const newPlacedToken: PlacedToken = {
+                    characterId: dragging.character.id,
+                    x, y,
+                    isDead: dragging.sourceToken?.isDead ?? false,
+                    alignment: dragging.sourceToken?.alignment ?? defaultAlignmentForCharacterId(dragging.character.id),
+                };
                 gameState.present.placedTokens = [...gameState.present.placedTokens, newPlacedToken];
                 rescheduleSaveGrimoire();
             }
@@ -667,7 +740,6 @@
         right: 0;
         width: 100%;
         background-color: var(--theme-bg-secondary);
-        z-index: 2;
     }
 
     .token-tray-container {
@@ -727,21 +799,76 @@
     .drag-ghost {
         position: fixed;
         pointer-events: none;
-        z-index: 1000;
         transform: translate(-50%, -50%);
         opacity: 0.8;
     }
 
     .reminder-popup {
         position: absolute;
-        transform: translateX(-50%);
+        transform: translate(-50%, 0);
         display: flex;
+        align-items: center;
         gap: 6px;
         padding: 6px 10px;
         background: rgba(0, 0, 0, 0.85);
         border-radius: 10px;
-        z-index: 10;
         white-space: nowrap;
+    }
+    .reminder-popup.above {
+        transform: translate(-50%, -100%);
+    }
+
+    .popup-meta {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+    }
+    .popup-rules {
+        max-width: 160px;
+        white-space: normal;
+        color: #e5e7eb;
+        font-size: 0.75em;
+        line-height: 1.3;
+    }
+    .popup-rules-name {
+        font-weight: 600;
+        margin-bottom: 2px;
+        color: #f3f4f6;
+    }
+    .popup-rules-text {
+        opacity: 0.85;
+    }
+    .popup-toggles {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+    }
+    .popup-toggle {
+        background: #1f2937;
+        color: #e5e7eb;
+        border: 1px solid #4b5563;
+        border-radius: 6px;
+        padding: 4px 10px;
+        font-size: 0.8em;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .popup-toggle.dead {
+        background: #3a1515;
+        color: #fecaca;
+        border-color: #7f1d1d;
+    }
+    .popup-toggle.evil {
+        background: #3a1515;
+        color: #fecaca;
+        border-color: #7f1d1d;
+    }
+    .popup-divider {
+        width: 1px;
+        align-self: stretch;
+        background: rgba(255, 255, 255, 0.18);
+        margin: 2px 2px;
     }
 
     .reminder-popup-token {
@@ -755,13 +882,33 @@
         cursor: grabbing;
     }
 
+    .board-token.dead :global(img) {
+        filter: grayscale(0.7) brightness(0.6);
+    }
+    .board-token.misaligned :global(img) {
+        filter: hue-rotate(180deg);
+    }
+    .board-token.misaligned.dead :global(img) {
+        filter: grayscale(0.7) brightness(0.9) hue-rotate(180deg);
+    }
+    .token-shroud {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        border-radius: 50%;
+        background:
+            radial-gradient(ellipse at 50% 30%, rgba(10, 10, 15, 0.75) 35%, rgba(10, 10, 15, 0.25) 70%, rgba(10, 10, 15, 0) 100%);
+        box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.85);
+    }
+
     .board-reminder {
         position: absolute;
         transform: translate(-50%, -50%);
         cursor: grab;
         touch-action: none;
         user-select: none;
-        z-index: 1;
     }
 
     .board-reminder:active {
@@ -772,7 +919,6 @@
         position: fixed;
         inset: 0;
         pointer-events: none;
-        z-index: 999;
         border: 3px solid rgba(255, 60, 60, 0.6);
         border-radius: 0;
         opacity: 0;
@@ -791,7 +937,6 @@
         flex-direction: column;
         gap: 8px;
         padding: 8px;
-        z-index: 10;
     }
 
     .sidebar-btn {
@@ -831,7 +976,7 @@
     <p>The specified game could not be found.</p>
     <p>{data.error}</p>
 {:else}
-    <div class="sidebar">
+    <div class="sidebar" style="z-index: {z_indecies.ui};">
         <!-- Canvas control -->
          <div style="position: relative">
             <button class="sidebar-btn" class:active={editing} onclick={() => {
@@ -846,7 +991,7 @@
                 </svg>
             </button>
             {#if editing}
-            <div style="position: absolute; left: 52px; top: 0; display: flex; flex-direction: column; gap: 8px; z-index: 100;">
+            <div style="position: absolute; left: 52px; top: 0; display: flex; flex-direction: column; gap: 8px;">
                 <!-- TOOLS -->
                 {#each tools as tool, index}
                     <button class="sidebar-btn" class:active={index === activeToolIndex} onclick={() => activeToolIndex = index} title={tool.type === 'pen' ? `Pen tool (color: ${tool.color})` : 'Eraser tool'}>
@@ -871,7 +1016,7 @@
                     </button>
                     {#if activeCanvasLayerIndex === index}
 
-                    <div style="display: flex; gap: 4px; position: absolute; left: 52px; top: 0; z-index: 100;">
+                    <div style="display: flex; gap: 4px; position: absolute; left: 52px; top: 0;">
                         <!-- Reset button -->
                         <button class="sidebar-btn" onclick={()=>{clearLayer(index)}} title="Clear layer">
                             <svg viewBox="0 0 24 24">
@@ -919,7 +1064,7 @@
                 </svg>
             </button>
             {#if showTokenSizeSlider}
-                <div style="position: absolute; left: 52px; top: 0; height: 180px; display: flex; align-items: center; z-index: 100;">
+                <div style="position: absolute; left: 52px; top: 0; height: 180px; display: flex; align-items: center;">
                     <input type="range" min="80" max="240" step="1" bind:value={tokenSize} aria-orientation="vertical" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; width: 32px; height: 180px; margin-left: 8px; background: transparent;" />
                 </div>
             {/if}
@@ -971,7 +1116,7 @@
 
     </div>
 
-    <AnotatableViewV2 tool={editing ? activeTool : null} onchange={rescheduleSaveGrimoire} layers={canvasLayers} activeLayerIndex={activeCanvasLayerIndex}>
+    <AnotatableViewV2 tool={editing ? activeTool : null} onchange={rescheduleSaveGrimoire} layers={canvasLayers} activeLayerIndex={activeCanvasLayerIndex} canvasStyle="z-index: {z_indecies.canvas};">
     
     <div class="grimoire-board" bind:this={boardEl}>
         {#each placedTokens as token, i (token.characterId + '-' + i)}
@@ -979,10 +1124,15 @@
             {#if character}
             <div
                 class="board-token"
-                style="left: calc(50% + {token.x}px); top: calc(50% + {token.y}px);"
+                class:dead={token.isDead}
+                class:misaligned={defaultAlignmentForCharacterId(token.characterId) !== token.alignment}
+                style="left: calc(50% + {token.x}px); top: calc(50% + {token.y}px); z-index: {z_indecies.tokens};"
                 onpointerdown={(e) => startDragFromBoard(e, token)}
             >
-                <CharacterToken {character} nightOrder={nightOrderByCharacterId.indexOf(token.characterId)} style="position: relative;" size={tokenSize + 'px'}/>
+                <CharacterToken {character} nightOrder={nightOrderByCharacterId.indexOf(token.characterId)} style="position: relative;" size={tokenSize + 'px'} norules/>
+                {#if token.isDead}
+                    <div class="token-shroud" style="width: {tokenSize}px; height: {tokenSize}px; z-index: {z_indecies.tokens + 1};"></div>
+                {/if}
             </div>
             {/if}
         {/each}
@@ -992,19 +1142,39 @@
             {#if token}
             <div
                 class="board-reminder"
-                style="left: calc(50% + {reminder.x}px); top: calc(50% + {reminder.y}px);"
+                style="left: calc(50% + {reminder.x}px); top: calc(50% + {reminder.y}px); z-index: {z_indecies.reminders};"
                 onpointerdown={(e) => startDragReminderFromBoard(e, reminder)}
             >
-                <ReminderTokenView data={token} size="{tokenSize * 0.4}px"/>
+                <ReminderTokenView data={token} size="{reminderTokenSize}px"/>
             </div>
             {/if}
         {/each}
 
         {#if activeReminderCharId !== null && activeReminderPos && reminderCache[activeReminderCharId]}
-            <div class="reminder-popup" style="left: {activeReminderPos.x}px; top: {activeReminderPos.y}px;">
+            <div class="reminder-popup" class:above={activeReminderAbove} style="font-size: {tokenSize * 0.12}px; left: {activeReminderPos.x}px; top: {activeReminderPos.y}px; z-index: {z_indecies.ui};">
+                {#if activeToken}
+                    {@const activeChar = data.game?.script.characters.find(c => c.id === activeReminderCharId)}
+                    <div class="popup-meta">
+                        <div class="popup-toggles">
+                            <button type="button" class="popup-toggle" class:dead={activeToken.isDead} onclick={toggleAlive}>
+                                {activeToken.isDead ? 'Dead' : 'Alive'}
+                            </button>
+                            <button type="button" class="popup-toggle" class:evil={activeToken.alignment === 'evil'} onclick={toggleAlignment}>
+                                {activeToken.alignment === 'evil' ? 'Evil' : 'Good'}
+                            </button>
+                        </div>
+                        {#if activeChar?.rules}
+                            <div class="popup-rules">
+                                <div class="popup-rules-name">{activeChar.name}</div>
+                                <div class="popup-rules-text">{activeChar.rules}</div>
+                            </div>
+                        {/if}
+                    </div>
+                    <div class="popup-divider"></div>
+                {/if}
                 {#each reminderCache[activeReminderCharId] as rToken (rToken.id)}
                     <div class="reminder-popup-token" onpointerdown={(e) => startDragReminderFromPopup(e, rToken)}>
-                        <ReminderTokenView data={rToken} size="55px"/>
+                        <ReminderTokenView data={rToken} size="{reminderTokenSize}px"/>
                     </div>
                 {/each}
                 {#if reminderCache[activeReminderCharId].length === 0}
@@ -1015,7 +1185,7 @@
     </div>
 
     {#if $clockClientManagerConfig?.showClock}
-        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 5; color: white; font-size: 2em; text-shadow: 0 0 10px rgba(0,0,0,0.7); z-index: 0;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 2em; text-shadow: 0 0 10px rgba(0,0,0,0.7); z-index: {z_indecies.clock};">
             {#if clockClientManagerClient && $clockClientManagerClient}
             <button class="no-button-style" style="position: relative; width: {tokenSize * 1.5 + 50}px; height: {tokenSize * 1.5 + 50}px; margin: 0 auto;" onclick={()=>showTimerOptions = true}>
                 <FullDisplay model={$clockClientManagerClient} size={tokenSize * 1.5}/>
@@ -1026,7 +1196,9 @@
         
     </AnotatableViewV2>
 
-    <div class="grimoire-footer" bind:this={footerEl} style="transform: translateY({showFooter && !dragging && !draggingReminder ? '0' : '100%'});">
+
+    <!-- FOOTER -->
+    <div class="grimoire-footer" bind:this={footerEl} style="transform: translateY({showFooter && !dragging && !draggingReminder ? '0' : '100%'}); z-index: {z_indecies.ui};">
         <div class="token-tray-container">
             <div class="token-tray">
                 {#if game.character_ids.length > 0}
@@ -1089,11 +1261,11 @@
     </div>
 
     {#if dragging && ghostPos}
-        <div class="drag-ghost" style="left: {ghostPos.x}px; top: {ghostPos.y}px;">
-            <CharacterToken character={dragging.character} style="position: relative;" size={tokenSize + 'px'}/>
+        <div class="drag-ghost" style="left: {ghostPos.x}px; top: {ghostPos.y}px; z-index: {z_indecies.ui};">
+            <CharacterToken character={dragging.character} style="position: relative;" size={tokenSize + 'px'} norules/>
         </div>
         {#if dragging.source === 'board'}
-            <div class="edge-delete-indicator" class:active={isNearEdge(ghostPos.x, ghostPos.y)}></div>
+            <div class="edge-delete-indicator" class:active={isNearEdge(ghostPos.x, ghostPos.y)} style="z-index: {z_indecies.ui};"></div>
         {/if}
     {/if}
 
@@ -1106,7 +1278,7 @@
 
     {#if showTimerOptions || ($clockClientManagerConfig?.showClock && $clockClientManagerClient === null)}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: 20;" onclick={() => {showTimerOptions = false; if ($clockClientManagerConfig?.showClock && !$clockClientManagerClient) clockClientManager?.setVisible(false);}} role="dialog" tabindex="0">
+        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {z_indecies.ui};" onclick={() => {showTimerOptions = false; if ($clockClientManagerConfig?.showClock && !$clockClientManagerClient) clockClientManager?.setVisible(false);}} role="dialog" tabindex="0">
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div style="background: var(--theme-bg-secondary); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px;" onclick={(e) => e.stopPropagation()} >
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em; gap: 0.7em;">
