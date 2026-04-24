@@ -300,7 +300,7 @@
 <div style="width: 100%; height: 100%;">
     <div style="width: 100%; height: 100%; display: grid; grid-template-rows: auto 1fr; gap: 1em; overflow: hidden;" class="scripts-main">
         <div style="justify-content: space-between; background-color: var(--theme-bg-secondary); padding: 0.5em 1em;" class="in-a-row padded">
-            <button class="button-style" on:click={() => goto('/admin/scripts')}>Back</button>
+            <button class="button-style" on:click={() => goto('/settings/scripts')}>Back</button>
             <input type="text" placeholder="Script Name" bind:value={data.script.name} style="font-size: large; padding: 0.2em 0.5em;" class="input-style" required/>
             <button class="button-style highlight" on:click={save}>Save</button>
         </div>

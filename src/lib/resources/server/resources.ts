@@ -3,7 +3,7 @@ import { getExtensionForMimeType, getMimeTypeForExtension, prettifyResourceName}
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 
 
-const RESOURCE_DATA_DIR =  process.env.RESOURCE_DATA_DIR || "/data/resources";
+const RESOURCE_DATA_DIR =  process.env.RESOURCE_DATA_DIR || "data/resources";
 console.log(`Using resource data directory: ${RESOURCE_DATA_DIR}`);
 if (!existsSync(RESOURCE_DATA_DIR)) {
     mkdirSync(RESOURCE_DATA_DIR, { recursive: true });

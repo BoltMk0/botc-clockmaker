@@ -177,9 +177,6 @@
     .character-list-main {
         height: 100%;
         width: 100%;
-        padding: 2em;
-        padding-top: 4em;
-        box-sizing: border-box;
         overflow: hidden;
     }
 

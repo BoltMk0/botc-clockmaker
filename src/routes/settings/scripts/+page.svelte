@@ -9,7 +9,7 @@
 
 
     function selectScript(scriptId: number) {
-        location.href = `/admin/scripts/${scriptId}`;
+        location.href = `/settings/scripts/${scriptId}`;
     }
 
     function deleteScript(scriptId: number) {
@@ -49,7 +49,9 @@
     }
 </style>
 
-<Navbar />
+<div style="display: flex; justify-content: center; align-items: center; height: 100%; width: 100%; box-sizing: border-box; padding: 2em;">
+
+    
 <div class="scripts-main">
     <div class="scripts-main-header">
         <div style="font-size: large;">Scripts</div>
@@ -63,7 +65,7 @@
                                 alert('Failed to create script: No ID returned');
                                 return;
                             }
-                            goto(`/admin/scripts/${id}`);
+                            goto(`/settings/scripts/${id}`);
                             break;
                         case 'redirect':
                             // Do nothing, the browser will handle the redirect
@@ -148,5 +150,7 @@
             </tbody>
         </table>
     </div>
+
+</div>
 
 </div>

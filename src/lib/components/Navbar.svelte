@@ -185,13 +185,7 @@
         <li><a href="/" target="_self">Home</a></li>
         <li>
             <a href="/admin">Admin Panel</a>
-            {#if clients !== undefined && clients.length > 0}
-            <ul>
-                {#each clients as client}
-                    <li><a href="/admin/{client.id}" target="_self">{client.config.teamName}</a></li>
-                {/each}
-            </ul>
-            {/if}
+            
         </li>
         <li><a href="/admin/mixer">Audio Mixer</a></li>
         {#if clients !== undefined && clients.length > 0}
@@ -199,16 +193,19 @@
             <div style="opacity: 0.4;">Clocks:</div>
             <ul>
                 {#each clients as client}
-                    <li><a href="/{client.id}" target="_self">{client.config.teamName}</a></li>
+                    <li>
+                        <a href="/{client.id}" target="_self">{client.config.teamName}</a>
+                        <ul>
+                            <li><a href="/admin/{client.id}" target="_self">Remote</a></li>
+                        </ul>
+                    </li>
                 {/each}
             </ul>
         </li>
          {/if}
 
         <li><a href="/admin/games" target="_self">Games</a></li>
-        <li><a href="/admin/characters" target="_self">Manage Characters</a></li>
-        <li><a href="/admin/scripts" target="_self">Manage Scripts</a></li>
-        <li><a href="/admin/resources" target="_self">Manage Resources</a></li>
+        <li><a href="/settings" target="_self">Settings</a></li>
     </ul>
 
     <div style="display: grid; gap: 10px;">
