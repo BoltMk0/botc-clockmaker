@@ -7,7 +7,7 @@ export async function load(){
     try{
         const games = await listFullGames();
         const scripts = await listScriptsWithCharacters();
-        const gamesWithStates = games.map(game => ({game, grimoireState: get_grimoire_state_history_resource_for_game(game.id) as GrimoireStateHistory})).filter(({grimoireState}) => isGrimoireStateHistory(grimoireState));
+        const gamesWithStates = games.map(game => ({game, grimoireState: get_grimoire_state_history_resource_for_game(game.id) as GrimoireStateHistory})).map(({game, grimoireState}) => ({game, grimoireState: isGrimoireStateHistory(grimoireState) ? grimoireState : null}));
         return {games: gamesWithStates, scripts, error: null};
     } catch(e){
         console.error("Failed to load games or scripts", e);

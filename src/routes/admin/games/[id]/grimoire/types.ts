@@ -78,7 +78,7 @@ export function validateGrimoireState(obj: any): obj is GrimoireStateSnapshot {
 }
 
 export function isGrimoireStateHistory(obj: any): obj is GrimoireStateHistory {
-    return typeof obj === "object" &&
+    return obj !== null && obj !== undefined && typeof obj === "object" &&
         Array.isArray(obj.saveslots) &&
         obj.saveslots.every((slot: any) => slot === null || validateGrimoireState(slot)) &&
         validateGrimoireState(obj.present);

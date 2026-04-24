@@ -37,5 +37,8 @@ export function prettifyResourceType(type: ResourceType): string {
         case "music": return "Music";
         case "grimoirestate": return "Grimoire State";
         case "charactertokenimage": return "Character Token Image";
+        case "ambience": return "Ambience";
+        case "clockconfig": return "Clock Config";
+        default: return type;
     }
 }
