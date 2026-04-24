@@ -3,7 +3,6 @@
     import { goto } from "$app/navigation";
     import type { Character } from "$lib/database/common/types";
     import CustomOverlay from "$lib/components/CustomOverlay.svelte";
-    import Navbar from "$lib/components/Navbar.svelte";
 
     export let data: {scripts: any[], characters: Character[]};
 

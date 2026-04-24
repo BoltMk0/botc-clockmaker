@@ -1,6 +1,5 @@
 <script lang="ts">
     import type { Character } from "$lib/database/common/types";
-    import Navbar from "$lib/components/Navbar.svelte";
     import type { ScrapeResult } from "$lib/scraper/common/types";
     import { writable } from "svelte/store";
 
@@ -73,7 +72,6 @@
 
 </script>
 
-<Navbar/>
 
 <div style="width: 100%; height: 100%; padding: 2em; box-sizing: border-box;">
     

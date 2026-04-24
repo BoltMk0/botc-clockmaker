@@ -6,7 +6,6 @@
     import { onMount, tick } from "svelte";
     import { writable } from "svelte/store";
     import ResourceThumb from "./ResourceThumb.svelte";
-    import Navbar from "$lib/components/Navbar.svelte";
     import AudioResourceThumb from "./AudioResourceThumb.svelte";
     import { prettifyResourceType } from "$lib/resources/common/util";
 
@@ -187,7 +186,6 @@
     }
 </style>
 
-<Navbar/>
 <div class="resources-main">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 40px;">
         <h1>Resources</h1>

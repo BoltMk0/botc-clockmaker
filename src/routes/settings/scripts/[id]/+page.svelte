@@ -1,7 +1,6 @@
 <script lang="ts">
     import { CHARACTER_CATEGORIES, type Character, type ScriptCharacter } from "$lib/database/common/types.js";
     import CharacterThumb from "$lib/components/CharacterThumb.svelte";
-    import Navbar from "$lib/components/Navbar.svelte";
     import { goto } from "$app/navigation";
     export let data;
 

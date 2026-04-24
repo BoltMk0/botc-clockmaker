@@ -1,5 +1,6 @@
 <script lang="ts">
     import { page } from '$app/state';
+    import Navbar from '$lib/components/Navbar.svelte';
 
     const paths = [
         '/settings/resources',
@@ -10,6 +11,8 @@
     const currentPath = $derived(page.url.pathname);
 </script>
 
+
+<Navbar/>
 
 <div class="settings-layout-main">
     <div class="settings-layout-links in-a-column">
