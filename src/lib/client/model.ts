@@ -467,10 +467,12 @@ export class ClockClientModel {
     }
 
     finalBellURL(){
-        return `/resources/final-bell/${this.clockId}`;
+        const resourceId = this.config.resourceMapping.finalBell.resource_id;
+        return resourceId ? `/admin/api/resources/${resourceId}` : null;
     }
 
     reminderBellURL(){
-        return `/resources/reminder-bell/${this.clockId}`;
+        const resourceId = this.config.resourceMapping.reminderBell.resource_id;
+        return resourceId ? `/admin/api/resources/${resourceId}` : null;
     }
 }

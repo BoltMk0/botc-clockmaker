@@ -5,6 +5,11 @@ services:
       - "3000:3000"
     volumes:
       - data:/data
+    environment:
+      - MYSQL_HOST=database
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=example
+      - RESOURCE_DATA_DIR=/data
   database:
     image: mysql:latest
     environment:

@@ -30,18 +30,30 @@ export class ClockAudioTrack implements AudioTrackBase, ClientModelListenerType 
         this.finalBellAudioModel = new AudioTrack(audioContext, new Audio(), outputNode);
         this.reminderBellAudioModel = new AudioTrack(audioContext, new Audio(), outputNode);
         
-        this.finalBellAudioModel.audio.src = clockModel.finalBellURL();
-        this.finalBellAudioModel.audio.load();
+        const finalBellUrl =  clockModel.finalBellURL();
+        const reminderBellUrl = clockModel.reminderBellURL();
+        if(finalBellUrl){
+            this.finalBellAudioModel.audio.src = finalBellUrl;
+            this.finalBellAudioModel.audio.load();
 
-        this.reminderBellAudioModel.audio.src = clockModel.reminderBellURL();
-        this.reminderBellAudioModel.audio.load();
+            this.finalBellAudioModel.audio.onload = (ev)=>{
+                this.logger.info("Final bell audio loaded successfully.");
+            }
+        } else {
+            this.logger.info("No audio to load for final bell")
+        }
 
-        this.finalBellAudioModel.audio.onload = (ev)=>{
-            this.logger.info("Final bell audio loaded successfully.");
+        if(reminderBellUrl){
+            this.reminderBellAudioModel.audio.src = reminderBellUrl;
+            this.reminderBellAudioModel.audio.load();
+
+            this.reminderBellAudioModel.audio.onload = (ev)=>{
+                this.logger.info("Reminder bell audio loaded successfully.");
+            }
+        } else {
+            this.logger.info("No audio to load for reminder bell")
         }
-        this.reminderBellAudioModel.audio.onload = (ev)=>{
-            this.logger.info("Reminder bell audio loaded successfully.");
-        }
+
 
         let initParams = get(clockModel.audioParams);
         this.gain = writable(initParams.gain);
