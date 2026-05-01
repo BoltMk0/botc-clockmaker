@@ -6,8 +6,8 @@ import argparse
 
 ap = argparse.ArgumentParser(description="Build and push Docker image for BOTC Clocktower")
 ap.add_argument("package_dir", default=".", nargs="?", help="Directory containing package.json (default: current directory)")
-ap.add_argument("--tag-base", "-t", default="botc-clocktower", help="Base name for Docker image tag (default: botc-clocktower)")
-ap.add_argument("--registry", default="gabranth.local:5000", help="Docker registry URL (default: http://gabranth.local:5000)")
+ap.add_argument("--tag-base", "-t", default="boltmk0/botc-clocktower", help="Base name for Docker image tag (default: boltmk0/botc-clocktower)")
+ap.add_argument("--registry", help="Docker registry URL")
 ap.add_argument("--archive-out", "-o", help="Optional path to save the built Docker image as a tar archive (e.g. botc-clocktower.tar)")
 
 args = ap.parse_args()
@@ -16,8 +16,12 @@ package_json_path = os.path.join(args.package_dir, "package.json")
 package_json_data = json.load(open(package_json_path))
 version = package_json_data["version"]
 
-latest_image_tag = f"{args.registry}/{args.tag_base}:latest"
-image_tag = f"{args.registry}/{args.tag_base}:{version}"
+latest_image_tag = f"{args.tag_base}:latest"
+image_tag = f"{args.tag_base}:{version}"
+
+if(args.registry):
+    latest_image_tag = f"{args.registry}/{latest_image_tag}"
+    image_tag = f"{args.registry}/{image_tag}"
 
 print("Building and pushing Docker image:", image_tag)
 

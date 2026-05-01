@@ -14,10 +14,8 @@ services:
     image: mysql:latest
     environment:
       MYSQL_ROOT_PASSWORD: example
-      MYSQL_DATABASE: botct_clock
+      MYSQL_DATABASE: botc
     ports:
       - "3306:3306"
-    volumes:
-      - "./db-init.sql:/docker-entrypoint-initdb.d/init.sql:ro"
 volumes:
   data:
