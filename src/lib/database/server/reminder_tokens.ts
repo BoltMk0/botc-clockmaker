@@ -1,7 +1,9 @@
 import type { NewReminderToken, ReminderToken } from "../common/types";
+import getPool from "./db";
 import pool from "./db";
 
 export async function getReminderTokensForCharacter(characterId: number): Promise<ReminderToken[]> {
+    const pool = await getPool();
     const [rows] = await pool.query<any[]>('SELECT id, character_id, text, text_size FROM reminder_tokens WHERE character_id = ?', [characterId]);
     return rows.map(row => ({
         id: row.id,
@@ -12,6 +14,7 @@ export async function getReminderTokensForCharacter(characterId: number): Promis
 }
 
 export async function listReminderTokensForScript(scriptId: number): Promise<ReminderToken[]> {
+    const pool = await getPool();
     const [rows] = await pool.query<any[]>(`
         SELECT rt.*
         FROM reminder_tokens rt
@@ -27,6 +30,7 @@ export async function listReminderTokensForScript(scriptId: number): Promise<Rem
 }
 
 export async function getReminderTokenById(id: number): Promise<ReminderToken | null> {
+    const pool = await getPool();
     const [rows] = await pool.query<any[]>('SELECT * FROM reminder_tokens WHERE id = ?', [id]);
     return rows.length > 0 ? {
         id: rows[0].id,
@@ -38,6 +42,7 @@ export async function getReminderTokenById(id: number): Promise<ReminderToken | 
 
 export async function createReminderToken(data: NewReminderToken): Promise<ReminderToken> {
     const { character_id, text, textSize} = data;
+    const pool = await getPool();
     const [result] = await pool.query<any>('INSERT INTO reminder_tokens (character_id, text, text_size) VALUES (?, ?, ?)', [character_id, text, textSize ?? 100]);
     return { id: result.insertId, character_id, text, textSize: textSize ?? 100 };
 }
@@ -61,11 +66,13 @@ export async function updateReminderToken(id: number, data: Partial<NewReminderT
         return getReminderTokenById(id);
     }
     values.push(id);
+    const pool = await getPool();
     await pool.query(`UPDATE reminder_tokens SET ${fields.join(', ')} WHERE id = ?`, values);
     return getReminderTokenById(id);
 }
 
 export async function deleteReminderToken(id: number): Promise<boolean> {
+    const pool = await getPool();
     const [result] = await pool.query<any>('DELETE FROM reminder_tokens WHERE id = ?', [id]);
     return result.affectedRows > 0;
 }

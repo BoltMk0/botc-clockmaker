@@ -2,10 +2,12 @@ import pool from './db';
 import type { NewScript, Script, ScriptCharacter, ScriptWithCharacters } from '../common/types';
 import { getReminderTokensForCharacter } from './reminder_tokens';
 import { getGameBluffs } from './games';
+import getPool from './db';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 export async function fetchCharactersForScript(scriptId: number): Promise<ScriptCharacter[]> {
+    const pool = await getPool();
     const [rows] = await pool.query<any[]>(
         `SELECT c.id, c.name, c.category, c.rules, c.player_count, c.wakes_first_night, c.wakes_other_nights,
                 sc.first_night_order AS firstNightOrder,
@@ -33,6 +35,7 @@ export async function fetchCharactersForScript(scriptId: number): Promise<Script
  * Return every script, without their character lists.
  */
 export async function listScripts(): Promise<Script[]> {
+    const pool = await getPool();
     const [rows] = await pool.query<any[]>(
         'SELECT id, name, hue FROM scripts ORDER BY name'
     );
@@ -56,6 +59,7 @@ export async function listScriptsWithCharacters(): Promise<ScriptWithCharacters[
  * Return a single script by id (without characters), or null if not found.
  */
 export async function getScriptById(id: number): Promise<Script | null> {
+    const pool = await getPool();
     const [rows] = await pool.query<any[]>(
         'SELECT id, name, hue FROM scripts WHERE id = ?',
         [id]
@@ -87,6 +91,7 @@ export async function getCharactersForScript(scriptId: number): Promise<ScriptCh
  * Throws if a script with the same name already exists.
  */
 export async function createScript(script: NewScript): Promise<Script> {
+    const pool = await getPool();
     const [result] = await pool.query<any>(
         'INSERT INTO scripts (name, hue) VALUES (?, ?)',
         [script.name, script.hue]
@@ -107,7 +112,7 @@ export async function updateScript(
 
     const setClauses = entries.map(([k]) => `${k} = ?`).join(', ');
     const values = entries.map(([, v]) => v);
-
+    const pool = await getPool();
     await pool.query(`UPDATE scripts SET ${setClauses} WHERE id = ?`, [...values, id]);
     return getScriptById(id);
 }
@@ -117,6 +122,7 @@ export async function updateScript(
  * Returns true if a row was deleted, false if the id was not found.
  */
 export async function deleteScript(id: number): Promise<boolean> {
+    const pool = await getPool();
     const [result] = await pool.query<any>('DELETE FROM scripts WHERE id = ?', [id]);
     return result.affectedRows > 0;
 }
@@ -128,6 +134,7 @@ export async function deleteScript(id: number): Promise<boolean> {
  * Silently succeeds if the character is already on the script.
  */
 export async function addCharacterToScript(scriptId: number, characterId: number): Promise<void> {
+    const pool = await getPool();
     await pool.query(
         'INSERT IGNORE INTO script_characters (script_id, character_id) VALUES (?, ?)',
         [scriptId, characterId]
@@ -142,6 +149,7 @@ export async function removeCharacterFromScript(
     scriptId: number,
     characterId: number
 ): Promise<boolean> {
+    const pool = await getPool();
     const [result] = await pool.query<any>(
         'DELETE FROM script_characters WHERE script_id = ? AND character_id = ?',
         [scriptId, characterId]
@@ -163,6 +171,7 @@ export async function setScriptCharacters(
     scriptId: number,
     entries: ScriptCharacterInput[]
 ): Promise<void> {
+    const pool = await getPool();
     const conn = await pool.getConnection();
     try {
         await conn.beginTransaction();

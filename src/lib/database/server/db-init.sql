@@ -1,11 +1,6 @@
 -- Blood on the Clocktower – database initialisation
 -- Compatible with MySQL 8+
-
-CREATE DATABASE IF NOT EXISTS botc
-    CHARACTER SET utf8mb4
-    COLLATE utf8mb4_unicode_ci;
-
-USE botc;
+-- Note: database creation and selection is handled by the application.
 
 -- --------------------------------------------------------
 -- Tables

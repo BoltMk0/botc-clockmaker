@@ -1,6 +1,7 @@
 import pool from "./db";
 import { getScriptWithCharacters } from "./scripts";
 import type { Character, Game, GameFull, NewGame } from "../common/types";
+import getPool from "./db";
 
 
 
@@ -8,6 +9,7 @@ import type { Character, Game, GameFull, NewGame } from "../common/types";
 /////////////////////  BLUFFS  ///////////////////
 
 export async function getGameBluffs(gameId: number): Promise<number[]> {
+    const pool = await getPool();
     const [rows] = await pool.query<any[]>(
         `SELECT character_id
          FROM game_bluffs
@@ -19,6 +21,7 @@ export async function getGameBluffs(gameId: number): Promise<number[]> {
 
 export async function setGameBluffs(gameId: number, characterIds: number[]): Promise<void> {
     const values = characterIds.map(characterId => [gameId, characterId]);
+    const pool = await getPool();
     const connection = await pool.getConnection();
     try {
         await connection.beginTransaction();
@@ -42,6 +45,7 @@ export async function setGameBluffs(gameId: number, characterIds: number[]): Pro
 }
 
 export async function clearGameBluffs(gameId: number): Promise<void> {
+    const pool = await getPool();
     await pool.query(
         'DELETE FROM game_bluffs WHERE game_id = ?',
         [gameId]
@@ -60,6 +64,7 @@ export async function clearGameBluffs(gameId: number): Promise<void> {
 
 
 export async function getGameCharacters(gameId: number): Promise<number[]> {
+    const pool = await getPool();
     const [rows] = await pool.query<any[]>(
         'SELECT character_id FROM game_characters WHERE game_id = ?',
         [gameId]
@@ -73,6 +78,7 @@ export async function getGameCharacters(gameId: number): Promise<number[]> {
  * Return a single game by id (without characters), or null if not found.
  */
 export async function getGameSetup(id: number): Promise<Game | null> {
+    const pool = await getPool();
     const [rows] = await pool.query<any[]>(
         'SELECT id, script_id, created, last_played FROM games WHERE id = ?',
         [id]
@@ -95,6 +101,7 @@ export async function getCharactersForGameSetup(id: number): Promise<number[]>{
 }
 
 export async function listGames(): Promise<Game[]>{
+    const pool = await getPool();
     const [rows] = await pool.query<any[]>(
         'SELECT id, created, last_played, script_id FROM games'
     );
@@ -113,6 +120,7 @@ export async function listFullGames(): Promise<GameFull[]>{
 }
 
 export async function createGameSetup(game: NewGame): Promise<Game | null>{
+    const pool = await getPool();
     const [result] = await pool.query<any>(
         'INSERT INTO games (script_id) VALUES (?)',
         [game.script_id]
@@ -125,6 +133,7 @@ export async function createGameSetup(game: NewGame): Promise<Game | null>{
 
 
 export async function deleteGameSetup(id: number): Promise<boolean>{
+    const pool = await getPool();
     const [result] = await pool.query<any>(
         'DELETE FROM games WHERE id = ?',
         [id]
@@ -142,6 +151,7 @@ export async function setGameSetupCharacters(
     characterIds: number[],
     bluffIds: number[]
 ): Promise<void> {
+    const pool = await getPool();
     const conn = await pool.getConnection();
     try {
         await conn.beginTransaction();

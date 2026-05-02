@@ -1,10 +1,12 @@
 import pool from './db';
 import type { Character, CharacterCategory, NewCharacter } from '../common/types';
+import getPool from './db';
 
 /**
  * Return every character in the database.
  */
 export async function listCharacters(): Promise<Character[]> {
+    const pool = await getPool();
     const [rows] = await pool.query<any[]>(
         'SELECT id, name, category, rules, player_count, wakes_first_night, wakes_other_nights FROM characters ORDER BY name'
     );
@@ -15,6 +17,8 @@ export async function listCharacters(): Promise<Character[]> {
  * Return a single character by name, or null if not found.
  */
 export async function getCharacterByName(name: string): Promise<Character | null> {
+    const pool = await getPool();
+
     const [rows] = await pool.query<any[]>(
         'SELECT id, name, category, rules, player_count, wakes_first_night, wakes_other_nights FROM characters WHERE name = ?',
         [name]
@@ -26,6 +30,8 @@ export async function getCharacterByName(name: string): Promise<Character | null
  * Return a single character by id, or null if not found.
  */
 export async function getCharacterById(id: number): Promise<Character | null> {
+    const pool = await getPool();
+
     const [rows] = await pool.query<any[]>(
         'SELECT id, name, category, rules, player_count, wakes_first_night, wakes_other_nights FROM characters WHERE id = ?',
         [id]
@@ -37,6 +43,7 @@ export async function getCharacterById(id: number): Promise<Character | null> {
  * Return all characters belonging to a given category.
  */
 export async function listCharactersByCategory(category: CharacterCategory): Promise<Character[]> {
+    const pool = await getPool();
     const [rows] = await pool.query<any[]>(
         'SELECT id, name, category, rules, player_count, wakes_first_night, wakes_other_nights FROM characters WHERE category = ? ORDER BY name',
         [category]
@@ -49,6 +56,7 @@ export async function listCharactersByCategory(category: CharacterCategory): Pro
  * Throws if a character with the same name already exists.
  */
 export async function addCharacter(character: NewCharacter): Promise<Character> {
+    const pool = await getPool();
     const [result] = await pool.query<any>(
         'INSERT INTO characters (name, category, rules, player_count, wakes_first_night, wakes_other_nights) VALUES (?, ?, ?, ?, ?, ?)',
         [character.name, character.category, character.rules, character.player_count, character.wakes_first_night, character.wakes_other_nights]
@@ -75,7 +83,7 @@ export async function updateCharacter(
     const setClauses = entries.map(([k]) => `${k} = ?`).join(', ');
     const values = entries.map(([, v]) => v);
 
-
+    const pool = await getPool();
     await pool.query(`UPDATE characters SET ${setClauses} WHERE id = ?`, [...values, id]);
     return getCharacterById(id);
 }
@@ -85,6 +93,7 @@ export async function updateCharacter(
  * Returns true if a row was deleted, false if the id was not found.
  */
 export async function deleteCharacter(id: number): Promise<boolean> {
+    const pool = await getPool();
     const [result] = await pool.query<any>('DELETE FROM characters WHERE id = ?', [id]);
     return result.affectedRows > 0;
 }
