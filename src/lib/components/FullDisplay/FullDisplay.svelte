@@ -135,7 +135,7 @@
     {:else if type === "original"}
         <div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);">
             <div class="clock-name-title dumbledore-font" style="font-size: {size/10}px; transform: translateY(-100%); height: 0.5em;">{model.config.teamName ?? model.clockId}</div>
-            <OldClockFace totalTime={$clock_info.max} {progress} playerCount={$playerCount} dayNumber={$day_info.day} {size} hue={model.config.theme.hue}/>
+            <OldClockFace totalTime={$clock_info.max} {progress} dayNumber={$day_info.day} {size} hue={model.config.theme.hue}/>
         </div>
     {:else}
         <div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);">
