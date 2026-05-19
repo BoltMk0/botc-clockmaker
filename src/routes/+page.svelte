@@ -5,16 +5,18 @@
     import FullDisplay from '$lib/components/FullDisplay/FullDisplay.svelte';
     import Navbar from '$lib/components/Navbar.svelte';
     import type { FullDisplayMode } from '$lib/components/FullDisplay/fullDisplayTypes.js';
+    import { ClocktowerAudioEngine } from '$lib/client/audio/AudioEngine.js';
 
     export let data;
 
-    $: clients = browser ? data.instances.map(({id, config}) => new ClockClientModel(id, config)) : [];
+    $: clients = browser ? data.instances.map(({id, config, audioParams}) => new ClockClientModel(id, config, audioParams)) : [];
     $: clients?.forEach(client => {
         client.init(undefined);
     });
+    
+    let audioEngine: ClocktowerAudioEngine;
     let audioContext: AudioContext | null = null;
     
-
     let showNavbar: boolean = false;
 
     let audioUnlocked = false;
@@ -49,6 +51,13 @@
             window.addEventListener('pointerdown', unlockAudio, { once: true, capture: true });
             window.addEventListener('keydown', unlockAudio, { once: true, capture: true });
             window.addEventListener('click', unlockAudio, { once: true, capture: true });
+
+            clients.forEach(client => client.init(undefined));
+            audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            audioEngine = new ClocktowerAudioEngine(audioContext);
+            clients.forEach(client => {
+                audioEngine.getClockTrackFor(client);
+            });
         }
     });
 

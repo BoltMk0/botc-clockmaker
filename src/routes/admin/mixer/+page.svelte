@@ -8,8 +8,8 @@
 
     export let data;
 
-    export let audioEngine: ClocktowerAudioEngine;
-    export let audioContext: AudioContext;
+    let audioEngine: ClocktowerAudioEngine;
+    let audioContext: AudioContext;
 
     let clients: ClockClientModel[] = data.instances.map(({id, config, audioParams}) => new ClockClientModel(id, config, audioParams));
         

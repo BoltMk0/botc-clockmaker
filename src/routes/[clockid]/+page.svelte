@@ -5,13 +5,15 @@
     import { page } from '$app/state';
     import Navbar from '$lib/components/Navbar.svelte';
     import type { FullDisplayMode } from '$lib/components/FullDisplay/fullDisplayTypes.js';
+    import { browser } from '$app/environment';
+    import { ClocktowerAudioEngine } from '$lib/client/audio/AudioEngine.js';
 
     export let data;
 
     let enterButtonClicked: boolean =  true;
-    let audio: HTMLAudioElement;
-    let audio2: HTMLAudioElement;
-    let model: ClockClientModel = new ClockClientModel(page.params.clockid, data.config);
+    let audioContext: AudioContext;
+    let audioEngine: ClocktowerAudioEngine;
+    let model: ClockClientModel = new ClockClientModel(page.params.clockid, data.config, data.config.audioParams);
 
     let displaySize = 700;
     let displayMode: FullDisplayMode = "original";
@@ -25,7 +27,12 @@
     }
 
     onMount(() => {
-
+        if(browser){
+            model.init();
+            audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            audioEngine = new ClocktowerAudioEngine(audioContext);
+            audioEngine.getClockTrackFor(model);
+        }
     });
 
     onDestroy(()=>{
