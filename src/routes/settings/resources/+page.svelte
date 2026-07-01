@@ -10,16 +10,17 @@
     import { prettifyResourceType } from "$lib/resources/common/util";
 
 
-    export let data: { resources: Resource[] };
+    let {data}: {data:{ resources: Resource[] }} = $props();
 
-    let selectedResourceType: ResourceType = 'grimoirestate';
+    let selectedResourceType: ResourceType = $state('grimoirestate');
+    const RESOURCE_TYPES_TO_HIDE: ResourceType[] = ['grimoirestate', 'charactertokenimage', 'clockconfig']
 
-    let showUploadOverlay = false;
+    let showUploadOverlay = $state(false);
 
-    let isDropActive = false;
-    let dragDepth = 0;
-    let droppedFile: File | null = null;
-    let fileInput: HTMLInputElement | null = null;
+    let isDropActive = $state(false);
+    let dragDepth = $state(0);
+    let droppedFile: File | null = $state(null);
+    let fileInput: HTMLInputElement | null = $state(null);
 
     const supportedExtensions = new Set(
         ALL_RESOURCE_TYPES.flatMap((type) => getAcceptedExtensionsForResourceType(type)).map((ext) => ext.toLowerCase())
@@ -80,20 +81,20 @@
         }
     }
 
-    $: if (!showUploadOverlay) {
+    $effect(()=>{if (!showUploadOverlay) {
         droppedFile = null;
         if (fileInput) {
             fileInput.value = "";
         }
-    }
+    }})
 
-    $: resourceTypes = ALL_RESOURCE_TYPES;
-    $: sortedResources = resourceTypes.map(type => {
+    let resourceTypes = $state(ALL_RESOURCE_TYPES.filter(t=>!RESOURCE_TYPES_TO_HIDE.includes(t)));
+    let sortedResources = $derived(resourceTypes.map(type => {
         return {
             type,
             resources: data.resources.filter(r => r.type === type)
         }
-    });
+    }));
     
     const visibleResourceType = writable<ResourceType | null>(null);
 

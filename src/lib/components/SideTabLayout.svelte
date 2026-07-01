@@ -16,16 +16,18 @@
         items,
         selectedIndex = $bindable(0),
         title,
-        onAddItem
+        onAddItem,
+        style
     }: {
         items: SideTabItem<T>[];
         selectedIndex?: number;
         title?: string;
-        onAddItem?: ()=>void
+        onAddItem?: ()=>void;
+        style?: string;
     } = $props();
 </script>
 
-<div class="side-tab-layout" class:with-title={!!title}>
+<div class="side-tab-layout" class:with-title={!!title} style="{style}">
     {#if title}
         <div class="side-tab-title">
             <span>{title}</span>

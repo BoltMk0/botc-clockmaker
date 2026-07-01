@@ -134,7 +134,7 @@
         
         <div style="display: grid; grid-template-columns: 1fr auto; align-items: center;">
             <h2>Sound Effects</h2>
-            <a href="/admin/resources" class="button-style">Manage Resources</a>
+            <a href="/settings/resources" class="button-style">Manage Resources</a>
         </div>
         <table>
             <thead>
@@ -162,7 +162,7 @@
                 </tr>
                 <tr>
                     <td style="width: fit-content;">Reminder Bell Sound</td>
-                    <td>
+                    <td style="min-width: 200px;">
                         <div class="audio-file-input-container">
                         <select bind:value={clock.config.resourceMapping.reminderBell.resource_id}>
                             <option value={null}>None</option>
@@ -244,6 +244,8 @@
         display: grid;
         gap: 10px;
         height: 100%;
+        width: fit-content;
+        margin: auto;
     }
 
     table {
