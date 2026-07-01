@@ -3,7 +3,7 @@ import { getDefaultConfig, type ClockInstanceInfo, type Config } from '$lib/comm
 import { EventEmitter } from 'node:events';
 import { v7 } from 'uuid';
 import type { AudioParams } from '$lib/common/AudioParams';
-import { listClockConfigResources, setClockConfigResource } from '$lib/resources/server/clock-config';
+import { deleteClockConfigResource, listClockConfigResources, setClockConfigResource } from '$lib/resources/server/clock-config';
 import { getResourceData } from '$lib/resources/server/resources';
 
 console.log("Loading BOTCTClock model...");
@@ -126,6 +126,10 @@ export class BOTCTClock extends EventEmitter {
         this.emit('playerCountChanged', this.playerCount);
     }
 
+    save(){
+        this.scheduleConfigSave();
+    }
+
     get gain(){
         return this.config.audioParams.gain;
     }
@@ -160,6 +164,7 @@ class ClockInstanceManager extends EventEmitter {
     constructor(){
         super();
         const configResources = listClockConfigResources();
+        console.log(`Loading ${configResources.length} clock config resources...`)
         for(const res of configResources){
             const config = getResourceData(res);
             if(!config){
@@ -194,6 +199,7 @@ class ClockInstanceManager extends EventEmitter {
             throw new Error(`Instance with id ${instanceId} already exists.`);
         }
         const instance = new BOTCTClock(instanceId, getDefaultConfig());
+        instance.save();
         const cfg = instance.getConfig();
         cfg.teamName = `Team ${this.instances.size + 1}`;
         cfg.theme.hue = (this.instances.size * 137) % 360; // use golden angle to distribute hues
@@ -222,6 +228,7 @@ class ClockInstanceManager extends EventEmitter {
             instance.removeAllListeners();
             this.emit('instanceFreed', id);
         }
+        deleteClockConfigResource(id);
         this.instances.delete(id);
     }
 

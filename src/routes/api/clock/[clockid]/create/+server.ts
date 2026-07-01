@@ -1,8 +1,9 @@
 import { getBOTCTClockInstanceManager } from '$lib/server/model';
+import { json } from '@sveltejs/kit';
 
 export async function POST({params}) {
     console.log("Creating clock...");
     const manager = getBOTCTClockInstanceManager();
-    manager.newInstance(params.clockid);
-    return new Response('Clock created', { status: 200 });
+    const {id, instance} = manager.newInstance(params.clockid);
+    return json(instance);
 }

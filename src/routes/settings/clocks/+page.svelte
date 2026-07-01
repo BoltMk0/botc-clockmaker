@@ -1,10 +1,23 @@
 <script lang="ts">
     import { goto, invalidateAll } from '$app/navigation';
-    import type { Config } from '$lib/common/config.js';
+    import type { ClockInstanceInfo, Config } from '$lib/common/config.js';
     import Navbar from '$lib/components/Navbar.svelte';
+    import SideTabLayout from '$lib/components/SideTabLayout.svelte';
     import { v7 } from 'uuid';
+    import ClockEditView from './ClockEditView.svelte';
+    import type { Resource } from '$lib/resources/common/types';
+    import { tick } from 'svelte';
 
-    export let data;
+    type Props = {
+        clocks: ClockInstanceInfo[];
+        sfxResources: Resource[]
+    };
+
+    const {data}: {data: Props} = $props();
+
+    var selectedIndex = $state(0);
+
+    $inspect("Loaded SFX:", data.sfxResources)
 
     function createNewClock(){
         let newClockId = v7();
@@ -17,9 +30,8 @@
                     alert("Failed to create clock");
                     throw new Error('Failed to create clock');
                 }
-                response.text().then(id => {
-                    console.log("Clock created with id:", id);
-                    goto(`/admin/${id}/config`);
+                invalidateAll().then(()=>{
+                    selectedIndex = data.clocks.length-1;
                 });
             }).catch(error => {
                 console.error("Error creating clock:", error);
@@ -47,28 +59,6 @@
 
 </script>
 
-<div style="display: flex; flex-direction: column; gap: 10px;">
-    <table>
-        <tbody>
-            {#each data.clocks as clockData(clockData.id)}
-            <tr>
-                <td><a class="button-style" style="min-width: 10em; border-color: hsl({clockData.config.theme.hue}, 70%, 50%)" href="/admin/{clockData.id}">{clockData.config.teamName ?? clockData.id}</a></td>
-                <td><button class="button-style error" on:click={() => deleteClock(clockData)} disabled={clockData.id==="default"}>Delete</button></td>
-            </tr>
-            {/each}
-            <tr>
-                <td colspan="2">
-                    <button class="button-style highlight" on:click={createNewClock}>
-                        Create New Clock
-                    </button>
-                </td>
-            </tr>
-        </tbody>
-    </table>
-</div>
-
-<Navbar/>
-
 <style>
     table, td {
         border-collapse: collapse;
@@ -86,3 +76,15 @@
         border: 2px solid #0000;
     }
 </style>
+
+{#snippet renderClockSettings(clock: ClockInstanceInfo)}
+    <ClockEditView {clock} sfx_resources={data.sfxResources}/>
+{/snippet}
+
+<SideTabLayout title="Clocks" items={data.clocks.map(c=>{
+    return {
+        label: c.config.teamName ?? c.id,
+        snippet: renderClockSettings,
+        arg: c
+    }
+})} onAddItem={createNewClock} bind:selectedIndex/>

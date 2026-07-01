@@ -5,28 +5,22 @@ function clock_id_to_resource_name(clockid: string): string {
     return `${clockid}`;
 }
 
-function resource_name_to_clock_id(resourceName: string): string | null {
-    const match = resourceName.match(/^clock-(.+)-config$/);
-    if(match) return match[1];
-    return null;
-}
-
 function clock_id_to_resource_id(clockid: string, mimeType: string): string {
     return encodeResourceId('clockconfig', clock_id_to_resource_name(clockid), mimeType);
 }
 
 export function listClockConfigResources(): (Resource & {clockid: string})[] {
     const configs = listResources('clockconfig');
+    console.debug(`Found ${configs.length} clockconfig resources`)
     const result: (Resource & {clockid: string})[] = [];
     for(const config of configs){
-        const clockid = resource_name_to_clock_id(config.name);
-        if(clockid) result.push({...config, clockid});
+        result.push({...config, clockid: config.name});
     }
     return result;
 }
 
 export function getClockConfigResource(clockid: string): Resource | null {
-    const resource = findResourceByName(clock_id_to_resource_name(clockid), 'charactertokenimage');
+    const resource = findResourceByName(clock_id_to_resource_name(clockid), 'clockconfig');
     if(resource == null) return null;
     return resource;
 }
@@ -38,7 +32,7 @@ export function setClockConfigResource(clockid: string, data: Buffer, mimeType: 
 }
 
 export function deleteClockConfigResource(clockid: string): boolean {
-    const resource = findResourceByName(clock_id_to_resource_name(clockid), 'charactertokenimage');
+    const resource = findResourceByName(clock_id_to_resource_name(clockid), 'clockconfig');
     if(resource == null) return false;
     deleteResource(resource);
     return true;

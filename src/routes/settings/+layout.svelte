@@ -6,9 +6,11 @@
         '/settings/resources',
         '/settings/scripts',
         '/settings/characters',
+        '/settings/clocks'
     ]
 
     const currentPath = $derived(page.url.pathname);
+
 </script>
 
 
@@ -18,7 +20,8 @@
     <div class="settings-layout-links in-a-column">
         <div style="font-size: x-large; opacity: 0.6;">Settings</div>
         {#each paths as path}
-            <a class="button-style" class:highlight={currentPath === path} href={path}>{path.replace('/settings/', '')}</a>
+            {@const label = path.replace('/settings/', '')}
+            <a class="button-style" class:highlight={currentPath === path} href={path}>{label.charAt(0).toUpperCase() + label.slice(1)}</a>
         {/each}
     </div>
     <div class="settings-layout-content">

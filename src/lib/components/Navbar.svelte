@@ -182,15 +182,9 @@
         X
     </button>
     <ul style="list-style-type: none; padding: 0 2em 0 1em; margin: 0; margin-bottom: 1em;">
-        <li><a href="/" target="_self">Home</a></li>
-        <li>
-            <a href="/admin">Admin Panel</a>
-            
-        </li>
-        <li><a href="/admin/mixer">Audio Mixer</a></li>
         {#if clients !== undefined && clients.length > 0}
         <li>
-            <div style="opacity: 0.4;">Clocks:</div>
+            <a href="/" target="_self">Clocks</a>
             <ul>
                 {#each clients as client}
                     <li>
@@ -203,7 +197,7 @@
             </ul>
         </li>
          {/if}
-
+        <li><a href="/admin/mixer">Audio Mixer</a></li>
         <li><a href="/admin/games" target="_self">Games</a></li>
         <li><a href="/settings" target="_self">Settings</a></li>
     </ul>
