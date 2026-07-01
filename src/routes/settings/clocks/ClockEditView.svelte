@@ -108,7 +108,6 @@
     }
 </script>
 
-<Navbar/>
 <div class="main">
     <div class="panel">
         <h2>General</h2>
@@ -130,8 +129,8 @@
             </tbody>
         </table>
     </div>
+
     <div class="panel">
-        
         <div style="display: grid; grid-template-columns: 1fr auto; align-items: center;">
             <h2>Sound Effects</h2>
             <a href="/settings/resources" class="button-style">Manage Resources</a>
@@ -179,6 +178,7 @@
             </tbody>
         </table>
     </div>
+
     <div class="panel">
         <h3>Timer Options</h3>
         <table>
@@ -211,10 +211,12 @@
             </tbody>
         </table>
     </div>
+
     <div class="panel" style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 5px;">
         <button class="button-style" onclick={onDelete} disabled={clock.id === 'default'}>Delete</button>
         <button class="button-style" onclick={onSave}>Save</button>
     </div>
+
 </div>
 
 <style>
@@ -243,9 +245,10 @@
     .main {
         display: grid;
         gap: 10px;
-        height: 100%;
         width: fit-content;
         margin: auto;
+        padding: 2em;
+        box-sizing: border-box;
     }
 
     table {

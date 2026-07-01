@@ -57,8 +57,6 @@
 		height: 100%;
 		width: 100%;
 		font-family: system-ui, sans-serif;
-		background-color: #121212;
-		background: linear-gradient(-120deg, #121212FF 10%, #12121288 20%, #14141477 24%, #131313CC 30%, #19191966 33%, #18181888 38%, #1d1d1d55 48%, #13131399 52%, #131313BB 60%, #13131388 70%, #131212cc 76%, #1f1d1ddd 95%, #1b1010FF 100%), linear-gradient(160deg, rgb(77, 71, 71) 0%, rgb(10, 10, 12) 80%);
 		color: #f0f0f0;
 		overflow: hidden;
 	}
@@ -84,6 +82,7 @@
 		touch-action: pan-y;
 		margin: 0;
 		padding: 0;
+		background-color: var(--theme-shadow);
 	}
 
 	.body-content:focus {

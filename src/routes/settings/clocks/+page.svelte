@@ -87,4 +87,4 @@
         snippet: renderClockSettings,
         arg: c
     }
-})} onAddItem={createNewClock} bind:selectedIndex style="padding: 1em;"/>
+})} onAddItem={createNewClock} bind:selectedIndex/>
