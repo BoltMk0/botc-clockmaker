@@ -106,7 +106,7 @@
 
     function deleteResource(id: string){
         if(confirm("Are you sure you want to delete this resource? This action cannot be undone.")){
-            fetch(`/admin/api/resources/${id}`, {
+            fetch(`/api/resources/${id}`, {
                 method: "DELETE"
             }).then(async response => {
                 if(response.ok){

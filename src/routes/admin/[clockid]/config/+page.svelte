@@ -65,7 +65,7 @@
             await saveBellSound(newReminderBellSoundFile, `reminder-bell/${id}`);
         }
         
-        fetch(`/admin/api/clock/${id}/config`, {
+        fetch(`/api/clock/${id}/config`, {
             method: 'POST',
             body: JSON.stringify(config),
             headers: {'Content-Type': 'application/json'}
@@ -152,7 +152,7 @@
                                 {/each}
                             </select>
                             {#if config.resourceMapping.finalBell.resource_id}
-                                <audio src="/admin/api/resources/{config.resourceMapping.finalBell.resource_id}" controls bind:volume={config.resourceMapping.finalBell.gain}></audio>
+                                <audio src="/api/resources/{config.resourceMapping.finalBell.resource_id}" controls bind:volume={config.resourceMapping.finalBell.gain}></audio>
                             {/if}
                         </div>
                     </td>
@@ -168,7 +168,7 @@
                             {/each}
                         </select>
                         {#if config.resourceMapping.reminderBell.resource_id}
-                            <audio src="/admin/api/resources/{config.resourceMapping.reminderBell.resource_id}" controls bind:volume={config.resourceMapping.reminderBell.gain}></audio>
+                            <audio src="/api/resources/{config.resourceMapping.reminderBell.resource_id}" controls bind:volume={config.resourceMapping.reminderBell.gain}></audio>
                         {/if}
                         </div>
                     </td>

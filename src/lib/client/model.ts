@@ -72,7 +72,7 @@ export class BellClientModelBellRinger {
         this.audioPlayer = audioPlayer;
         this.dtm = dtm;
 
-        this.audioPlayer.src = `/admin/api/resources/${this.resource_id}`;
+        this.audioPlayer.src = `/api/resources/${this.resource_id}`;
         this.audioPlayer.preload = 'auto';
         this.audioPlayer.load();
         this.audioPlayer.addEventListener('ended', () => {
@@ -434,7 +434,7 @@ export class ClockClientModel {
 
     ringFinalBell(broadcast: boolean = false){
         if(broadcast){
-            fetch(`/admin/api/clock/${this.clockId}/ringBell`, {
+            fetch(`/api/clock/${this.clockId}/ringBell`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -454,7 +454,7 @@ export class ClockClientModel {
         this.audioParams.set(params);
         this.listeners.forEach(listener => listener.onAudioParamsChanged?.(params));
         if(broadcast){
-            fetch(`/admin/api/clock/${this.clockId}/audioParams`, {
+            fetch(`/api/clock/${this.clockId}/audioParams`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -468,11 +468,11 @@ export class ClockClientModel {
 
     finalBellURL(){
         const resourceId = this.config.resourceMapping.finalBell.resource_id;
-        return resourceId ? `/admin/api/resources/${resourceId}` : null;
+        return resourceId ? `/api/resources/${resourceId}` : null;
     }
 
     reminderBellURL(){
         const resourceId = this.config.resourceMapping.reminderBell.resource_id;
-        return resourceId ? `/admin/api/resources/${resourceId}` : null;
+        return resourceId ? `/api/resources/${resourceId}` : null;
     }
 }

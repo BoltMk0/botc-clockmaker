@@ -21,7 +21,7 @@
     }
 
     async function loadClockData(){
-        const response = await fetch('/admin/api/clock');
+        const response = await fetch('/api/clock');
         if(response.ok){
             const data = await response.json() as { instances: ClockInstanceInfo[] };
             return data.instances;

@@ -46,13 +46,15 @@
     <div style="display: flex; justify-content: center; align-items: center; gap: 10px;">
 
     {#if data.type === 'sfx' || data.type === 'music'}
-        <audio controls src={`/admin/api/resources/${data.id}`}></audio>
+        <audio controls src={`/api/resources/${data.id}`}></audio>
     {:else if data.type === 'charactertokenimage'}
         <TokenBackground>
-            <img src={`/admin/api/resources/${data.id}`} alt="Character" style="max-width: 100%; max-height: 100%; border-radius: 4px;"/>
+            <img src={`/api/resources/${data.id}`} alt="Character" style="max-width: 100%; max-height: 100%; border-radius: 4px;"/>
         </TokenBackground>
+    {:else if data.type === 'clockconfig'}
+        <a href="/admin/{data.name}/config">Edit</a>
     {:else if data.type === 'grimoirestate'}
-            {#await fetch(`/admin/api/resources/${data.id}`).then(res => res.json()) as Promise<GrimoireStateHistory>}
+            {#await fetch(`/api/resources/${data.id}`).then(res => res.json()) as Promise<GrimoireStateHistory>}
                 <div>Loading...</div>
             {:then result}
                 <div class="in-a-column">

@@ -50,7 +50,7 @@
 
         day = Math.max(0, day);
 
-        fetch(`/admin/api/clock/${id}/day`, {
+        fetch(`/api/clock/${id}/day`, {
             method: 'POST',
             body: JSON.stringify({day: day, max: max}),
             headers: {'Content-Type': 'application/json'}
@@ -67,7 +67,7 @@
     function startClock(params: {duration: number, ringBellAfter?: number}) {
         // send request to start clock
         
-        fetch(`/admin/api/clock/${id}/start`, {
+        fetch(`/api/clock/${id}/start`, {
             method: 'POST',
             body: JSON.stringify({
                 duration: params.duration,

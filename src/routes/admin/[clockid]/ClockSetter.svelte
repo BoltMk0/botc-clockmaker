@@ -30,7 +30,7 @@
 
     onMount(()=>{
         console.log("ClockSetter mounted, fetching config...");
-        fetch(`/admin/api/clock/${model.clockId}/config`).then(response => {
+        fetch(`/api/clock/${model.clockId}/config`).then(response => {
             if (!response.ok) {
                 throw new Error('Failed to fetch config');
             }
@@ -45,7 +45,7 @@
 
 
     function onStop(){
-        fetch(`/admin/api/clock/${model.clockId}/stop`, {
+        fetch(`/api/clock/${model.clockId}/stop`, {
             method: 'POST'
         }).then(response => {
             if (!response.ok) {
@@ -59,7 +59,7 @@
     }
 
     function onStart(){
-        fetch(`/admin/api/clock/${model.clockId}/start`, {
+        fetch(`/api/clock/${model.clockId}/start`, {
             method: 'POST'
         }).then(response => {
             if (!response.ok) {
@@ -74,7 +74,7 @@
     }
 
     function onBell(){
-        fetch(`/admin/api/clock/${model.clockId}/ringBell`, {
+        fetch(`/api/clock/${model.clockId}/ringBell`, {
             method: 'POST'
         }).then(response => {
             if (!response.ok) {
@@ -88,7 +88,7 @@
     }
 
     function setupClock(option: TimerOption){
-        fetch(`/admin/api/clock/${model.clockId}/setup`, {
+        fetch(`/api/clock/${model.clockId}/setup`, {
             method: 'POST',
             body: JSON.stringify({
                 duration: option.duration,
@@ -107,7 +107,7 @@
     }
 
     function setDay(day: number){
-        fetch(`/admin/api/clock/${model.clockId}/day`, {
+        fetch(`/api/clock/${model.clockId}/day`, {
             method: 'POST',
             body: JSON.stringify({day: day}),
             headers: {'Content-Type': 'application/json'}
@@ -123,7 +123,7 @@
     }
 
     function setPlayers(players: number){
-        fetch(`/admin/api/clock/${model.clockId}/playerCount`, {
+        fetch(`/api/clock/${model.clockId}/playerCount`, {
             method: 'POST',
             body: JSON.stringify({playerCount: players}),
             headers: {'Content-Type': 'application/json'}

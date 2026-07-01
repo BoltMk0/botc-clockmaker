@@ -28,7 +28,7 @@
 <ResourceThumbView title={prettifyResourceName(resource.name)} tags={[resource.type]} onDelete={() => onDelete(resource.id)} style={style}>
     {#if resource.type === 'sfx' || resource.type === 'music'}
         <audio bind:this={audioElement}
-        src={`/admin/api/resources/${resource.id}`} 
+        src={`/api/resources/${resource.id}`} 
         onloadeddata={onAudioLoad} onplaying={()=>{playing = true}} 
         onpause={()=>{playing = false; audioElement && (audioElement.currentTime = 0)}} 
         ontimeupdate={()=>{progress = audioElement?.currentTime || 0}}

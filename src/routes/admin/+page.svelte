@@ -10,7 +10,7 @@
         let newClockId = v7();
         const trimmedId = newClockId.trim();
         if(trimmedId){
-            fetch(`/admin/api/clock/create`, {
+            fetch(`/api/clock/create`, {
                 method: 'POST'
             }).then(response => {
                 if (!response.ok) {
@@ -29,7 +29,7 @@
 
     function deleteClock(clockData: {id: string, config: Config}){
         if(confirm(`Are you sure you want to delete clock "${clockData.config.teamName ?? clockData.id}"? This action cannot be undone.`)){
-            fetch(`/admin/api/clock/${clockData.id}/delete`, {
+            fetch(`/api/clock/${clockData.id}/delete`, {
                 method: 'POST'
             }).then(response => {
                 if (!response.ok) {

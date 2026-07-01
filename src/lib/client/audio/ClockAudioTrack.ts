@@ -97,7 +97,7 @@ export class ClockAudioTrack implements AudioTrackBase, ClientModelListenerType 
 
         if(this.audioParamsGainTxBufferStore && this.audioParamsPanTxBufferStore){
             this.unsubscribers.push(this.audioParamsGainTxBufferStore.subscribe(gain=>{
-                fetch(`/admin/api/clock/${this.clockModel.clockId}/audioParams`, {
+                fetch(`/api/clock/${this.clockModel.clockId}/audioParams`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -108,7 +108,7 @@ export class ClockAudioTrack implements AudioTrackBase, ClientModelListenerType 
                 });
             }));
             this.unsubscribers.push(this.audioParamsPanTxBufferStore.subscribe(pan=>{
-                fetch(`/admin/api/clock/${this.clockModel.clockId}/audioParams`, {
+                fetch(`/api/clock/${this.clockModel.clockId}/audioParams`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
