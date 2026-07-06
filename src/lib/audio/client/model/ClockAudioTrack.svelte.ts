@@ -1,6 +1,6 @@
 import { get } from "svelte/store";
 import { ResourceAudioTrackModel } from "./ResourceAudioTrackModel.svelte";
-import type { ClientModelListenerType, ClockClientModel } from "../../../../model/client/ClockClientModel";
+import type { ClientModelListenerType, ClockClientModel } from "$lib/model/client/ClockClientModel";
 import type { AudioTrackModelBase } from "./AudioTrackModelBase";
 import { writableThatDoesntPollTooMuch } from "$lib/common/WritableThatDoesntPollTooMuch";
 import type { AudioParams } from "$lib/common/AudioParams";
@@ -37,6 +37,7 @@ export class ClockAudioTrackModel implements AudioTrackModelBase, ClientModelLis
         return this.finalBellAudioModel.input;
     }
 
+
     constructor(audioContext: AudioContext, readonly clockModel: ClockClientModel, outputNode: AudioNode = audioContext.destination, options: ClockAudioTrackOptions = {}){
         this.logger.info(`Initializing ClockAudioTrack`);
         this.finalBellAudioModel = new ResourceAudioTrackModel(audioContext, outputNode);
@@ -71,6 +72,14 @@ export class ClockAudioTrackModel implements AudioTrackModelBase, ClientModelLis
         this.logger.log("ClockAudioTrack initialized with gain:", this.gain, "pan:", this.pan);
 
         this.setup();
+    }
+
+    get title(){
+        return this.clockModel.config.teamName ?? this.clockModel.clockId;
+    }
+
+    get id(){
+        return this.clockModel.clockId;
     }
 
     private setup(){

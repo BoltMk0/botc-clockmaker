@@ -5,13 +5,11 @@
     import type { Snippet } from 'svelte';
 
     const {
-        title, 
         audioTrack, 
         onTitleClick = undefined,
         fxSnippet = undefined,
         fxSnippetArg = undefined
     }: {
-        title?: string;
         audioTrack: AudioTrackModelBase;
         onTitleClick?: ()=>void;
         fxSnippet?: Snippet<[T|undefined]>;
@@ -21,7 +19,7 @@
 </script>
 <div class="channel-strip-main">
     <button class="strip-name-ele" onclick={onTitleClick} style="text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">
-        {title}
+        {audioTrack.title}
     </button>
     {#if fxSnippet}
     {@render fxSnippet(fxSnippetArg)}

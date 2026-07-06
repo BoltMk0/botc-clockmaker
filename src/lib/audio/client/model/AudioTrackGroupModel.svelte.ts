@@ -1,5 +1,5 @@
+import { v7 } from "uuid";
 import type { AudioTrackModelBase } from "./AudioTrackModelBase";
-import type { Resource } from "$lib/resources/common/types";
 
 export class AudioTrackGroupModel implements AudioTrackModelBase {
 
@@ -8,6 +8,9 @@ export class AudioTrackGroupModel implements AudioTrackModelBase {
     
     private cleanupEffects: ()=>void;
 
+    readonly id = v7();
+
+    title = $state("");
     gain = $state(0);
     pan = $state(0);
 

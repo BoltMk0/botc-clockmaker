@@ -2,6 +2,7 @@ import type { ClockClientModel } from "$lib/model/client/ClockClientModel";
 import type { AudioTrackModelBase } from "./AudioTrackModelBase";
 import { ClockAudioTrackModel, type ClockAudioTrackOptions } from "$lib/audio/client/model/ClockAudioTrack.svelte";
 import { ResourceAudioTrackModel } from "$lib/audio/client/model/ResourceAudioTrackModel.svelte";
+import { v7 } from "uuid";
 
 export class ClocktowerAudioEngine implements AudioTrackModelBase {
     private readonly masterGain: GainNode;
@@ -11,8 +12,11 @@ export class ClocktowerAudioEngine implements AudioTrackModelBase {
     private audioTracks: AudioTrackModelBase[] = [];
     private clockTracks: Map<ClockClientModel, ClockAudioTrackModel> = new Map();
 
+    readonly id = v7();
+
     gain: number = $state(1);
     pan: number = $state(0);
+    title: string = $state("Audio Engine");
 
     constructor(readonly audioContext: AudioContext, public clockCreationOptions: ClockAudioTrackOptions = {}){
         this.masterGain = this.audioContext.createGain();

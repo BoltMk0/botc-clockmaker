@@ -1,5 +1,6 @@
 import type { AudioTrackModelBase } from "./AudioTrackModelBase";
 import type { Resource } from "$lib/resources/common/types";
+import { v7 } from "uuid";
 
 export class ResourceAudioTrackModel implements AudioTrackModelBase {
     private readonly panNode: StereoPannerNode;
@@ -9,8 +10,11 @@ export class ResourceAudioTrackModel implements AudioTrackModelBase {
     
     private cleanupEffects: ()=>void;
 
+    readonly id = v7();
+
     gain = $state(0);
     pan = $state(0);
+    title: string = $state("");
 
     constructor(
         private readonly audioContext: AudioContext, 
