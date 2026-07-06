@@ -23,6 +23,22 @@ export class ResourceAudioTrackModel implements AudioTrackModelBase {
         this.panNode = audioContext.createStereoPanner();
         this.gainNode = audioContext.createGain();
         this.audio = new Audio();
+        this.audio.onerror = ()=>{
+            console.error(`AudioTrackModel ${this.id} - ERROR: ${this.audio.error?.message ?? "unknown error"}`);
+        }
+        this.audio.onloadstart = (ev)=>{
+            console.debug(`AudioTrackModel ${this.id} - Loading audio: ${this.audio.src}`);
+        }
+        this.audio.onloadeddata = (ev)=>{
+            console.debug(`AudioTrackModel ${this.id} - Finished loading audio. Duration ${this.audioSource.mediaElement.duration}s`);
+        }
+        this.audio.onended = (()=>{
+            console.debug(`AudioTrackModel ${this.id} - playback ended`);
+        });
+        this.audio.onplaying = (()=>{
+            console.debug(`AudioTrackModel ${this.id} - Is playing`, this.audio.src);
+        });
+
         this.audioSource = audioContext.createMediaElementSource(this.audio);
 
         this.gainNode.gain.value = 1.0;
@@ -44,6 +60,8 @@ export class ResourceAudioTrackModel implements AudioTrackModelBase {
     get input(){return this.gainNode; }
 
     loadResource(resource: Resource|string|null){
+        console.log(`Loading resource for audioTrackModel ${this.id}: ${resource}`)
+
         if(!resource){
             this.audio.pause();
             this.audio.src = "";
@@ -83,6 +101,7 @@ export class ResourceAudioTrackModel implements AudioTrackModelBase {
     }
 
     close(){
+        console.log(`Closing AudioTrackModel ${this.id}`);
         this.cleanupEffects();
         this.audioSource.disconnect();
         this.gainNode.disconnect();

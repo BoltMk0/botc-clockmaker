@@ -25,7 +25,7 @@
         {#if audioEngine}
             {#each audioEngine.allClockTrackModels() as {track, model} (model.clockId)}
                 <div style="">
-                    <ChannelStrip audioTrack={track} title={model.config.teamName ?? model.clockId} onTitleClick={()=>{model.ringFinalBell(true)}}/>
+                    <ChannelStrip audioTrack={track} onTitleClick={()=>{model.ringFinalBell(true)}}/>
                 </div>
             {/each}
         {/if}

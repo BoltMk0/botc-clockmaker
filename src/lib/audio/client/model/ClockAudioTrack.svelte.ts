@@ -157,9 +157,7 @@ export class ClockAudioTrackModel implements AudioTrackModelBase, ClientModelLis
     // CLIENT MODEL LISTENER CALLBACKS
     onFinalBellRing?: (() => void) | undefined = ()=>{
         this.finalBellAudioModel.currentTime = 0;
-        this.finalBellAudioModel.play().then(()=>{
-            this.logger.info("Played final bell audio");
-        }).catch((err)=>{
+        this.finalBellAudioModel.play().catch((err)=>{
             this.logger.error("Error playing final bell audio:", err);
         });
     };

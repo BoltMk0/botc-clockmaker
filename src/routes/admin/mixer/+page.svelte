@@ -21,6 +21,12 @@
             clients.forEach(client => {
                 audioEngine.getClockTrackModelFor(client);
             });
+
+            const resumeAudioContext = () => {
+                audioContext.resume();
+            };
+            window.addEventListener('pointerdown', resumeAudioContext);
+            onDestroy(() => window.removeEventListener('pointerdown', resumeAudioContext));
         }
     });
 
