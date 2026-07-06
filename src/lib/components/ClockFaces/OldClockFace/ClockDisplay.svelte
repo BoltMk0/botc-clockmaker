@@ -1,8 +1,6 @@
 <script lang="ts">
     import {formatTime, getSkyColor} from "$lib/common/util";
-    import type { Readable } from "svelte/store";
     import clockhand from '$lib/assets/clockhand.png';
-    import type { ClockClientModel } from "$lib/client/model";
 
     export let progress: number;
     export let timeRemaining: number;

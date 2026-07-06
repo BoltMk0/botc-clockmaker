@@ -1,7 +1,7 @@
 import {produce, type Unsafe} from 'sveltekit-sse';
 import type { AudioParamsMessage, BellRingRequestMessage, ClockMessage, DayMessage, PlayerCountMessage, WSMessage } from '$lib/common/comms';
 
-import { BOTCTClock, getBOTCTClockInstanceManager, InstanceNotFoundError } from "$lib/server/model";
+import { BOTCTClock, getBOTCTClockInstanceManager, InstanceNotFoundError } from "$lib/model/server/model";
 import { v7 } from 'uuid';
 import { error } from '@sveltejs/kit';
 import type { AudioParams } from '$lib/common/AudioParams';

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { ClockClientModel, ClientModelListenerType } from "$lib/client/model";
+    import type { ClockClientModel, ClientModelListenerType } from "$lib/model/client/ClockClientModel";
 
     const NOTIFICATION_TIMEOUT = 10000;
 

@@ -1,5 +1,4 @@
 <script lang="ts">
-    import HSlider from "$lib/components/AudioMixerComponents/HSlider.svelte";
     import DrawableCanvas from "$lib/components/DrawableCanvas.svelte";
 
     export let editing: boolean = false;

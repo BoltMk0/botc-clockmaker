@@ -252,7 +252,7 @@
     <div class="resource-explorer-main">
         <div class="resource-explorer-type-list">
             {#each resourceTypes as type}
-                <button class="resource-type-item" class:active={$visibleResourceType === type} on:click={() => visibleResourceType.set(type)}>
+                <button class="resource-type-item" class:active={$visibleResourceType === type} onclick={() => visibleResourceType.set(type)}>
                     {prettifyResourceType(type)}
                 </button>
             {/each}
@@ -262,10 +262,10 @@
             class:drop-active={isDropActive}
             role="region"
             aria-label="Resource explorer list (drop zone)"
-            on:dragenter={handleDragEnter}
-            on:dragover={handleDragOver}
-            on:dragleave={handleDragLeave}
-            on:drop={handleDrop}
+            ondragenter={handleDragEnter}
+            ondragover={handleDragOver}
+            ondragleave={handleDragLeave}
+            ondrop={handleDrop}
         >
             {#each sortedResources.find(r => r.type === $visibleResourceType)?.resources ?? [] as resource}
                 {#if resource.type === 'sfx' || resource.type === 'music' }

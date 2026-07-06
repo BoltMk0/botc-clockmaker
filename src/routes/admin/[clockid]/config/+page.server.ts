@@ -1,4 +1,4 @@
-import { getBOTCTClockInstanceManager } from "$lib/server/model";
+import { getBOTCTClockInstanceManager } from "$lib/model/server/model";
 import { listResources } from "$lib/resources/server/resources";
 import type { Actions } from "./$types";
 

@@ -11,6 +11,10 @@
 
     const currentPath = $derived(page.url.pathname);
 
+    let {
+        children
+    } = $props();
+
 </script>
 
 
@@ -25,7 +29,7 @@
         {/each}
     </div>
     <div class="settings-layout-content">
-        <slot/>
+        {@render children()}
     </div>
 </div>
 

@@ -59,24 +59,6 @@
 
 </script>
 
-<style>
-    table, td {
-        border-collapse: collapse;
-    }
-    td {
-        padding: 2px;
-    }
-
-    td>.button-style {
-        display: block;
-        width: 100%;
-    }
-
-    a.button-style {
-        border: 2px solid #0000;
-    }
-</style>
-
 {#snippet renderClockSettings(clock: ClockInstanceInfo)}
     <ClockEditView {clock} sfx_resources={data.sfxResources}/>
 {/snippet}

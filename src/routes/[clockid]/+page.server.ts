@@ -1,4 +1,4 @@
-import { getBOTCTClockInstanceManager, InstanceNotFoundError } from '$lib/server/model';
+import { getBOTCTClockInstanceManager, InstanceNotFoundError } from '$lib/model/server/model';
 import { error } from '@sveltejs/kit';
 
 

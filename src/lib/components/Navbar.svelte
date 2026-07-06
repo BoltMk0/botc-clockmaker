@@ -2,7 +2,7 @@
     import { onDestroy, onMount } from "svelte";
     import type { FullDisplayMode } from "./FullDisplay/fullDisplayTypes";
     import { browser } from "$app/environment";
-    import HSlider from "./AudioMixerComponents/HSlider.svelte";
+    import HSlider from "$lib/audio/client/components/HSlider.svelte";
     import type { ClockInstanceInfo } from "$lib/common/config";
 
     export let visible: boolean = false;

@@ -2,7 +2,7 @@
     import { onMount } from "svelte";
     import type { Config, TimerOption } from "$lib/common/config";
     import { formatTime } from "$lib/common/util";
-    import type { ClockClientModel } from "$lib/client/model";
+    import type { ClockClientModel } from "$lib/model/client/ClockClientModel";
     import bell_and_waves from '$lib/assets/bell.and.waves.left.and.right.png';
     import gearshape from '$lib/assets/gearshape.fill.png';
     import timer from '$lib/assets/timer.png';

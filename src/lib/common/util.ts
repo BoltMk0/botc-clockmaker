@@ -1,4 +1,4 @@
-import type { CommsConnectionStatus } from "$lib/client/model";
+import type { CommsConnectionStatus } from "$lib/model/client/ClockClientModel";
 
 const sky_color_points = [
     { progress: 0, r: 140, g: 169, b: 255 },   // Dawn

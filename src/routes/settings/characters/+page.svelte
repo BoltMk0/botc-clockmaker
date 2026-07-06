@@ -3,7 +3,7 @@
     import { page } from '$app/state';
     import { deleteReminderToken, fetchReminderTokensForCharacter, updateReminderToken } from '$lib/database/client/reminder_tokens.js';
     import { CHARACTER_CATEGORIES, type Character, type ReminderToken } from '$lib/database/common/types.js';
-    import HSlider from '$lib/components/AudioMixerComponents/HSlider.svelte';
+    import HSlider from '$lib/audio/client/components/HSlider.svelte';
     import CustomOverlay from '$lib/components/CustomOverlay.svelte';
     import ReminderTokenView from '$lib/components/ReminderTokenView.svelte';
 

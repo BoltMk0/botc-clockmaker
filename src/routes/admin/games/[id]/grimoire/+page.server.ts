@@ -1,6 +1,6 @@
 import { getFullGame } from '$lib/database/server/games.js';
 import { get_grimoire_state_history_resource_for_game, set_grimoire_state_history_resource_for_game } from '$lib/resources/server/grimoire-state.js';
-import { getBOTCTClockInstanceManager } from '$lib/server/model.js';
+import { getBOTCTClockInstanceManager } from '$lib/model/server/model.js';
 import { isGrimoireStateHistory } from './types.js';
 
 export async function load({params}){

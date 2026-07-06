@@ -3,8 +3,13 @@
     import { formatGain } from "../util";
     import VSlider from "../VSlider.svelte";
 
-    export let value: number;
-    export let onchange: (value: number) => void;
+    let {
+        value = $bindable(0),
+        onchange = undefined
+    }: {
+        value: number;
+        onchange?: ()=>void;
+    } = $props()
 </script>
 
 <div>

@@ -1,5 +1,5 @@
 import { validateConfig } from "$lib/common/config";
-import { getBOTCTClockInstanceManager } from "$lib/server/model.js";
+import { getBOTCTClockInstanceManager } from "$lib/model/server/model.js";
 import { error, json } from "@sveltejs/kit";
 
 export async function GET({params}){

@@ -1,4 +1,4 @@
-import { getBOTCTClockInstanceManager } from '$lib/server/model';
+import { getBOTCTClockInstanceManager } from '$lib/model/server/model';
 import { json } from '@sveltejs/kit';
 
 export async function POST({params}) {

@@ -6,7 +6,7 @@
     import { browser } from "$app/environment";
 
     import { goto } from '$app/navigation';
-    import { ClockClientModel } from "$lib/client/model.js";
+    import { ClockClientModel } from "$lib/model/client/ClockClientModel.js";
     import type { ClockInstanceInfo } from "$lib/common/config.js";
     import { get, writable, type Readable, type Writable } from "svelte/store";
     import FullDisplay from "$lib/components/FullDisplay/FullDisplay.svelte";

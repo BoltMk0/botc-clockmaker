@@ -1,4 +1,4 @@
-import { getBOTCTClockInstanceManager } from '$lib/server/model';
+import { getBOTCTClockInstanceManager } from '$lib/model/server/model';
 
 export async function POST({ params, request }) {
     console.log("Received audio params update request for clock", params.clockid);

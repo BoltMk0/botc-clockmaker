@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { ClockClientModel } from "$lib/client/model";
+    import type { ClockClientModel } from "$lib/model/client/ClockClientModel";
     import { onDestroy, onMount } from "svelte";
 
     export let model: ClockClientModel;

@@ -1,29 +1,37 @@
-<script lang="ts">
-    import HSlider from '../HSlider.svelte';
-    import VSlider from '../VSlider.svelte';
-    import { formatGain } from '../util.js';
-    import type { AudioTrackBase } from '$lib/client/audio/AudioTrackBase.js';
+<script lang="ts" generics="T">
+    import type { AudioTrackModelBase } from '$lib/audio/client/model/engine/AudioTrackModelBase.js';
     import ChannelStripPan from './ChannelStripPan.svelte';
     import ChannelStripGain from './ChannelStripGain.svelte';
-    export let title: string;
-    export let audioTrack: AudioTrackBase;
-    export let onAudioParamsChange: (params: {gain: number, pan: number}) => void = () => {};
-    export let onChannelStripTitleClick: () => void = () => {};
-    
+    import type { Snippet } from 'svelte';
 
-    let pan = audioTrack.pan;
-    let gain = audioTrack.gain;
+    const {
+        title, 
+        audioTrack, 
+        onTitleClick = undefined,
+        fxSnippet = undefined,
+        fxSnippetArg = undefined
+    }: {
+        title?: string;
+        audioTrack: AudioTrackModelBase;
+        onTitleClick?: ()=>void;
+        fxSnippet?: Snippet<[T|undefined]>;
+        fxSnippetArg?: T
+    } = $props();
 
 </script>
 <div class="channel-strip-main">
-    <button class="strip-name-ele" on:click={onChannelStripTitleClick} style="text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">
+    <button class="strip-name-ele" onclick={onTitleClick} style="text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">
         {title}
     </button>
+    {#if fxSnippet}
+    {@render fxSnippet(fxSnippetArg)}
+    {/if}
+    <div class="channel-strip-padding"></div>
     <div style="width: 6em;">
-        <ChannelStripPan bind:pan={$pan} onchange={(value) => { onAudioParamsChange({gain: $gain, pan: value}) }} />
+        <ChannelStripPan bind:pan={audioTrack.pan} />
     </div>
     <div>
-        <ChannelStripGain bind:value={$gain} onchange={(value) => { onAudioParamsChange({gain: value, pan: $pan}) }} />
+        <ChannelStripGain bind:value={audioTrack.gain}/>
     </div>
 </div>
 
@@ -50,5 +58,11 @@
         border: 4px solid var(--theme-slider-trim);
         border-radius: 8px;
         box-shadow: 0 0 10px #0006 inset, 0px 4px 8px 0px #0009;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .channel-strip-padding {
+        flex: 1;
     }
 </style>

@@ -2,7 +2,7 @@
     import { goto, invalidateAll, refreshAll } from '$app/navigation';
     import { page } from '$app/state';
     import type { Config } from '$lib/common/config.js';
-    import HSlider from '$lib/components/AudioMixerComponents/HSlider.svelte';
+    import HSlider from '$lib/audio/client/components/HSlider.svelte';
     import Navbar from '$lib/components/Navbar.svelte';
 
     interface ConfigPageData {

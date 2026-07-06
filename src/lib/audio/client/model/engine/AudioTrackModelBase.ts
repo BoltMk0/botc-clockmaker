@@ -1,11 +1,14 @@
 import type { Writable } from "svelte/store";
 
-export interface AudioTrackBase {
-    get gain(): Writable<number>;
-    get pan(): Writable<number>;
+export interface AudioTrackModelBase {
+    get input(): AudioNode;
+    
+    gain: number;
+    pan: number;
 
     getGainDB(): number;
     setGainDB(gainDB: number): void;
+
     
     close(): void;
 }

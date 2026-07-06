@@ -1,11 +1,11 @@
 <script lang="ts">
     import { browser } from '$app/environment';
-    import { ClockClientModel } from '$lib/client/model.js';
+    import { ClockClientModel } from '$lib/model/client/ClockClientModel.js';
     import { onDestroy, onMount } from 'svelte';
     import FullDisplay from '$lib/components/FullDisplay/FullDisplay.svelte';
     import Navbar from '$lib/components/Navbar.svelte';
     import type { FullDisplayMode } from '$lib/components/FullDisplay/fullDisplayTypes.js';
-    import { ClocktowerAudioEngine } from '$lib/client/audio/AudioEngine.js';
+    import { ClocktowerAudioEngine } from '$lib/audio/client/model/engine/AudioEngine.svelte.js';
 
     export let data;
 
@@ -56,7 +56,7 @@
             audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
             audioEngine = new ClocktowerAudioEngine(audioContext);
             clients.forEach(client => {
-                audioEngine.getClockTrackFor(client);
+                audioEngine.getClockTrackModelFor(client);
             });
         }
     });

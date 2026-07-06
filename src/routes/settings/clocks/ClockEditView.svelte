@@ -1,8 +1,7 @@
 <script lang="ts">
-    import { goto, invalidateAll, refreshAll } from '$app/navigation';
-    import type { ClockInstanceInfo, Config } from '$lib/common/config.js';
-    import HSlider from '$lib/components/AudioMixerComponents/HSlider.svelte';
-    import Navbar from '$lib/components/Navbar.svelte';
+    import { goto, invalidateAll } from '$app/navigation';
+    import type { ClockInstanceInfo } from '$lib/common/config.js';
+    import HSlider from '$lib/audio/client/components/HSlider.svelte';
 
     interface ConfigPageData {
         clock: ClockInstanceInfo;
