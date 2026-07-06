@@ -10,12 +10,8 @@
     export let data;
 
     $: clients = browser ? data.instances.map(({id, config, audioParams}) => new ClockClientModel(id, config, audioParams)) : [];
-    $: clients?.forEach(client => {
-        client.init(undefined);
-    });
     
-    let audioEngine: ClocktowerAudioEngine;
-    let audioContext: AudioContext | null = null;
+    let teardown: ()=>void;
     
     let showNavbar: boolean = false;
 
@@ -25,45 +21,16 @@
     
     let displayMode: FullDisplayMode;
 
-    async function unlockAudio() {
-        if (!browser || audioUnlocked || !audioContext) return;
-        try {
-            if (audioContext.state !== 'running') {
-                await audioContext.resume();
-            }
-            // Some browsers are happier if something touches the graph after resume.
-            const osc = audioContext.createOscillator();
-            const gain = audioContext.createGain();
-            gain.gain.value = 0;
-            osc.connect(gain).connect(audioContext.destination);
-            osc.start();
-            osc.stop(audioContext.currentTime + 0.01);
-            audioUnlocked = true;
-        } catch (err) {
-            console.warn('Audio unlock failed (likely autoplay policy).', err);
-        }
-    }
 
     onMount(() => {
         if(browser){
-            audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-            // Edge/Chromium often requires a user gesture before audio will play.
-            window.addEventListener('pointerdown', unlockAudio, { once: true, capture: true });
-            window.addEventListener('keydown', unlockAudio, { once: true, capture: true });
-            window.addEventListener('click', unlockAudio, { once: true, capture: true });
-
-            clients.forEach(client => client.init(undefined));
-            audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-            audioEngine = new ClocktowerAudioEngine(audioContext);
-            clients.forEach(client => {
-                audioEngine.getClockTrackModelFor(client);
-            });
+            clients.forEach(client => client.init());
+            ({ teardown} = ClocktowerAudioEngine.createNewEngineForClockClients(clients, []));
         }
     });
 
     onDestroy(()=>{
-        clients.forEach(model => model.close());
-        audioContext?.close();
+        if(teardown) teardown();
     })
 </script>
 

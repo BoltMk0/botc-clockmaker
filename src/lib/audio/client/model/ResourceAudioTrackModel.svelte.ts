@@ -12,9 +12,10 @@ export class ResourceAudioTrackModel implements AudioTrackModelBase {
 
     readonly id = v7();
 
-    gain = $state(0);
+    gain = $state(0.5);
     pan = $state(0);
     title: string = $state("");
+
 
     constructor(
         private readonly audioContext: AudioContext, 
@@ -75,16 +76,26 @@ export class ResourceAudioTrackModel implements AudioTrackModelBase {
         return this.audio.play();
     }
 
+    playFromRandomPosition(){
+        let startPos = Math.random() * this.audio.duration;
+        this.seek(startPos);
+        this.play();
+    }
+
     pause(){
         this.audio.pause();
     }
 
     seek(position: number){
+        console.debug(`ResourceAudioTrackModel ${this.id} - seeking to`, position)
         this.currentTime = position
     }
 
     get currentTime(): number { return this.audio.currentTime; }
     set currentTime(newValue: number) { this.audio.currentTime = newValue; }
+
+    get loop() { return this.audio.loop; }
+    set loop(newValue: boolean) {this.audio.loop = newValue; }
 
     setGainWithInterpolation(gain: number, interpolation_s: number = 0.1){
         this.gainNode.gain.setTargetAtTime(gain, this.audioContext.currentTime, this.audioContext.currentTime + interpolation_s);

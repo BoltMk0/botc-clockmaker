@@ -3,22 +3,55 @@ import type { AudioTrackModelBase } from "./AudioTrackModelBase";
 import { ClockAudioTrackModel, type ClockAudioTrackOptions } from "$lib/audio/client/model/ClockAudioTrack.svelte";
 import { ResourceAudioTrackModel } from "$lib/audio/client/model/ResourceAudioTrackModel.svelte";
 import { v7 } from "uuid";
+import { browser } from "$app/environment";
+import { AudioTrackGroupModel } from "./AudioTrackGroupModel.svelte";
+import type { Resource } from "$lib/resources/common/types";
+
+const MAX_AMBIENCE_TRACKS = 4;
+
+class AmbienceEngine extends AudioTrackGroupModel {
+    private _playing = $state(false);
+    get playing() { return this._playing; }
+
+    togglePlayPause(){
+        if(this._playing) this.stop();
+        else this.play();
+    }
+
+    play(){
+        for(const t of this.audioTracks){
+            console.debug(`AmbienceEngine - Playing track ${t.id} at random position`);
+            (t as ResourceAudioTrackModel).playFromRandomPosition();
+        }
+        this._playing = true;
+    }
+
+    stop(){
+        for(const t of this.audioTracks){
+            (t as ResourceAudioTrackModel).pause();
+        }
+        this._playing = false;
+    }
+}
 
 export class ClocktowerAudioEngine implements AudioTrackModelBase {
     private readonly masterGain: GainNode;
     private readonly masterPanner: StereoPannerNode;
     private cleanupEffects: ()=>void;
+    private saveStateTimeout: ReturnType<typeof setTimeout>|null = null;
 
-    private audioTracks: AudioTrackModelBase[] = [];
-    private clockTracks: Map<ClockClientModel, ClockAudioTrackModel> = new Map();
+    readonly clockTracks: AudioTrackGroupModel;
+    readonly ambienceTracks: AmbienceEngine|null;
 
-    readonly id = v7();
+    readonly id: string;
 
     gain: number = $state(1);
     pan: number = $state(0);
-    title: string = $state("Audio Engine");
+    readonly title: string = "Audio Engine";
+    
+    constructor(readonly audioContext: AudioContext, clockModels: ClockClientModel[], readonly ambienceResources: Resource[], public clockCreationOptions: ClockAudioTrackOptions = {}){
+        
 
-    constructor(readonly audioContext: AudioContext, public clockCreationOptions: ClockAudioTrackOptions = {}){
         this.masterGain = this.audioContext.createGain();
         this.masterPanner = this.audioContext.createStereoPanner();
 
@@ -30,54 +63,48 @@ export class ClocktowerAudioEngine implements AudioTrackModelBase {
         this.cleanupEffects = $effect.root(()=>{
             $effect(()=>{
                 this.masterGain.gain.value = this.gain;
+                this.saveState();
             });
 
             $effect(()=>{
                 this.masterPanner.pan.value = this.pan;
+                this.saveState();
             });
-        })
+        });
+
+        this.clockTracks = new AudioTrackGroupModel("Clocks", this.audioContext, this.input);
+        for(const model of clockModels){
+            const t = new ClockAudioTrackModel(this.audioContext, model, this.clockTracks.input, clockCreationOptions);
+            this.clockTracks.addAudioTrackModel(t);
+        }
+
+        if(ambienceResources.length > 0){
+            this.ambienceTracks = new AmbienceEngine("Ambience Engine", this.audioContext, this.input);
+            for(let i=0; i<Math.min(ambienceResources.length, MAX_AMBIENCE_TRACKS); i++){
+                const t = new ResourceAudioTrackModel(this.audioContext, this.ambienceTracks.input);
+                t.title = ambienceResources[i].name;
+                t.loadResource(ambienceResources[i]);
+                t.loop = true;
+                this.ambienceTracks.addAudioTrackModel(t);
+            }
+        } else {
+            this.ambienceTracks = null;
+        }
+
+        this.id = this.title.toLowerCase().replaceAll(' ', '_');
+
+        this.loadState();
     }
 
     get input(){ return this.masterGain; }
 
-    getClockTrackModelFor(clockClientModel: ClockClientModel): ClockAudioTrackModel {
-        if(this.clockTracks.has(clockClientModel)){
-            return this.clockTracks.get(clockClientModel)!;
-        }
-        const track = new ClockAudioTrackModel(this.audioContext, clockClientModel, this.input, this.clockCreationOptions);
-        this.clockTracks.set(clockClientModel, track);
-        this.audioTracks.push(track);
-        return track;
+    getClockTrackModelWithId(id: string){
+        return this.clockTracks.getTrack(id);
     }
-
-    createResourceAudioTrackModel(){
-        const t = new ResourceAudioTrackModel(this.audioContext, this.masterGain);
-        this.audioTracks.push(t);
-        return t;
-    }
-
-    forEachClockTrackModel(callback: (track: ClockAudioTrackModel, model: ClockClientModel) => void){
-        this.clockTracks.forEach((track, model)=>{
-            callback(track, model);
-        });
-    }
-
-    allClockTrackModels(): {track: ClockAudioTrackModel, model: ClockClientModel}[]{
-        const result: {track: ClockAudioTrackModel, model: ClockClientModel}[] = [];
-        this.clockTracks.forEach((track, model)=>{
-            result.push({track, model});
-        });
-        return result;
-    }
-        
 
     close(){
-        for(const track of this.audioTracks){
-            track.close();
-        }
-        this.clockTracks.clear();
-        this.audioTracks = [];
-
+        this.clockTracks.close();
+        this.ambienceTracks?.close();
         this.masterGain.disconnect();
         this.masterPanner.disconnect();
         this.audioContext.close();
@@ -90,5 +117,46 @@ export class ClocktowerAudioEngine implements AudioTrackModelBase {
 
     setGainDB(gainDB: number): void {
         this.gain = Math.pow(10, gainDB / 20);
+    }
+
+    static createNewEngineForClockClients(clients: ClockClientModel[], ambienceResources: Resource[], clockCreationOptions: ClockAudioTrackOptions = {}){
+        if(!browser){
+            throw new Error("AudioEngine instances cannot be created outside of a browser context");
+        }
+
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const audioEngine = new ClocktowerAudioEngine(audioContext, clients, ambienceResources, clockCreationOptions);
+
+        const resumeAudioContext = () => {
+            audioContext.resume();
+        };
+        window.addEventListener('pointerdown', resumeAudioContext);
+
+        return {
+            audioContext,
+            audioEngine,
+            teardown: ()=>{
+                window.removeEventListener('pointerdown', resumeAudioContext);
+                audioEngine.close();
+            }
+        }
+    }
+
+    private saveState(){
+        if(this.saveStateTimeout) clearTimeout(this.saveStateTimeout);
+        this.saveStateTimeout = setTimeout(()=>{
+            console.log(`Saved audio state of ${this.title}`)
+            localStorage.setItem(`${this.id}_audio_state`, JSON.stringify({gain: this.gain, pan: this.pan}));
+            this.saveStateTimeout = null;
+        }, 500);
+    }
+
+    private loadState(){
+        const storedValue = localStorage.getItem(`${this.id}_audio_state`);
+        if(storedValue){
+            const parsedValue = JSON.parse(storedValue);
+            this.gain = parsedValue.gain ?? this.gain;
+            this.pan = parsedValue.pan ?? this.pan;
+        }
     }
 }

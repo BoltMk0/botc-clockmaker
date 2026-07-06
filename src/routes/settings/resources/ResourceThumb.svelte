@@ -2,8 +2,8 @@
     import type { Resource } from "$lib/resources/common/types";
     import CustomOverlay from "$lib/components/CustomOverlay.svelte";
     import TokenBackground from "$lib/components/TokenBackground.svelte";
-    import type { GrimoireStateHistory } from "../games/[id]/grimoire/types";
     import { prettifyResourceName } from "$lib/resources/common/util";
+    import { type GrimoireStateHistory } from "../../admin/games/[id]/grimoire/types";
 
     export let data: Resource;
     export let onDelete: (id: string) => void;
@@ -45,7 +45,7 @@
     </div>
     <div style="display: flex; justify-content: center; align-items: center; gap: 10px;">
 
-    {#if data.type === 'sfx' || data.type === 'music'}
+    {#if data.type === 'sfx' || data.type === 'music' || data.type === 'ambience'}
         <audio controls src={`/api/resources/${data.id}`}></audio>
     {:else if data.type === 'charactertokenimage'}
         <TokenBackground>

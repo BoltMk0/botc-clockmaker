@@ -279,7 +279,7 @@ export class ClockClientModel {
         }
     }
 
-    init(audioPlayers: {finalBellAudioPlayer: HTMLAudioElement, reminderBellAudioPlayer: HTMLAudioElement}|undefined = undefined){
+    init(){
         console.log("Initializing ClockClientModel connections for clockId:", this.clockId);
         const self = this;
         if(this.sse_connection_manager === null){
@@ -288,15 +288,6 @@ export class ClockClientModel {
                     self.handleClockMessage(msg);
                 }
             });
-        }
-
-        if(audioPlayers) {
-            if(this.config.resourceMapping.finalBell.resource_id) {
-                this.finalBellRinger = new BellClientModelBellRinger(this.config.resourceMapping.finalBell.resource_id, audioPlayers.finalBellAudioPlayer, this.deltaTimeManager);
-            }
-            if(this.config.resourceMapping.reminderBell.resource_id) {
-                this.reminderBellRinger = new BellClientModelBellRinger(this.config.resourceMapping.reminderBell.resource_id, audioPlayers.reminderBellAudioPlayer, this.deltaTimeManager);
-            }
         }
     }
 

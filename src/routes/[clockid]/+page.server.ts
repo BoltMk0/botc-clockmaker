@@ -1,4 +1,5 @@
 import { getBOTCTClockInstanceManager, InstanceNotFoundError } from '$lib/model/server/model';
+import { listAmbienceResources } from '$lib/resources/server/ambience.js';
 import { error } from '@sveltejs/kit';
 
 
@@ -6,9 +7,11 @@ export async function load({params}){
     try {
         const clock = getBOTCTClockInstanceManager().getInstance(params.clockid);
         const clientIds = getBOTCTClockInstanceManager().listInstances().map(instance => ({id: instance.id, name: instance.config.teamName ?? instance.id}));
+        const ambienceResources = listAmbienceResources();
         return {
             config: clock.getConfig(),
-            clientIds
+            clientIds,
+            ambienceResources
         }
     } catch (er) {
         if (er instanceof InstanceNotFoundError) {

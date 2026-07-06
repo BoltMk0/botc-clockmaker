@@ -1,5 +1,5 @@
 <script lang="ts">
-    import AudioMixerText from "../AudioMixerText.svelte";
+    import AudioMixerText from "./AudioMixerText.svelte";
     import { formatPan } from "../util";
     import HSlider from "../HSlider.svelte";
 

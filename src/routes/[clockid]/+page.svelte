@@ -11,9 +11,8 @@
     export let data;
 
     let enterButtonClicked: boolean =  true;
-    let audioContext: AudioContext;
-    let audioEngine: ClocktowerAudioEngine;
     let model: ClockClientModel = new ClockClientModel(page.params.clockid, data.config, data.config.audioParams);
+    let teardown: ()=>void;
 
     let displaySize = 700;
     let displayMode: FullDisplayMode = "original";
@@ -27,16 +26,13 @@
     }
 
     onMount(() => {
-        if(browser){
-            model.init();
-            audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-            audioEngine = new ClocktowerAudioEngine(audioContext);
-            audioEngine.getClockTrackModelFor(model);
-        }
+        model.init();
+        ({ teardown } = ClocktowerAudioEngine.createNewEngineForClockClients([model], data.ambienceResources));
     });
 
     onDestroy(()=>{
         model.close();
+        if(teardown) teardown();
     });
 
 </script>

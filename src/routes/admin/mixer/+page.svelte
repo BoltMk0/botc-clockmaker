@@ -8,35 +8,18 @@
 
     export let data;
 
-    let audioEngine: ClocktowerAudioEngine;
-    let audioContext: AudioContext;
-
     let clients: ClockClientModel[] = data.instances.map(({id, config, audioParams}) => new ClockClientModel(id, config, audioParams));
         
     onMount(() => {
-        if(browser){
-            clients.forEach(client => client.init(undefined));
-            audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-            audioEngine = new ClocktowerAudioEngine(audioContext, {enableParamsTx: true});
-            clients.forEach(client => {
-                audioEngine.getClockTrackModelFor(client);
-            });
-
-            const resumeAudioContext = () => {
-                audioContext.resume();
-            };
-            window.addEventListener('pointerdown', resumeAudioContext);
-            onDestroy(() => window.removeEventListener('pointerdown', resumeAudioContext));
-        }
+        clients.forEach(c=>c.init());
     });
 
     onDestroy(() => {
-        if(audioEngine) audioEngine.close();
         clients.forEach(client => client.close());
     });
 
 </script>
 
-<AudioMixer {audioEngine}/>
+<AudioMixer {clients} ambienceResources={data.ambienceResources}/>
 
 <Navbar/>

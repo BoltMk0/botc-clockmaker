@@ -12,10 +12,13 @@ export async function GET({params}){
         return new Response("Resource data not found", { status: 404 });
     }
     // Node Buffer isn't typed as a valid web BodyInit; convert for Response.
-    return new Response(new Uint8Array(data), {
+    const bytes = new Uint8Array(data);
+    return new Response(bytes, {
         headers: {
             "Content-Type": resource.mimetype,
-            "Content-Disposition": `inline; filename="${resource.name}"`
+            "Content-Disposition": `inline; filename="${resource.name}"`,
+            "Content-Length": String(bytes.byteLength),
+            "Accept-Ranges": "bytes"
         }
     });
 }

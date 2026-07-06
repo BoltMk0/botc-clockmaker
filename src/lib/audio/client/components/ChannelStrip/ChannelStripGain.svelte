@@ -1,5 +1,5 @@
 <script lang="ts">
-    import AudioMixerText from "../AudioMixerText.svelte";
+    import AudioMixerText from "./AudioMixerText.svelte";
     import { formatGain } from "../util";
     import VSlider from "../VSlider.svelte";
 
