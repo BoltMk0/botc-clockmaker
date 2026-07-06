@@ -6,7 +6,7 @@
     import Navbar from '$lib/components/Navbar.svelte';
     import type { FullDisplayMode } from '$lib/components/FullDisplay/fullDisplayTypes.js';
     import { browser } from '$app/environment';
-    import { ClocktowerAudioEngine } from '$lib/audio/client/model/engine/AudioEngine.svelte.js';
+    import { ClocktowerAudioEngine } from '$lib/audio/client/model/AudioEngine.svelte.js';
 
     export let data;
 

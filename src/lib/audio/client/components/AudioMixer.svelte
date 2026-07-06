@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { ClocktowerAudioEngine } from "$lib/audio/client/model/engine/AudioEngine.svelte";
+    import { ClocktowerAudioEngine } from "$lib/audio/client/model/AudioEngine.svelte";
     import ChannelStrip from "./ChannelStrip/ChannelStrip.svelte";
     
     let {

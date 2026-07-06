@@ -1,5 +1,5 @@
 <script lang="ts" generics="T">
-    import type { AudioTrackModelBase } from '$lib/audio/client/model/engine/AudioTrackModelBase.js';
+    import type { AudioTrackModelBase } from '$lib/audio/client/model/AudioTrackModelBase.js';
     import ChannelStripPan from './ChannelStripPan.svelte';
     import ChannelStripGain from './ChannelStripGain.svelte';
     import type { Snippet } from 'svelte';

@@ -2,7 +2,7 @@
     import { ClockClientModel } from '$lib/model/client/ClockClientModel.js';
     import { onDestroy, onMount } from 'svelte';
     import { browser } from '$app/environment';
-    import { ClocktowerAudioEngine } from '$lib/audio/client/model/engine/AudioEngine.svelte.js';
+    import { ClocktowerAudioEngine } from '$lib/audio/client/model/AudioEngine.svelte.js';
     import AudioMixer from '$lib/audio/client/components/AudioMixer.svelte';
     import Navbar from '$lib/components/Navbar.svelte';
 

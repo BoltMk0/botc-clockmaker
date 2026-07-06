@@ -1,7 +1,7 @@
 import type { ClockClientModel } from "$lib/model/client/ClockClientModel";
 import type { AudioTrackModelBase } from "./AudioTrackModelBase";
-import { ClockAudioTrackModel, type ClockAudioTrackOptions } from "$lib/audio/client/model/engine/ClockAudioTrack.svelte";
-import { ResourceAudioTrackModel } from "$lib/audio/client/model/engine/ResourceAudioTrackModel.svelte";
+import { ClockAudioTrackModel, type ClockAudioTrackOptions } from "$lib/audio/client/model/ClockAudioTrack.svelte";
+import { ResourceAudioTrackModel } from "$lib/audio/client/model/ResourceAudioTrackModel.svelte";
 
 export class ClocktowerAudioEngine implements AudioTrackModelBase {
     private readonly masterGain: GainNode;
