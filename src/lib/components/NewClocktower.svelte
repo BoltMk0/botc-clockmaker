@@ -5,6 +5,7 @@
     import PlayerCountDisplay from "./ClockFaces/NewClockFace/PlayerCountDisplay.svelte";
     import Bunting from "./ClocktowerSillhouette/Bunting.svelte";
     import ClocktowerSillhouette from "./ClocktowerSillhouette/ClocktowerSillhouette.svelte";
+    import Clouds from "./Clouds.svelte";
 
     export let totalTime: number = 120; // seconds
     export let timeRemaining: number = 120; // seconds
@@ -48,7 +49,9 @@
     }
 </style>
 <div style="position: relative; width: 100%; height: 100%; bottom: 0; --clocktower-color-base: {clocktowerColorBase}; {style}; --clocktower-color-highlight: hsl(from var(--clocktower-color-base) calc(h + 20) calc(s*1.2) 70% / 0.1);">
-    
+
+    <Clouds skyColor={getSkyColor(progress)} style="top: 0; height: 45%;"/>
+
     <Bunting color={`hsl(${hue}, ${BUNTING_BASE_SATURATION}%, ${BUNTING_BASE_LIGHTNESS}%)`} width={"60%"} height={size * BUNTING_HEIGHT_RATIO} density={BUNTING_DENSITY} rotation={-(BUNTING_ROTATION_BASE + Math.random() * BUNTIN_ROTATION_RANGE)} style="position: absolute; top: 77%; left: -10%; transform-origin: 100% 100%; opacity: {BUNTING_OPACITY}"/>
     <Bunting color={`hsl(${hue}, ${BUNTING_BASE_SATURATION}%, ${BUNTING_BASE_LIGHTNESS}%)`} width={"60%"} height={size * BUNTING_HEIGHT_RATIO} density={BUNTING_DENSITY} rotation={-(BUNTING_ROTATION_BASE * 1.5 + Math.random() * BUNTIN_ROTATION_RANGE)} style="position: absolute; top: 33%; left: -10%; transform-origin: 100% 100%; opacity: {BUNTING_OPACITY}"/>
 

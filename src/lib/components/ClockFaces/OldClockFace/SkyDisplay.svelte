@@ -59,6 +59,7 @@
         transform-origin: 50% 300%;
         transition: transform 1s ease, background-color 1s ease;
         margin-top: 5px;
+        filter: blur(10px);
     }
 
     .dial-background {
