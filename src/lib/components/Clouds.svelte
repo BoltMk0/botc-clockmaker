@@ -54,7 +54,7 @@
         <div
             class="cloud"
             style="
-                width: {cloud.size}%;
+                height: {cloud.size}%;
                 top: {cloud.top}%;
                 --white-mix: {cloud.whiteMix}%;
                 animation-duration: {cloud.duration}s;
