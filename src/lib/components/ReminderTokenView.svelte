@@ -14,6 +14,8 @@
     $inspect("ReminderToken data:", data);
 
     let hasImage = $state(true);
+
+    let isBlank = $derived(data.text.trim() === '');
 </script>
 
 <style>
@@ -25,7 +27,7 @@
         position: relative;
 
 
-        background-color: hsl(30, 20%, 37%);
+        background-color: hsl(129, 36%, 18%);
         color: white;
         border: calc(var(--size) * 0.05) solid hsl(40, 72%, 45%);
         border-radius: 50%;
@@ -73,19 +75,45 @@
         overflow: visible;
         transform: translateY(-15%);
     }
+
+    .blank-img-container {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        overflow: hidden;
+    }
+
+    .blank-img-container img {
+        position: absolute;
+        inset: 0;
+        top: 0;
+        left: 0;
+        transform: none;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
 </style>
 
 <div class="reminder-token-view-main" style="--size: {size};">
-    {#if hasImage}
-        <div class="img-container">
-            
-            <img src="/api/characters/{data.character_id}/img" alt={data.text} onerror={() => hasImage = false}/>
+    {#if isBlank}
+        {#if hasImage}
+            <div class="blank-img-container">
+                <img src="/api/characters/{data.character_id}/img" alt="" onerror={() => hasImage = false}/>
+            </div>
+        {/if}
+    {:else}
+        {#if hasImage}
+            <div class="img-container">
 
+                <img src="/api/characters/{data.character_id}/img" alt={data.text} onerror={() => hasImage = false}/>
+
+            </div>
+        {/if}
+        <div class="reminder-token-text" style="--font-size: calc({size} * {data.textSize/250});">
+            {#each data.text.split('\n') as line}
+                <div>{line}</div>
+            {/each}
         </div>
     {/if}
-    <div class="reminder-token-text" style="--font-size: calc({size} * {data.textSize/250});">
-        {#each data.text.split('\n') as line}
-            <div>{line}</div>
-        {/each}
-    </div>
 </div>

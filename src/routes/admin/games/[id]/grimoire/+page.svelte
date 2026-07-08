@@ -77,8 +77,22 @@
 
     const game = $derived(data.game);
     const availableClocks = $derived(data.availableClocks);
+
+    // Synthetic "blank" reminder token (icon only, no text) available for every character.
+    // Kept out of the database since it's identical for all characters - just rendered from the character's id.
+    const BLANK_REMINDER_ID_BASE = -1_000_000;
+    function blankReminderTokenId(characterId: number): number {
+        return BLANK_REMINDER_ID_BASE - characterId;
+    }
+    function blankReminderToken(characterId: number): ReminderToken {
+        return { id: blankReminderTokenId(characterId), character_id: characterId, text: '', textSize: 100 };
+    }
+
     const availableReminderTokens = $derived<Record<number, ReminderToken>>(
-        game ? Object.fromEntries(game.script.characters.flatMap(c => c.reminderTokens.map(t => [t.id, t]))) : {}
+        game ? Object.fromEntries([
+            ...game.script.characters.flatMap(c => c.reminderTokens.map(t => [t.id, t] as const)),
+            ...game.script.characters.map(c => [blankReminderTokenId(c.id), blankReminderToken(c.id)] as const)
+        ]) : {}
     )
     const availableCharacters = $derived<Record<number, ScriptCharacter>>(
         game ? Object.fromEntries(game.script.characters.map(c => [c.id, c])) : {}
@@ -445,8 +459,8 @@
     async function loadRemindersForCharacter(characterId: number): Promise<ReminderToken[]> {
         if (reminderCache[characterId]) return reminderCache[characterId];
         const tokens = await fetchReminderTokensForCharacter(characterId);
-        reminderCache[characterId] = tokens;
-        return tokens;
+        reminderCache[characterId] = [blankReminderToken(characterId), ...tokens];
+        return reminderCache[characterId];
     }
 
     const trayTokens = $derived(data.game ? data.game.script.characters : []);
