@@ -4,8 +4,6 @@
     import FullDisplay from '$lib/components/FullDisplay/FullDisplay.svelte';
     import { page } from '$app/state';
     import Navbar from '$lib/components/Navbar.svelte';
-    import type { FullDisplayMode } from '$lib/components/FullDisplay/fullDisplayTypes.js';
-    import { browser } from '$app/environment';
     import { ClocktowerAudioEngine } from '$lib/audio/client/model/AudioEngine.svelte.js';
 
     export let data;
@@ -14,8 +12,6 @@
     let model: ClockClientModel = new ClockClientModel(page.params.clockid, data.config, data.config.audioParams);
     let teardown: ()=>void;
 
-    let displaySize = 700;
-    let displayMode: FullDisplayMode = "original";
 
     onMount(()=>{
         model.init();
@@ -37,12 +33,12 @@
 
 </script>
 {#if enterButtonClicked}
-<FullDisplay model={model} size={displaySize} type={displayMode}/>
+<FullDisplay model={model} />
 {:else}
     <button on:click={() => { enterButtonClicked = true; onEnterButtonClicked(); }}>
         Enter
     </button>
 {/if}
-<Navbar bind:size={displaySize} bind:displayMode={displayMode}/>
+<Navbar/>
 
 

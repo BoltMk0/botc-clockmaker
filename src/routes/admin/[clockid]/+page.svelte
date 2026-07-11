@@ -16,9 +16,6 @@
     };
 
     const id = page.params.clockid
-
-    let audio: HTMLAudioElement;
-    let audio2: HTMLAudioElement;
     let model: ClockClientModel = new ClockClientModel(id, data.config);
 
     let commsStateUnsubscriber: Unsubscriber | undefined = undefined;
@@ -28,7 +25,7 @@
 
     onMount(()=>{
         console.log("Admin page for clock", id, "is mounting, initializing model and subscribing to comms state");
-        model.init({finalBellAudioPlayer: audio, reminderBellAudioPlayer: audio2});
+        model.init();
         commsStateUnsubscriber = model.sse_connection_manager?.comms_state.subscribe(value => {
             buttonColor = commsStatusToColor(value);
         });
@@ -85,13 +82,11 @@
     }
 
 </script>
-<audio bind:this={audio} preload="auto"></audio>
-<audio bind:this={audio2} preload="auto"></audio>
 <Navbar/>
 {#if model}
 <div style="width: min-content; display: grid; grid-template-rows: auto auto; gap: 20px;">
     <div style="height: 300px;">
-    <FullDisplay {model} size={240}/>
+    <FullDisplay {model} displayMode='original' size={240}/>
     </div>
     <div style="">
         <ClockSetter {model}/>

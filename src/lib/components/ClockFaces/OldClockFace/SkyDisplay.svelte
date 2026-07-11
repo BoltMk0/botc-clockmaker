@@ -1,13 +1,19 @@
 <script lang="ts">
     import { getSkyColor } from "$lib/common/util";
+    import { appSettings } from "$lib/model/client/appSettings.svelte";
 
-    export let progress: number;
-    export let style: string = "";
+    let {
+        progress,
+        style=""
+    }: {
+        progress: number;
+        style?: string;
+    } = $props();
 
-    const ROTATING_ANGLE_PADDING = -30;
+    const ROTATING_ANGLE_PADDING = 45;
     // Calculate the rotation angle (0 = right/max, 180 = left/min)
-    $: rotationAngle = 90 - ROTATING_ANGLE_PADDING - (180 - ROTATING_ANGLE_PADDING * 2) * (Math.min(Math.max(progress, 0), 1));
-    
+    const rotationAngle = $derived(ROTATING_ANGLE_PADDING - 90 + (180 - ROTATING_ANGLE_PADDING * 2) * (Math.min(Math.max(progress, 0), 1)));
+    const sunSize = $derived(appSettings.size / 3);
     
     function getCircleColor(progress: number): string {
         if(progress >= 1){
@@ -19,16 +25,19 @@
         const hue = 40-(adj_progress**2)*30;
         return `hsl(${hue}, ${saturation}%, 60%)`;
     }
+
+    const skyColor = $derived(getSkyColor(progress));
+    const sunColor = $derived(getCircleColor(progress));
 </script>
 
 
 <div class="clock-container" style="{style}">
-    <!-- Dial that rotates from right (max) to left (min) -->
-     <div class="dial-background" style="background-color: {getSkyColor(progress)};">
+    <div>{sunSize}</div>
 
-        <div class="dial-sun-container">
-            <div class="dial-sun" style="transform: rotate({-rotationAngle*0.4}deg); background-color: {getCircleColor(progress)}"></div>
-        </div>
+    <!-- Dial that rotates from right (max) to left (min) -->
+     <div class="dial-background" style="background-color: {skyColor};"></div>
+     <div class="sky-display-sun-container" style="transform: rotate({rotationAngle}deg);">
+     <div class="sky-display-sun" style="background-color: {sunColor}; width: {sunSize}px; height: {sunSize}px;"></div>
      </div>
 </div>
 
@@ -41,31 +50,37 @@
 
     .dial-sun-container {
         position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
         width: 100%;
-        aspect-ratio: 1.5/1;
-        top: -15%;
+        aspect-ratio: 1;
         display: flex;
         align-items: start;
         justify-content: center;
         box-sizing:content-box;
     }
 
-    .dial-sun {
-        height: 60%;
+    .sky-display-sun-container {
+        position: absolute;
+        width: 100%;
+        aspect-ratio: 1;
+        transform-origin: 50% 100%;
+        transition: transform 1s ease;
+    }
+
+    .sky-display-sun {
+        position: absolute;
+        left: 50%;
+        top: 0%;
+        transform: translateX(-50%);
         aspect-ratio: 1;
         border-radius: 50%;
-        transform-origin: 50% 300%;
+        transform-origin: 50% 100%;
         transition: transform 1s ease, background-color 1s ease;
-        margin-top: 5px;
-        filter: blur(10px);
+        filter: blur(6px);
     }
 
     .dial-background {
-        width: 100%;
-        height: 100%;
         position: absolute;
+        inset: 0;
         transition: background-color 1s ease;
     }
 </style>

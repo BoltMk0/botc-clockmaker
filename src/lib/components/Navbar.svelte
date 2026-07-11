@@ -1,24 +1,11 @@
 <script lang="ts">
-    import { onDestroy, onMount } from "svelte";
-    import type { FullDisplayMode } from "./FullDisplay/fullDisplayTypes";
-    import { browser } from "$app/environment";
+    import { onMount } from "svelte";
     import HSlider from "$lib/audio/client/components/HSlider.svelte";
     import type { ClockInstanceInfo } from "$lib/common/config";
+    import { appSettings } from "$lib/model/client/appSettings.svelte";
 
-    export let visible: boolean = false;
-
-    export let size: number = 600;
-    export let displayMode: FullDisplayMode = 'clocktower';
-
-    let clients: ClockInstanceInfo[] | undefined = undefined;
-
-    let storedSize: number;
-    let autosize: boolean = true;
-
-    function updateSize(){
-        console.log("Updating size, autosize:", autosize);
-        size = autosize ? calculateIdealSize() : storedSize;
-    }
+    let visible = $state(false);
+    let clients: ClockInstanceInfo[] | undefined = $state(undefined);
 
     async function loadClockData(){
         const response = await fetch('/api/clock');
@@ -31,76 +18,14 @@
     }
 
     onMount(()=>{
-        if(browser){
-            let storedDisplayMode = localStorage.getItem('displayMode');
-            if(storedDisplayMode){
-                displayMode = storedDisplayMode as FullDisplayMode;
-            }
-            
-            let storedAutosize = localStorage.getItem('autosize');
-            if(storedAutosize){
-                autosize = storedAutosize.toUpperCase().startsWith('T');
-            }
-            if(autosize){
-                console.log("Enabling autosize and adding resize listener");
-                window.addEventListener('resize', updateSize);
-            } else {
-                let storedSizeTmp = localStorage.getItem('size');
-                if(storedSizeTmp){
-                    storedSize = parseFloat(storedSizeTmp);
-                }
-            }
-            console.log("Initial size:", size, "Autosize:", autosize, "Display mode:", displayMode);
-            updateSize();
-        }
-
         loadClockData().then(instances => {
             console.log("Clock instances loaded:", instances);
             clients = instances;
         }).catch(error => {
             console.error("Error loading clock instances:", error);
         });
-
-        return ()=>{
-            if(browser){
-                if(autosize)
-                    window.removeEventListener('resize', updateSize);
-            }
-        }
     });
 
-    function calculateIdealSize(){
-        if(browser && displayMode !== undefined){
-            let nclients = clients?.length ?? 2;
-            switch(displayMode){
-                case 'clocktower':
-                    return window.innerHeight/1.5;
-                case 'original':
-                    return Math.min(window.innerWidth/nclients - 30*(nclients-1), window.innerHeight-60) - 30;
-                default:
-                    return 700;
-            }
-        } else {
-            return 700;
-        }
-    }
-
-    function saveSize(){
-        storedSize = size;
-        localStorage.setItem('size', size.toString());
-    }
-
-    function saveDisplayMode(){
-        console.log("Saving display mode", displayMode);
-        localStorage.setItem('displayMode', displayMode);
-        updateSize();
-    }
-
-    function saveAutoSize(){
-        console.log("Saving autosize", autosize);
-        updateSize();
-        localStorage.setItem('autosize', autosize ? 'TRUE' : 'FALSE');
-    }
 
 </script>
 
@@ -169,7 +94,7 @@
     }
 </style>
 
-<button aria-label="Menu" class="no-button-style hamburger" on:click={()=>{visible = true;}} style="position: absolute; top: 10px; left: 10px;">
+<button aria-label="Menu" class="no-button-style hamburger" onclick={()=>{visible = true;}} style="position: absolute; top: 10px; left: 10px;">
     <svg width={40} height={40} viewBox="0 0 100 100" style="fill: #FFF6;">
         <rect x={0} y={0} width={100} height={20}/>
         <rect x={0} y={37.5} width={100} height={20}/>
@@ -178,7 +103,7 @@
 </button>
 
 <div class="navbar-main" style="transform: translateX({visible ? "0" : "-100%"});">
-    <button on:click={()=>{visible = false;}} class="close-button">
+    <button onclick={()=>{visible = false;}} class="close-button">
         X
     </button>
     <ul style="list-style-type: none; padding: 0 2em 0 1em; margin: 0; margin-bottom: 1em;">
@@ -209,22 +134,31 @@
 
                 <div style="display: flex; gap: 0.5em; align-items: center; font-size: 18px;">
                     <div>Auto</div>
-                    <input name="autosize" type="checkbox" bind:checked={autosize} on:change={()=>{saveAutoSize()}}/>
+                    <input name="autosize" type="checkbox" bind:checked={appSettings.autoSize}/>
                 </div>
             </div>
-            {#if !autosize}
+            {#if !appSettings.autoSize}
             <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;">
-                <HSlider bind:value={size} max={1400} min={400} onchangefinished={()=>saveSize()}/>
-                <button style="display: inline-block;" on:click={()=>{size = calculateIdealSize();}}>Reset</button>
+                <HSlider bind:value={appSettings.size} max={1400} min={400}/>
+                <button style="display: inline-block;" onclick={appSettings.reCalculateSize}>Reset</button>
             </div>
             {/if}
         </div>
         <div class="navbar-settings-pane">
             <div style="font-size: smaller; text-align: center;">Display Mode</div>
-            <select bind:value={displayMode} on:change={() => saveDisplayMode()} style="width: 100%; font-size: x-large;">
+            <select bind:value={appSettings.displayMode} style="width: 100%; font-size: x-large;">
                 <option value="original">Original</option>
                 <option value="clocktower">Clocktower</option>
             </select>
+        </div>
+        <div class="navbar-settings-pane">
+            <div style="display: flex; justify-content: space-between;">
+                <div style="font-size: smaller; text-align: center;">Show Clock Names</div>
+
+                <div style="display: flex; gap: 0.5em; align-items: center; font-size: 18px;">
+                    <input name="autosize" type="checkbox" bind:checked={appSettings.showClockNames}/>
+                </div>
+            </div>
         </div>
     </div>
 </div>

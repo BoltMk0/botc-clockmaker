@@ -413,14 +413,15 @@ export class ClockClientModel {
     }
 
     addListener(listener: ClientModelListenerType) {
-        this.listeners.add(listener);
+        if(!this.listeners.has(listener)) this.listeners.add(listener);
         return ()=>{
             this.listeners.delete(listener);
         }
     }
 
     removeListener(listener: ClientModelListenerType) {
-        this.listeners.delete(listener);
+        if(this.listeners.has(listener))
+           this.listeners.delete(listener);
     }
 
     ringFinalBell(broadcast: boolean = false){

@@ -1,46 +1,37 @@
 <script lang="ts">
     import { browser } from '$app/environment';
     import { ClockClientModel } from '$lib/model/client/ClockClientModel.js';
-    import { onDestroy, onMount } from 'svelte';
+    import { onMount } from 'svelte';
     import FullDisplay from '$lib/components/FullDisplay/FullDisplay.svelte';
     import Navbar from '$lib/components/Navbar.svelte';
-    import type { FullDisplayMode } from '$lib/components/FullDisplay/fullDisplayTypes.js';
     import { ClocktowerAudioEngine } from '$lib/audio/client/model/AudioEngine.svelte.js';
 
-    export let data;
+    let {
+        data
+    } = $props();
 
-    $: clients = browser ? data.instances.map(({id, config, audioParams}) => new ClockClientModel(id, config, audioParams)) : [];
+    const clients = $derived(browser ? data.instances.map(({id, config, audioParams}) => new ClockClientModel(id, config, audioParams)) : []);
     
-    let teardown: ()=>void;
     
-    let showNavbar: boolean = false;
-
-    let audioUnlocked = false;
-
-    let displaySize: number;
-    
-    let displayMode: FullDisplayMode;
-
-
     onMount(() => {
         if(browser){
             clients.forEach(client => client.init());
-            ({ teardown} = ClocktowerAudioEngine.createNewEngineForClockClients(clients, []));
+            let { teardown} = ClocktowerAudioEngine.createNewEngineForClockClients(clients, []);
+
+            return teardown;
         }
+
     });
 
-    onDestroy(()=>{
-        if(teardown) teardown();
-    })
 </script>
 
 <div class="clock-container" style="grid-template-columns: repeat({clients.length} 1fr);">
     {#each clients as model, index (model.clockId)}
-        <FullDisplay model={model} models={clients} bind:size={displaySize} type={displayMode}/>
+        <FullDisplay model={model} models={clients}/>
     {/each}
 </div>
 
-<Navbar bind:size={displaySize} bind:displayMode={displayMode} visible={showNavbar}></Navbar>
+<Navbar/>
     
 <style>
     .clock-container{
