@@ -4,8 +4,9 @@
     import CustomOverlay from '$lib/components/CustomOverlay.svelte';
     import Navbar from '$lib/components/Navbar.svelte';
     import { formatTimeAgo } from '$lib/common/util';
+    import type { PageData } from './$types';
 
-    export let data;
+    let { data }: { data: PageData } = $props();
 
     async function createGame(event: SubmitEvent) {
         const formData = new FormData(event.target as HTMLFormElement);
@@ -70,7 +71,7 @@
         <div style="display: flex; width: 100%; justify-content: space-between; align-items: center;">
             <h3>Games</h3>
             <CustomOverlay title="+ Create Game">
-                <form on:submit|preventDefault={createGame}>
+                <form onsubmit={(event) => { event.preventDefault(); createGame(event); }}>
                     <select name="script_id" required>
                         <option disabled>Select script id</option>
                         {#each data.scripts as script(script.id)}
@@ -100,7 +101,7 @@
                         <td>{game.grimoireState ? formatTimeAgo(new Date(game.grimoireState.present.timestamp).getTime()) : ''}</td>
                         <td>
                             <a class="button-style" href="/admin/games/{game.game.id}">Edit</a>
-                            <button on:click={() => deleteGame(game.game.id)} class="button-style">Delete</button>
+                            <button onclick={() => deleteGame(game.game.id)} class="button-style">Delete</button>
                             <a class="button-style" href="/admin/games/{game.game.id}/grimoire">Grimoire</a>
                         </td>
                     </tr>

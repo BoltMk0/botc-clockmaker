@@ -2,15 +2,21 @@
     import type { Character } from "$lib/database/common/types";
     import TokenBackground from "./TokenBackground.svelte";
 
-    export let character: Character;
-    export let nightOrder: number|undefined = undefined;
+    let {
+        character,
+        nightOrder = undefined,
+        style = '',
+        size = '200px',
+        norules = false,
+    }: {
+        character: Character;
+        nightOrder?: number | undefined;
+        style?: string;
+        size?: string;
+        norules?: boolean;
+    } = $props();
 
-    export let style: string = '';
-    export let size: string = '200px';
-
-    export let norules: boolean = false;
-
-    let imageFailed = false;
+    let imageFailed = $state(false);
 
     const curvedPathId = `curved-name-${Math.random().toString(36).slice(2, 10)}`;
 
@@ -22,7 +28,7 @@
         traveler: '#ca8a04',
     };
 
-    $: color = categoryColors[character.category] ?? '#666';
+    const color = $derived(categoryColors[character.category] ?? '#666');
 </script>
 
 

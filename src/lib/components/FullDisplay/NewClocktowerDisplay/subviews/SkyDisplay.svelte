@@ -37,7 +37,7 @@
     <!-- Dial that rotates from right (max) to left (min) -->
      <div class="dial-background" style="background-color: {skyColor};"></div>
      <div class="sky-display-sun-container" style="transform: rotate({rotationAngle}deg);">
-     <div class="sky-display-sun" style="background-color: {sunColor}; width: {sunSize}px; height: {sunSize}px;"></div>
+        <div class="sky-display-sun" style="background-color: {sunColor}; width: {sunSize}px; height: {sunSize}px;"></div>
      </div>
 </div>
 

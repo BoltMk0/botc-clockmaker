@@ -140,7 +140,7 @@
             {#if !appSettings.autoSize}
             <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;">
                 <HSlider bind:value={appSettings.size} max={1400} min={400}/>
-                <button style="display: inline-block;" onclick={appSettings.reCalculateSize}>Reset</button>
+                <button style="display: inline-block;" onclick={() => appSettings.reCalculateSize()}>Reset</button>
             </div>
             {/if}
         </div>

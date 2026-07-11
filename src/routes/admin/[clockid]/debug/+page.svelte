@@ -4,12 +4,12 @@
     import OffsetDisplay from "./OffsetDisplay.svelte";
     import { onMount } from "svelte";
 
-    let audio: HTMLAudioElement;
-    let audio2: HTMLAudioElement;
+    let audio: HTMLAudioElement | null = $state(null);
+    let audio2: HTMLAudioElement | null = $state(null);
     let model = new ClockClientModel();
 
-    let timeOnDevice = Date.now();
-    $: timeOnServer = timeOnDevice - (model.deltaTimeManager.minDeltaToServerTime ?? 0);
+    let timeOnDevice = $state(Date.now());
+    const timeOnServer = $derived(timeOnDevice - (model.deltaTimeManager.minDeltaToServerTime ?? 0));
 
     onMount(()=>{
         model.init({finalBellAudioPlayer: audio, reminderBellAudioPlayer: audio2});

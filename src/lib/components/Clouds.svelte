@@ -1,6 +1,5 @@
 <script lang="ts">
-    export let style: string = "";
-    export let skyColor: string = "white";
+    let { style = "", skyColor = "white" }: { style?: string; skyColor?: string } = $props();
 
     type CloudConfig = {
         size: number; // width, as a % of the layer's width

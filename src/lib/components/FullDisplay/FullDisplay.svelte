@@ -1,9 +1,9 @@
 <script lang="ts">
     import type { ClockClientModel, ClientModelListenerType } from "$lib/model/client/ClockClientModel";
     import { onDestroy } from "svelte";
-    import NewClocktower from "../NewClocktower.svelte";
-    import SkyDisplay from "../ClockFaces/OldClockFace/SkyDisplay.svelte";
-    import OldClockFace from "../ClockFaces/OldClockFace/OldClockFace.svelte";
+    import NewClocktower from "./NewClocktowerDisplay/NewClocktowerDisplay.svelte";
+    import SkyDisplay from "./NewClocktowerDisplay/subviews/SkyDisplay.svelte";
+    import OldClockFace from "./OldClockDisplay/OldClockFace/OldClockFace.svelte";
     import { appSettings } from "$lib/model/client/appSettings.svelte";
     import type { FullDisplayMode } from "./fullDisplayTypes";
 
@@ -44,7 +44,7 @@
     }
 
 
-    let removeModelListener: ()=>void;
+    let removeModelListener: (()=>void)|undefined = undefined;
     $effect(()=>{
         console.debug("Setting up model listener")
         if(removeModelListener) removeModelListener();
@@ -99,7 +99,7 @@
     // On mount, check the screen dimentions and adjust size accordingly
 
     onDestroy(()=>{
-        removeModelListener();
+        if(removeModelListener) removeModelListener();
         for(const m of models){
             m.removeListener(otherModelListener);
         }
@@ -146,6 +146,7 @@
         box-shadow: 0 0 10px #0005, 0 0 20px #0008 inset;
     }
 </style>
+
 <div style="height: 100%;  width: 100%; overflow: hidden; position: relative; opacity: {otherClockNotificationPresent && !showInstructionText ? 0.6 : 1}; transition: opacity 0.5s ease;">
     {#if shownDisplayMode === "clocktower"}
         <SkyDisplay progress={progress} style=""/>

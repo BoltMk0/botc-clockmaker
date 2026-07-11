@@ -1,10 +1,9 @@
 <script lang="ts">
     import type { Character } from "$lib/database/common/types";
 
-    export let character: Character;
-    export let size: string = '2.5em';
+    let { character, size = '2.5em' }: { character: Character; size?: string } = $props();
 
-    let imageFailed = false;
+    let imageFailed = $state(false);
 
     const categoryColors: Record<string, string> = {
         townsfolk: '#2563eb',
@@ -14,13 +13,13 @@
         traveler: '#ca8a04',
     };
 
-    $: color = categoryColors[character.category] ?? '#666';
-    $: initials = character.name.split(' ').map(w => w[0]?.toUpperCase() ?? '').join('');
+    const color = $derived(categoryColors[character.category] ?? '#666');
+    const initials = $derived(character.name.split(' ').map(w => w[0]?.toUpperCase() ?? '').join(''));
 </script>
 
 <div class="thumb" style="--thumb-size: {size}; --thumb-color: {color};">
     {#if !imageFailed}
-        <img src={`/api/characters/${character.id}/img`} alt={character.name} on:error={() => imageFailed = true}/>
+        <img src={`/api/characters/${character.id}/img`} alt={character.name} onerror={() => imageFailed = true}/>
     {:else}
         <div class="fallback">{initials}</div>
     {/if}

@@ -1,16 +1,24 @@
 <script lang="ts">
-    export let title: string;
-    export let style: string = "";
+    import { getNewClocktowerThemeContext } from "$lib/components/FullDisplay/NewClocktowerDisplay/model/theme";
+    import type { Snippet } from "svelte";
+
+    let {
+        title,
+        style = "",
+        children
+    }: {
+        title: string;
+        style?: string;
+        children?: Snippet;
+    } = $props();
+
+    const theme = getNewClocktowerThemeContext();
 </script>
 
 <style>
     .display-panel-base-main {
         display: grid;
         grid-template-rows: auto 1fr;
-        /* border-radius: 10px; */
-        color: #000A;
-        background-color: var(--hue-dark);
-        gap: 3px;
         padding: 5px;
         box-sizing: border-box;
         transition: background-color 1s ease;
@@ -23,7 +31,6 @@
     }
 
     .display-panel-base-title {
-        background-color: var(--hue-dark);
         padding: 5px 10px;
         font-size: 1.5em;
         text-align: center;
@@ -34,20 +41,20 @@
     }
 
     .display-panel-base-content {
-        background-color: var(--hue);
         font-size: 3em;
         text-align: center;
         overflow: hidden;
-        /* border-radius: 0 0 5px 5px; */
+        border-radius: 0 0 5px 5px;
+        box-shadow: 0 0 20px #0005 inset;
     }
 </style>
 
 
-<div style="--hue-dark: hsl(from var(--hue) h calc(s*0.3) calc(l*0.64)); {style}">
+<div style="color: {theme.panelTextColor}; {style}; transition: color 0.5s ease;">
     <div class="display-panel-base-main dumbledore-font">
-        <div class="display-panel-base-title">{title}</div>
-        <div class="display-panel-base-content">
-            <slot></slot>
+        <div class="display-panel-base-title" style="background-color: {theme.panelColorSecondary}">{title}</div>
+        <div class="display-panel-base-content" style="background-color: {theme.panelColorPrimary};">
+            {@render children?.()}
         </div>
     </div>
 </div>

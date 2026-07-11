@@ -5,8 +5,13 @@
     import { prettifyResourceName } from "$lib/resources/common/util";
     import { type GrimoireStateHistory } from "../../admin/games/[id]/grimoire/types";
 
-    export let data: Resource;
-    export let onDelete: (id: string) => void;
+    let {
+        data,
+        onDelete
+    }: {
+        data: Resource;
+        onDelete: (id: string) => void;
+    } = $props();
 </script>
 
 <style>
@@ -41,7 +46,7 @@
             <span>{prettifyResourceName(data.name)}</span>
             <!-- <div class="resource-tag">{data.type}</div> -->
         </div>
-        <button on:click={() => onDelete(data.id)} class="button-style error">Delete</button>
+        <button onclick={() => onDelete(data.id)} class="button-style error">Delete</button>
     </div>
     <div style="display: flex; justify-content: center; align-items: center; gap: 10px;">
 

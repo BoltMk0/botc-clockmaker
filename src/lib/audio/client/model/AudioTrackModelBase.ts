@@ -11,6 +11,5 @@ export interface AudioTrackModelBase {
     getGainDB(): number;
     setGainDB(gainDB: number): void;
 
-    
     close(): void;
 }

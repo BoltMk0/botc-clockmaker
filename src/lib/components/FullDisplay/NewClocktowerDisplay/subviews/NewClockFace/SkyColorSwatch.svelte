@@ -1,14 +1,12 @@
 <script lang="ts">
     import { getSkyColor } from "$lib/common/util";
 
+    let { nsteps = 10 }: { nsteps?: number } = $props();
 
-    export let nsteps: number = 10;
-
-
-    let colors = Array.from({length: nsteps}, (_, i) => {
+    const colors = $derived(Array.from({length: nsteps}, (_, i) => {
         let t = i/(nsteps-1);
         return getSkyColor(t);
-    });
+    }));
 
 </script>
 

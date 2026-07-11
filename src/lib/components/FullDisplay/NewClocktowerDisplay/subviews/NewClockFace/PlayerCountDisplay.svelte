@@ -2,11 +2,17 @@
     import { getPlayerCount } from "$lib/common/util";
     import DisplayPanelBase from "./DisplayPanel/DisplayPanelBase.svelte";
 
-    export let numPlayers: number;
-    export let title = "Player Count";
-    export let style = "";
+    let {
+        numPlayers,
+        title = "Player Count",
+        style = ""
+    }: {
+        numPlayers: number;
+        title?: string;
+        style?: string;
+    } = $props();
 
-    $: playerCount = getPlayerCount(numPlayers);
+    const playerCount = $derived(getPlayerCount(numPlayers));
 
 </script>
 
@@ -26,12 +32,12 @@
     }
 
     .good {
-        color: rgb(33, 184, 222);
+        color: rgb(78, 199, 230);
         text-shadow: 0 3px 5px rgb(14, 146, 179, 0.5);
     }
 
     .evil {
-        color: rgb(213, 46, 71);
+        color: rgb(228, 120, 136);
         text-shadow: 0 3px 5px rgb(165, 28, 49, 0.5);
     }
 

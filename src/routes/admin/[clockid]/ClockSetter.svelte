@@ -10,23 +10,28 @@
     import bell_slash from '$lib/assets/bell.slash.png';
 
 
-    export let model: ClockClientModel;
-    export let onstart: () => void = () => {};
+    let {
+        model,
+        onstart = () => {}
+    }: {
+        model: ClockClientModel;
+        onstart?: () => void;
+    } = $props();
 
-    $: state = model.state;
+    let clockState = model.state;
     let clock_info = model.clock_info;
 
     let day = model.day_info;
     let players = model.playerCount;
 
-    var options: TimerOption[] = [
+    let options: TimerOption[] = $state([
         {duration: 0, ringBellWhenRemaining: null, label: null},
         {duration: 5, ringBellWhenRemaining: null, label: null},
         {duration: 30, ringBellWhenRemaining: null, label: null},
         {duration: 180, ringBellWhenRemaining: 30, label: null},
         {duration: 300, ringBellWhenRemaining: 30, label: null},
         {duration: 480, ringBellWhenRemaining: 30, label: null}
-    ];
+    ]);
 
     onMount(()=>{
         console.log("ClockSetter mounted, fetching config...");
@@ -144,26 +149,26 @@
         <div class="button-container-button" style="padding: 5px;">
             
             <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px;">
-                <button class="button-style updown" on:click={()=>{setDay($day.day-1)}}>-</button>
+                <button class="button-style updown" onclick={()=>{setDay($day.day-1)}}>-</button>
                 <div>
                     <div style="opacity: 0.5;">Day</div>
                     <div>{$day.day}</div>
                 </div>
-                <button class="button-style updown" on:click={()=>{setDay($day.day+1)}}>+</button>
+                <button class="button-style updown" onclick={()=>{setDay($day.day+1)}}>+</button>
             </div>
         </div>
         <div class="button-container-button" style="padding: 5px;">
             <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px;">
-                <button class="button-style updown" on:click={()=>{setPlayers($players-1)}}>-</button>
+                <button class="button-style updown" onclick={()=>{setPlayers($players-1)}}>-</button>
                 <div>
                     <div style="opacity: 0.5;">Players</div>
                     <div>{$players}</div>
                 </div>
-                <button class="button-style updown" on:click={()=>{setPlayers($players+1)}}>+</button>
+                <button class="button-style updown" onclick={()=>{setPlayers($players+1)}}>+</button>
             </div>
         </div>
         {#each options as option, index}
-            <button class="button-container-button" class:active={option.duration === $clock_info.max} on:click={() => setupClock(option)} disabled={$state === 'counting'} style="grid-column: span {(index === options.length - 1 && options.length%2 === 1) ? 2 : 1};">
+            <button class="button-container-button" class:active={option.duration === $clock_info.max} onclick={() => setupClock(option)} disabled={$clockState === 'counting'} style="grid-column: span {(index === options.length - 1 && options.length%2 === 1) ? 2 : 1};">
                 <div>
                     <div class="timer-icons" style="font-size: {option.label ? '0.8em' : '1em'};">
                         <div>
@@ -190,9 +195,9 @@
         <a class="button-style" id="edit-button" href="/admin/{model.clockId}/config">
             <img class="button-icon-img" src="{gearshape}" alt="Config"/>
         </a>
-        <button class="button-container-button stop-btn" on:click={onStop} disabled={$state !== 'counting'}>Stop</button>
-        <button class="button-container-button start-btn" on:click={onStart} disabled={$state !== 'idle'}>Start</button>
-        <button class="button-container-button ring-bell-btn" on:click={onBell}>
+        <button class="button-container-button stop-btn" onclick={onStop} disabled={$clockState !== 'counting'}>Stop</button>
+        <button class="button-container-button start-btn" onclick={onStart} disabled={$clockState !== 'idle'}>Start</button>
+        <button class="button-container-button ring-bell-btn" onclick={onBell}>
             <img class="button-icon-img" src="{bell_and_waves}" alt="Ring Bell"/>
         </button>
     </div>

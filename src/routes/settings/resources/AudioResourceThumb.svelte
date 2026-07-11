@@ -6,15 +6,21 @@
     import PauseIcon from "$lib/components/PauseIcon.svelte";
     import { prettifyResourceName } from "$lib/resources/common/util";
 
-    export let resource: Resource;
-    export let style: string = "";
-    export let onDelete: (id: string) => void;
+    let {
+        resource,
+        style = "",
+        onDelete
+    }: {
+        resource: Resource;
+        style?: string;
+        onDelete: (id: string) => void;
+    } = $props();
 
-    let audioElement: HTMLAudioElement | null = null;
+    let audioElement: HTMLAudioElement | null = $state(null);
 
-    let duration: number | null = null;
-    let progress: number = 0;
-    let playing = false;
+    let duration: number | null = $state(null);
+    let progress: number = $state(0);
+    let playing = $state(false);
 
     function onDurationChange() {
         if (audioElement && Number.isFinite(audioElement.duration)) {

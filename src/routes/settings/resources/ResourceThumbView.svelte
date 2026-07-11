@@ -1,11 +1,20 @@
 <script lang="ts">
     import type { Resource } from "$lib/resources/common/types";
+    import type { Snippet } from "svelte";
 
-    export let title: string;
-    export let tags: string[];
-    export let style: string = "";
-    
-    export let onDelete: (() => void) | undefined = undefined;
+    let {
+        title,
+        tags,
+        style = "",
+        onDelete = undefined,
+        children
+    }: {
+        title: string;
+        tags: string[];
+        style?: string;
+        onDelete?: (() => void) | undefined;
+        children?: Snippet;
+    } = $props();
 </script>
 
 <style>
@@ -53,11 +62,11 @@
             {/each}
         </div>
         {#if onDelete}
-            <button on:click={() => onDelete()} class="button-style error">Delete</button>
+            <button onclick={() => onDelete()} class="button-style error">Delete</button>
         {/if}
     </div>
     <div style="display: flex; justify-content: center; align-items: center; gap: 10px;">
-        <slot></slot>
+        {@render children?.()}
     </div>
     <div class="resource-thumb-footer">
     </div>

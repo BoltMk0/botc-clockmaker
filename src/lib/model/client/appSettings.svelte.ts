@@ -89,7 +89,7 @@ class AppSettingsModel {
     }
 
     
-    private calculateIdealSize(){
+    calculateIdealSize(){
         if(browser && this.displayMode !== undefined){
             switch(this.displayMode){
                 case 'clocktower':

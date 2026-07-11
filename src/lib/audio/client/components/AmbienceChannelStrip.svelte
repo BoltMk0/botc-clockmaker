@@ -6,16 +6,22 @@
     import VSlider from "./VSlider.svelte";
     import { browser } from "$app/environment";
 
-    export let context: AudioContext;
-    export let resources: AmbienceResourceType[];
-    export let outputNode: AudioNode | null = null;
+    let {
+        context,
+        resources,
+        outputNode = null
+    }: {
+        context: AudioContext;
+        resources: AmbienceResourceType[];
+        outputNode?: AudioNode | null;
+    } = $props();
 
     let audio1: HTMLAudioElement;
     let audio2: HTMLAudioElement;
 
-    let selectedResourceValue: number = -1;
+    let selectedResourceValue: number = $state(-1);
 
-    let engine: AmbienceEngine;
+    let engine: AmbienceEngine | undefined = $state();
     onMount(()=>{
         if(audio1 && audio2 && context){
             engine = new AmbienceEngine(context, [audio1, audio2], outputNode ?? undefined);
@@ -78,7 +84,7 @@
             }
         }
     }
-    
+
 
 </script>
 
@@ -95,7 +101,7 @@
             <div style="width: 6em;" class="strip-name-ele">
                 <div style="text-align: center;">
                     <div>
-                        <select bind:value={selectedResourceValue} on:change={()=>{loadResource(selectedResourceValue)}}>
+                        <select bind:value={selectedResourceValue} onchange={()=>{loadResource(selectedResourceValue)}}>
                             <option value="" disabled selected>Select Ambience</option>
                             <option value="NULL" >None</option>
                             {#each resources as resource, index}
@@ -108,7 +114,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div>
             <div style="text-align: center;" class="strip-name-ele">
                 <div>Gain</div>
@@ -120,7 +126,7 @@
                 <VSlider bind:value={engine.masterGain.gain.value} min={-60} max={0} step={1} logarithmic onchange={scheduleSaveSettings}/>
             </div>
         </div>
-        
+
     </div>
 {/if}
 </div>
