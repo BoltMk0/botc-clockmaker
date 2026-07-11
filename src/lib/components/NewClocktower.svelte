@@ -37,6 +37,9 @@
     const progress = $derived(1 - timeRemaining / totalTime);
     const clocktowerColorBase = $derived(getSkyColor(progress, 1, 1.5, 0.25));
     const fontSizePx = $derived(appSettings.size/40)
+
+    const clockFaceColor = $derived(`hsl(${hue}, ${30 + (1-progress) * 10}%, ${70 - progress*10}%)`);
+    const clockFaceColorDark = $derived(`hsl(${hue}, 25%, 40%)`);
 </script>
 
 <style>
@@ -66,14 +69,14 @@
     <div class="clocktower-main" style="--sky-color: {getSkyColor(progress)}; --hue: var(--sky-color); width: {appSettings.size}px; height: {appSettings.size*1.5}px;">
         <ClocktowerSillhouette style="--clocktower-color-highlight: hsl({hue}, 60%, 80%, 15%);"/>
         <div style="top: 48%; width: 55%; left: 50%; transform: translate(-50%, -50%); padding: {appSettings.size/5}px; font-size: 0.8em;">
-            <NewClockFace totalTime={totalTime} progress={progress} dayNumber={dayNumber} style="border: 10px solid hsl({hue}, 60%, 50%); border-radius: 50%; box-sizing: border-box; transition: border 1s;"/>
+            <NewClockFace totalTime={totalTime} progress={progress} dayNumber={dayNumber} style="border-radius: 50%; box-sizing: border-box; transition: border 1s;" hue={clockFaceColor} borderColor={clockFaceColor}/>
         </div>
 
         <div style="top: 71%; width: 44%; margin: 0 28%; font-size: 1em;">
-            <CountdownDisplay progress={progress} {timeRemaining}/>
+            <CountdownDisplay progress={progress} {timeRemaining} style='--hue: {clockFaceColor}; --hue-dark: {clockFaceColorDark};'/>
         </div>
-        <div style="top: 14%; width: 26%; margin: 0 37%; font-size: 0.8em;">
-            <PlayerCountDisplay numPlayers={playerCount} style="--hue: var(--clocktower-color-highlight); --hue-dark: var(--clocktower-color-base);"/>
+        <div style="top: 13%; width: 26%; margin: 0 37%; font-size: 0.8em;">
+            <PlayerCountDisplay numPlayers={playerCount} style="--hue: var(--clocktower-color-base); --hue-dark: {clockFaceColorDark};"/>
         </div>
     </div>
 </div>

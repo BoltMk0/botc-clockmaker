@@ -32,6 +32,7 @@
 
 
     function setInstruction(text: string) {
+        console.log("SETTINGS INSTRUCTION TO", text)
         if(instructionTimeout){
             clearTimeout(instructionTimeout);
         }
@@ -43,19 +44,22 @@
     }
 
 
-    const modelListener = {
-        onBellRingRequest: ()=>{
-            setInstruction("Your Story Teller requires your attention!");
-        },
-        onReminderBellRing: ()=>{
-            setInstruction("The end of the day is approaching...");
-        },
-        onFinalBellRing: ()=>{
-            setInstruction("The day has ended! Please return to the Town Square.");
-        }
-    }
-
-    const removeListener = $derived(model.addListener(modelListener))
+    let removeModelListener: ()=>void;
+    $effect(()=>{
+        console.debug("Setting up model listener")
+        if(removeModelListener) removeModelListener();
+        removeModelListener = model.addListener( {
+            onBellRingRequest: ()=>{
+                setInstruction("Your Story Teller requires your attention!");
+            },
+            onReminderBellRing: ()=>{
+                setInstruction("The end of the day is approaching...");
+            },
+            onFinalBellRing: ()=>{
+                setInstruction("The day has ended! Please return to the Town Square.");
+            }
+        });
+    });
 
     function onOtherModelNotification(){
         if(otherClockNotificationTimeout){
@@ -95,11 +99,12 @@
     // On mount, check the screen dimentions and adjust size accordingly
 
     onDestroy(()=>{
-        removeListener();
+        removeModelListener();
         for(const m of models){
             m.removeListener(otherModelListener);
         }
     });
+
 </script>
 
 

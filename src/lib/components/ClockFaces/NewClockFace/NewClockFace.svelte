@@ -13,8 +13,9 @@
     export let hue: string|undefined = undefined;
     export let dayNumber: number = 0;
     export let style: string = "";
+    export let borderColor: string|undefined = undefined;
 
-    const windowSize = 0.79
+    const windowSize = 0.85
 
     $: timeRemaining = Math.round(totalTime * (1-progress));
     $: minutes = timeRemaining / 60;
@@ -26,9 +27,9 @@
 </script>
 
 
-<div style="position: relative; width: 100%; height: 100%; aspect-ratio: 1/1; {hue ? `--hue: ${hue};` : ""}; --hue-dark: hsl(from var(--hue) h calc(s*0.25) calc(l*0.5)); {style};">
+<div style="position: relative; width: 100%; height: 100%; aspect-ratio: 1/1; --hue-dark: hsl(from var(--hue) h calc(s*0.25) calc(l*0.5)); {style};">
     <div style="position: absolute; inset: 0; box-shadow: 0 0 500px rgb(from var(--hue) r g b / 30%); border-radius: 50%; overflow: hidden;">
-        <ClockBackgroundDaylight1 {windowSize}/>
+        <ClockBackgroundDaylight1 {windowSize} {progress}/>
     </div>
 
     {#if dayNumber > 0}
@@ -41,12 +42,9 @@
     {/if}
 
     <!-- Window shadow ring -->
-    <div style="position: absolute; inset: calc(({1-windowSize}/2)*100%); border-radius: 50%; box-shadow: 0 0 30px inset #0006;"></div>
+    <!-- <div style="position: absolute; inset: calc(({1-windowSize}/2)*100%); border-radius: 50%; box-shadow: 0 0 30px inset #0006;"></div> -->
     
     <div style="position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; pointer-events: none;">
-        <ClockFace minuteHandProgress={timeRemaining/60} hourHandProgress={minutes/12} progress={progress} numerals />
+        <ClockFace minuteHandProgress={timeRemaining/60} hourHandProgress={minutes/12} numerals {borderColor}/>
     </div>
-
-
-
 </div>

@@ -6,10 +6,10 @@
     export let style: string = "";
     export let minuteHandProgress: number|null = null; // 0 to 1
     export let hourHandProgress: number|null = null; // 0 to 1
-    export let progress: number|null = null;
     export let majorTickls: number|null = 12;
     export let minorTickls: number|null = 60;
     export let numerals: boolean = false;
+    export let borderColor: string|undefined = undefined;
 
     const ASSET_ROTATED = false;
 
@@ -75,19 +75,17 @@
 
     .tick {
         transition: background-color 1s;
-        /* background-color: var(--hue); */
+        background-color: var(--border-color);
     }
 
     .tick.major {
         width: 7px;
         height: 14px;
-        background-color: var(--hue);
     }
 
     .tick.minor {
         width: 1.5px;
         height: 14px;
-        background-color: var(--hue);
     }
 
     .numerals {
@@ -104,14 +102,7 @@
 </style>
 
 
-<div class="clockface-main" style="--border-color: var(--hue); {style}">
-    
-    {#if progress !== null}
-    <svg width="100%" height="100%" viewBox="0 0 100 100" style="pointer-events: none;">
-        <path d="{getArcParams(1-progress)}" stroke-width="4" fill="none" style="stroke: hsl(from var(--hue) calc(h + 180) 100% 80%); transition: stroke 1s;"/>
-    </svg>
-    {/if}
-    
+<div class="clockface-main" style="--border-color: {borderColor ?? 'var(--hue)'}; {style}">
     {#if minorTickls !== null}
     {#each {length: minorTickls} as _, i}
         <div class="tick-container" style="transform: translateX(-50%) rotate({360*(i+1)/minorTickls}deg);">

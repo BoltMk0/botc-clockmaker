@@ -413,7 +413,13 @@ export class ClockClientModel {
     }
 
     addListener(listener: ClientModelListenerType) {
-        if(!this.listeners.has(listener)) this.listeners.add(listener);
+        if(!this.listeners.has(listener)){
+            console.debug("Adding listener to clock", {
+                id: this.clockId,
+                listener
+            });
+            this.listeners.add(listener);
+        }
         return ()=>{
             this.listeners.delete(listener);
         }

@@ -1,10 +1,25 @@
 <script lang="ts">
     import gothicWindowCircle from '$lib/assets/gothic-window-circle-2.png';
 
-    export let windowSize: number = 0.85;
+     let {
+        windowSize = 0.85,
+        progress = undefined
+    } : {
+        windowSize: number;
+        progress?: number;
+    } = $props();
+
+    let wedgeAngle = $derived(progress !== undefined ? Math.min(Math.max(1-progress, 0), 1) * 360 : 360);
+
 </script>
 
 <style>
+
+    @property --wedge-angle {
+        syntax: '<angle>';
+        inherits: true;
+        initial-value: 0deg;
+    }
 
     .window-light {
         position: absolute;
@@ -19,8 +34,11 @@
 
     .window-light.foreground {
         inset: calc((1 - var(--window-size)) * 50%);
-        background-color: var(--hue);
+        background-color: var(--hue-alt);
         opacity: 0.8;
+        mask-image: conic-gradient(from 0deg, black 0deg, black var(--wedge-angle), transparent var(--wedge-angle), transparent 360deg);
+        -webkit-mask-image: conic-gradient(from 0deg, black 0deg, black var(--wedge-angle), transparent var(--wedge-angle), transparent 360deg);
+        transition: mask-image 1s linear, -webkit-mask-image 1s linear;
     }
 
     .window {
@@ -37,10 +55,10 @@
     }
 </style>
 
-<div style="position:relative; width: 100%; height: 100%; --window-size: {windowSize};">
+<div style="position:relative; width: 100%; height: 100%; --window-size: {windowSize}; --wedge-angle: {wedgeAngle}deg; --hue-alt: hsl(from var(--hue) h calc(s * 0.5) calc(l * 0.8))">
     <div style="position: absolute; inset: 0;">
         <div class="window-light background"></div>
         <div class="window-light foreground"></div>
-        <img src="{gothicWindowCircle}" class="window" alt="Gothic Window Circle" style="--sky-color: var(--hue)"/>
+        <img src="{gothicWindowCircle}" class="window" alt="Gothic Window Circle"/>
     </div>
 </div>
