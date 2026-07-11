@@ -1,23 +1,35 @@
 
 <script lang="ts">
-    export let value: number = 1; // linear value (0..1)
-    export let min: number = 0;
-    export let max: number = 100;
-    export let step: number = 1;
-    export let logarithmic: boolean = false;
-    export let onchange: (value: number) => void = () => {};
-    export let onchangefinished: (value: number) => void = () => {};
+    let {
+        value = $bindable(1), // linear value (0..1)
+        min = 0,
+        max = 100,
+        step = 1,
+        logarithmic = false,
+        onchange = () => {},
+        onchangefinished = () => {}
+    }: {
+        value?: number;
+        min?: number;
+        max?: number;
+        step?: number;
+        logarithmic?: boolean;
+        onchange?: (value: number) => void;
+        onchangefinished?: (value: number) => void;
+    } = $props();
 
     // Internal slider value
-    let sliderValue = value;
+    let sliderValue = $state(value);
 
     // Use min/max for both modes
-    $: if (logarithmic) {
-        // When value changes externally, update sliderValue (dB)
-        sliderValue = value > 0 ? 20 * Math.log10(value) : min;
-    } else {
-        sliderValue = value;
-    }
+    $effect(() => {
+        if (logarithmic) {
+            // When value changes externally, update sliderValue (dB)
+            sliderValue = value > 0 ? 20 * Math.log10(value) : min;
+        } else {
+            sliderValue = value;
+        }
+    });
 
     function updateValueFromEvent(e: Event) {
         const v = parseFloat((e.target as HTMLInputElement).value);
@@ -38,7 +50,7 @@
 
 <style>
 .vertical-slider {
-    writing-mode: vertical-lr; 
+    writing-mode: vertical-lr;
     direction: rtl;
     width: 32px;
     height: 100%;
@@ -52,8 +64,8 @@
     max={max}
     step={step}
     value={sliderValue}
-    on:input={handleInput}
-    on:change={handleChange}
+    oninput={handleInput}
+    onchange={handleChange}
     style=""
     class="vertical-slider"
 />

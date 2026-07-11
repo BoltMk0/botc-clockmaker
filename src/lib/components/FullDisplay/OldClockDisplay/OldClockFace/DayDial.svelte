@@ -2,16 +2,22 @@
     import { getSkyColor } from "$lib/common/util";
     import clockhand from '$lib/assets/clockhand3.png';
     
-    export let size: number = 700;
-    export let day: number;
-    export let max: number = 12;
+    let {
+        size = 700,
+        day,
+        max = 12,
+        progress
+    }: {
+        size?: number;
+        day: number;
+        max?: number;
+        progress: number;
+    } = $props();
 
-    export let progress: number;
-
-    $: rotationAngle = 70 - 140 * (day / max);
+    const rotationAngle = $derived(70 - 140 * (day / max));
     // $: rotationAngle = 0;
 
-    $: skyColor = getSkyColor(progress, 0.5);
+    const skyColor = $derived(getSkyColor(progress, 0.5));
 </script>
 
 <div class="clock-container" style="width: {size}px; height: {size / 2}px;">

@@ -1,18 +1,39 @@
 <script lang="ts">
+    import type { Snippet } from 'svelte';
     import DrawableCanvas from "$lib/components/DrawableCanvas.svelte";
 
-    export let editing: boolean = false;
-    export let noeditbutton: boolean = false;
-    export let style: string = '';
-    export let canvasStyle: string = '';
-    export let saveCanvasAsBlob: (() => Promise<Blob | null>) | undefined = undefined;
-    export let strokeWidth: number = 2;
-    export let exportDimensions: { width: number, height: number } | null = null;
-    export let remember: boolean = false;
+    let {
+        editing = $bindable(false),
+        noeditbutton = $bindable(false),
+        style = '',
+        canvasStyle = '',
+        saveCanvasAsBlob = $bindable(undefined),
+        strokeWidth = $bindable(2),
+        exportDimensions = null,
+        remember = false,
+        viewScale = $bindable(1),
+        children,
+    }: {
+        editing?: boolean;
+        noeditbutton?: boolean;
+        style?: string;
+        canvasStyle?: string;
+        saveCanvasAsBlob?: (() => Promise<Blob | null>) | undefined;
+        strokeWidth?: number;
+        exportDimensions?: { width: number, height: number } | null;
+        remember?: boolean;
+        viewScale?: number;
+        children?: Snippet;
+    } = $props();
 
-    let viewTx: number = 0;
-    let viewTy: number = 0;
-    export let viewScale: number = 1;
+    let viewTx: number = $state(0);
+    let viewTy: number = $state(0);
+
+    let drawableCanvas: ReturnType<typeof DrawableCanvas> | undefined = $state();
+
+    $effect(() => {
+        saveCanvasAsBlob = () => drawableCanvas?.saveCanvasAsBlob() ?? Promise.resolve(null);
+    });
 </script>
 
 
@@ -39,9 +60,9 @@
 
 <div class="anotatable-view-main" style="{style}">
     <div class="content-wrapper" style="transform: translate({viewTx}px, {viewTy}px) scale({viewScale});">
-        <slot/>
+        {@render children?.()}
     </div>
-    <DrawableCanvas remember={remember} bind:editing bind:noeditbutton bind:saveCanvasAsBlob bind:viewTx bind:viewTy bind:viewScale canvasStyle={canvasStyle} bind:strokeWidth exportedDimensions={exportDimensions}/>
+    <DrawableCanvas bind:this={drawableCanvas} remember={remember} bind:editing bind:noeditbutton bind:viewTx bind:viewTy bind:viewScale canvasStyle={canvasStyle} bind:strokeWidth exportedDimensions={exportDimensions}/>
 </div>
 
 

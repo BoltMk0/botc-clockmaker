@@ -1,8 +1,15 @@
 <script lang="ts">
-    export let x: number;
-    export let y: number;
-    export let width: number;
-    export let height: number;
+    let {
+        x,
+        y,
+        width,
+        height
+    }: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+    } = $props();
 </script>
 
 <svg viewBox="0 0 20 100" x="{x}" y="{y}" width="{width}" height="{height}" preserveAspectRatio="none">

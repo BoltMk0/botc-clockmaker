@@ -1,7 +1,17 @@
 <script lang="ts">
-    export let title: string;
-    export let buttonTitle: string = title;
-    export let visible: boolean = false;
+    import type { Snippet } from 'svelte';
+
+    let {
+        title,
+        buttonTitle = title,
+        visible = $bindable(false),
+        children,
+    }: {
+        title: string;
+        buttonTitle?: string;
+        visible?: boolean;
+        children?: Snippet;
+    } = $props();
 </script>
 
 <style>
@@ -45,21 +55,21 @@
     }
 </style>
 
-<button class="button-style" on:click={()=>{visible = true;}}>
+<button class="button-style" onclick={()=>{visible = true;}}>
     {buttonTitle}
 </button>
 {#if visible}
     <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <div class="overlay-background" on:click={()=>{visible = false;}} role="dialog" tabindex="-1">
-        <div on:click|stopPropagation class="overlay-window" role="dialog" tabindex="-1">
+    <div class="overlay-background" onclick={()=>{visible = false;}} role="dialog" tabindex="-1">
+        <div onclick={(e) => e.stopPropagation()} class="overlay-window" role="dialog" tabindex="-1">
             <div class="overlay-window-title">
                 <div style="font-size: large; text-align: left; padding: 5px 10px;">{title}</div>
-                <button on:click={()=>{visible = false;}} class="button-style close-button">
+                <button onclick={()=>{visible = false;}} class="button-style close-button">
                     Close
                 </button>
             </div>
             <div class="overlay-content">
-                <slot></slot>
+                {@render children?.()}
             </div>
         </div>
     </div>

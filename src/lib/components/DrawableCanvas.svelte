@@ -4,12 +4,27 @@
     import RubberIcon from '$lib/components/RubberIcon.svelte';
     import { onDestroy, onMount } from 'svelte';
 
-    export let editing = false;
-    export let noeditbutton: boolean = false;
-    export let canvasStyle: string = '';
-    export let strokeWidth = 2;
-    export let exportedDimensions: { width: number; height: number } | null = null;
-    export let remember: boolean = false;
+    let {
+        editing = $bindable(false),
+        noeditbutton = $bindable(false),
+        canvasStyle = '',
+        strokeWidth = $bindable(2),
+        exportedDimensions = null,
+        remember = false,
+        viewScale = $bindable(1),
+        viewTx = $bindable(0),
+        viewTy = $bindable(0),
+    }: {
+        editing?: boolean;
+        noeditbutton?: boolean;
+        canvasStyle?: string;
+        strokeWidth?: number;
+        exportedDimensions?: { width: number; height: number } | null;
+        remember?: boolean;
+        viewScale?: number;
+        viewTx?: number;
+        viewTy?: number;
+    } = $props();
 
     export async function saveCanvasAsBlob(): Promise<Blob | null> {
         if (!canvas) return null;
@@ -39,7 +54,7 @@
         });
     }
 
-    let penColors = ['#ff4030', '#5080ff', '#ffffff', '#000000'];
+    let penColors = $state(['#ff4030', '#5080ff', '#ffffff', '#000000']);
     let eraserWidth = 2 * strokeWidth;
 
     type Point = { x: number; y: number };
@@ -47,11 +62,11 @@
     type Stroke = { points: Point[]; color: string; width: number; tool: Tool };
     type Layer = { name: string; strokes: Stroke[] };
 
-    let tool: Tool = 'pen';
-    let activePenIndex = 0;
-    let layers: Layer[] = [{ name: 'Layer 1', strokes: [] }];
-    let activeLayerIndex = 0;
-    let layerDropdownOpen = false;
+    let tool: Tool = $state('pen');
+    let activePenIndex = $state(0);
+    let layers: Layer[] = $state([{ name: 'Layer 1', strokes: [] }]);
+    let activeLayerIndex = $state(0);
+    let layerDropdownOpen = $state(false);
     
 
     
@@ -116,12 +131,8 @@
     function getActiveStrokes(): Stroke[] {
         return layers[activeLayerIndex].strokes;
     }
-    let currentStroke: Stroke | null = null;
+    let currentStroke: Stroke | null = $state(null);
 
-    // View transform: strokes are stored in world space; the canvas applies pan + zoom.
-    export let viewScale = 1;
-    export let viewTx = 0;
-    export let viewTy = 0;
     const MIN_SCALE = 0.2;
     const MAX_SCALE = 10;
 
@@ -146,7 +157,7 @@
     const LAYERS_KEY = 'botct-annotations:test-layers:v1';
     const AUTOSAVE_IDLE_MS = 1000;
     let autosaveTimeoutId: number | null = null;
-    let isSaved = true;
+    let isSaved = $state(true);
 
     function isTool(value: unknown): value is Tool {
         return value === 'pen' || value === 'eraser';
@@ -778,16 +789,18 @@
         redrawFromStrokes();
     }
 
-    $: exportBoxStyle = exportedDimensions
+    const exportBoxStyle = $derived(exportedDimensions
         ? `left:${(-exportedDimensions.width / 2) * viewScale + viewTx + canvasCenterX}px; top:${(-exportedDimensions.height / 2) * viewScale + viewTy + canvasCenterY}px; width:${exportedDimensions.width * viewScale}px; height:${exportedDimensions.height * viewScale}px;`
-        : '';
+        : '');
 
     // Redraw whenever the view transform changes — handles external updates (e.g. bound
     // sliders in a parent) as well as ensuring the canvas context transform stays in sync.
-    $: if (browser && ctx && canvas) {
-        viewTx; viewTy; viewScale; // tracked as reactive dependencies
-        redrawFromStrokes();
-    }
+    $effect(() => {
+        if (browser && ctx && canvas) {
+            viewTx; viewTy; viewScale; // tracked as reactive dependencies
+            redrawFromStrokes();
+        }
+    });
 
     let resizeObserver: ResizeObserver | null = null;
 
@@ -825,7 +838,7 @@
     {#if !noeditbutton}
     <button
         class="button-style tool-button edit-toggle"
-        on:click={toggleEditMode}
+        onclick={toggleEditMode}
         aria-label={editing ? 'Commit' : 'Edit'}
         title={editing ? 'Commit' : 'Edit'}
     >
@@ -875,7 +888,7 @@
             class="button-style tool-button"
             class:highlight={tool === 'pen' && activePenIndex === i}
             style="border: 2px solid {color}; background-color: {tool === 'pen' && activePenIndex === i ? color : 'transparent'}; color: {tool === 'pen' && activePenIndex === i ? 'currentColor' : color}"
-            on:click={() => { tool = 'pen'; activePenIndex = i; }}
+            onclick={() => { tool = 'pen'; activePenIndex = i; }}
             aria-label="Pen {i + 1}"
         >
             <PenIcon color={activePenIndex === i && tool === 'pen' ? 'currentColor' : color} style="width: 100%; height: 100%;" />
@@ -883,22 +896,22 @@
                 class="pen-color-input"
                 type="color"
                 bind:value={penColors[i]}
-                on:input={() => { penColors = penColors; }}
+                oninput={() => { penColors = penColors; }}
                 aria-label="Select pen {i + 1} color"
                 tabindex={tool === 'pen' && activePenIndex === i ? 0 : -1}
             />
         </button>
     {/each}
-    <button class="button-style tool-button" class:highlight={tool === 'eraser'} on:click={() => (tool = 'eraser')}>
+    <button class="button-style tool-button" class:highlight={tool === 'eraser'} onclick={() => (tool = 'eraser')}>
         <RubberIcon color="currentColor" style="width: 100%; height: 100%;" />
     </button>
-    <button class="button-style tool-button" on:click={undoLastStroke} aria-label="Undo last stroke">Undo</button>
+    <button class="button-style tool-button" onclick={undoLastStroke} aria-label="Undo last stroke">Undo</button>
     <!-- <button class="button-style tool-button" on:click={resetView} aria-label="Reset view">Reset</button> -->
-    <button class="button-style tool-button error" on:click={clearDrawing}>Clear</button>
+    <button class="button-style tool-button error" onclick={clearDrawing}>Clear</button>
     <div class="layer-dropdown-wrapper">
         <button
             class="button-style tool-button layer-toggle"
-            on:click={() => (layerDropdownOpen = !layerDropdownOpen)}
+            onclick={() => (layerDropdownOpen = !layerDropdownOpen)}
             aria-label="Layers"
             title="Layers"
         >
@@ -912,7 +925,7 @@
                 <div class="layer-item" class:active={i === activeLayerIndex}>
                     <button
                         class="layer-select-btn"
-                        on:click={() => setActiveLayer(i)}
+                        onclick={() => setActiveLayer(i)}
                         title="Switch to {layer.name}"
                     >
                         {layer.name}
@@ -920,14 +933,14 @@
                     {#if layers.length > 1}
                     <button
                         class="layer-delete-btn"
-                        on:click|stopPropagation={() => removeLayer(i)}
+                        onclick={(e) => { e.stopPropagation(); removeLayer(i); }}
                         aria-label="Delete {layer.name}"
                         title="Delete layer"
                     >&times;</button>
                     {/if}
                 </div>
             {/each}
-            <button class="layer-add-btn" on:click={addLayer}>+ Add Layer</button>
+            <button class="layer-add-btn" onclick={addLayer}>+ Add Layer</button>
         </div>
         {/if}
     </div>
@@ -947,12 +960,12 @@
     <canvas
         bind:this={canvas}
         class:inactive={!editing}
-        on:pointerdown={onPointerDown}
-        on:pointermove={onPointerMove}
-        on:pointerup={endStroke}
-        on:pointercancel={endStroke}
-        on:pointerleave={endStroke}
-        on:pointerout={endStroke}
+        onpointerdown={onPointerDown}
+        onpointermove={onPointerMove}
+        onpointerup={endStroke}
+        onpointercancel={endStroke}
+        onpointerleave={endStroke}
+        onpointerout={endStroke}
         aria-hidden="{!editing}"
     ></canvas>
 </div>

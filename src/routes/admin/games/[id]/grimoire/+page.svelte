@@ -737,7 +737,7 @@
 
 </script>
 
-<svelte:window on:pointermove={onPointerMove} on:pointerup={onPointerUp}/>
+<svelte:window onpointermove={onPointerMove} onpointerup={onPointerUp}/>
 
 <style>
     .grimoire-board {

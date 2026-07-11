@@ -2,23 +2,31 @@
 	import { browser } from '$app/environment';
 	import { onDestroy, onMount } from 'svelte';
 
-	// Input
-	export let analyserNode: AnalyserNode | null = null;
+	let {
+		analyserNode = null,
+		height = 200,
+		width = 14,
+		minDb = -60, // floor shown on the meter (dBFS)
+		fftSize = 2048,
+		smoothingTimeConstant = 0.8,
+		clipThreshold = 0.98, // 0..1 peak amplitude
+		clipHoldMs = 800
+	}: {
+		analyserNode?: AnalyserNode | null;
+		height?: number;
+		width?: number;
+		minDb?: number;
+		fftSize?: number;
+		smoothingTimeConstant?: number;
+		clipThreshold?: number;
+		clipHoldMs?: number;
+	} = $props();
 
-	// Display / behavior
-	export let height = 200;
-	export let width = 14;
-	export let minDb = -60; // floor shown on the meter (dBFS)
-	export let fftSize = 2048;
-	export let smoothingTimeConstant = 0.8;
-	export let clipThreshold = 0.98; // 0..1 peak amplitude
-	export let clipHoldMs = 800;
-
-	let level01 = 0; // 0..1 (mapped from dB)
-	let isClipping = false;
+	let level01 = $state(0); // 0..1 (mapped from dB)
+	let isClipping = $state(false);
 
 	let rafId: number | null = null;
-	let mounted = false;
+	let mounted = $state(false);
 	let lastNode: AnalyserNode | null = null;
 
 	let floatTimeData: Float32Array<ArrayBuffer> | null = null;
@@ -136,17 +144,19 @@
 		stopLoop();
 	});
 
-	$: if (mounted && browser && analyserNode !== lastNode) {
-		lastNode = analyserNode;
-		// Reset state so swapping analysers doesn't show stale values.
-		level01 = 0;
-		isClipping = false;
-		clipUntil = 0;
-		floatTimeData = null;
-		byteTimeData = null;
-		stopLoop();
-		startLoopIfNeeded();
-	}
+	$effect(() => {
+		if (mounted && browser && analyserNode !== lastNode) {
+			lastNode = analyserNode;
+			// Reset state so swapping analysers doesn't show stale values.
+			level01 = 0;
+			isClipping = false;
+			clipUntil = 0;
+			floatTimeData = null;
+			byteTimeData = null;
+			stopLoop();
+			startLoopIfNeeded();
+		}
+	});
 </script>
 
 <div

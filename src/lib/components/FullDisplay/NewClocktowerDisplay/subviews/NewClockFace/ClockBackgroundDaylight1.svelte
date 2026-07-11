@@ -1,5 +1,6 @@
 <script lang="ts">
     import gothicWindowCircle from '$lib/assets/gothic-window-circle-2.png';
+    import { getNewClocktowerThemeContext } from '$lib/components/FullDisplay/NewClocktowerDisplay/model/theme';
 
      let {
         windowSize = 0.85,
@@ -10,6 +11,10 @@
     } = $props();
 
     let wedgeAngle = $derived(progress !== undefined ? Math.min(Math.max(1-progress, 0), 1) * 360 : 360);
+
+    const theme = getNewClocktowerThemeContext();
+
+    const maskColor = '#0004'
 
 </script>
 
@@ -28,13 +33,8 @@
         transition: all 1s;
     }
 
-    .window-light.background {
-        background-color: var(--hue-dark);
-    }
-
     .window-light.foreground {
         inset: calc((1 - var(--window-size)) * 50%);
-        background-color: var(--hue-alt);
         opacity: 0.8;
         mask-image: conic-gradient(from 0deg, black 0deg, black var(--wedge-angle), transparent var(--wedge-angle), transparent 360deg);
         -webkit-mask-image: conic-gradient(from 0deg, black 0deg, black var(--wedge-angle), transparent var(--wedge-angle), transparent 360deg);
@@ -55,10 +55,10 @@
     }
 </style>
 
-<div style="position:relative; width: 100%; height: 100%; --window-size: {windowSize}; --wedge-angle: {wedgeAngle}deg; --hue-alt: hsl(from var(--hue) h calc(s * 0.5) calc(l * 0.8))">
+<div style="position:relative; width: 100%; height: 100%; --window-size: {windowSize}; --wedge-angle: {wedgeAngle}deg;">
     <div style="position: absolute; inset: 0;">
-        <div class="window-light background"></div>
-        <div class="window-light foreground"></div>
+        <div class="window-light background" style="background-color: {theme.clockfaceColorSecondary}"></div>
+        <div class="window-light foreground" style="background-color: {theme.clockfaceColorPrimary};"></div>
         <img src="{gothicWindowCircle}" class="window" alt="Gothic Window Circle"/>
     </div>
 </div>

@@ -336,7 +336,7 @@ export class ClockClientModel {
     }
 
     private handleClockMessage(message: WSMessage) {
-        if(message.type !== 'sync') console.log("Received clock message:", message);
+        if(message.type !== 'sync') console.debug("Received clock message:", message);
         switch(message.type) {
             case 'clock':
                 this.handleClockStateMessage(message as ClockMessage);
@@ -402,7 +402,6 @@ export class ClockClientModel {
     }
 
     private handleAudioParamsChanged(message: AudioParamsMessage){
-        console.log("Updating audio params from server message:", message);
         this.setAudioParams({gain: message.gain, pan: message.pan}, false);
     }
 

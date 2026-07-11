@@ -1,6 +1,5 @@
 <script lang="ts">
-    export let color: string;
-    export let style: string = "";
+    let { color, style = "" }: { color: string; style?: string } = $props();
 </script>
 
 <svg viewBox="0 0 24 40" fill="none" xmlns="http://www.w3.org/2000/svg" style="{style}">

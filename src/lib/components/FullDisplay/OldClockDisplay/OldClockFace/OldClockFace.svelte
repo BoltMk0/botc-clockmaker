@@ -3,18 +3,27 @@
     import ClockDisplay from "./ClockDisplay.svelte";
     import DayDial from "./DayDial.svelte";
 
-    export let hue: number = 200;
-    export let size: number = 700;
-    export let progress: number;
-    export let totalTime: number|undefined = 800;
-    export let dayNumber: number|undefined = undefined;
-    export let style: string = "";
+    let {
+        hue = 200,
+        size = 700,
+        progress,
+        totalTime = 800,
+        dayNumber = undefined,
+        style = ""
+    }: {
+        hue?: number;
+        size?: number;
+        progress: number;
+        totalTime?: number|undefined;
+        dayNumber?: number|undefined;
+        style?: string;
+    } = $props();
 
-    $: border_thickness = size/30;
+    const border_thickness = $derived(size/30);
 
-    $: skyColor = getSkyColor(progress, 1, 1, 1);
+    const skyColor = $derived(getSkyColor(progress, 1, 1, 1));
 
-    $: borderColor = `hsl(${hue}, 60%, 40%)`;
+    const borderColor = $derived(`hsl(${hue}, 60%, 40%)`);
 </script>
 
 <div style="--clock-tick-color: #0009; font-size:{size/15}px; position: relative; width: {size-border_thickness*2}px; height: {size-border_thickness*2}px; border-radius: 50%; border: {border_thickness}px solid {borderColor}; {style}">

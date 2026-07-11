@@ -2,11 +2,17 @@
     import { getPlayerCount } from "$lib/common/util";
     import DisplayPanelBase from "./DisplayPanel/DisplayPanelBase.svelte";
 
-    export let numPlayers: number;
-    export let title = "Player Count";
-    export let style = "";
+    let {
+        numPlayers,
+        title = "Player Count",
+        style = ""
+    }: {
+        numPlayers: number;
+        title?: string;
+        style?: string;
+    } = $props();
 
-    $: playerCount = getPlayerCount(numPlayers);
+    const playerCount = $derived(getPlayerCount(numPlayers));
 
 </script>
 

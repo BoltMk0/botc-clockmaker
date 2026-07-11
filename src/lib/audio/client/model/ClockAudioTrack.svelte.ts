@@ -69,7 +69,7 @@ export class ClockAudioTrackModel implements AudioTrackModelBase, ClientModelLis
             this.audioParamsPanTxBufferStore = writableThatDoesntPollTooMuch(this.pan, 100);
         }
 
-        this.logger.log("ClockAudioTrack initialized with gain:", this.gain, "pan:", this.pan);
+        this.logger.debug("ClockAudioTrack initialized with gain:", this.gain, "pan:", this.pan);
 
         this.setup();
     }

@@ -7,8 +7,9 @@
     import { get, type Unsubscriber } from "svelte/store";
     import { page } from "$app/state";
     import Navbar from "$lib/components/Navbar.svelte";
+    import type { PageData } from './$types';
 
-    export let data;
+    let { data }: { data: PageData } = $props();
 
     let clockData = {
         cur: 0,
@@ -19,9 +20,9 @@
     let model: ClockClientModel = new ClockClientModel(id, data.config);
 
     let commsStateUnsubscriber: Unsubscriber | undefined = undefined;
-    let buttonColor: string = "red";
+    let buttonColor: string = $state("red");
 
-    $: day_info = model.day_info;
+    const day_info = model.day_info;
 
     onMount(()=>{
         console.log("Admin page for clock", id, "is mounting, initializing model and subscribing to comms state");

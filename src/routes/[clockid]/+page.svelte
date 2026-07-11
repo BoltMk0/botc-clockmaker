@@ -5,10 +5,11 @@
     import { page } from '$app/state';
     import Navbar from '$lib/components/Navbar.svelte';
     import { ClocktowerAudioEngine } from '$lib/audio/client/model/AudioEngine.svelte.js';
+    import type { PageData } from './$types';
 
-    export let data;
+    let { data }: { data: PageData } = $props();
 
-    let enterButtonClicked: boolean =  true;
+    let enterButtonClicked: boolean = $state(true);
     let model: ClockClientModel = new ClockClientModel(page.params.clockid, data.config, data.config.audioParams);
     let teardown: ()=>void;
 
@@ -35,7 +36,7 @@
 {#if enterButtonClicked}
 <FullDisplay model={model} />
 {:else}
-    <button on:click={() => { enterButtonClicked = true; onEnterButtonClicked(); }}>
+    <button onclick={() => { enterButtonClicked = true; onEnterButtonClicked(); }}>
         Enter
     </button>
 {/if}

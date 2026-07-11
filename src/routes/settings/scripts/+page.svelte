@@ -4,7 +4,7 @@
     import type { Character } from "$lib/database/common/types";
     import CustomOverlay from "$lib/components/CustomOverlay.svelte";
 
-    export let data: {scripts: any[], characters: Character[]};
+    let { data }: { data: {scripts: any[], characters: Character[]} } = $props();
 
 
     function selectScript(scriptId: number) {
@@ -23,7 +23,7 @@
         });
     }
 
-    let deleteActionContent: string;
+    let deleteActionContent: string | undefined = $state();
 
 </script>
 
@@ -110,7 +110,7 @@
                     <tr>
                         <td style="padding-right: 2em;">{script.name}</td>
                         <td>
-                            <button class="button-style" on:click={()=>selectScript(script.id)}>
+                            <button class="button-style" onclick={()=>selectScript(script.id)}>
                                 Edit
                             </button>
                             <CustomOverlay title="Confirm Delete" buttonTitle="Delete">

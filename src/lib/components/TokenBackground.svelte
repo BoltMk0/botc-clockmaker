@@ -1,10 +1,11 @@
 <script lang="ts">
-    export let style: string = '';
-    export let size: string = '200px';
+    import type { Snippet } from 'svelte';
+
+    let { style = '', size = '200px', children }: { style?: string; size?: string; children?: Snippet } = $props();
 </script>
 
 <div class="token-background-main" style="width: {size}; height: {size}; {style};">
-    <slot/>
+    {@render children?.()}
 </div>
 
 <style>

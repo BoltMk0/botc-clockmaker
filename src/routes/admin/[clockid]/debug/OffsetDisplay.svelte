@@ -2,12 +2,12 @@
     import type { ClockClientModel } from "$lib/model/client/ClockClientModel";
     import { onDestroy, onMount } from "svelte";
 
-    export let model: ClockClientModel;
+    let { model }: { model: ClockClientModel } = $props();
 
 
-    let values: number[] = [];
-    let filteredAvg: number = 0;
-    let minDelta: number|null = null;
+    let values: number[] = $state([]);
+    let filteredAvg: number = $state(0);
+    let minDelta: number|null = $state(null);
 
     let timeout: ReturnType<typeof setTimeout>|null = null;
 

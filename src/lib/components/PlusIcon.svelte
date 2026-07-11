@@ -1,6 +1,5 @@
 <script lang="ts">
-    export let size: number = 24;
-    export let color: string = "currentColor";
+    let { size = 24, color = "currentColor" }: { size?: number; color?: string } = $props();
 </script>
 
 <svg viewBox="0 0 24 24" width={size} height={size} fill={color} focusable="false">

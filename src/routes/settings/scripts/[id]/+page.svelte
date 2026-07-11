@@ -2,25 +2,26 @@
     import { CHARACTER_CATEGORIES, type Character, type ScriptCharacter } from "$lib/database/common/types.js";
     import CharacterThumb from "$lib/components/CharacterThumb.svelte";
     import { goto } from "$app/navigation";
-    export let data;
+    import type { PageData } from "./$types";
+    let { data }: { data: PageData } = $props();
 
     const characterMap = new Map<number, ScriptCharacter>(data.characters.map((c: any) => [c.id, c]));
 
     const FILTER_OPTIONS = ['all', ...CHARACTER_CATEGORIES, 'traveler'] as const;
     type FilterOption = typeof FILTER_OPTIONS[number];
 
-    let searchQuery = "";
-    let categoryFilter: FilterOption = 'all';
+    let searchQuery = $state("");
+    let categoryFilter: FilterOption = $state('all');
 
     type NightList = 'first' | 'other';
-    let dragState: { list: NightList; id: number } | null = null;
-    let dropTargetId: number | null = null;
-    let dropPosition: 'before' | 'after' = 'before';
+    let dragState: { list: NightList; id: number } | null = $state(null);
+    let dropTargetId: number | null = $state(null);
+    let dropPosition: 'before' | 'after' = $state('before');
 
-    $: inUseCharacterIds = new Set(data.script.characters.map((c: any) => c.id));
-    $: filteredCharacters = (data.characters as Character[])
+    const inUseCharacterIds = $derived(new Set(data.script.characters.map((c: any) => c.id)));
+    const filteredCharacters = $derived((data.characters as Character[])
         .filter(c => categoryFilter === 'all' || c.category === categoryFilter)
-        .filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
+        .filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())));
 
     function orderSort(key: 'firstNightOrder' | 'otherNightOrder') {
         return (a: ScriptCharacter, b: ScriptCharacter) => {
@@ -31,12 +32,12 @@
         };
     }
 
-    $: firstNightList = (data.script.characters as ScriptCharacter[])
+    const firstNightList = $derived((data.script.characters as ScriptCharacter[])
         .filter(c => !!c.wakes_first_night)
-        .sort(orderSort('firstNightOrder'));
-    $: otherNightList = (data.script.characters as ScriptCharacter[])
+        .sort(orderSort('firstNightOrder')));
+    const otherNightList = $derived((data.script.characters as ScriptCharacter[])
         .filter(c => !!c.wakes_other_nights)
-        .sort(orderSort('otherNightOrder'));
+        .sort(orderSort('otherNightOrder')));
 
     function captialiseString(str: string) {
         return str.charAt(0).toUpperCase() + str.slice(1);
@@ -299,9 +300,9 @@
 <div style="width: 100%; height: 100%;">
     <div style="width: 100%; height: 100%; display: grid; grid-template-rows: auto 1fr; gap: 1em; overflow: hidden;" class="scripts-main">
         <div style="justify-content: space-between; background-color: var(--theme-bg-secondary); padding: 0.5em 1em;" class="in-a-row padded">
-            <button class="button-style" on:click={() => goto('/settings/scripts')}>Back</button>
+            <button class="button-style" onclick={() => goto('/settings/scripts')}>Back</button>
             <input type="text" placeholder="Script Name" bind:value={data.script.name} style="font-size: large; padding: 0.2em 0.5em;" class="input-style" required/>
-            <button class="button-style highlight" on:click={save}>Save</button>
+            <button class="button-style highlight" onclick={save}>Save</button>
         </div>
         <div style="width: 100%; height: 100%; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1em; overflow: hidden;" class="padded">
             <div class="character-category-column-main">
@@ -319,7 +320,7 @@
                 <div class="character-category-column-content">
                     {#each filteredCharacters as character (character.id)}
                         <div class="character-list-item">
-                            <button class:in-use={inUseCharacterIds.has(character.id)} on:click={() => onAddCharacter(character.id)}>
+                            <button class:in-use={inUseCharacterIds.has(character.id)} onclick={() => onAddCharacter(character.id)}>
                                 <CharacterThumb {character}/>
                                 <div class="character-row-body">
                                     <div class="character-row-name">{character.name}</div>
@@ -343,7 +344,7 @@
                             <div style="opacity: 0.6;">{captialiseString(category)} ({inCat.length})</div>
                             {#each inCat as character}
                                 <div class="character-list-item">
-                                    <button class:in-use={true} on:click={() => onAddCharacter(character.id)}>
+                                    <button class:in-use={true} onclick={() => onAddCharacter(character.id)}>
                                         <CharacterThumb {character}/>
                                         <div class="character-row-body">
                                             <div class="character-row-name">{character.name}</div>
@@ -367,10 +368,10 @@
                             data-drop={dropTargetId === character.id && dragState?.list === 'first' ? dropPosition : null}
                             draggable="true"
                             role="listitem"
-                            on:dragstart={(e) => onDragStart(e, 'first', character.id)}
-                            on:dragover={(e) => onDragOverRow(e, 'first', character.id)}
-                            on:drop={(e) => onDropRow(e, 'first', character.id)}
-                            on:dragend={clearDrag}
+                            ondragstart={(e) => onDragStart(e, 'first', character.id)}
+                            ondragover={(e) => onDragOverRow(e, 'first', character.id)}
+                            ondrop={(e) => onDropRow(e, 'first', character.id)}
+                            ondragend={clearDrag}
                         >
                             <button class:in-use={true}>
                                 <span class="order-chip">{i + 1}</span>
@@ -393,10 +394,10 @@
                             data-drop={dropTargetId === character.id && dragState?.list === 'other' ? dropPosition : null}
                             draggable="true"
                             role="listitem"
-                            on:dragstart={(e) => onDragStart(e, 'other', character.id)}
-                            on:dragover={(e) => onDragOverRow(e, 'other', character.id)}
-                            on:drop={(e) => onDropRow(e, 'other', character.id)}
-                            on:dragend={clearDrag}
+                            ondragstart={(e) => onDragStart(e, 'other', character.id)}
+                            ondragover={(e) => onDragOverRow(e, 'other', character.id)}
+                            ondrop={(e) => onDropRow(e, 'other', character.id)}
+                            ondragend={clearDrag}
                         >
                             <button class:in-use={true}>
                                 <span class="order-chip">{i + 1}</span>

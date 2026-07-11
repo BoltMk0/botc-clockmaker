@@ -2,14 +2,21 @@
     import {formatTime, getSkyColor} from "$lib/common/util";
     import clockhand from '$lib/assets/clockhand.png';
 
-    export let progress: number;
-    export let timeRemaining: number;
-    export let size: number = 700;
-    export let onTimeShift: ((delta: number)=>void) | undefined = undefined;
-    
+    let {
+        progress,
+        timeRemaining,
+        size = 700,
+        onTimeShift = undefined
+    }: {
+        progress: number;
+        timeRemaining: number;
+        size?: number;
+        onTimeShift?: ((delta: number)=>void) | undefined;
+    } = $props();
+
     // Calculate the rotation angle (0 = right/max, 180 = left/min)
-    $: rotationAngle = 80-160 * (Math.min(Math.max(progress, 0), 1));
-    
+    const rotationAngle = $derived(80-160 * (Math.min(Math.max(progress, 0), 1)));
+
     
     function getCircleColor(progress: number): string {
         if(progress >= 1){

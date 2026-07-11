@@ -1,10 +1,19 @@
 <script lang="ts">
-	export let value: number = 0;
-	export let min: number = 0;
-	export let max: number = 100;
-	export let step: number = 1;
-	export let onchange: (value: number) => void = () => {};
-	export let onchangefinished: (value: number) => void = () => {};
+	let {
+		value = $bindable(0),
+		min = 0,
+		max = 100,
+		step = 1,
+		onchange = () => {},
+		onchangefinished = () => {}
+	}: {
+		value?: number;
+		min?: number;
+		max?: number;
+		step?: number;
+		onchange?: (value: number) => void;
+		onchangefinished?: (value: number) => void;
+	} = $props();
 
 	function handleInput(e: Event) {
 		const v = parseFloat((e.target as HTMLInputElement).value);
@@ -34,7 +43,7 @@
 	max={max}
 	step={step}
 	value={value}
-	on:input={handleInput}
-	on:change={handleChange}
+	oninput={handleInput}
+	onchange={handleChange}
 	class="horizontal-slider"
 />

@@ -1,12 +1,18 @@
 <script lang="ts">
     import DisplayPanelBase from "./DisplayPanel/DisplayPanelBase.svelte";
 
-    export let day: number;
-    export let title = "Day";
-    export let style = "";
+    let {
+        day,
+        title = "Day",
+        style = ""
+    }: {
+        day: number;
+        title?: string;
+        style?: string;
+    } = $props();
 
-    $: dayUnitDigit = Math.floor(day % 10);
-    $: dayTensDigit = Math.floor((day % 100) / 10);
+    const dayUnitDigit = $derived(Math.floor(day % 10));
+    const dayTensDigit = $derived(Math.floor((day % 100) / 10));
 </script>
 
 <DisplayPanelBase title={title} style="{style}">
