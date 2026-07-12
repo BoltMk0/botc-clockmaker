@@ -34,6 +34,6 @@
 <svg bind:clientWidth={clientWidth} bind:clientHeight={clientHeight} width="{width}" height="{height}" preserveAspectRatio="none" style="transform: rotate({rotation}deg); transform-origin: 50% 50%; {style}">
     <line x1=0 y1=0 x2={clientWidth} y2=0 stroke={theme.baseSecondary} stroke-width="2"/>
     {#each Array(numBunting) as _, i}
-    <BuntingFlag color={`hsl(from ${theme.buntingColorBase} calc(h - 15 + ${((i+2)%3) * 30}) calc(20 + s - ${((i+2)%3) * 20}) calc(30 + l * ${((i+2) % 3) * 0.25}))`} x={(i+0.5) * (clientWidth/(numBunting+0.5))} y={1} width={flagWidth} height={clientHeight} flapDelay={(i * 0.37) % 3.1} flapDuration={2.6 + (i % 3) * 0.4}/>
+    <BuntingFlag color={`hsl(from ${theme.buntingColorBase} calc(h - 15 + ${((i+2)%3) * 30}) calc(20 + s - ${((i+2)%3) * 20}) calc(${25 + theme.skyBrightness * 10} + l * ${((i+2) % 3) * 0.3}))`} x={(i+0.5) * (clientWidth/(numBunting+0.5))} y={1} width={flagWidth} height={clientHeight} flapDelay={(i * 0.37) % 3.1} flapDuration={2.6 + (i % 3) * 0.4}/>
     {/each}
 </svg>

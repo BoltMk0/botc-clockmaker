@@ -40,7 +40,7 @@
     height="{height}"
     preserveAspectRatio="none"
     class="flapping"
-    style="fill: {color}; transform-origin: 50% 0%; animation-delay: {flapDelay}s; animation-duration: {flapDuration}s; {style};"
+    style="fill: {color}; transform-origin: 50% 0%; animation-delay: {flapDelay}s; animation-duration: {flapDuration}s; {style}; transition: fill 0.5s ease;"
     transform={rotateDeg !== undefined ? `rotate(${rotateDeg} ${x + width / 2} ${y})` : undefined}
 >
     <polygon points="0,0 50,100 100,0" style="fill: {theme.baseSecondary}"/>

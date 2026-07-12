@@ -48,7 +48,8 @@
         get panelColorSecondary(){return clockfaceColorPrimary},
         get panelTextColor(){ return `hsl(0 0 ${(skyBrightness*0.3 + 0.7)*90}%)`},
         get buntingColorBase() {return clockfaceColorPrimary},
-        get skyColor(){ return skyColor }
+        get skyColor(){ return skyColor },
+        get skyBrightness() {return skyBrightness }
     });
 
     const BUNTING_DENSITY = 0.6;

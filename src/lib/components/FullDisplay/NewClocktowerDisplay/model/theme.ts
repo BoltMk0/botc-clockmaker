@@ -12,6 +12,7 @@ interface NewClocktowerTheme {
     panelColorSecondary: string;
     panelTextColor: string;
     skyColor: string;
+    skyBrightness: number;
 }
 
 const CONTEXT_KEY = 'NewClocktowerTheme'
