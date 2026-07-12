@@ -34,8 +34,13 @@ class AmbienceEngine extends AudioTrackGroupModel {
     }
 }
 
+type ClocktowerAudioEngineOpts = {
+    muted?: boolean;
+}
+
 export class ClocktowerAudioEngine implements AudioTrackModelBase {
     private readonly masterGain: GainNode;
+    private readonly masterMute: GainNode;
     private readonly masterPanner: StereoPannerNode;
     private cleanupEffects: ()=>void;
     private saveStateTimeout: ReturnType<typeof setTimeout>|null = null;
@@ -47,18 +52,23 @@ export class ClocktowerAudioEngine implements AudioTrackModelBase {
 
     gain: number = $state(1);
     pan: number = $state(0);
+    muted: boolean;
     readonly title: string = "Audio Engine";
     
-    constructor(readonly audioContext: AudioContext, clockModels: ClockClientModel[], readonly ambienceResources: Resource[], public clockCreationOptions: ClockAudioTrackOptions = {}){
-        
+
+    constructor(readonly audioContext: AudioContext, clockModels: ClockClientModel[], readonly ambienceResources: Resource[], public clockCreationOptions: ClockAudioTrackOptions = {}, opts: ClocktowerAudioEngineOpts = {}){
+        // If the user hasn't interacted with the page, no audio will play
+        // Using a "Mute" functionality to force an interaction.
+        this.muted = $state(opts.muted === undefined ? audioContext.state === 'suspended' : opts.muted);
 
         this.masterGain = this.audioContext.createGain();
+        this.masterMute = this.audioContext.createGain();
         this.masterPanner = this.audioContext.createStereoPanner();
 
         this.masterGain.gain.value = 1.0;
         this.masterPanner.pan.value = 0.0;
 
-        this.masterGain.connect(this.masterPanner).connect(this.audioContext.destination);
+        this.masterGain.connect(this.masterPanner).connect(this.masterMute).connect(this.audioContext.destination);
         
         this.cleanupEffects = $effect.root(()=>{
             $effect(()=>{
@@ -69,6 +79,14 @@ export class ClocktowerAudioEngine implements AudioTrackModelBase {
             $effect(()=>{
                 this.masterPanner.pan.value = this.pan;
                 this.saveState();
+            });
+
+            $effect(()=>{
+                if(this.muted){
+                    this.masterMute.gain.value = 0;
+                } else {
+                    this.masterMute.gain.value = 1;
+                }
             });
         });
 
@@ -119,13 +137,13 @@ export class ClocktowerAudioEngine implements AudioTrackModelBase {
         this.gain = Math.pow(10, gainDB / 20);
     }
 
-    static createNewEngineForClockClients(clients: ClockClientModel[], ambienceResources: Resource[], clockCreationOptions: ClockAudioTrackOptions = {}){
+    static createNewEngineForClockClients(clients: ClockClientModel[], ambienceResources: Resource[], clockCreationOptions: ClockAudioTrackOptions = {}, opts: ClocktowerAudioEngineOpts = {}){
         if(!browser){
             throw new Error("AudioEngine instances cannot be created outside of a browser context");
         }
 
         const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const audioEngine = new ClocktowerAudioEngine(audioContext, clients, ambienceResources, clockCreationOptions);
+        const audioEngine = new ClocktowerAudioEngine(audioContext, clients, ambienceResources, clockCreationOptions, opts);
 
         const resumeAudioContext = () => {
             audioContext.resume();

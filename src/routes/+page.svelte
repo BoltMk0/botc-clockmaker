@@ -5,19 +5,20 @@
     import FullDisplay from '$lib/components/FullDisplay/FullDisplay.svelte';
     import Navbar from '$lib/components/Navbar.svelte';
     import { ClocktowerAudioEngine } from '$lib/audio/client/model/AudioEngine.svelte.js';
+    import MuteButton from '$lib/components/MuteButton.svelte';
 
     let {
         data
     } = $props();
 
     const clients = $derived(browser ? data.instances.map(({id, config, audioParams}) => new ClockClientModel(id, config, audioParams)) : []);
-    
+    let audioEngineInstance: ClocktowerAudioEngine|undefined = $state(undefined);
     
     onMount(() => {
         if(browser){
             clients.forEach(client => client.init());
-            let { teardown} = ClocktowerAudioEngine.createNewEngineForClockClients(clients, []);
-
+            let { teardown, audioEngine } = ClocktowerAudioEngine.createNewEngineForClockClients(clients, []);
+            audioEngineInstance = audioEngine;
             return teardown;
         }
 
@@ -32,7 +33,11 @@
 </div>
 
 <Navbar/>
-    
+
+{#if audioEngineInstance}
+<MuteButton audioEngine={audioEngineInstance}/>
+{/if}
+
 <style>
     .clock-container{
         display: flex;

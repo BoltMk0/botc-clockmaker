@@ -17,6 +17,22 @@ const DEFAULT_STATE: AppSettingsState = {
     showClockNames: true,
 };
 
+
+function calculateIdealSize(displayMode: FullDisplayMode){
+    if(browser && displayMode !== undefined){
+        switch(displayMode){
+            case 'clocktower':
+                return window.innerHeight/1.5;
+            case 'original':
+                return Math.min(window.innerWidth/2 - 30, window.innerHeight-60) - 30;
+            default:
+                return 700;
+        }
+    } else {
+        return 700;
+    }
+}
+
 class AppSettingsModel {
     displayMode: FullDisplayMode = $state(DEFAULT_STATE.displayMode);
     autoSize: boolean = $state(DEFAULT_STATE.autoSize);
@@ -44,18 +60,24 @@ class AppSettingsModel {
 
                 // When autosize is enabled, immediately set the size
                 $effect(()=>{
-                    if(this.autoSize) this.size = this.calculateIdealSize();
+                    if(this.autoSize) this.size = calculateIdealSize(this.displayMode);
                 });
 
                 // When autosize is enabled, always recalculate size when browser window is resized
                 $effect(()=>{
                     if(!browser) return;
+
+                    const self = this;
+                    function onResize(){
+                        if(!self) return;
+                        self.reCalculateSize();
+                    }
                     if(this.autoSize){
                         console.debug("Enabling autosize and adding resize listener");
-                        window.addEventListener('resize', this.reCalculateSize);
+                        window.addEventListener('resize', onResize);
                     } else {
                         console.debug("Disabling autosize and adding resize listener");
-                        window.removeEventListener('resize', this.reCalculateSize);
+                        window.removeEventListener('resize', onResize);
                     }
                 });
             });
@@ -88,24 +110,8 @@ class AppSettingsModel {
         }
     }
 
-    
-    calculateIdealSize(){
-        if(browser && this.displayMode !== undefined){
-            switch(this.displayMode){
-                case 'clocktower':
-                    return window.innerHeight/1.5;
-                case 'original':
-                    return Math.min(window.innerWidth/2 - 30, window.innerHeight-60) - 30;
-                default:
-                    return 700;
-            }
-        } else {
-            return 700;
-        }
-    }
-
     reCalculateSize(){
-        this.size = this.calculateIdealSize();
+        this.size = calculateIdealSize(this.displayMode);
     }
 }
 

@@ -1,33 +1,21 @@
 <script lang="ts">
     import { ClocktowerAudioEngine } from "$lib/audio/client/model/AudioEngine.svelte";
     import type { ClockClientModel } from "$lib/model/client/ClockClientModel";
-    import { onDestroy, onMount } from "svelte";
     import ChannelStrip from "./ChannelStrip/ChannelStrip.svelte";
     import ChannelStripGroup from "./ChannelStrip/ChannelStripGroup.svelte";
-    import { browser } from "$app/environment";
     import type { Resource } from "$lib/resources/common/types";
     import PlayIcon from "$lib/audio/client/components/PlayIcon.svelte";
     import PauseIcon from "$lib/audio/client/components/PauseIcon.svelte";
     
     let {
         clients,
-        ambienceResources
+        ambienceResources,
+        audioEngine
     }: {
         clients: ClockClientModel[];
         ambienceResources: Resource[];
+        audioEngine: ClocktowerAudioEngine;
     } = $props();
-
-    let audioEngine: ClocktowerAudioEngine|undefined = $state(undefined);
-    let teardown: ()=>void;
-
-    onMount(()=>{
-        if(!browser) return;
-        ({audioEngine, teardown} = ClocktowerAudioEngine.createNewEngineForClockClients(clients, ambienceResources, {enableParamsTx: true}));
-    });
-
-    onDestroy(()=>{
-        if(teardown) teardown();
-    })
 
 </script>
 

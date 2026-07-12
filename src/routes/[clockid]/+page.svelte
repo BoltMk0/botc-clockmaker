@@ -6,11 +6,12 @@
     import Navbar from '$lib/components/Navbar.svelte';
     import { ClocktowerAudioEngine } from '$lib/audio/client/model/AudioEngine.svelte.js';
     import type { PageData } from './$types';
+    import MuteButton from '$lib/components/MuteButton.svelte';
 
     let { data }: { data: PageData } = $props();
 
-    let enterButtonClicked: boolean = $state(true);
     let model: ClockClientModel = new ClockClientModel(page.params.clockid, data.config, data.config.audioParams);
+    let audioEngine: ClocktowerAudioEngine|undefined = $state(undefined);
     let teardown: ()=>void;
 
 
@@ -24,7 +25,7 @@
 
     onMount(() => {
         model.init();
-        ({ teardown } = ClocktowerAudioEngine.createNewEngineForClockClients([model], data.ambienceResources));
+        ({ teardown, audioEngine} = ClocktowerAudioEngine.createNewEngineForClockClients([model], data.ambienceResources));
     });
 
     onDestroy(()=>{
@@ -33,13 +34,12 @@
     });
 
 </script>
-{#if enterButtonClicked}
+
 <FullDisplay model={model} />
-{:else}
-    <button onclick={() => { enterButtonClicked = true; onEnterButtonClicked(); }}>
-        Enter
-    </button>
-{/if}
+
 <Navbar/>
 
+{#if audioEngine}
+<MuteButton {audioEngine}/>
+{/if}
 

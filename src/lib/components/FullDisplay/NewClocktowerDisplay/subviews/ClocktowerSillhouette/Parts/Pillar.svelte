@@ -22,9 +22,6 @@
     } = $props();
 
     const theme = getNewClocktowerThemeContext();
-
-
-    $inspect("TP2: ", theme.basePrimary, theme.baseSecondary)
 </script>
 
 <svg class='pillar' viewBox="0 0 100 100" x="{x}" y="{y}" width="{width}" height="{height}" preserveAspectRatio="none" style="{style}">
