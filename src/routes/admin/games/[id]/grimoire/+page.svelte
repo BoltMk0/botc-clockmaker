@@ -1180,7 +1180,7 @@
         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 2em; text-shadow: 0 0 10px rgba(0,0,0,0.7); z-index: {z_indecies.clock};">
             {#if clockClientManagerClient && $clockClientManagerClient}
             <button class="no-button-style" style="position: relative; width: {tokenSize * 1.5 + 50}px; height: {tokenSize * 1.5 + 50}px; margin: 0 auto;" onclick={()=>showTimerOptions = true}>
-                <FullDisplay model={$clockClientManagerClient} size={tokenSize * 1.5}/>
+                <FullDisplay model={$clockClientManagerClient} size={tokenSize * 1.5} displayMode='original'/>
             </button>
             {/if}
         </div>
