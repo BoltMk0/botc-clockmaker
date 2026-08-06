@@ -75,6 +75,8 @@
             {:catch error}
                 <div>Error loading resource data</div>
             {/await}
+    {:else if data.type === 'rules-slide'}
+    <img src="/api/resources/{data.id}" style="width: 200px; max-height: 200px; object-fit: contain; background-color: black;"/>
     {/if}
     </div>
     <div class="resource-thumb-footer">

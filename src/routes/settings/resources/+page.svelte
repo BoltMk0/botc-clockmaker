@@ -13,7 +13,7 @@
     let {data}: {data:{ resources: Resource[] }} = $props();
 
     let selectedResourceType: ResourceType = $state('grimoirestate');
-    const RESOURCE_TYPES_TO_HIDE: ResourceType[] = ['grimoirestate', 'charactertokenimage', 'clockconfig']
+    const RESOURCE_TYPES_TO_HIDE: ResourceType[] = ['grimoirestate', 'charactertokenimage', 'clockconfig', 'appconfig']
 
     let showUploadOverlay = $state(false);
 

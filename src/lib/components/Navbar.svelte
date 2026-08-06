@@ -123,7 +123,8 @@
         </li>
          {/if}
         <li><a href="/admin/mixer">Audio Mixer</a></li>
-        <li><a href="/admin/games" target="_self">Games</a></li>
+        <!-- <li><a href="/admin/games" target="_self">Games</a></li> -->
+        <li><a href="/rules" target="_self">Rules</a></li>
         <li><a href="/settings" target="_self">Settings</a></li>
     </ul>
 

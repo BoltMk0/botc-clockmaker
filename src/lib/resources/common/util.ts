@@ -39,6 +39,8 @@ export function prettifyResourceType(type: ResourceType): string {
         case "charactertokenimage": return "Character Token Image";
         case "ambience": return "Ambience";
         case "clockconfig": return "Clock Config";
+        case 'appconfig': return "App Config";
+        case 'rules-slide': return "Rules Slides"
         default: return type;
     }
 }

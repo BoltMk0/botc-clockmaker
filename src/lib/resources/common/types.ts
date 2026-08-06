@@ -1,6 +1,6 @@
 
-export type ResourceType = "sfx" | "music" | "grimoirestate" | "charactertokenimage" | 'ambience' | 'clockconfig' | 'appconfig';
-export const ALL_RESOURCE_TYPES: ResourceType[] = ['sfx', 'music', 'grimoirestate', 'charactertokenimage', 'ambience', 'clockconfig', 'appconfig'] as const;
+export type ResourceType = "sfx" | "music" | "grimoirestate" | "charactertokenimage" | 'ambience' | 'clockconfig' | 'appconfig' | 'rules-slide';
+export const ALL_RESOURCE_TYPES: ResourceType[] = ['sfx', 'music', 'grimoirestate', 'charactertokenimage', 'ambience', 'clockconfig', 'appconfig', 'rules-slide'] as const;
 
 export function isResourceType(value: any): value is ResourceType {
     if(typeof value !== 'string') return false;
@@ -33,19 +33,16 @@ export type ReminderTokenResource = Resource & {
 export function getAcceptedMimeTypeForResourceType(resourceType: ResourceType): string {
     switch (resourceType) {
         case "sfx":
-            return "audio/*";
         case "music":
+        case "ambience":
             return "audio/*";
         case "grimoirestate":
         case "clockconfig":
+        case 'appconfig':
             return "application/json";
         case "charactertokenimage":
+        case 'rules-slide':
             return "image/*";
-        case "ambience":
-            return "audio/*";
-        case 'appconfig':
-            return 'application/json'
-
     }
 }
 
@@ -59,6 +56,7 @@ export function getAcceptedExtensionsForResourceType(resourceType: ResourceType)
         case "clockconfig":
             return [".json"];
         case "charactertokenimage":
+        case 'rules-slide':
             return [".png", ".jpg", ".jpeg", ".webp", ".gif"];
         case 'appconfig':
             return ['.json']
