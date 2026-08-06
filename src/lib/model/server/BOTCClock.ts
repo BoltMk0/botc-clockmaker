@@ -107,6 +107,8 @@ export class BOTCTClock extends EventEmitter {
     get audioGain() { return this.#model.audio.gain; }
     get audioPan() { return this.#model.audio.pan; }
     get audioBalance() { return this.#model.audio.balance; }
+    get finalBellResourceId() { return this.#model.audio.resources.finalBell; }
+    get reminderBellResourceId() { return this.#model.audio.resources.reminderBell; }
 
     get config() { return this.#model.config; }
 
@@ -130,6 +132,21 @@ export class BOTCTClock extends EventEmitter {
     
     set audioBalance(balance: number){
         this.#model.audio.balance = balance;
+        this.scheduleSave();
+        this.debouncedEmit('audio', this.#model.audio);
+    }
+
+    set finalBellResourceId(id: string|null){
+        if(id === '') id = null;
+        this.#model.audio.resources.finalBell = id;
+        this.scheduleSave();
+        this.debouncedEmit('audio', this.#model.audio);
+    }
+
+    
+    set reminderBellResourceId(id: string|null){
+        if(id === '') id = null;
+        this.#model.audio.resources.reminderBell = id;
         this.scheduleSave();
         this.debouncedEmit('audio', this.#model.audio);
     }

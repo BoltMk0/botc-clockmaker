@@ -253,3 +253,11 @@ export function formatTimeAgo(timestamp: number): string {
     const years = Math.floor(months / 12);
     return `${years} year${years !== 1 ? 's' : ''} ago`;
 }
+
+export function linearToDb(linear: number){
+    return 20 * Math.log10(linear);
+}
+
+export function dbToLinear(db: number){
+    return Math.pow(10, db / 20);
+}

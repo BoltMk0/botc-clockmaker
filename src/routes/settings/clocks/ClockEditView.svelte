@@ -1,6 +1,8 @@
 <script lang="ts">
     import { goto, invalidateAll } from '$app/navigation';
     import HSlider from '$lib/audio/client/components/HSlider.svelte';
+    import type { ClocktowerAudioTrackModel } from '$lib/audio/common/model/clocktowerAudioTrackModel.svelte';
+    import { dbToLinear, linearToDb } from '$lib/common/util';
     import type { ClocktowerModel } from '$lib/model/common/ClocktowerModel';
 
     interface ConfigPageData {
@@ -12,10 +14,6 @@
 
     let clock = $state(data.clock);
     let sfx_resources = $state(data.sfx_resources);
-    $effect(()=>{
-        clock = data.clock;
-        sfx_resources = data.sfx_resources;
-    });
 
     $effect.pre(()=>{if(clock.config.teamName === null) clock.config.teamName = clock.clock.clockId!});
 
@@ -67,10 +65,26 @@
             }
             console.log("Config saved successfully");
             invalidateAll();
+        }).then(()=>{
+            saveAudioSettings(clock.audio);
+        }).then(()=>{
             alert("Config saved successfully!")
         }).catch(error => {
             console.error("Error saving config:", error);
             alert("Error saving config: " + error);
+        });
+    }
+
+    async function saveAudioSettings(settings: ClocktowerAudioTrackModel){
+        return fetch(`/api/clock/${clock.clock.clockId}/audioParams`, {
+            method: 'POST',
+            body: JSON.stringify(settings),
+            headers: {'Content-Type': 'application/json'}
+        }).then(response=>{
+            if(!response.ok){
+                throw new Error("Failed to save audio settings");
+            }
+            invalidateAll();
         });
     }
 
@@ -99,6 +113,9 @@
             });
         }
     }
+
+    const finalBellGain = $derived(clock.audio.gain * (clock.audio.balance > 0 ? 1 : Math.cos(Math.PI/2 * Math.abs(clock.audio.balance))))
+    const reminderBellGain = $derived(clock.audio.gain * (clock.audio.balance < 0 ? 1 : Math.cos(Math.PI/2 * Math.abs(clock.audio.balance))))
 </script>
 
 <div class="main">
@@ -137,7 +154,10 @@
             </thead>
             <tbody>
                 <tr>
-                    <td style="width: fit-content;">Final Bell Sound</td>
+                    <td style="width: fit-content;">
+                        <div>Final Bell Sound</div>
+                        <div>({linearToDb(finalBellGain).toFixed(1)}dB)</div>
+                    </td>
                     <td>
                         <div class="audio-file-input-container">
                             <select bind:value={clock.config.resourceMapping.finalBell.resource_id}>
@@ -147,13 +167,16 @@
                                 {/each}
                             </select>
                             {#if clock.config.resourceMapping.finalBell.resource_id}
-                                <audio src="/api/resources/{clock.config.resourceMapping.finalBell.resource_id}" controls bind:volume={clock.audio.gain}></audio>
+                                <audio src="/api/resources/{clock.config.resourceMapping.finalBell.resource_id}" controls volume={finalBellGain}></audio>
                             {/if}
                         </div>
                     </td>
                 </tr>
                 <tr>
-                    <td style="width: fit-content;">Reminder Bell Sound</td>
+                    <td style="width: fit-content;">
+                        <div>Reminder Bell Sound</div>
+                        <div>({linearToDb(reminderBellGain).toFixed(1)}dB)</div>
+                    </td>
                     <td style="min-width: 200px;">
                         <div class="audio-file-input-container">
                         <select bind:value={clock.config.resourceMapping.reminderBell.resource_id}>
@@ -163,11 +186,27 @@
                             {/each}
                         </select>
                         {#if clock.config.resourceMapping.reminderBell.resource_id}
-                            <audio src="/api/resources/{clock.config.resourceMapping.reminderBell.resource_id}" controls bind:volume={clock.audio.gain}></audio>
+                            <audio src="/api/resources/{clock.config.resourceMapping.reminderBell.resource_id}" controls volume={reminderBellGain}></audio>
                         {/if}
                         </div>
                     </td>
                 </tr>
+                <tr>
+                    <td>Balance ({clock.audio.balance})</td>
+                    <td><HSlider bind:value={clock.audio.balance} min={-1} max={1} step={0.1}/></td>
+                </tr>
+                
+                <tr>
+                    <td>Gain ({linearToDb(clock.audio.gain).toFixed(0)}dB)</td>
+                    <td><HSlider value={linearToDb(clock.audio.gain)} min={-18} max={0} step={1} onchange={(val)=>clock.audio.gain = dbToLinear(val)}/></td>
+                </tr>
+
+                
+                <tr>
+                    <td>Pan ({clock.audio.pan})</td>
+                    <td><HSlider bind:value={clock.audio.pan} min={-1} max={1} step={0.1}/></td>
+                </tr>
+                
             </tbody>
         </table>
     </div>
