@@ -1,10 +1,12 @@
 import {produce, type Unsafe} from 'sveltekit-sse';
-import type { AudioParamsMessage, BellRingRequestMessage, ClockMessage, DayMessage, PlayerCountMessage, WSMessage } from '$lib/common/comms';
-
-import { BOTCTClock, getBOTCTClockInstanceManager, InstanceNotFoundError } from "$lib/model/server/model";
+import { getBOTCTClockInstanceManager, InstanceNotFoundError } from "$lib/model/server/model";
 import { v7 } from 'uuid';
 import { error } from '@sveltejs/kit';
 import type { AudioParams } from '$lib/common/AudioParams';
+import type { ClocktowerModel } from '$lib/model/common/ClocktowerModel.js';
+import type { ClocktowerAudioTrackModel } from '$lib/audio/common/model/clocktowerAudioTrackModel.svelte.js';
+import type { WSMessage } from '$lib/common/comms';
+import type { BOTCTClock } from '$lib/model/server/BOTCClock';
 
 export type emit_cb = (eventName: string, data: string)=>Unsafe<void, Error>;
 
@@ -13,18 +15,22 @@ class ClockInstanceCallbackHelper {
     private syncInterval: NodeJS.Timeout | null = null;
 
     constructor(public instanceId: string, private instance: BOTCTClock){
-        instance.on('stateChanged', this.handleStateChanged.bind(this));
-        instance.on('dayChanged', this.handleDayChanged.bind(this));
+        console.log("Setting up instance callback manager for clock: ", instance.id)
+        instance.on('modelUpdated', this.handleStateChanged.bind(this));
+        // instance.on('dayChanged', this.handleDayChanged.bind(this));
         instance.on('bellRingRequest', this.handleBellRingRequest.bind(this));
-        instance.on('audioParamsChanged', this.handleAudioParamsChanged.bind(this));
-        instance.on('playerCountChanged', this.handlePlayerCountChanged.bind(this));
+        instance.on('audio', this.handleAudioParamsChanged.bind(this));
         this.syncInterval = setInterval(()=>{
             this.broadcast({type: 'sync', serverTime: Date.now() } as WSMessage);
         }, 500);
     }
 
-    handleStateChanged(state: ClockMessage) {
-        this.broadcast(state);
+    handleStateChanged(model: ClocktowerModel) {
+        console.log("Model state changed");
+        this.broadcast({
+            type: 'clock',
+            model: model
+        });
     }
 
     broadcast(message: WSMessage) {
@@ -42,50 +48,37 @@ class ClockInstanceCallbackHelper {
         }
     }
 
-    handleDayChanged(dayInfo: {day: number; max: number}) {
-        const message: DayMessage = {
-            type: 'day',
-            day: dayInfo.day,
-            max: dayInfo.max
-        };
-        this.broadcast(message);
-    }
-
     handleBellRingRequest() {
-        const message: BellRingRequestMessage = {
+        this.broadcast({
             type: 'bellRingRequest',
-            atTime: Date.now() + 200 // add slight delay to account for network latency
-        };
-        this.broadcast(message);
+            bell: 'final'
+        });
     }
 
-    handleAudioParamsChanged(params: AudioParams) {
-        const message: AudioParamsMessage = {
-            type: 'audioParams',
-            gain: params.gain,
-            pan: params.pan
-        };
-        this.broadcast(message);
-    }
-
-    handlePlayerCountChanged(playerCount: number){
-        const message: PlayerCountMessage = {
-            type: 'playerCount',
-            playerCount: playerCount
-        }
-        this.broadcast(message);
+    handleAudioParamsChanged(model: ClocktowerAudioTrackModel) {
+        console.log("Audio state changed");
+        this.broadcast({
+            type: 'clockAudioModel',
+            model
+        });
     }
 
     addEmitter(id: string, emit: emit_cb) {
         if(this.emitters.has(id)){
             console.warn(`Emitter with id ${id} already exists, overwriting.`);
         }
-        this.emitters.set(id, emit);
+        this.emitters.set(id, emit)
+
+        function send(msg: WSMessage){
+            emit('message', JSON.stringify(msg));
+        }
+
         // Send initial state to new emitter
-        emit('message', JSON.stringify(this.instance.getState()));
-        emit('message', JSON.stringify({type: 'day', ...this.instance.day_info}));
-        emit('message', JSON.stringify({type: 'audioParams', ...this.instance.audioSettings}));
-        emit('message', JSON.stringify({type: 'playerCount', playerCount: this.instance.playerCount}));
+        send({
+            type: 'clock',
+            model: this.instance.model
+        });
+
         console.log(`Added emitter with id: ${id}`);
     }
 
@@ -106,7 +99,7 @@ function getHelperForInstance(instanceId: string): ClockInstanceCallbackHelper {
 }
 
 function sendSyncBurst(emit: emit_cb, count: number, interval: number = 100) {
-    const {error} = emit('message', JSON.stringify({type: 'sync', serverTime: Date.now() } as WSMessage));
+    const {error} = emit('message', JSON.stringify({type: 'sync', serverTime: Date.now() }));
     if(error){
         console.error("Error emitting sync burst to client:", error);
         return;

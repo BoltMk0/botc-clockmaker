@@ -4,7 +4,7 @@
 	"version": "0.2.12",
 	"type": "module",
 	"scripts": {
-		"dev": "vite dev",
+		"dev": "docker compose up database -d && vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",

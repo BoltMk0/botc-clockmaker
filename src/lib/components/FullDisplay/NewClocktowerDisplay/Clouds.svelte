@@ -21,8 +21,8 @@
 
     // Larger (closer) clouds read as a stronger white; smaller (further) clouds
     // are mixed further towards the sky colour, as if fading into atmospheric haze.
-    const MIN_WHITE_MIX = 35;
-    const MAX_WHITE_MIX = 75;
+    const MIN_WHITE_MIX = 25;
+    const MAX_WHITE_MIX = 65;
 
     const MIN_BLUR = 4;
     const MAX_BLUR = 6;
@@ -105,7 +105,11 @@
     }
 
     @keyframes drift {
-        from { left: -40%; }
-        to { left: 140%; }
+        /* Offset by the cloud's own rendered width (not a container-relative %)
+           at both ends, so it's fully off-screen at the start AND fully clears
+           the right edge at the end before looping back — otherwise wide clouds
+           are still partly visible when the animation restarts, causing a pop. */
+        from { left: -5%; transform: translateX(-100%); }
+        to { left: 100%; transform: translateX(0%); }
     }
 </style>

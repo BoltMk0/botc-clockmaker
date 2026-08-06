@@ -1,45 +1,30 @@
 <script lang="ts">
-    import { onDestroy, onMount } from 'svelte';
-    import { ClockClientModel } from '$lib/model/client/ClockClientModel.js';
+    import { onMount } from 'svelte';
     import FullDisplay from '$lib/components/FullDisplay/FullDisplay.svelte';
-    import { page } from '$app/state';
     import Navbar from '$lib/components/Navbar.svelte';
-    import { ClocktowerAudioEngine } from '$lib/audio/client/model/AudioEngine.svelte.js';
     import type { PageData } from './$types';
     import MuteButton from '$lib/components/MuteButton.svelte';
+    import { browser } from '$app/environment';
+    import { Clocktower } from '$lib/model/client/Clocktower.svelte';
 
     let { data }: { data: PageData } = $props();
 
-    let model: ClockClientModel = new ClockClientModel(page.params.clockid, data.config, data.config.audioParams);
-    let audioEngine: ClocktowerAudioEngine|undefined = $state(undefined);
-    let teardown: ()=>void;
-
-
-    onMount(()=>{
-        model.init();
-    });
-
-    function onEnterButtonClicked() {
-        console.log("Enter button clicked");
-    }
-
+    let model: Clocktower|null = $state(null);
     onMount(() => {
-        model.init();
-        ({ teardown, audioEngine} = ClocktowerAudioEngine.createNewEngineForClockClients([model], data.ambienceResources));
+        if(!browser) return;
+        model = new Clocktower(data.model);
+        return ()=>{
+            model?.close();
+        }
     });
 
-    onDestroy(()=>{
-        model.close();
-        if(teardown) teardown();
-    });
 
 </script>
 
+{#if model}
 <FullDisplay model={model} />
+{/if}
 
 <Navbar/>
 
-{#if audioEngine}
-<MuteButton {audioEngine}/>
-{/if}
 

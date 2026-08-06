@@ -1,41 +1,42 @@
 <script lang="ts">
-    import { getSkyColor } from "$lib/common/util";
+    import { getSkyColor, tintByAmbient } from "$lib/common/util";
     import { appSettings } from "$lib/model/client/appSettings.svelte";
     import CountdownDisplay from "./subviews/NewClockFace/CountdownDisplay.svelte";
     import NewClockFace from "./subviews/NewClockFace/NewClockFace.svelte";
     import PlayerCountDisplay from "./subviews/NewClockFace/PlayerCountDisplay.svelte";
     import Bunting from "./subviews/ClocktowerSillhouette/Bunting/Bunting.svelte";
     import ClocktowerSillhouette from "./subviews/ClocktowerSillhouette/ClocktowerSillhouette.svelte";
-    import Clouds from "../../Clouds.svelte";
+    import Clouds from "./Clouds.svelte";
     import { setNewClocktowerThemeContext } from "./model/theme";
 
     let {
         totalTime = 60,
-        timeRemaining = 60,
+        progress,
         hue = 200,
         dayNumber = 0,
         playerCount = 0,
         style = ""
     }: {
         totalTime: number;
-        timeRemaining: number;
+        progress: number;
         hue: number;
         dayNumber: number;
         playerCount: number;
         style: string;
     } = $props();
 
-    const progress = $derived(1 - timeRemaining / totalTime);
-    const skyBrightness = $derived(1 - (Math.max(0, progress*2 - 1)));
+    const timeRemaining = $derived((1-progress) * totalTime);
 
     const skyColor = $derived(getSkyColor(progress));
+    const skyBrightness = $derived(Math.pow(1 - (Math.max(0, progress*3 - 2)), 2));
 
-    const basePrimary = $derived(`color-mix(in srgb, #222, ${skyColor} 20%)`);
-    const baseSecondary = $derived(`color-mix(in srgb, hsl(${hue} 0% ${(skyBrightness*0.45 + 0.5)*34}%), ${skyColor} 20%)`);
-    const buntingColorBase = $derived(`hsl(${hue} 80% ${(skyBrightness * 0.5 + 0.35)*40}%)`);
 
-    const clockfaceColorSecondary = $derived(`color-mix(in srgb, hsl(${hue} 0 20%), ${skyColor} 20%)`);
-    const clockfaceColorPrimary = $derived(`hsl(${hue} ${(skyBrightness * 0.4 + 0.4) * 50}% ${(skyBrightness*0.4 + 0.5) * 50}%)`);
+    const basePrimary = $derived(tintByAmbient('#29251C', skyColor, 0.4));
+    const baseSecondary = $derived(`color-mix(in srgb, hsl(from ${basePrimary} h calc(s*0.7) calc(l*1.3)), ${skyColor} 10%)`);
+
+    const clockfaceColorSecondary = $derived(tintByAmbient(`hsl(${hue} 0% 20%)`, skyColor, 0.4));
+    const clockfaceColorPrimary = $derived(`hsl(${hue} ${(skyBrightness * 0.15 + 0.75) * 50}% ${(skyBrightness*0.35 + 0.45) * 50}%)`);
+    const buntingColorBase = $derived(tintByAmbient(clockfaceColorPrimary, skyColor, 0.3));
 
     const theme = setNewClocktowerThemeContext({
         get basePrimary(){ return basePrimary},
@@ -43,11 +44,11 @@
         get clockfaceColorPrimary(){return `hsl(from ${skyColor} h calc(s*0.5) calc(l*0.85))`},
         get clockfaceColorSecondary(){return clockfaceColorSecondary},
         get clockfaceColorHighlight(){return skyColor},
-        get clockfaceTextColor() { return `hsl(0 0 ${(skyBrightness*0.5 + 0.4)*80}%)` },
+        get clockfaceTextColor() { return `hsl(0 0 ${(skyBrightness*0.15 + 0.2)*80}%)` },
         get panelColorPrimary(){return baseSecondary},
         get panelColorSecondary(){return clockfaceColorPrimary},
-        get panelTextColor(){ return `hsl(0 0 ${(skyBrightness*0.3 + 0.7)*90}%)`},
-        get buntingColorBase() {return clockfaceColorPrimary},
+        get panelTextColor(){ return `hsl(0 0 ${(skyBrightness*0.1 + 0.9)*90}%)`},
+        get buntingColorBase() {return buntingColorBase},
         get skyColor(){ return skyColor },
         get skyBrightness() {return skyBrightness }
     });

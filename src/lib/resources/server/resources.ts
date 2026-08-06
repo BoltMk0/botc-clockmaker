@@ -86,6 +86,16 @@ export function getResourceData(resource: Resource): Buffer | null {
     return Buffer.from(readFileSync(filepath));
 }
 
+export function resourceExists(resource: Resource|string): boolean {
+    if(typeof resource === 'string'){
+        let res = findResourceById(resource);
+        if(res === null) return false;
+        resource = res;
+    }
+    const result = findResourceById(resource.id);
+    return result !== null && result.type === resource.type && result.mimetype === resource.mimetype && result.name === resource.name;
+}
+
 export function saveResource(id: string, data: Buffer) {
     const resource = parseResourceId(id);
     if(!resource) throw new Error(`Invalid resource ID: ${id}`);

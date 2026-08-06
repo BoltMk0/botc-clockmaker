@@ -1,9 +1,9 @@
 <script lang="ts" generics="T">
-    import type { AudioTrackModelBase } from '$lib/audio/client/model/AudioTrackModelBase.js';
     import ChannelStripPan from './ChannelStripPan.svelte';
     import ChannelStripGain from './ChannelStripGain.svelte';
     import type { Snippet } from 'svelte';
     import AudioMixerText from './AudioMixerText.svelte';
+    import type { AudioTrackBase } from '../../AudioTrack.svelte';
 
     const {
         audioTrack, 
@@ -13,9 +13,9 @@
         fxSnippetArg = undefined,
         style=undefined
     }: {
-        audioTrack: AudioTrackModelBase;
+        audioTrack: AudioTrackBase;
         title?: string;
-        onTitleClick?: ()=>void;
+        onTitleClick?: (ev?: any)=>void;
         fxSnippet?: Snippet<[T|undefined]>;
         fxSnippetArg?: T;
         style?: string;
@@ -23,16 +23,16 @@
 
 </script>
 <div class="channel-strip-main" style="{style}">
-    <AudioMixerText onclick={onTitleClick} style="margin-bottom: 5px;" title={title ?? audioTrack.title}>{title ?? audioTrack.title}</AudioMixerText>
+    <AudioMixerText onclick={onTitleClick} style="margin-bottom: 5px;" title={title}>{title}</AudioMixerText>
     {#if fxSnippet}
     {@render fxSnippet(fxSnippetArg)}
     {/if}
     <div class="channel-strip-padding"></div>
     <div style="width: 100%;">
-        <ChannelStripPan bind:pan={audioTrack.pan} />
+        <ChannelStripPan bind:pan={audioTrack.pan} onchange={()=>audioTrack.pan = audioTrack.pan}/>
     </div>
     <div>
-        <ChannelStripGain bind:value={audioTrack.gain}/>
+        <ChannelStripGain bind:value={audioTrack.gain} onchange={()=>audioTrack.gain = audioTrack.gain}/>
     </div>
 </div>
 

@@ -9,7 +9,7 @@
     }: {
         title?: string;
         style?: string;
-        onclick?: ()=>void;
+        onclick?: (ev?: any)=>void;
         children?: Snippet<[]>;
     } = $props();
 </script>

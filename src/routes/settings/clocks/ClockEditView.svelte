@@ -1,10 +1,10 @@
 <script lang="ts">
     import { goto, invalidateAll } from '$app/navigation';
-    import type { ClockInstanceInfo } from '$lib/common/config.js';
     import HSlider from '$lib/audio/client/components/HSlider.svelte';
+    import type { ClocktowerModel } from '$lib/model/common/ClocktowerModel';
 
     interface ConfigPageData {
-        clock: ClockInstanceInfo;
+        clock: ClocktowerModel;
         sfx_resources: {id: string, name: string}[];
     };
 
@@ -17,7 +17,7 @@
         sfx_resources = data.sfx_resources;
     });
 
-    $effect.pre(()=>{if(clock.config.teamName === null) clock.config.teamName = clock.id!});
+    $effect.pre(()=>{if(clock.config.teamName === null) clock.config.teamName = clock.clock.clockId!});
 
     let newFinalBellRingSoundFile: File | null = null;
     let newReminderBellSoundFile: File | null = null;
@@ -49,21 +49,15 @@
     }
 
     async function onSave(){
-        for(let option of clock.config.timerOptions){
-            if(option.label === ''){
-                option.label = null;
-            }
-        }
-
         if(newFinalBellRingSoundFile){
-            await saveBellSound(newFinalBellRingSoundFile, `final-bell/${clock.id}`);
+            await saveBellSound(newFinalBellRingSoundFile, `final-bell/${clock.clock.clockId}`);
         }
 
         if(newReminderBellSoundFile){
-            await saveBellSound(newReminderBellSoundFile, `reminder-bell/${clock.id}`);
+            await saveBellSound(newReminderBellSoundFile, `reminder-bell/${clock.clock.clockId}`);
         }
         
-        fetch(`/api/clock/${clock.id}/config`, {
+        fetch(`/api/clock/${clock.clock.clockId}/config`, {
             method: 'POST',
             body: JSON.stringify(clock.config),
             headers: {'Content-Type': 'application/json'}
@@ -82,7 +76,7 @@
 
     async function onDelete(){
         if(confirm("Are you sure? This cannot be reverted"))
-            await fetch(`/api/clock/${clock.id}`, {method: 'DELETE'}).then(()=>invalidateAll())
+            await fetch(`/api/clock/${clock.clock.clockId}`, {method: 'DELETE'}).then(()=>invalidateAll())
     }
 
     function resetResource(name: string){
@@ -96,7 +90,7 @@
                 alert("Bell ring sound reset to default successfully");
                 newFinalBellRingSoundFile = null;
                 const thisPage = window.location.pathname;
-                goto(`/admin/${clock.id}`).then(() => {
+                goto(`/admin/${clock.clock.clockId}`).then(() => {
                     goto(thisPage);
                 });
             }).catch(error => {
@@ -153,7 +147,7 @@
                                 {/each}
                             </select>
                             {#if clock.config.resourceMapping.finalBell.resource_id}
-                                <audio src="/api/resources/{clock.config.resourceMapping.finalBell.resource_id}" controls bind:volume={clock.config.resourceMapping.finalBell.gain}></audio>
+                                <audio src="/api/resources/{clock.config.resourceMapping.finalBell.resource_id}" controls bind:volume={clock.audio.gain}></audio>
                             {/if}
                         </div>
                     </td>
@@ -169,7 +163,7 @@
                             {/each}
                         </select>
                         {#if clock.config.resourceMapping.reminderBell.resource_id}
-                            <audio src="/api/resources/{clock.config.resourceMapping.reminderBell.resource_id}" controls bind:volume={clock.config.resourceMapping.reminderBell.gain}></audio>
+                            <audio src="/api/resources/{clock.config.resourceMapping.reminderBell.resource_id}" controls bind:volume={clock.audio.gain}></audio>
                         {/if}
                         </div>
                     </td>
@@ -178,41 +172,8 @@
         </table>
     </div>
 
-    <div class="panel">
-        <h3>Timer Options</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Label</th>
-                    <th>Duration</th>
-                    <th>Ring Bell When Remaining</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {#each clock.config.timerOptions as option, index}
-                    <tr>
-                        <td><input bind:value={option.label} type="text" /></td>
-                        <td><input bind:value={option.duration} type="number" required/></td>
-                        <td><input bind:value={option.ringBellWhenRemaining} type="number" /></td>
-                        <td>
-                            <button onclick={()=>{clock.config.timerOptions.splice(index, 1);}}>Delete</button>
-                        </td>
-                    </tr>
-                {/each}
-                <tr>
-                    <td colspan="4">
-                        <button style="width: 100%;" onclick={()=>{
-                            clock.config.timerOptions.push({duration: 0, ringBellWhenRemaining: null, label: null});
-                        }}>Add Timer Option</button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-
     <div class="panel" style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 5px;">
-        <button class="button-style" onclick={onDelete} disabled={clock.id === 'default'}>Delete</button>
+        <button class="button-style" onclick={onDelete} disabled={clock.clock.clockId === 'default'}>Delete</button>
         <button class="button-style" onclick={onSave}>Save</button>
     </div>
 
@@ -248,6 +209,7 @@
         margin: auto;
         padding: 2em;
         box-sizing: border-box;
+        width: 100%;
     }
 
     table {

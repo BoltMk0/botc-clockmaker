@@ -6,7 +6,7 @@
     import { browser } from "$app/environment";
 
     import { goto } from '$app/navigation';
-    import { ClockClientModel } from "$lib/model/client/ClockClientModel.js";
+    import { ClockClient } from "$lib/model/client/ClockClientModel.svelte.js";
     import type { ClockInstanceInfo } from "$lib/common/config.js";
     import { get, writable, type Readable, type Writable } from "svelte/store";
     import FullDisplay from "$lib/components/FullDisplay/FullDisplay.svelte";
@@ -193,9 +193,9 @@
 
     class ClockClientManager {
         private config_: Writable<ClockClientManagerConfig>;
-        private client_: Writable<ClockClientModel|null> = writable(null);
+        private client_: Writable<ClockClient|null> = writable(null);
         readonly config: Readable<ClockClientManagerConfig>;
-        readonly client = this.client_ as Readable<ClockClientModel|null>;
+        readonly client = this.client_ as Readable<ClockClient|null>;
         readonly gameId: number;
         private readonly configKey: string;
         constructor(gameId: number){
@@ -230,7 +230,7 @@
                 this.closeClient();
                 const clockInstance = get(this.config_).connectedClock;
                 if(clockInstance){
-                    const newClient = new ClockClientModel(clockInstance.id, clockInstance.config, clockInstance.audioParams);
+                    const newClient = new ClockClient(clockInstance.id, clockInstance.config, clockInstance.audioParams);
                     newClient.init();
                     this.client_.set(newClient);
                 }

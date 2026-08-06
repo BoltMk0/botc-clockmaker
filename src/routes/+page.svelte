@@ -1,42 +1,54 @@
 <script lang="ts">
     import { browser } from '$app/environment';
-    import { ClockClientModel } from '$lib/model/client/ClockClientModel.js';
     import { onMount } from 'svelte';
     import FullDisplay from '$lib/components/FullDisplay/FullDisplay.svelte';
     import Navbar from '$lib/components/Navbar.svelte';
-    import { ClocktowerAudioEngine } from '$lib/audio/client/model/AudioEngine.svelte.js';
     import MuteButton from '$lib/components/MuteButton.svelte';
+    import { Clocktower } from '$lib/model/client/Clocktower.svelte.js';
+    import { AudioEngine } from '$lib/audio/client/AudioEngine.svelte.js';
 
     let {
         data
     } = $props();
 
-    const clients = $derived(browser ? data.instances.map(({id, config, audioParams}) => new ClockClientModel(id, config, audioParams)) : []);
-    let audioEngineInstance: ClocktowerAudioEngine|undefined = $state(undefined);
-    
+    const clocks = $derived(browser ? data.instances.map(i=>new Clocktower(i)): undefined);
+    let audioEngine: AudioEngine|null = $state(null);
+
     onMount(() => {
-        if(browser){
-            clients.forEach(client => client.init());
-            let { teardown, audioEngine } = ClocktowerAudioEngine.createNewEngineForClockClients(clients, []);
-            audioEngineInstance = audioEngine;
-            return teardown;
+        if(browser && clocks){
+            audioEngine = new AudioEngine(clocks)
         }
 
+        // Browsers only let an AudioContext run following a genuine user gesture,
+        // so resume it on the first interaction with the page.
+        const resumeAudio = () => audioEngine?.resume();
+        document.addEventListener('pointerdown', resumeAudio);
+
+        return ()=>{
+            console.log("Closing...");
+            document.removeEventListener('pointerdown', resumeAudio);
+            audioEngine?.close();
+            if(clocks){
+                for(const c of clocks){
+                    c.close();
+                }
+            }
+        }
     });
 
 </script>
 
-<div class="clock-container" style="grid-template-columns: repeat({clients.length} 1fr);">
-    {#each clients as model, index (model.clockId)}
-        <FullDisplay model={model} models={clients}/>
+<div class="clock-container" style="grid-template-columns: repeat({clocks?.length} 1fr);">
+    {#each clocks as clock, index (clock.id)}
+        <FullDisplay model={clock} models={clocks}/>
     {/each}
 </div>
 
 <Navbar/>
 
-{#if audioEngineInstance}
+<!-- {#if audioEngineInstance}
 <MuteButton audioEngine={audioEngineInstance}/>
-{/if}
+{/if} -->
 
 <style>
     .clock-container{

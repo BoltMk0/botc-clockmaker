@@ -1,14 +1,13 @@
-import type { AudioParams } from "./AudioParams";
-
-export type TimerOption = {
-    label: string|null;
-    duration: number;
-    ringBellWhenRemaining: number|null;
-}
+import { isTimerOption, type TimerOption } from "./timerOption";
 
 export type ResourceMappingType = {
     resource_id: string|null;
-    gain: number;
+}
+
+function isResourceMappingType(data: any): data is ResourceMappingType{
+    if(typeof data !== 'object') return false;
+    if(typeof data.resource_id !== 'string' && data.resource_id !== null) return false;
+    return true;
 }
 
 export type Config = {
@@ -16,18 +15,25 @@ export type Config = {
     theme: {
         hue: number;
     };
-    timerOptions: TimerOption[];
-    audioParams: AudioParams;
     resourceMapping: {
         finalBell: ResourceMappingType;
         reminderBell: ResourceMappingType;
     }
 }
 
+export function isConfig(data: any): data is Config {
+    if(typeof data !== 'object') return false;
+    if(typeof data.teamName !== 'string') return false;
+    if(typeof data.theme !== 'object') return false;
+    if(typeof data.resourceMapping !== 'object') return false;
+    if(!isResourceMappingType(data.resourceMapping.finalBell)) return false;
+    if(!isResourceMappingType(data.resourceMapping.reminderBell)) return false
+    return true;
+}
+
 export type ClockInstanceInfo = {
     id: string;
     config: Config;
-    audioParams: AudioParams;
 }
 
 export function getDefaultConfig(): Config {
@@ -36,52 +42,9 @@ export function getDefaultConfig(): Config {
         theme: {
             hue: 0,
         },
-        timerOptions: [
-            { label: 'Example', duration: 5, ringBellWhenRemaining: 4 },
-            { label: '1 Minute', duration: 60, ringBellWhenRemaining: null },
-            { label: '3 Minutes', duration: 3 * 60, ringBellWhenRemaining: 30 },
-            { label: '5 Minutes', duration: 5 * 60, ringBellWhenRemaining: 30 },
-            { label: '8 Minutes', duration: 8 * 60, ringBellWhenRemaining: 30 },
-            { label: '10 Minutes', duration: 10 * 60, ringBellWhenRemaining: 30 },
-        ],
-        audioParams: {
-            pan: 0,
-            gain: 1,
-        },
         resourceMapping: {
-            finalBell: { resource_id: null, gain: 1 },
-            reminderBell: { resource_id: null, gain: 1 },
+            finalBell: { resource_id: null },
+            reminderBell: { resource_id: null },
         }
-
     };
-}
-
-function validateResourceMapping(mapping: any): mapping is ResourceMappingType {
-    if (typeof mapping !== 'object' || mapping === null) return false;
-    if (mapping.resource_id !== null && typeof mapping.resource_id !== 'string') return false;
-    if (typeof mapping.gain !== 'number') return false;
-    return true;
-}
-
-export function validateConfig(config: any): config is Config {
-    if(typeof config !== 'object' || config === null) return false;
-    if(config.teamName !== null && typeof config.teamName !== 'string') return false;
-    if(config.theme === undefined || typeof config.theme !== 'object' || config.theme === null) return false;
-    if(typeof config.theme.hue !== 'number') return false;
-    if(!Array.isArray(config.timerOptions)) return false;
-    for(const option of config.timerOptions){
-        if(typeof option !== 'object' || option === null) return false;
-        if(typeof option.duration !== 'number' || option.duration <= 0) return false;
-        if(option.label !== null && typeof option.label !== 'string') return false;
-        if(option.ringBellWhenRemaining !== null && (typeof option.ringBellWhenRemaining !== 'number' || option.ringBellWhenRemaining < 0)) return false;
-    }
-    if(config.audioParams === undefined || typeof config.audioParams !== 'object' || config.audioParams === null) return false;
-    if(typeof config.audioParams.pan !== 'number') return false;
-    if(typeof config.audioParams.gain !== 'number') return false;
-    if(config.resourceMapping === undefined || typeof config.resourceMapping !== 'object' || config.resourceMapping === null) return false;
-    for(const key of Object.keys(config.resourceMapping) as (keyof typeof config.resourceMapping)[]){
-        const mapping = config.resourceMapping[key];
-        if(!validateResourceMapping(mapping)) return false;
-    }
-    return true;
 }

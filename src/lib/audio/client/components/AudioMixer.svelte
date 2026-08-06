@@ -1,20 +1,21 @@
 <script lang="ts">
-    import { ClocktowerAudioEngine } from "$lib/audio/client/model/AudioEngine.svelte";
-    import type { ClockClientModel } from "$lib/model/client/ClockClientModel";
     import ChannelStrip from "./ChannelStrip/ChannelStrip.svelte";
     import ChannelStripGroup from "./ChannelStrip/ChannelStripGroup.svelte";
     import type { Resource } from "$lib/resources/common/types";
     import PlayIcon from "$lib/audio/client/components/PlayIcon.svelte";
     import PauseIcon from "$lib/audio/client/components/PauseIcon.svelte";
+    import ChannelStripGroupAmbience from "./ChannelStrip/ChannelStripGroupAmbience.svelte";
+    import DayIcon from "$lib/assets/dayIcon.svelte";
+    import NightIcon from "$lib/assets/nightIcon.svelte";
+    import { AudioClockTrack } from "../AudioClockTrack.svelte";
+    import type { AudioEngine } from "../AudioEngine.svelte";
     
     let {
-        clients,
-        ambienceResources,
-        audioEngine
+        audioEngine,
+        ambienceResources
     }: {
-        clients: ClockClientModel[];
+        audioEngine: AudioEngine
         ambienceResources: Resource[];
-        audioEngine: ClocktowerAudioEngine;
     } = $props();
 
 </script>
@@ -33,22 +34,27 @@
     <div class="mixer-channel-strips">
             
         {#if audioEngine}
-        {#if audioEngine.ambienceTracks !== null}
+        {#if audioEngine.ambienceEngine !== null}
         {#snippet ambienceEngineTitle()}
             <div style="display: flex; gap: 0.5em; justify-content: center; align-items: center;">
+                {#if audioEngine.timeOfDay === 'day'}
+                <DayIcon size={14}/>
+                {:else}
+                <NightIcon size={14}/>
+                {/if}
                 <span>Ambience Engine</span>
-                {#if audioEngine?.ambienceTracks?.playing}
+                {#if audioEngine?.ambienceEngine?.playing}
                 <PlayIcon/>
                 {:else}
                 <PauseIcon/>
                 {/if}
             </div>
         {/snippet}
-        <ChannelStripGroup model={audioEngine.ambienceTracks} onTitleClick={()=>{console.log("HEY"); audioEngine?.ambienceTracks?.togglePlayPause()}} style="--theme-slider-accent: #FAA;" title={ambienceEngineTitle}/>
+        <ChannelStripGroupAmbience engine={audioEngine.ambienceEngine} model={audioEngine.ambienceEngine} resources={ambienceResources} onTitleClick={()=>{audioEngine?.ambienceEngine?.togglePlayPause()}} style="--theme-slider-accent: #FAA;" title={ambienceEngineTitle}/>
         {/if}
-        <ChannelStripGroup model={audioEngine.clockTracks} onChildTitleClick={(id)=>{
-            clients.find(c=>c.clockId === id)?.ringFinalBell(true);
-        }} onTitleClick={()=>{console.log("HEY")}}/>
+        <ChannelStripGroup model={audioEngine.clockAudioTracks} onChildTitleClick={(clock, index)=>{
+            clock.ringFinalBell();
+        }}/>
         <ChannelStrip audioTrack={audioEngine} title="MASTER" style="--theme-slider-accent: #DCC"/>
         {/if}
 

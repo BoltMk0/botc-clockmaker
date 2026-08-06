@@ -1,16 +1,16 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import HSlider from "$lib/audio/client/components/HSlider.svelte";
-    import type { ClockInstanceInfo } from "$lib/common/config";
     import { appSettings } from "$lib/model/client/appSettings.svelte";
+    import type { ClocktowerModel } from "$lib/model/common/ClocktowerModel";
 
     let visible = $state(false);
-    let clients: ClockInstanceInfo[] | undefined = $state(undefined);
+    let clients: ClocktowerModel[] | undefined = $state(undefined);
 
     async function loadClockData(){
         const response = await fetch('/api/clock');
         if(response.ok){
-            const data = await response.json() as { instances: ClockInstanceInfo[] };
+            const data = await response.json() as { instances: ClocktowerModel[] };
             return data.instances;
         } else {
             throw new Error("Failed to load clock data: " + response.statusText);
@@ -113,9 +113,9 @@
             <ul>
                 {#each clients as client}
                     <li>
-                        <a href="/{client.id}" target="_self">{client.config.teamName}</a>
+                        <a href="/{client.clock.clockId}" target="_self">{client.config.teamName}</a>
                         <ul>
-                            <li><a href="/admin/{client.id}" target="_self">Remote</a></li>
+                            <li><a href="/admin/{client.clock.clockId}" target="_self">Remote</a></li>
                         </ul>
                     </li>
                 {/each}

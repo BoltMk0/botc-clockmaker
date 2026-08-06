@@ -1,48 +1,36 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import type { Config, TimerOption } from "$lib/common/config";
+    import type { Config } from "$lib/common/config";
     import { formatTime } from "$lib/common/util";
-    import type { ClockClientModel } from "$lib/model/client/ClockClientModel";
     import bell_and_waves from '$lib/assets/bell.and.waves.left.and.right.png';
     import gearshape from '$lib/assets/gearshape.fill.png';
     import timer from '$lib/assets/timer.png';
     import bell from '$lib/assets/bell.fill.png';
     import bell_slash from '$lib/assets/bell.slash.png';
+    import type { Clocktower } from "$lib/model/client/Clocktower.svelte";
+    import { getDefaultTimerOptions, type TimerOption } from "$lib/common/timerOption";
 
 
     let {
         model,
         onstart = () => {}
     }: {
-        model: ClockClientModel;
+        model: Clocktower;
         onstart?: () => void;
     } = $props();
 
-    let clockState = model.state;
-    let clock_info = model.clock_info;
-
-    let day = model.day_info;
-    let players = model.playerCount;
-
-    let options: TimerOption[] = $state([
-        {duration: 0, ringBellWhenRemaining: null, label: null},
-        {duration: 5, ringBellWhenRemaining: null, label: null},
-        {duration: 30, ringBellWhenRemaining: null, label: null},
-        {duration: 180, ringBellWhenRemaining: 30, label: null},
-        {duration: 300, ringBellWhenRemaining: 30, label: null},
-        {duration: 480, ringBellWhenRemaining: 30, label: null}
-    ]);
+    let options: TimerOption[] = $state(getDefaultTimerOptions());
 
     onMount(()=>{
         console.log("ClockSetter mounted, fetching config...");
-        fetch(`/api/clock/${model.clockId}/config`).then(response => {
+        fetch('/api/timerOptions').then(response => {
             if (!response.ok) {
                 throw new Error('Failed to fetch config');
             }
             return response.json();
-        }).then((data: Config) => {
+        }).then((data: TimerOption[]) => {
             console.log("Received Config data:", data);
-            options = data.timerOptions;
+            options = data;
         }).catch(error => {
             console.error("Error fetching config:", error);
         });
@@ -50,7 +38,7 @@
 
 
     function onStop(){
-        fetch(`/api/clock/${model.clockId}/stop`, {
+        fetch(`/api/clock/${model.id}/stop`, {
             method: 'POST'
         }).then(response => {
             if (!response.ok) {
@@ -64,7 +52,7 @@
     }
 
     function onStart(){
-        fetch(`/api/clock/${model.clockId}/start`, {
+        fetch(`/api/clock/${model.id}/start`, {
             method: 'POST'
         }).then(response => {
             if (!response.ok) {
@@ -79,7 +67,7 @@
     }
 
     function onBell(){
-        fetch(`/api/clock/${model.clockId}/ringBell`, {
+        fetch(`/api/clock/${model.id}/ringBell`, {
             method: 'POST'
         }).then(response => {
             if (!response.ok) {
@@ -93,12 +81,9 @@
     }
 
     function setupClock(option: TimerOption){
-        fetch(`/api/clock/${model.clockId}/setup`, {
+        fetch(`/api/clock/${model.id}/setup`, {
             method: 'POST',
-            body: JSON.stringify({
-                duration: option.duration,
-                ringBellAfter: option.ringBellWhenRemaining === null ? null : option.duration - option.ringBellWhenRemaining
-            }),
+            body: JSON.stringify(option),
             headers: {'Content-Type': 'application/json'}
         }).then(response => {
             if (!response.ok) {
@@ -112,7 +97,7 @@
     }
 
     function setDay(day: number){
-        fetch(`/api/clock/${model.clockId}/day`, {
+        fetch(`/api/clock/${model.id}/day`, {
             method: 'POST',
             body: JSON.stringify({day: day}),
             headers: {'Content-Type': 'application/json'}
@@ -128,7 +113,7 @@
     }
 
     function setPlayers(players: number){
-        fetch(`/api/clock/${model.clockId}/playerCount`, {
+        fetch(`/api/clock/${model.id}/playerCount`, {
             method: 'POST',
             body: JSON.stringify({playerCount: players}),
             headers: {'Content-Type': 'application/json'}
@@ -149,26 +134,26 @@
         <div class="button-container-button" style="padding: 5px;">
             
             <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px;">
-                <button class="button-style updown" onclick={()=>{setDay($day.day-1)}}>-</button>
+                <button class="button-style updown" onclick={()=>{setDay(model.day-1)}}>-</button>
                 <div>
                     <div style="opacity: 0.5;">Day</div>
-                    <div>{$day.day}</div>
+                    <div>{model.day}</div>
                 </div>
-                <button class="button-style updown" onclick={()=>{setDay($day.day+1)}}>+</button>
+                <button class="button-style updown" onclick={()=>{setDay(model.day+1)}}>+</button>
             </div>
         </div>
         <div class="button-container-button" style="padding: 5px;">
             <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px;">
-                <button class="button-style updown" onclick={()=>{setPlayers($players-1)}}>-</button>
+                <button class="button-style updown" onclick={()=>{setPlayers(model.playerCount-1)}}>-</button>
                 <div>
                     <div style="opacity: 0.5;">Players</div>
-                    <div>{$players}</div>
+                    <div>{model.playerCount}</div>
                 </div>
-                <button class="button-style updown" onclick={()=>{setPlayers($players+1)}}>+</button>
+                <button class="button-style updown" onclick={()=>{setPlayers(model.playerCount+1)}}>+</button>
             </div>
         </div>
         {#each options as option, index}
-            <button class="button-container-button" class:active={option.duration === $clock_info.max} onclick={() => setupClock(option)} disabled={$clockState === 'counting'} style="grid-column: span {(index === options.length - 1 && options.length%2 === 1) ? 2 : 1};">
+            <button class="button-container-button" class:active={option.duration === model.duration} onclick={() => setupClock(option)} disabled={model.running && model.timeOfDay === 'day'} style="grid-column: span {(index === options.length - 1 && options.length%2 === 1) ? 2 : 1};">
                 <div>
                     <div class="timer-icons" style="font-size: {option.label ? '0.8em' : '1em'};">
                         <div>
@@ -192,11 +177,11 @@
         {/each}
     </div>
     <div style="display: grid; grid-template-columns: 2fr 3fr 3fr 2fr; font-size: 1em; gap: 5px;">
-        <a class="button-style" id="edit-button" href="/admin/{model.clockId}/config">
+        <a class="button-style" id="edit-button" href="/admin/{model.id}/config">
             <img class="button-icon-img" src="{gearshape}" alt="Config"/>
         </a>
-        <button class="button-container-button stop-btn" onclick={onStop} disabled={$clockState !== 'counting'}>Stop</button>
-        <button class="button-container-button start-btn" onclick={onStart} disabled={$clockState !== 'idle'}>Start</button>
+        <button class="button-container-button stop-btn" onclick={onStop} disabled={!model.running || model.timeOfDay === 'night'}>Stop</button>
+        <button class="button-container-button start-btn" onclick={onStart} disabled={model.running}>Start</button>
         <button class="button-container-button ring-bell-btn" onclick={onBell}>
             <img class="button-icon-img" src="{bell_and_waves}" alt="Ring Bell"/>
         </button>

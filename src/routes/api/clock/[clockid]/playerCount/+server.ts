@@ -28,6 +28,6 @@ export async function POST({params, request}){
         return new Response("Invalid player count", {status: 400});
     }
     console.log(`Setting player count for clock ${clockid} to ${playerCount}`);
-    clock.setPlayerCount(playerCount);
+    clock.playerCount = playerCount;
     return new Response(null, {status: 204});
 }

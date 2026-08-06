@@ -1,12 +1,11 @@
-import type { CommsConnectionStatus } from "$lib/model/client/ClockClientModel";
 
 const sky_color_points = [
-    { progress: 0, r: 140, g: 169, b: 255 },   // Dawn
-    { progress: 0.6, r: 170, g: 196, b: 245 },    // Morning
-    { progress: 0.8, r: 245, g: 240, b: 222 },  // Afternoon
-    { progress: 0.9, r: 255, g: 230, b: 198 },     // Sunset
-    { progress: 0.9999, r: 255, g: 200, b: 150 },     // Sunset Pink
-    { progress: 1.0, r: 90, g: 90, b: 100 },     // midnight blue
+    { progress: 0, r: 140, g: 170, b: 210 },   // Dawn
+    { progress: 0.4, r: 140, g: 180, b: 220 },    // Morning
+    { progress: 0.8, r: 120, g: 169, b: 230 },  // Afternoon
+    { progress: 0.88, r: 160, g: 200, b: 210 },     // Sunset
+    { progress: 0.9999, r: 180, g: 150, b: 130 },     // Sunset Pink
+    { progress: 1.0, r: 65, g: 62, b: 60 },     // midnight blue
 ];
 
 export function getSkyColor(progress: number, opacity: number = 1, gamma: number = 1, brightness: number = 1): string {
@@ -39,6 +38,107 @@ export function getSkyColor(progress: number, opacity: number = 1, gamma: number
     return `rgba(${r_gamma * brightness}, ${g_gamma * brightness}, ${b_gamma * brightness}, ${opacity})`;
 }
 
+function clamp(x: number, lo: number = 0, hi: number = 255): number {
+    return Math.min(hi, Math.max(lo, x));
+}
+
+function hslToRgb(h: number, s: number, l: number): { r: number; g: number; b: number } {
+    h = ((h % 360) + 360) % 360;
+    s = clamp(s, 0, 1);
+    l = clamp(l, 0, 1);
+
+    const c = (1 - Math.abs(2 * l - 1)) * s;
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+    const m = l - c / 2;
+
+    let [r1, g1, b1] = [0, 0, 0];
+    if (h < 60) [r1, g1, b1] = [c, x, 0];
+    else if (h < 120) [r1, g1, b1] = [x, c, 0];
+    else if (h < 180) [r1, g1, b1] = [0, c, x];
+    else if (h < 240) [r1, g1, b1] = [0, x, c];
+    else if (h < 300) [r1, g1, b1] = [x, 0, c];
+    else [r1, g1, b1] = [c, 0, x];
+
+    return {
+        r: Math.round((r1 + m) * 255),
+        g: Math.round((g1 + m) * 255),
+        b: Math.round((b1 + m) * 255)
+    };
+}
+
+// Parses plain #hex / rgb(a)() / hsl(a)() colors. Does not support CSS relative
+// color syntax (`hsl(from ...)`) since that requires a live CSS engine to resolve.
+export function parseCssColor(color: string): { r: number; g: number; b: number } {
+    const value = color.trim();
+
+    const hexMatch = value.match(/^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i);
+    if (hexMatch) {
+        let hex = hexMatch[1];
+        if (hex.length === 3 || hex.length === 4) {
+            hex = hex.split('').map(c => c + c).join('');
+        }
+        return {
+            r: parseInt(hex.slice(0, 2), 16),
+            g: parseInt(hex.slice(2, 4), 16),
+            b: parseInt(hex.slice(4, 6), 16)
+        };
+    }
+
+    const rgbMatch = value.match(/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/i);
+    if (rgbMatch) {
+        return {
+            r: parseFloat(rgbMatch[1]),
+            g: parseFloat(rgbMatch[2]),
+            b: parseFloat(rgbMatch[3])
+        };
+    }
+
+    const hslMatch = value.match(/^hsla?\(\s*([\d.]+)(?:deg)?[,\s]+([\d.]+)%[,\s]+([\d.]+)%/i);
+    if (hslMatch) {
+        return hslToRgb(parseFloat(hslMatch[1]), parseFloat(hslMatch[2]) / 100, parseFloat(hslMatch[3]) / 100);
+    }
+
+    throw new Error(`Unsupported color format for ambient tinting: ${color}`);
+}
+
+function srgbToLinear(c: number): number {
+    const v = clamp(c) / 255;
+    return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+}
+
+function linearToSrgb(v: number): number {
+    v = clamp(v, 0, 1);
+    const c = v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
+    return Math.round(c * 255);
+}
+
+/**
+ * Tints a base (surface) color by an ambient/illuminant color, e.g. a sky color.
+ * Multiplies in linear light (not gamma-encoded sRGB) so mid-tones don't get
+ * crushed the way a plain `color-mix`/alpha-overlay does, and normalizes the
+ * ambient color against its own brightest channel so a bright ambient color
+ * shifts hue without just darkening everything.
+ *
+ * `amount` blends between the untinted base (0) and the fully tinted result (1).
+ */
+export function tintByAmbient(baseColor: string, ambientColor: string, amount: number = 1): string {
+    const base = parseCssColor(baseColor);
+    const ambient = parseCssColor(ambientColor);
+
+    const baseLinear = [base.r, base.g, base.b].map(srgbToLinear);
+    const ambientLinear = [ambient.r, ambient.g, ambient.b].map(srgbToLinear);
+    const ambientMax = Math.max(...ambientLinear, 1e-6);
+
+    const tinted = baseLinear
+        .map((c, i) => c * (ambientLinear[i] / ambientMax))
+        .map(linearToSrgb);
+
+    const baseArr = [base.r, base.g, base.b];
+    const [r, g, b] = baseArr.map((c, i) => Math.round(clamp(c * (1 - amount) + tinted[i] * amount)));
+
+    return `rgb(${r}, ${g}, ${b})`;
+}
+
 export function formatTime(seconds: number): string {
     seconds = Math.round(seconds);
     const mins = Math.floor(seconds / 60);
@@ -46,7 +146,7 @@ export function formatTime(seconds: number): string {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-export function commsStatusToColor(status: CommsConnectionStatus): string {
+export function commsStatusToColor(status: string): string {
     switch (status) {
         case 'connected':
             return 'green';

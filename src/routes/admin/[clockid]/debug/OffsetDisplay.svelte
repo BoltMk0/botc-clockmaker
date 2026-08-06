@@ -1,8 +1,8 @@
 <script lang="ts">
-    import type { ClockClientModel } from "$lib/model/client/ClockClientModel";
+    import type { ClockClient } from "$lib/model/client/ClockClientModel.svelte";
     import { onDestroy, onMount } from "svelte";
 
-    let { model }: { model: ClockClientModel } = $props();
+    let { model }: { model: ClockClient } = $props();
 
 
     let values: number[] = $state([]);

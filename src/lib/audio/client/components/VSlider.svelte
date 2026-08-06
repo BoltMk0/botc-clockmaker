@@ -55,6 +55,72 @@
     width: 32px;
     height: 100%;
     accent-color: var(--theme-slider-accent);
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.vertical-slider::-webkit-slider-runnable-track {
+    width: 4px;
+    margin-left: 14px;
+    background: var(--theme-slider-trim);
+    border-radius: 2px;
+}
+
+.vertical-slider::-moz-range-track {
+    width: 4px;
+    margin-left: 14px;
+    background: var(--theme-slider-trim);
+    border-radius: 2px;
+}
+
+.vertical-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 38px;
+    margin-left: -8px;
+    border-radius: 2px;
+    background: linear-gradient(
+        to bottom,
+        #DDD 0%,
+        #DDD 10%,
+        #555 11%,
+        #EEE 46%,
+        hsl(from var(--theme-slider-accent) h calc(s) calc(l*0.5)) 46%,
+        var(--theme-slider-accent) 54%,
+        white 54%,
+        #EEE 66%,
+        #777 89%,
+        #DDD 90%,
+        #DDD 100%
+    );
+    border: 1px solid var(--theme-shadow);
+    box-shadow: 0 3px 5px var(--theme-shadow);
+}
+
+.vertical-slider::-moz-range-thumb {
+    width: 20px;
+    height: 38px;
+    margin-left: -8px;
+    border-radius: 2px;
+    background: linear-gradient(
+        to bottom,
+        #CCC 0%,
+        white 10%,
+        #555 11%,
+        #EEE 46%,
+        hsl(from var(--theme-slider-accent) h calc(s) calc(l*0.5)) 46%,
+        var(--theme-slider-accent) 54%,
+        white 54%,
+        #EEE 66%,
+        #777 89%,
+        #BBB 90%,
+        #CCC 100%
+    );
+    border: 1px solid var(--theme-shadow);
+    box-shadow: 0 3px 5px var(--theme-shadow);
 }
 </style>
 

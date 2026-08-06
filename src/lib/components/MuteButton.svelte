@@ -1,12 +1,12 @@
 <script lang="ts">
-    import type { ClocktowerAudioEngine } from "$lib/audio/client/model/AudioEngine.svelte";
+    import type { AudioEngine } from "$lib/audio/client/AudioEngine";
     import MutedIcon from "./MutedIcon.svelte";
     import UnmutedIcon from "./UnmutedIcon.svelte";
 
     let {
         audioEngine
     }: {
-        audioEngine: ClocktowerAudioEngine;
+        audioEngine: AudioEngine;
     } = $props();
 </script>
 

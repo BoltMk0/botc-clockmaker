@@ -89,7 +89,7 @@
     .numerals {
         font-family:'Times New Roman', Times, serif;
         font-weight: lighter;
-        text-shadow: 0 0 4px black;
+        text-shadow: 0 2px 4px #0005;
         /* text-shadow: 0 0 3px rgba(0, 0, 0, 0.5); */
         transition: color 1s;
         font-size: 2em;

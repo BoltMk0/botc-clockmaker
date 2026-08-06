@@ -6,7 +6,8 @@
         '/settings/resources',
         '/settings/scripts',
         '/settings/characters',
-        '/settings/clocks'
+        '/settings/clocks',
+        '/settings/timerOptions'
     ]
 
     const currentPath = $derived(page.url.pathname);

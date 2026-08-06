@@ -1,7 +1,7 @@
 <script lang="ts">
     import { getSkyColor } from "$lib/common/util";
 
-    let { nsteps = 10 }: { nsteps?: number } = $props();
+    let { nsteps = 1000 }: { nsteps?: number } = $props();
 
     const colors = $derived(Array.from({length: nsteps}, (_, i) => {
         let t = i/(nsteps-1);
@@ -13,7 +13,7 @@
 <style>
     .sky-color-swatch {
         width: 100%;
-        height: 50px;
+        height: 100%;
     }
 </style>
 

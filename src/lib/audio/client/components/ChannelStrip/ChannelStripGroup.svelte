@@ -1,9 +1,9 @@
-<script lang="ts" generics="T">
-    import type { AudioTrackModelBase } from '$lib/audio/client/model/AudioTrackModelBase.js';
+<script lang="ts" generics="T, T2 extends AudioTrack">
     import type { Snippet } from 'svelte';
     import ChannelStrip from './ChannelStrip.svelte';
-    import type { AudioTrackGroupModel } from '../../model/AudioTrackGroupModel.svelte';
     import AudioMixerText from './AudioMixerText.svelte';
+    import { AudioTrackGroup } from '../../AudioTrackGroup';
+    import { AudioTrack } from '../../AudioTrack.svelte';
 
     const {
         model,
@@ -15,9 +15,9 @@
         style=undefined
     }: {
         title?: Snippet|string;
-        model: AudioTrackGroupModel;
+        model: AudioTrackGroup<T2>|T2[];
         onTitleClick?: ()=>void;
-        onChildTitleClick?: (id: string)=>void;
+        onChildTitleClick?: (clock: T2, index: number)=>void;
         fxSnippet?: Snippet<[T|undefined]>;
         fxSnippetArg?: T;
         style?: string;
@@ -26,22 +26,23 @@
 </script>
 
 <div style="display: flex; flex-direction: column; gap: 5px; {style}">
+    {#if model instanceof AudioTrackGroup}
     <AudioMixerText onclick={onTitleClick}>
-    {#if title === undefined}
+        {#if title === undefined}
         {model.title}
-    {:else if typeof title === 'string'}
+        {:else if typeof title === 'string'}
         {title}
-    {:else}
+        {:else}
         {@render title()}
-    {/if}
+        {/if}
     </AudioMixerText>
+    {/if}
     <div class="channel-strip-group-main">
         <div class="channel-strip-group-audio-tracks-container">
-            {#each model.audioTracks as audioTrack}
-                <ChannelStrip {audioTrack} onTitleClick={()=>{onChildTitleClick?.(audioTrack.id);}}/>
+            {#each (model instanceof AudioTrackGroup ? model.tracks : model) as audioTrack, i}
+                <ChannelStrip {audioTrack} onTitleClick={()=>{onChildTitleClick?.(audioTrack, i);}} title={audioTrack.title}/>
             {/each}
         </div>
-        <ChannelStrip audioTrack={model} title="BUS" style="--theme-slider-accent: #DCC;"/>
     </div>
 </div>
 <style>
@@ -55,5 +56,6 @@
         display: flex;
         flex-direction: row;
         gap: 5px;
+        flex: 1;
     }
 </style>

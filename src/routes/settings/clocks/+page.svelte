@@ -1,15 +1,14 @@
 <script lang="ts">
     import { goto, invalidateAll } from '$app/navigation';
-    import type { ClockInstanceInfo, Config } from '$lib/common/config.js';
-    import Navbar from '$lib/components/Navbar.svelte';
+    import type { Config } from '$lib/common/config.js';
     import SideTabLayout from '$lib/components/SideTabLayout.svelte';
     import { v7 } from 'uuid';
     import ClockEditView from './ClockEditView.svelte';
     import type { Resource } from '$lib/resources/common/types';
-    import { tick } from 'svelte';
+    import { type ClocktowerModel } from '$lib/model/common/ClocktowerModel';
 
     type Props = {
-        clocks: ClockInstanceInfo[];
+        clocks: ClocktowerModel[];
         sfxResources: Resource[]
     };
 
@@ -59,13 +58,13 @@
 
 </script>
 
-{#snippet renderClockSettings(clock: ClockInstanceInfo)}
+{#snippet renderClockSettings(clock: ClocktowerModel)}
     <ClockEditView {clock} sfx_resources={data.sfxResources}/>
 {/snippet}
 
 <SideTabLayout title="Clocks" items={data.clocks.map(c=>{
     return {
-        label: c.config.teamName ?? c.id,
+        label: c.config.teamName ?? c.clock.clockId,
         snippet: renderClockSettings,
         arg: c
     }

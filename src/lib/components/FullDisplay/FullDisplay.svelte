@@ -1,11 +1,11 @@
 <script lang="ts">
-    import type { ClockClientModel, ClientModelListenerType } from "$lib/model/client/ClockClientModel";
-    import { onDestroy } from "svelte";
+    import { onDestroy, onMount } from "svelte";
     import NewClocktower from "./NewClocktowerDisplay/NewClocktowerDisplay.svelte";
     import SkyDisplay from "./NewClocktowerDisplay/subviews/SkyDisplay.svelte";
     import OldClockFace from "./OldClockDisplay/OldClockFace/OldClockFace.svelte";
     import { appSettings } from "$lib/model/client/appSettings.svelte";
     import type { FullDisplayMode } from "./fullDisplayTypes";
+    import type { Clocktower } from "$lib/model/client/Clocktower.svelte";
 
 
     const NOTIFICATION_TIMEOUT = 10000;
@@ -16,8 +16,8 @@
         displayMode = undefined,
         size=undefined
     } : {
-        model: ClockClientModel;
-        models?: ClockClientModel[];
+        model: Clocktower;
+        models?: Clocktower[];
         displayMode?: FullDisplayMode;
         size?: number;
     } = $props();
@@ -26,6 +26,7 @@
     let showInstructionText: boolean = $state(false);
     let instructionText: string = $state("");
 
+    let progress = $derived(model.progress)
 
     let instructionTimeout: NodeJS.Timeout | undefined = undefined;
     let otherClockNotificationTimeout: NodeJS.Timeout | undefined = undefined;
@@ -43,65 +44,47 @@
         }, NOTIFICATION_TIMEOUT);
     }
 
-
-    let removeModelListener: (()=>void)|undefined = undefined;
-    $effect(()=>{
-        console.debug("Setting up model listener")
-        if(removeModelListener) removeModelListener();
-        removeModelListener = model.addListener( {
-            onBellRingRequest: ()=>{
-                setInstruction("Your Story Teller requires your attention!");
-            },
-            onReminderBellRing: ()=>{
-                setInstruction("The end of the day is approaching...");
-            },
-            onFinalBellRing: ()=>{
-                setInstruction("The day has ended! Please return to the Town Square.");
-            }
-        });
-    });
-
-    function onOtherModelNotification(){
-        if(otherClockNotificationTimeout){
-            clearTimeout(otherClockNotificationTimeout);
-        }
-        otherClockNotificationPresent = true;
-        otherClockNotificationTimeout = setTimeout(()=>{
-            otherClockNotificationPresent = false;
-        }, NOTIFICATION_TIMEOUT);
-    }
-
-    const otherModelListener: ClientModelListenerType = {
-        onBellRingRequest: onOtherModelNotification,
-        onReminderBellRing: onOtherModelNotification,
-        onFinalBellRing: onOtherModelNotification
-    }
-
-    $effect(()=>{
-        for(const m of models){
-            if(m !== model)
-                m.addListener(otherModelListener);
-            else {
-                m.removeListener(otherModelListener);
-            }
-        }
-    });
-
-    let clock_info = $derived(model.clock_info);
-    let day_info = $derived(model.day_info);
-    let playerCount = $derived(model.playerCount);
-
-    const progress = $derived(1- $clock_info.cur / $clock_info.max);
-
     const shownDisplayMode = $derived(displayMode ?? appSettings.displayMode);
     const shownSize = $derived(size ?? appSettings.size);
 
     // On mount, check the screen dimentions and adjust size accordingly
+    onMount(()=>{
+        console.debug("Setting up model listener")
 
-    onDestroy(()=>{
-        if(removeModelListener) removeModelListener();
+        const onBellRing = ()=>{
+            if(model.timeOfDay === 'day')
+                setInstruction("Your Story Teller requires your attention!");
+            else
+                setInstruction("The day has ended! Please return to the Town Square.");
+        }
+        const onReminderRing = ()=>{
+            setInstruction("The end of the day is approaching...");
+        }
+
+        const onOtherModelNotification = () => {
+            if(otherClockNotificationTimeout){
+                clearTimeout(otherClockNotificationTimeout);
+            }
+            otherClockNotificationPresent = true;
+            otherClockNotificationTimeout = setTimeout(()=>{
+                otherClockNotificationPresent = false;
+            }, NOTIFICATION_TIMEOUT);
+        }
+
+        model.on('bellRing', onBellRing);
+        model.on('reminderRing', onReminderRing);
         for(const m of models){
-            m.removeListener(otherModelListener);
+            m.on('bellRing', onOtherModelNotification);
+            m.on('reminderRing', onOtherModelNotification);
+        }
+
+        return ()=>{
+            model.off('bellRing', onBellRing);
+            model.off('reminderRing', onReminderRing);
+            for(const m of models){
+                m.off('bellRing', onOtherModelNotification);
+                m.off('reminderRing', onOtherModelNotification);
+            }
         }
     });
 
@@ -151,18 +134,18 @@
     {#if shownDisplayMode === "clocktower"}
         <SkyDisplay progress={progress} style=""/>
         <!-- <NewClocktower totalTime={220} timeRemaining={220*(1-minuteHandProgress)} hue={200} dayNumber={3} playerCount={10} style="top: 0; position: absolute;"/> -->
-        <NewClocktower totalTime={$clock_info.max} timeRemaining={$clock_info.cur} hue={model.config.theme.hue} dayNumber={$day_info.day} playerCount={$playerCount} style="top: 0; position: absolute;"/>
+        <NewClocktower totalTime={model.duration} progress={progress} hue={model.hue} dayNumber={model.day} playerCount={model.playerCount} style="top: 0; position: absolute;"/>
         {#if appSettings.showClockNames}
-        <div class="clock-name-title dumbledore-font" style="font-size: {shownSize/10}px; bottom: 0;">{model.config.teamName ?? model.clockId}</div>
+        <div class="clock-name-title dumbledore-font" style="font-size: {shownSize/10}px; bottom: 0;">{model.name}</div>
         {/if}
     {:else if shownDisplayMode === "original"}
         <div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);">
-            <div class="clock-name-title dumbledore-font" style="font-size: {shownSize/10}px; transform: translateY(-100%); height: 0.5em;">{model.config.teamName ?? model.clockId}</div>
-            <OldClockFace totalTime={$clock_info.max} {progress} dayNumber={$day_info.day} size={size ?? shownSize} hue={model.config.theme.hue}/>
+            <div class="clock-name-title dumbledore-font" style="font-size: {shownSize/10}px; transform: translateY(-100%); height: 0.5em;">{model.name}</div>
+            <OldClockFace totalTime={model.duration} progress={progress} dayNumber={model.day} size={size ?? shownSize} hue={model.hue}/>
         </div>
     {:else}
         <div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);">
-            <div class="clock-name-title dumbledore-font" style="font-size: {shownSize/10}px; transform: translateY(-100%); height: 0.5em;">{model.config.teamName ?? model.clockId}</div>
+            <div class="clock-name-title dumbledore-font" style="font-size: {shownSize/10}px; transform: translateY(-100%); height: 0.5em;">{model.name}</div>
             <SkyDisplay progress={progress} style=""/>
         </div>
     {/if}
