@@ -6,9 +6,8 @@
     import { browser } from "$app/environment";
 
     import { goto } from '$app/navigation';
-    import { ClockClient } from "$lib/model/client/ClockClientModel.svelte.js";
-    import type { ClockInstanceInfo } from "$lib/common/config.js";
-    import { get, writable, type Readable, type Writable } from "svelte/store";
+    import { Clocktower } from "$lib/model/client/Clocktower.svelte.js";
+    import type { ClocktowerModel } from "$lib/model/common/ClocktowerModel.js";
     import FullDisplay from "$lib/components/FullDisplay/FullDisplay.svelte";
     import { onMount } from "svelte";
     import ClockSetter from "../../../[clockid]/ClockSetter.svelte";
@@ -30,7 +29,7 @@
             gameid: number;
             game: GameFull|null;
             gameState: GrimoireStateHistory | null;
-            availableClocks: ClockInstanceInfo[];
+            availableClocks: ClocktowerModel[];
             error: string|null;
         }
     }
@@ -187,84 +186,57 @@
     });
 
     type ClockClientManagerConfig = {
-        connectedClock: ClockInstanceInfo|null;
+        connectedClock: ClocktowerModel|null;
         showClock: boolean;
     }
 
     class ClockClientManager {
-        private config_: Writable<ClockClientManagerConfig>;
-        private client_: Writable<ClockClient|null> = writable(null);
-        readonly config: Readable<ClockClientManagerConfig>;
-        readonly client = this.client_ as Readable<ClockClient|null>;
+        config: ClockClientManagerConfig = $state({ connectedClock: null, showClock: true });
+        client: Clocktower|null = $state(null);
         readonly gameId: number;
-        private readonly configKey: string;
         constructor(gameId: number){
             this.gameId = gameId;
-            this.configKey = `grimoire-${gameId}-clock-config`;
-            // const storedClockConfig: ClockClientManagerConfig|null = browser ? JSON.parse(localStorage.getItem(this.configKey) ?? 'null') : null;
-            // this.config_ = writable(storedClockConfig ?? { connectedClock: null, showClock: false });
-            this.config_ = writable({ connectedClock: null, showClock: true });
-            this.config = this.config_;
-        }
-
-        private saveConfig(){
-            if(browser && data.game){
-                console.log("Saving clock client manager config");
-                const current = get(this.config_);
-                localStorage.setItem(this.configKey, JSON.stringify(current));
-            }
         }
 
         closeClient(){
-            this.client_.update(client => {
-                if(client){
-                    console.log("Closing existing clock client connection");
-                    client.close();
-                }
-                return null;
-            });
+            if(this.client){
+                console.log("Closing existing clock client connection");
+                this.client.close();
+            }
+            this.client = null;
         }
 
-        async initializeClient(){
-            try{            
+        initializeClient(){
+            try{
                 this.closeClient();
-                const clockInstance = get(this.config_).connectedClock;
+                const clockInstance = this.config.connectedClock;
                 if(clockInstance){
-                    const newClient = new ClockClient(clockInstance.id, clockInstance.config, clockInstance.audioParams);
-                    newClient.init();
-                    this.client_.set(newClient);
+                    this.client = new Clocktower(clockInstance);
                 }
             } catch(er){
-                console.error("Error initializing ClockClientModel:", er);
+                console.error("Error initializing Clocktower client:", er);
                 alert("Failed to initialize clock client: " + er);
             }
         }
 
-        setConnectedClock(clockInfo: ClockInstanceInfo | null) {
+        setConnectedClock(clockInfo: ClocktowerModel | null) {
             console.log("Setting connected clock to", clockInfo);
-            this.config_.update(current => {
-                return { connectedClock: clockInfo, showClock: current.showClock };
-            });
-            // this.saveConfig();
+            this.config.connectedClock = clockInfo;
             this.initializeClient();
         }
 
         setVisible(visible: boolean) {
-            this.config_.update(current => {
-                return { connectedClock: current?.connectedClock ?? null, showClock: visible };
-            });
-            // this.saveConfig();
+            this.config.showClock = visible;
         }
     }
 
     const clockClientManager = $derived(browser && game !== null ? new ClockClientManager(game.id) : null);
     const clockClientManagerConfig = $derived(clockClientManager ? clockClientManager.config : null);
     const clockClientManagerClient = $derived(clockClientManager ? clockClientManager.client : null);
-    const dayInfo = $derived($clockClientManagerClient?.day_info);
     let showTimerOptions = $state(false);
 
     // NIGHT ORDER LOGIC
-    const nightOrderFunction = $derived(($dayInfo?.day || 0) > 0 ? (c: ScriptCharacter) => c.otherNightOrder : (c: ScriptCharacter) => c.firstNightOrder);
+    const nightOrderFunction = $derived((clockClientManagerClient?.day || 0) > 0 ? (c: ScriptCharacter) => c.otherNightOrder : (c: ScriptCharacter) => c.firstNightOrder);
     const nightOrderByCharacterId = $derived((placedTokens.filter((c, i, a)=>a.indexOf(c) === i)
         .filter(c=>!c.isDead)
         .map(c=>game?.script.characters.find(ch => ch.id === c.characterId))
@@ -1118,7 +1090,7 @@
         {/if}
 
         <!-- Show/Hide clock -->
-        <button class="sidebar-btn" class:active={$clockClientManagerConfig?.showClock} onclick={() => clockClientManager?.setVisible(!($clockClientManagerConfig?.showClock ?? false))} title="{$clockClientManagerConfig?.showClock ? 'Hide' : 'Show'} clock">
+        <button class="sidebar-btn" class:active={clockClientManagerConfig?.showClock} onclick={() => clockClientManager?.setVisible(!(clockClientManagerConfig?.showClock ?? false))} title="{clockClientManagerConfig?.showClock ? 'Hide' : 'Show'} clock">
             <svg viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"/>
                 <line x1="12" y1="12" x2="12" y2="7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -1176,11 +1148,11 @@
 
     </div>
 
-    {#if $clockClientManagerConfig?.showClock}
+    {#if clockClientManagerConfig?.showClock}
         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 2em; text-shadow: 0 0 10px rgba(0,0,0,0.7); z-index: {z_indecies.clock};">
-            {#if clockClientManagerClient && $clockClientManagerClient}
+            {#if clockClientManagerClient}
             <button class="no-button-style" style="position: relative; width: {tokenSize * 1.5 + 50}px; height: {tokenSize * 1.5 + 50}px; margin: 0 auto;" onclick={()=>showTimerOptions = true}>
-                <FullDisplay model={$clockClientManagerClient} size={tokenSize * 1.5} displayMode='original'/>
+                <FullDisplay model={clockClientManagerClient} size={tokenSize * 1.5} displayMode='original'/>
             </button>
             {/if}
         </div>
@@ -1302,23 +1274,23 @@
         <div class="edge-delete-indicator" class:active={isNearEdge(ghostPos.x, ghostPos.y)}></div>
     {/if}
 
-    {#if showTimerOptions || ($clockClientManagerConfig?.showClock && $clockClientManagerClient === null)}
+    {#if showTimerOptions || (clockClientManagerConfig?.showClock && clockClientManagerClient === null)}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {z_indecies.ui};" onclick={() => {showTimerOptions = false; if ($clockClientManagerConfig?.showClock && !$clockClientManagerClient) clockClientManager?.setVisible(false);}} role="dialog" tabindex="0">
+        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {z_indecies.ui};" onclick={() => {showTimerOptions = false; if (clockClientManagerConfig?.showClock && !clockClientManagerClient) clockClientManager?.setVisible(false);}} role="dialog" tabindex="0">
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div style="background: var(--theme-bg-secondary); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px;" onclick={(e) => e.stopPropagation()} >
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em; gap: 2em;">
-                    <h2 style="margin: 0; padding: 0;">{$clockClientManagerClient ? "Clock Controls" : "Connect to Clock"}</h2>
-                    <button class="button-style error" onclick={()=>{showTimerOptions = false; if($clockClientManagerClient === null) clockClientManager?.setVisible(false);}}>X</button>
+                    <h2 style="margin: 0; padding: 0;">{clockClientManagerClient ? "Clock Controls" : "Connect to Clock"}</h2>
+                    <button class="button-style error" onclick={()=>{showTimerOptions = false; if(clockClientManagerClient === null) clockClientManager?.setVisible(false);}}>X</button>
                 </div>
-                {#if clockClientManagerClient && $clockClientManagerClient}
-                    <ClockSetter model={$clockClientManagerClient} onstart={()=>{showTimerOptions = false}}/>
+                {#if clockClientManagerClient}
+                    <ClockSetter model={clockClientManagerClient} onstart={()=>{showTimerOptions = false}}/>
                     <button class="button-style" onclick={() => clockClientManager?.setConnectedClock(null)}>Disconnect Clock</button>
                 {:else}
                     <div style="display: flex; flex-direction: column; gap: 5px;">
-                        {#each availableClocks as clock(clock.id)}
+                        {#each availableClocks as clock(clock.clock.clockId)}
                             <button class="button-style" onclick={() => {clockClientManager?.setConnectedClock(clock); showTimerOptions = false;}} style="width: 100%; text-align: center; border: 1px solid {typeof clock.config.theme.hue === 'number' ? `hsl(${clock.config.theme.hue} 70% 50%)` : 'currentColor'};">
-                                {clock.config.teamName || `${clock.id}`}
+                                {clock.config.teamName || `${clock.clock.clockId}`}
                             </button>
                         {/each}
                     </div>

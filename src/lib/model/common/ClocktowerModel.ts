@@ -13,7 +13,6 @@ export function isClocktowerModel(data: any): data is ClocktowerModel {
         return false; 
     }
     if(!isClocktowerClockModel(data.clock)){
-        console.log("clock is bad");
         return false;
     }
     if(!isClocktowerAudioTrackModel(data.audio)){
