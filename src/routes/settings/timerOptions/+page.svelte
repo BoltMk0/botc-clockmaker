@@ -30,7 +30,11 @@
             if(res.ok){
                 alert('Saved!');
             } else {
-                alert('Failed to save');
+                res.json().then(t=>{
+                    alert(`Failed to save (${res.status})\n${t.message}\n${JSON.stringify(options)}`);
+                }).catch(e => {
+                    alert("Failed to save")
+                })
             }
         })
     }
@@ -65,7 +69,7 @@
                 <td>
                     <input type="checkbox" checked={option.ringBellWhenRemaining !== null} onchange={ev=>option.ringBellWhenRemaining = (ev.target! as any).checked ? 60 : null}/>
                     {#if option.ringBellWhenRemaining !== null}
-                    <input bind:value={option.ringBellWhenRemaining}/>
+                    <input value={option.ringBellWhenRemaining} onchange={ev=>option.ringBellWhenRemaining = Number((ev.target! as HTMLInputElement).value)}/>
                     {/if}
                 </td>
             </tr>
