@@ -23,40 +23,6 @@
         }
     });
 
-    function bump_day(delta: number) {
-        if(!model) return ;
-        fetch(`/api/clock/${id}/day`, {
-            method: 'POST',
-            body: JSON.stringify({day: model.day + 1}),
-            headers: {'Content-Type': 'application/json'}
-        }).then(response => {
-            if (!response.ok) {
-                throw new Error('Failed to set day');
-            }
-        }).catch(error => {
-            console.error("Error setting day:", error);
-        });
-    }
-
-    function startClock(params: {duration: number, ringBellAfter?: number}) {
-        // send request to start clock
-        fetch(`/api/clock/${id}/start`, {
-            method: 'POST',
-            body: JSON.stringify({
-                duration: params.duration,
-                ringBellAfter: params.ringBellAfter
-            }),
-            headers: {'Content-Type': 'application/json'}
-        }).then(response => {
-            if (!response.ok) {
-                throw new Error('Failed to start clock');
-            }
-            console.log("Clock started");
-        }).catch(error => {
-            console.error("Error starting clock:", error);
-        });
-    }
-
 </script>
 <Navbar/>
 {#if model}
@@ -65,7 +31,7 @@
     <FullDisplay {model} displayMode='original' size={240}/>
     </div>
     <div style="">
-        <ClockSetter {model}/>
+        <ClockSetter {model} timerOptions={data.timerOptions}/>
     </div>
 </div>
 {/if}

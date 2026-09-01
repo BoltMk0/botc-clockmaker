@@ -8,34 +8,18 @@
     import bell from '$lib/assets/bell.fill.png';
     import bell_slash from '$lib/assets/bell.slash.png';
     import type { Clocktower } from "$lib/model/client/Clocktower.svelte";
-    import { getDefaultTimerOptions, type TimerOption } from "$lib/common/timerOption";
+    import { type TimerOption } from "$lib/common/timerOption";
 
 
     let {
         model,
+        timerOptions,
         onstart = () => {}
     }: {
         model: Clocktower;
+        timerOptions: TimerOption[];
         onstart?: () => void;
     } = $props();
-
-    let options: TimerOption[] = $state(getDefaultTimerOptions());
-
-    onMount(()=>{
-        console.log("ClockSetter mounted, fetching config...");
-        fetch('/api/timerOptions').then(response => {
-            if (!response.ok) {
-                throw new Error('Failed to fetch config');
-            }
-            return response.json();
-        }).then((data: TimerOption[]) => {
-            console.log("Received Config data:", data);
-            options = data;
-        }).catch(error => {
-            console.error("Error fetching config:", error);
-        });
-    });
-
 
     function onStop(){
         fetch(`/api/clock/${model.id}/stop`, {
@@ -152,8 +136,8 @@
                 <button class="button-style updown" onclick={()=>{setPlayers(model.playerCount+1)}}>+</button>
             </div>
         </div>
-        {#each options as option, index}
-            <button class="button-container-button" class:active={option.duration === model.duration} onclick={() => setupClock(option)} disabled={model.running && model.timeOfDay === 'day'} style="grid-column: span {(index === options.length - 1 && options.length%2 === 1) ? 2 : 1};">
+        {#each timerOptions as option, index}
+            <button class="button-container-button" class:active={option.duration === model.duration} onclick={() => setupClock(option)} disabled={model.running && model.timeOfDay === 'day'} style="grid-column: span {(index === timerOptions.length - 1 && timerOptions.length%2 === 1) ? 2 : 1};">
                 <div>
                     <div class="timer-icons" style="font-size: {option.label ? '0.8em' : '1em'};">
                         <div>

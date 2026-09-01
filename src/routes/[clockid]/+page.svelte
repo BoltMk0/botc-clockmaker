@@ -3,7 +3,6 @@
     import FullDisplay from '$lib/components/FullDisplay/FullDisplay.svelte';
     import Navbar from '$lib/components/Navbar.svelte';
     import type { PageData } from './$types';
-    import MuteButton from '$lib/components/MuteButton.svelte';
     import { browser } from '$app/environment';
     import { Clocktower } from '$lib/model/client/Clocktower.svelte';
 
@@ -22,7 +21,7 @@
 </script>
 
 {#if model}
-<FullDisplay model={model} />
+<FullDisplay model={model}/>
 {/if}
 
 <Navbar/>

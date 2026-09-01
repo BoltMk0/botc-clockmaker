@@ -14,10 +14,12 @@
         model,
         models = [],
         displayMode = undefined,
+        showClockNames = undefined,
         size=undefined
     } : {
         model: Clocktower;
         models?: Clocktower[];
+        showClockNames?: boolean;
         displayMode?: FullDisplayMode;
         size?: number;
     } = $props();
@@ -135,7 +137,7 @@
         <SkyDisplay progress={progress} style=""/>
         <!-- <NewClocktower totalTime={220} timeRemaining={220*(1-minuteHandProgress)} hue={200} dayNumber={3} playerCount={10} style="top: 0; position: absolute;"/> -->
         <NewClocktower totalTime={model.duration} progress={progress} hue={model.hue} dayNumber={model.day} playerCount={model.playerCount} style="top: 0; position: absolute;"/>
-        {#if appSettings.showClockNames}
+        {#if showClockNames ?? appSettings.showClockNames}
         <div class="clock-name-title dumbledore-font" style="font-size: {shownSize/10}px; bottom: 0;">{model.name}</div>
         {/if}
     {:else if shownDisplayMode === "original"}
