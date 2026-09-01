@@ -8,6 +8,7 @@ interface AppSettingsState {
     autoSize: boolean;
     size: number;
     showClockNames: boolean;
+    showQRCodes: boolean;
 }
 
 const DEFAULT_STATE: AppSettingsState = {
@@ -15,6 +16,7 @@ const DEFAULT_STATE: AppSettingsState = {
     autoSize: true,
     size: 600,
     showClockNames: true,
+    showQRCodes: false
 };
 
 
@@ -38,6 +40,7 @@ class AppSettingsModel {
     autoSize: boolean = $state(DEFAULT_STATE.autoSize);
     size: number = $state(DEFAULT_STATE.size);
     showClockNames: boolean = $state(DEFAULT_STATE.showClockNames);
+    showQRCodes: boolean = $state(DEFAULT_STATE.showQRCodes);
 
     private saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -54,6 +57,7 @@ class AppSettingsModel {
                         autoSize: this.autoSize,
                         size: this.size,
                         showClockNames: this.showClockNames,
+                        showQRCodes: this.showQRCodes
                     };
                     this.saveState(state);
                 });
@@ -105,6 +109,7 @@ class AppSettingsModel {
             this.autoSize = parsedValue.autoSize ?? this.autoSize;
             this.size = parsedValue.size ?? this.size;
             this.showClockNames = parsedValue.showClockNames ?? this.showClockNames;
+            this.showQRCodes = parsedValue.showQRCodes ?? this.showQRCodes;
         } catch(e) {
             console.error("Failed to parse stored app settings", e);
         }

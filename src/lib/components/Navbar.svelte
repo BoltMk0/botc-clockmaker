@@ -3,9 +3,14 @@
     import HSlider from "$lib/audio/client/components/HSlider.svelte";
     import { appSettings } from "$lib/model/client/appSettings.svelte";
     import type { ClocktowerModel } from "$lib/model/common/ClocktowerModel";
+    import SiteQRCode from "./SiteQRCode.svelte";
+    import { page } from "$app/state";
 
     let visible = $state(false);
+    let showQRPopup = $state(false);
     let clients: ClocktowerModel[] | undefined = $state(undefined);
+
+    const currentPath = $derived(page.url.pathname + page.url.search);
 
     async function loadClockData(){
         const response = await fetch('/api/clock');
@@ -88,9 +93,24 @@
     }
 
     .navbar-settings-pane {
-        background-color: var(--theme-bg); 
-        padding: 10px; 
+        background-color: var(--theme-bg);
+        padding: 10px;
         border-radius: 8px;
+    }
+
+    .qr-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: rgba(0, 0, 0, 0.75);
+    }
+
+    .qr-overlay :global(.feedback-qr) {
+        position: static;
+        box-shadow: none;
     }
 </style>
 
@@ -160,6 +180,29 @@
                     <input name="autosize" type="checkbox" bind:checked={appSettings.showClockNames}/>
                 </div>
             </div>
+            <div style="display: flex; justify-content: space-between;">
+                <div style="font-size: smaller; text-align: center;">Show Feedback QR</div>
+                <div style="display: flex; gap: 0.5em; align-items: center; font-size: 18px;">
+                    <input name="autosize" type="checkbox" bind:checked={appSettings.showQRCodes}/>
+                </div>
+            </div>
+        </div>
+        <div class="navbar-settings-pane">
+            <button style="width: 100%; font-size: large;" onclick={() => { showQRPopup = true; visible = false;}}>
+                Share QR Code
+            </button>
         </div>
     </div>
 </div>
+
+{#if showQRPopup}
+    <div
+        class="qr-overlay"
+        role="button"
+        tabindex="0"
+        onclick={() => { showQRPopup = false; }}
+        onkeydown={() => { showQRPopup = false; }}
+    >
+        <SiteQRCode path={currentPath} title="Scan to open this page" />
+    </div>
+{/if}

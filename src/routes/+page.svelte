@@ -3,10 +3,10 @@
     import { onMount } from 'svelte';
     import FullDisplay from '$lib/components/FullDisplay/FullDisplay.svelte';
     import Navbar from '$lib/components/Navbar.svelte';
-    import MuteButton from '$lib/components/MuteButton.svelte';
     import { Clocktower } from '$lib/model/client/Clocktower.svelte.js';
     import { AudioEngine } from '$lib/audio/client/AudioEngine.svelte.js';
-    import FeedbackQRCode from '$lib/components/FeedbackQRCode.svelte';
+    import SiteQRCode from '$lib/components/SiteQRCode.svelte';
+    import { appSettings } from '$lib/model/client/appSettings.svelte.js';
 
     let {
         data
@@ -46,8 +46,10 @@
 </div>
 
 <Navbar/>
-<FeedbackQRCode/>
 
+{#if appSettings.showQRCodes}
+<SiteQRCode path='/feedback' title='Send us a message!' style='position: absolute; bottom: 1rem; left: 1rem; z-index: 10;'/>
+{/if}
 <!-- {#if audioEngineInstance}
 <MuteButton audioEngine={audioEngineInstance}/>
 {/if} -->

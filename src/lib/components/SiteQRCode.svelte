@@ -13,6 +13,8 @@
         dark?: string;
         /** Background colour, hex. Use '#00000000' for transparent. */
         light?: string;
+
+        style?: string;
     }
 
     let {
@@ -20,7 +22,8 @@
         size = 200,
         title = 'Send Us A Message',
         dark = '#EEE',
-        light = '#444'
+        light = '#444',
+        style = '',
     }: Props = $props();
 
     const url = $derived(new URL(path, page.url.origin).href);
@@ -46,7 +49,7 @@
     });
 </script>
 
-<div class="feedback-qr" style="background-color: {light}; color: {dark}">
+<div class="feedback-qr" style="background-color: {light}; color: {dark}; {style}">
     <h2 class="title">{title}</h2>
     {#if error}
         <p class="error">Could not generate QR code: {error}</p>
@@ -57,10 +60,6 @@
 
 <style>
     .feedback-qr {
-        position: absolute;
-        bottom: 1rem;
-        left: 1rem;
-        z-index: 100;
         display: flex;
         flex-direction: column;
         align-items: center;
