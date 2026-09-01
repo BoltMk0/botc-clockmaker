@@ -6,6 +6,7 @@
     import MuteButton from '$lib/components/MuteButton.svelte';
     import { Clocktower } from '$lib/model/client/Clocktower.svelte.js';
     import { AudioEngine } from '$lib/audio/client/AudioEngine.svelte.js';
+    import FeedbackQRCode from '$lib/components/FeedbackQRCode.svelte';
 
     let {
         data
@@ -45,6 +46,7 @@
 </div>
 
 <Navbar/>
+<FeedbackQRCode/>
 
 <!-- {#if audioEngineInstance}
 <MuteButton audioEngine={audioEngineInstance}/>
