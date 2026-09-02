@@ -32,8 +32,6 @@
 
 
 <div class="clock-container" style="{style}">
-    <div>{sunSize}</div>
-
     <!-- Dial that rotates from right (max) to left (min) -->
      <div class="dial-background" style="background-color: {skyColor};"></div>
      <div class="sky-display-sun-container" style="transform: rotate({rotationAngle}deg);">

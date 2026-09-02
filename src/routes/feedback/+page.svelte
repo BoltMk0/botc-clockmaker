@@ -1,17 +1,41 @@
 <script lang="ts">
     import { enhance } from "$app/forms";
+    import { onMount } from "svelte";
     import type { SubmitFunction } from "@sveltejs/kit";
+    import SkyDisplay from "$lib/components/FullDisplay/NewClocktowerDisplay/subviews/SkyDisplay.svelte";
 
     let { form } = $props();
 
     let text = $state("");
     let submitting = $state(false);
+    let turnstileEl: HTMLElement | undefined = $state();
+    let turnstileReady = $state(false);
+
+    onMount(() => {
+        // Poll until the Turnstile script has loaded, then render explicitly.
+        // This avoids the string-based data-callback approach, which is fragile
+        // when the script is cached and initialises before the global is defined.
+        const interval = setInterval(() => {
+            if (!window.turnstile || !turnstileEl) return;
+            clearInterval(interval);
+            window.turnstile.render(turnstileEl, {
+                sitekey: '0x4AAAAAAEk55R9-W9ZS1kzr',
+                action: 'feedback',
+                callback: () => { turnstileReady = true; },
+            });
+        }, 50);
+        return () => clearInterval(interval);
+    });
 
     const submit: SubmitFunction = () => {
         submitting = true;
         return async ({ update }) => {
             await update({ reset: false });
             submitting = false;
+            turnstileReady = false;
+            if (turnstileEl && window.turnstile) {
+                window.turnstile.reset(turnstileEl);
+            }
         };
     };
 
@@ -24,6 +48,10 @@
         }, 150);
     }
 </script>
+
+<svelte:head>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+</svelte:head>
 
 <style>
     .wrap {
@@ -57,7 +85,6 @@
     textarea {
         width: 100%;
         box-sizing: border-box;
-        margin-top: 1.5em;
         padding: 1em;
         min-height: 14em;
         max-height: 60vh;
@@ -68,7 +95,6 @@
 
     button {
         width: 100%;
-        margin-top: 1em;
         padding: 0.4em 1em;
         font-size: 1rem;
     }
@@ -85,30 +111,38 @@
         <p>Your feedback has been sent.</p>
     {:else}
         <form method="POST" use:enhance={submit}>
-            <h1>Feedback</h1>
-            <p>Leave us some anonymous feedback!</p>
-            <p>We don't store anything except what you write below.</p>
-            <input
-                type="text"
-                name="website"
-                tabindex="-1"
-                autocomplete="off"
-                aria-hidden="true"
-                style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0"
-            />
-            <textarea
-                name="text"
-                placeholder="Write your message here..."
-                maxlength="5000"
-                bind:value={text}
-                required
-            ></textarea>
-            <button disabled={text === "" || submitting}>
-                {submitting ? "Sending…" : "Send"}
-            </button>
-            {#if form && !form.success}
-                <p class="error">Couldn't send that. Please try again in a moment.</p>
-            {/if}
+            <div style="display: flex; flex-direction: column; gap: 1em;">
+                <div style="display: flex; flex-direction: column; gap: 0.3em;">
+                    <h1>Feedback</h1>
+                    <p>Leave us some anonymous feedback!</p>
+                    <p>We don't store anything except what you write below.</p>
+                </div>
+                <input
+                    type="text"
+                    name="website"
+                    tabindex="-1"
+                    autocomplete="off"
+                    aria-hidden="true"
+                    style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0"
+                />
+                <div bind:this={turnstileEl}></div>
+                {#if turnstileReady}
+                <textarea
+                    name="text"
+                    placeholder="Write your message here..."
+                    maxlength="5000"
+                    bind:value={text}
+                    required
+                    autofocus
+                ></textarea>
+                <button disabled={text === "" || submitting}>
+                    {submitting ? "Sending…" : "Send"}
+                </button>
+                {/if}
+                {#if form && !form.success}
+                    <p class="error">Couldn't send that. Please try again in a moment.</p>
+                {/if}
+            </div>
         </form>
     {/if}
 </div>
