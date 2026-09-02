@@ -2,6 +2,7 @@
     import { enhance } from "$app/forms";
     import { onMount } from "svelte";
     import type { SubmitFunction } from "@sveltejs/kit";
+    import SkyDisplay from "$lib/components/FullDisplay/NewClocktowerDisplay/subviews/SkyDisplay.svelte";
 
     let { form } = $props();
 
@@ -111,7 +112,7 @@
     {:else}
         <form method="POST" use:enhance={submit}>
             <div style="display: flex; flex-direction: column; gap: 1em;">
-                <div>
+                <div style="display: flex; flex-direction: column; gap: 0.3em;">
                     <h1>Feedback</h1>
                     <p>Leave us some anonymous feedback!</p>
                     <p>We don't store anything except what you write below.</p>

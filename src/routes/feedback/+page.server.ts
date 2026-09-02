@@ -54,8 +54,13 @@ export const actions: Actions = {
             console.warn('Failed to send email:', (e instanceof Error ? e.message : e));
         });
 
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        writeFileSync(`${FEEDBACK_DIR}/${timestamp}.txt`, text, 'utf8');
+        try {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            writeFileSync(`${FEEDBACK_DIR}/${timestamp}.txt`, text, 'utf8');
+            console.log(`Saved feedback to ${timestamp}.txt`);
+        } catch(er){
+            console.warn(`Failed to save feedback to storage:`, er instanceof Error ? er.message : er);
+        }
 
         return {success: true};
     }
