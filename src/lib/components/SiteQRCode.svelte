@@ -5,7 +5,7 @@
     interface Props {
         /** Path on the current host to point the QR code at. */
         path?: string;
-        /** Rendered width/height of the QR code in pixels. */
+        /** Rendered width/height of the QR code in rem. */
         size?: number;
         /** Panel title shown above the QR code. */
         title?: string;
@@ -19,7 +19,7 @@
 
     let {
         path = '/feedback',
-        size = 200,
+        size = 8,
         title = 'Send Us A Message',
         dark = '#EEE',
         light = '#444',
@@ -35,7 +35,7 @@
         const target = url;
         QRCode.toDataURL(target, {
             margin: 1,
-            width: size * 2,
+            width: Math.round(size * 16),
             errorCorrectionLevel: 'M',
             color: { dark, light }
         })
@@ -49,12 +49,12 @@
     });
 </script>
 
-<div class="feedback-qr" style="background-color: {light}; color: {dark}; {style}">
+<div class="feedback-qr" style="background-color: {light}; color: {dark}; font-size: {size / 13}rem; --qr-size: {size}rem; {style}">
     <h2 class="title">{title}</h2>
     {#if error}
         <p class="error">Could not generate QR code: {error}</p>
     {:else if dataUrl}
-        <img src={dataUrl} alt="QR code linking to {url}" width={size} height={size} />
+        <img src={dataUrl} alt="QR code linking to {url}" style="width: {size}rem; height: {size}rem;" />
     {/if}
 </div>
 
@@ -68,12 +68,16 @@
         border: 1px solid rgba(0, 0, 0, 0.15);
         border-radius: 8px;
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+        width: fit-content;
     }
 
     .title {
         margin: 0;
-        font-size: 1rem;
         font-weight: 600;
+        text-align: center;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        max-width: var(--qr-size);
     }
 
     .feedback-qr img {
