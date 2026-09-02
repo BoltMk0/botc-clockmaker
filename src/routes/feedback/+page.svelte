@@ -2,7 +2,6 @@
     import { enhance } from "$app/forms";
     import { onMount } from "svelte";
     import type { SubmitFunction } from "@sveltejs/kit";
-    import SkyDisplay from "$lib/components/FullDisplay/NewClocktowerDisplay/subviews/SkyDisplay.svelte";
 
     let { form } = $props();
 

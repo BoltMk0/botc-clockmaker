@@ -84,7 +84,7 @@
 
     // Bigger clouds read as closer: faster, more opaque, less blurred.
     const BASE_DURATION  = 60; // seconds for the largest cloud to cross the sky
-    const MIN_WHITE_MIX  = 45;
+    const MIN_WHITE_MIX  = 40;
     const MAX_WHITE_MIX  = 65;
     const MIN_BLUR       = 4;
     const MAX_BLUR       = 6;
