@@ -1,6 +1,8 @@
 <script lang="ts">
 	import favicon from '$lib/assets/favicon.svg';
 	import { onMount } from 'svelte';
+	import { browser } from '$app/environment';
+	import { pwaInfo } from 'virtual:pwa-info';
 	import "./style.css"
 	import "$lib/styles/common.css";
 	let { children } = $props();
@@ -13,6 +15,15 @@
 	}
 	onMount(() => {
 		disableDoubleTapZoomGesture();
+
+		if (browser) {
+			// Registers the PWA service worker so the browser can detect this app
+			// as installable. Dynamically imported so it's a no-op when the PWA
+			// plugin is disabled (e.g. during dev without devOptions enabled).
+			import('virtual:pwa-register/svelte').then(({ useRegisterSW }) => {
+				useRegisterSW({ immediate: true });
+			});
+		}
 
 		// Some mobile browsers are picky about nested scroll containers when the
 		// document body itself isn't scrollable.
@@ -38,6 +49,9 @@
 
 <svelte:head>
 	<link rel="icon" href="/icons/appicon_128x128.png" />
+	{#if pwaInfo}
+		{@html pwaInfo.webManifest.linkTag}
+	{/if}
 </svelte:head>
 
 <div class="body-content" bind:this={bodyContentEl} tabindex="-1">
