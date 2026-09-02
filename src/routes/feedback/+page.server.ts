@@ -1,6 +1,11 @@
 import { fail } from "@sveltejs/kit";
 import type { Actions } from "./$types";
 import { sendEmail } from "$lib/resources/server/mailer";
+import { TURNSTILE_SECRET_KEY } from "$env/static/private";
+import { existsSync, mkdirSync, writeFileSync } from "fs";
+
+const FEEDBACK_DIR = process.env.FEEDBACK_DATA_DIR || "data/feedback";
+if (!existsSync(FEEDBACK_DIR)) mkdirSync(FEEDBACK_DIR, { recursive: true });
 
 const MAX_LEN = 5000;
 const WINDOW_MS = 60_000;
@@ -25,6 +30,19 @@ export const actions: Actions = {
         // Honeypot: a hidden field real users never fill. Pretend success for bots.
         if(formData.get('website')) return {success: true};
 
+        const token = formData.get('cf-turnstile-response')?.toString();
+        if (!token) return fail(400, { success: false });
+
+        const verification = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ secret: TURNSTILE_SECRET_KEY, response: token }),
+        }).then(r => r.json() as Promise<{ success: boolean; action?: string; hostname?: string }>);
+
+        if (!verification.success || verification.action !== 'feedback') {
+            return fail(400, { success: false });
+        }
+
         const text = formData.get('text')?.toString().trim();
 
         if(!text) return fail(400, { success: false });
@@ -35,6 +53,10 @@ export const actions: Actions = {
         sendEmail('Feedback', text).catch(e=>{
             console.warn('Failed to send email:', (e instanceof Error ? e.message : e));
         });
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        writeFileSync(`${FEEDBACK_DIR}/${timestamp}.txt`, text, 'utf8');
+
         return {success: true};
     }
 }
