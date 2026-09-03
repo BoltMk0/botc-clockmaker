@@ -66,7 +66,7 @@
     }
 
     .hamburger {
-        opacity: 0.2;
+        opacity: 0.85;
     }
 
     .hamburger:hover {
@@ -115,10 +115,10 @@
 </style>
 
 <button aria-label="Menu" class="no-button-style hamburger" onclick={()=>{visible = true;}} style="position: absolute; top: 10px; left: 10px;">
-    <svg width={40} height={40} viewBox="0 0 100 100" style="fill: #FFF6;">
-        <rect x={0} y={0} width={100} height={20}/>
-        <rect x={0} y={37.5} width={100} height={20}/>
-        <rect x={0} y={75} width={100} height={20}/>
+    <svg width={36} height={36} viewBox="0 0 100 100" style="fill: #FFF; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));">
+        <rect x={0} y={0} width={100} height={20} rx={10} ry={10}/>
+        <rect x={0} y={40} width={100} height={20} rx={10} ry={10}/>
+        <rect x={0} y={80} width={100} height={20} rx={10} ry={10}/>
     </svg>
 </button>
 
