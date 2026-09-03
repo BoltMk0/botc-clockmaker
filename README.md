@@ -1,4 +1,4 @@
-# BOTCT Clock
+# Clockmaker
 
 A simple app for tracking time during a blood on the clocktower game, with a nice satisfying "bong" sound. 
 
@@ -23,7 +23,7 @@ A simple app for tracking time during a blood on the clocktower game, with a nic
 This app is now available via the docker public image repository, so can be run with one line:
 
 ```sh
-docker run -d --restart unless-stopped -p "3000:3000" --name botc-clocktower boltmk0/botc-clocktower:latest
+docker run -d --restart unless-stopped -p "3000:3000" --name botc-clockmaker boltmk0/botc-clockmaker:latest
 ```
 
 Alternatively, using docker compose
@@ -33,7 +33,7 @@ Alternatively, using docker compose
 # docker-compose.yml
 services:
   server:
-    image: boltmk0/botc-clocktower:latest
+    image: boltmk0/botc-clockmaker:latest
     ports:
       - "3000:3000"
 ```
@@ -46,7 +46,7 @@ Configuration data and customized resources are, by default, found at `/data` in
 
 For persisting configuration & customization, be sure to use volumes: 
 ```sh
-docker run -d --restart unless-stopped -p "3000:3000" -v botc-clocktower-data:/data boltmk0/botc-clocktower:latest
+docker run -d --restart unless-stopped -p "3000:3000" -v botc-clockmaker-data:/data boltmk0/botc-clockmaker:latest
 ```
 or
 ```yaml
@@ -63,13 +63,13 @@ volumes:
 ```
 This creates a docker volume that stores this data. It can be deleted with `docker volume rm <volume name>` (find the volume name using `docker volume ls`)
 
-> <b>Cool tip</b><br/>Alternatively to docker volumes, you can use any local folder/directory by using a path, e.g. `./botc-clocktower-data:/data`. This would create a directory called "botc-clocktower-data" and store all resources there.
+> <b>Cool tip</b><br/>Alternatively to docker volumes, you can use any local folder/directory by using a path, e.g. `./botc-clockmaker-data:/data`. This would create a directory called "botc-clockmaker-data" and store all resources there.
 
 ### Resource paths
 Found in the data directory are config files and resources that can be overwritten:
 | Path in data directory | Supported extensions | Description |
 | --- | --- | --- |
-| config/botc-clocktower.config.json | .json | Main configuration file |
+| config/botc-clockmaker.config.json | .json | Main configuration file |
 | audio/final-bell.* | .wav, .mp3, .aac, .ogg | Audio resource used for final bell ring |
 | audio/reminder-bell.* | .wav, .mp3, .aac, .ogg | Audio resource used for reminder bell ring. If not found, will use audio/final-bell |
 

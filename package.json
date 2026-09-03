@@ -1,7 +1,7 @@
 {
-	"name": "botct-clock",
+	"name": "clockmaker",
 	"private": true,
-	"version": "0.2.15",
+	"version": "0.2.17",
 	"type": "module",
 	"scripts": {
 		"dev": "docker compose up database -d && vite dev",

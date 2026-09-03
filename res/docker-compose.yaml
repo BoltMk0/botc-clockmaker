@@ -1,6 +1,6 @@
 services:
   server:
-    image: boltmk0/botc-clocktower:latest
+    image: boltmk0/botc-clockmaker:latest
     ports:
       - "3000:3000"
     volumes:

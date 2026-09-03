@@ -6,9 +6,9 @@ import argparse
 
 ap = argparse.ArgumentParser(description="Build and push Docker image for BOTC Clocktower")
 ap.add_argument("package_dir", default=".", nargs="?", help="Directory containing package.json (default: current directory)")
-ap.add_argument("--tag-base", "-t", default="boltmk0/botc-clocktower", help="Base name for Docker image tag (default: boltmk0/botc-clocktower)")
+ap.add_argument("--tag-base", "-t", default="boltmk0/botc-clockmaker", help="Base name for Docker image tag (default: boltmk0/botc-clockmaker)")
 ap.add_argument("--registry", help="Docker registry URL")
-ap.add_argument("--archive-out", "-o", help="Optional path to save the built Docker image as a tar archive (e.g. botc-clocktower.tar)")
+ap.add_argument("--archive-out", "-o", help="Optional path to save the built Docker image as a tar archive (e.g. botc-clockmaker.tar)")
 
 args = ap.parse_args()
 

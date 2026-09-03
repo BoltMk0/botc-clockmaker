@@ -9,14 +9,14 @@ export default defineConfig({
 			registerType: 'autoUpdate',
 			includeAssets: [],
 			manifest: {
-				name: 'BOTCT Clock',
-				short_name: 'BOTCT Clock',
+				name: 'Clockmaker',
+				short_name: 'Clockmaker',
 				display: 'standalone',
 				start_url: '/',
 				scope: '/',
 				display_override: ['standalone', 'minimal-ui'],
 				background_color: '#121212',
-				description: 'A clock for the BOTCT event',
+				description: 'A clock for BOTCT events',
 				theme_color: '#2d4550',
 				icons: [
 					{

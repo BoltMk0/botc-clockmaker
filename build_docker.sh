@@ -1,2 +1,2 @@
 #!/bin/sh
-docker build -t "http://gabranth.local:5000/botc-clocktower:latest" --platform linux/amd64 . && docker save "http://gabranth.local:5000/botc-clocktower:latest" -o botc-clocktower-linux-amd64.tar
+docker build -t "http://gabranth.local:5000/botc-clockmaker:latest" --platform linux/amd64 . && docker save "http://gabranth.local:5000/botc-clockmaker:latest" -o botc-clockmaker-linux-amd64.tar
