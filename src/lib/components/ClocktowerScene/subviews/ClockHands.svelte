@@ -5,6 +5,7 @@
     import { useTexture } from "@threlte/extras";
     import minuteHandUrl from "$lib/assets/clockhand.png";
     import hourHandUrl from "$lib/assets/clockhand3.png";
+    import DeadBody from "./DeadBody.svelte";
 
     // Same asset-specific constants as ClockFace.svelte - kept in sync with
     // it so the numerals/hands land on the dial it draws rather than an
@@ -92,27 +93,35 @@
     const minuteGeometry = $derived(
         handGeometry($minuteTexture, MINUTE_HAND_LENGTH_FRACTION, MINUTE_HAND_PIVOT_FRACTION, dialPlaneHeight)
     );
+    // How far the minute hand reaches from the dial centre, in world units -
+    // used to hang the dead body off it.
+    const minuteHandLength = $derived(dialPlaneHeight * MINUTE_HAND_LENGTH_FRACTION);
     const hourGeometry = $derived(
         handGeometry($hourTexture, HOUR_HAND_LENGTH_FRACTION, HOUR_HAND_PIVOT_FRACTION, dialPlaneHeight)
     );
 
-    // A touch further forward than the dial (z=0.05) so the hands sit on
-    // top of it, and the numerals a hair further forward still so they sit
-    // on top of the hands' bases without fighting the dial for depth.
-    const HANDS_Z = 0.07;
-    const NUMERALS_Z = 0.09;
+    // A touch further forward than the dial (z=0.05) so both sit on top of
+    // it, with the hands forward of the numerals so they sweep over them.
+    const NUMERALS_Z = 0.07;
+    const HANDS_Z = 0.09;
 
     // The 12 hour numerals, drawn onto a single canvas rather than as 12
     // separate meshes - same technique used for the sky/halo gradients
-    // elsewhere in the scene. Upright at every position (not rotated to
-    // follow the radius), matching the 2D display's numerals.
+    // elsewhere in the scene. Each numeral is rotated to face the dial
+    // centre (12 upright, 3 quarter-turned, 6 upside down, ...).
     const NUMERAL_TEXTURE_SIZE = 1024;
     const NUMERAL_RADIUS_FRACTION = 0.66;
-    const NUMERAL_FONT_SIZE = 112;
+    const NUMERAL_FONT_SIZE = 100;
+    const NUMERAL_FONT_WEIGHT = 500;
     // Nudges every numeral down from where the radius/angle math alone would
     // put it - they read as sitting too high otherwise.
-    const NUMERAL_Y_OFFSET = 18;
-    const NUMERAL_COLOR = "#33291c";
+    const NUMERAL_Y_OFFSET = 0;
+    const NUMERAL_COLOR = "#221811";
+    // Soft drop shadow behind each numeral. Blur/offset scaled to the font
+    // size so they stay proportional if the numerals are resized.
+    const NUMERAL_SHADOW_COLOR = "rgba(0, 0, 0, 0.55)";
+    const NUMERAL_SHADOW_BLUR = NUMERAL_FONT_SIZE * 0.12;
+    const NUMERAL_SHADOW_OFFSET = NUMERAL_FONT_SIZE * 0.05;
     const ROMAN_NUMERALS = ["Ⅰ", "Ⅱ", "Ⅲ", "Ⅳ", "Ⅴ", "Ⅵ", "Ⅶ", "Ⅷ", "Ⅸ", "Ⅹ", "Ⅺ", "Ⅻ"];
 
     const numeralCanvas: HTMLCanvasElement = document.createElement("canvas");
@@ -126,15 +135,26 @@
         if (!ctx) return;
         const center = NUMERAL_TEXTURE_SIZE / 2;
         const radius = center * NUMERAL_RADIUS_FRACTION;
-        ctx.font = `${NUMERAL_FONT_SIZE}px "Times New Roman", Times, serif`;
-        ctx.fillStyle = NUMERAL_COLOR;
+        ctx.font = `${NUMERAL_FONT_WEIGHT} ${NUMERAL_FONT_SIZE}px "Times New Roman", Times, serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
+        ctx.fillStyle = NUMERAL_COLOR;
+        ctx.shadowColor = NUMERAL_SHADOW_COLOR;
+        ctx.shadowBlur = NUMERAL_SHADOW_BLUR;
+        ctx.shadowOffsetX = NUMERAL_SHADOW_OFFSET;
+        ctx.shadowOffsetY = NUMERAL_SHADOW_OFFSET;
         for (let i = 0; i < 12; i++) {
             const clockAngle = ((i + 1) * Math.PI) / 6; // 30° per hour, 0 = 12 o'clock
             const x = center + radius * Math.sin(clockAngle);
             const y = center - radius * Math.cos(clockAngle) + NUMERAL_Y_OFFSET;
-            ctx.fillText(ROMAN_NUMERALS[i], x, y);
+            // Rotate each numeral to face the dial centre: 12 upright, 3
+            // quarter-turned, 6 upside down, etc. Draw at the origin of a
+            // translated/rotated frame so the glyph pivots on its own centre.
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(clockAngle);
+            ctx.fillText(ROMAN_NUMERALS[i], 0, 0);
+            ctx.restore();
         }
         numeralTexture.needsUpdate = true;
     })();
@@ -150,6 +170,15 @@
         <T is={minuteGeometry} attach="geometry" />
         <T.MeshBasicMaterial map={$minuteTexture} transparent alphaTest={0.01} />
     </T.Mesh>
+
+    <!-- Some poor soul slumped over the minute hand, swept round with it. -->
+    <DeadBody
+        {dialPlaneHeight}
+        {minuteHandLength}
+        rotationZ={handRotationZ(minuteHandProgress)}
+        {horizontalOffset}
+        z={HANDS_Z + 0.005}
+    />
 {/if}
 
 {#if $hourTexture}

@@ -170,6 +170,7 @@
             <select bind:value={appSettings.displayMode} style="width: 100%; font-size: x-large;">
                 <option value="original">Original</option>
                 <option value="clocktower">Clocktower</option>
+                <option value="clocktower3d">Clocktower (3D)</option>
             </select>
         </div>
         <div class="navbar-settings-pane">

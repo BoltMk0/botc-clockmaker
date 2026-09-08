@@ -110,6 +110,13 @@
         };
     };
 
+    // autofocus only fires on initial page load; the textarea is mounted later
+    // (once the turnstile token arrives), so focus/select it ourselves.
+    function autoselect(node: HTMLTextAreaElement) {
+        node.focus();
+        node.select();
+    }
+
     function closeTab() {
         window.close();
         // window.close() is a no-op for tabs the user opened themselves;
@@ -235,7 +242,7 @@
                         maxlength="5000"
                         bind:value={text}
                         required
-                        autofocus
+                        use:autoselect
                     ></textarea>
                     <button disabled={text === "" || submitting}>
                         {submitting ? "Sending…" : "Send"}

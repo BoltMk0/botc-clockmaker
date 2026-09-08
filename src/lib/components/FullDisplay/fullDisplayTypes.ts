@@ -1,1 +1,1 @@
-export type FullDisplayMode = "original" | "clocktower";
+export type FullDisplayMode = "original" | "clocktower" | "clocktower3d";

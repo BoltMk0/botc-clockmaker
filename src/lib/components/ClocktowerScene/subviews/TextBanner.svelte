@@ -36,7 +36,7 @@
     // (expressed against the 1024px-tall working canvas below). Set high so
     // the text fills the content box - the fit loop clamps it to whatever
     // actually fits.
-    const MAX_FONT_PX = 200;
+    const MAX_FONT_PX = 190;
     const MIN_FONT_PX = 24;
 
     // Optional subtitle, drawn along the bottom of the content box in the

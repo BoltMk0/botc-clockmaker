@@ -1,8 +1,10 @@
 <script lang="ts">
     import { onDestroy, onMount } from "svelte";
+    import { dev } from "$app/environment";
     import NewClocktower from "./NewClocktowerDisplay/NewClocktowerDisplay.svelte";
     import SkyDisplay from "./NewClocktowerDisplay/subviews/SkyDisplay.svelte";
     import OldClockFace from "./OldClockDisplay/OldClockFace/OldClockFace.svelte";
+    import ClocktowerScene from "$lib/components/ClocktowerScene/ClocktowerScene.svelte";
     import { appSettings } from "$lib/model/client/appSettings.svelte";
     import type { FullDisplayMode } from "./fullDisplayTypes";
     import type { Clocktower } from "$lib/model/client/Clocktower.svelte";
@@ -137,6 +139,12 @@
         <SkyDisplay progress={progress} style=""/>
         <!-- <NewClocktower totalTime={220} timeRemaining={220*(1-minuteHandProgress)} hue={200} dayNumber={3} playerCount={10} style="top: 0; position: absolute;"/> -->
         <NewClocktower totalTime={model.duration} progress={progress} hue={model.hue} dayNumber={model.day} playerCount={model.playerCount} style="top: 0; position: absolute;"/>
+        {#if showClockNames ?? appSettings.showClockNames}
+        <div class="clock-name-title dumbledore-font" style="font-size: {shownSize/10}px; bottom: 0;">{model.name}</div>
+        {/if}
+    {:else if shownDisplayMode === "clocktower3d"}
+        <!-- The sky, sun and moon are all nodes inside ClocktowerScene itself. -->
+        <ClocktowerScene progress={progress} totalTime={model.duration} showProgressSlider={dev} style="top: 0; position: absolute;"/>
         {#if showClockNames ?? appSettings.showClockNames}
         <div class="clock-name-title dumbledore-font" style="font-size: {shownSize/10}px; bottom: 0;">{model.name}</div>
         {/if}

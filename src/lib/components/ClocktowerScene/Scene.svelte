@@ -85,6 +85,7 @@
     {horizontalOffset}
     {smoothProgress}
 />
+
 <ClockHands progress={handsProgress} {totalTime} towerPlaneHeight={planeHeight} {horizontalOffset} />
 
 {#if showOriginMarker}

@@ -40,8 +40,8 @@
     const z = $derived(-visibleHeight * 0.6);
     const radius = $derived(visibleHeight * 0.15);
 
-    const END_X = -0.05;
-    const END_Y = 0.35;
+    const END_X = -0.15;
+    const END_Y = 0.4;
     const START_X = 0.4;
     const START_Y = 1.5;
     const CONTROL_X = -0.5;
