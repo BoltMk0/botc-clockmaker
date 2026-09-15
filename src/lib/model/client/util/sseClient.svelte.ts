@@ -4,21 +4,36 @@ import { source } from "sveltekit-sse";
 
 export type CommsConnectionStatus = 'connected' | 'disconnected' | 'connecting';
 
-export class SSEClient {    
-    
+// The server broadcasts a `sync` message every 500ms while a connection is alive (see
+// +server.ts). If we haven't heard anything for much longer than that, the underlying
+// connection is almost certainly a zombie (e.g. the mobile OS silently dropped the socket
+// while the device was asleep) even though the browser hasn't fired an `error`/`close` event.
+const WATCHDOG_MESSAGE_TIMEOUT_MS = 5000;
+const WATCHDOG_CHECK_INTERVAL_MS = 2000;
+
+export class SSEClient {
+
     private sse_connection: ReturnType<typeof source> | null = null;
     private closing: boolean = false;
     private sseReconnectAttempts: number = 0;
     private sseReconnectTimer: ReturnType<typeof setTimeout> | null = null;
     private sse_data_store: Readable<WSMessage|null> | null = null;
     private sse_store_unsubscribe: (()=>void) | null = null;
+    private lastMessageTime: number = Date.now();
+    private watchdogInterval: ReturnType<typeof setInterval> | null = null;
+    private wakeListenersAttached = false;
+    private readonly handleWake = () => {
+        if(document.visibilityState !== 'visible') return;
+        console.log('SSE: detected page wake/visibility change, forcing reconnect.');
+        this.forceReconnect();
+    };
     comms_state = $state<CommsConnectionStatus>('disconnected');
 
     constructor(
         readonly sourceUrl: string,
         onMessage: (msg: WSMessage)=>void
     ){
-        
+
         const self = this;
         this.sse_connection = source(this.sourceUrl, {
             close({ connect }) {
@@ -33,6 +48,7 @@ export class SSEClient {
             open() {
                 console.log('SSE connected to clock events');
                 self.sseReconnectAttempts = 0;
+                self.lastMessageTime = Date.now();
                 if(self.sseReconnectTimer){
                     clearTimeout(self.sseReconnectTimer);
                     self.sseReconnectTimer = null;
@@ -48,8 +64,46 @@ export class SSEClient {
         });
         this.sse_data_store = this.sse_connection.select('message').json<WSMessage>();
         this.sse_store_unsubscribe = this.sse_data_store.subscribe((value) => {
-            if(value) onMessage(value);
+            if(value){
+                this.lastMessageTime = Date.now();
+                onMessage(value);
+            }
         });
+
+        if(typeof window !== 'undefined'){
+            this.watchdogInterval = setInterval(() => this.checkWatchdog(), WATCHDOG_CHECK_INTERVAL_MS);
+            document.addEventListener('visibilitychange', this.handleWake);
+            window.addEventListener('pageshow', this.handleWake);
+            window.addEventListener('online', this.handleWake);
+            this.wakeListenersAttached = true;
+        }
+    }
+
+    private checkWatchdog(){
+        if(this.closing) return;
+        // Only the "connected" state can go silently stale; 'connecting'/'disconnected'
+        // are already being retried by scheduleSSEReconnect.
+        if(this.comms_state !== 'connected') return;
+        if(Date.now() - this.lastMessageTime > WATCHDOG_MESSAGE_TIMEOUT_MS){
+            console.warn('SSE: no messages received recently, assuming connection is stale. Forcing reconnect...');
+            this.forceReconnect();
+        }
+    }
+
+    private forceReconnect(){
+        if(this.closing) return;
+        this.comms_state = 'connecting';
+        this.sseReconnectAttempts = 0;
+        if(this.sseReconnectTimer){
+            clearTimeout(this.sseReconnectTimer);
+            this.sseReconnectTimer = null;
+        }
+        try {
+            // Triggers the close({connect}) handler above, which immediately reconnects.
+            this.sse_connection?.close();
+        } catch (e) {
+            console.error('Error during SSE close for forced reconnect:', e);
+        }
     }
 
     private scheduleSSEReconnect(){
@@ -70,7 +124,22 @@ export class SSEClient {
     }
 
     close(){
+        this.closing = true;
         this.sseReconnectAttempts = 0;
+        if(this.sseReconnectTimer){
+            clearTimeout(this.sseReconnectTimer);
+            this.sseReconnectTimer = null;
+        }
+        if(this.watchdogInterval){
+            clearInterval(this.watchdogInterval);
+            this.watchdogInterval = null;
+        }
+        if(this.wakeListenersAttached){
+            document.removeEventListener('visibilitychange', this.handleWake);
+            window.removeEventListener('pageshow', this.handleWake);
+            window.removeEventListener('online', this.handleWake);
+            this.wakeListenersAttached = false;
+        }
         this.sse_connection?.close();
         this.sse_store_unsubscribe?.();
     }
