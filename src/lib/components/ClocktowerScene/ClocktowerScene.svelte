@@ -50,10 +50,6 @@
         // center sits 20% of the full width right of dead-center.
         horizontalOffset = visibleHeight * 0.4,
         showOriginMarker = false,
-        // Testing aid: a slider pinned to the bottom of the scene that drives
-        // `progress` directly, so the full day/night cycle can be scrubbed
-        // by hand instead of waiting on (or faking) a real countdown.
-        showProgressSlider = false,
         style = ""
     }: {
         progress: number;
@@ -70,14 +66,8 @@
         sunForwardDistance?: number;
         horizontalOffset?: number;
         showOriginMarker?: boolean;
-        showProgressSlider?: boolean;
         style?: string;
     } = $props();
-
-    // null = follow the real `progress` prop; a number = manual override
-    // from the slider below, until "Live" is pressed to hand control back.
-    let manualProgress: number | null = $state(null);
-    const effectiveProgress = $derived(manualProgress ?? progress);
 </script>
 
 <div style="position: relative; width: 100%; height: 100%; {style}">
@@ -91,7 +81,7 @@
             toneMapping={THREE.NoToneMapping}
         >
             <Scene
-                progress={effectiveProgress}
+                {progress}
                 {totalTime}
                 {imageUrl}
                 {normalMapUrl}
@@ -107,33 +97,5 @@
                 {showOriginMarker}
             />
         </Canvas>
-    {/if}
-
-    {#if showProgressSlider}
-        <div
-            style="position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 10px;
-                   padding: 8px 14px; background: rgba(0, 0, 0, 0.65); color: #fff; font: 12px monospace;
-                   z-index: 10; box-sizing: border-box;"
-        >
-            <span>progress</span>
-            <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.001"
-                value={effectiveProgress}
-                oninput={(e) => (manualProgress = parseFloat(e.currentTarget.value))}
-                style="flex: 1;"
-            />
-            <span style="width: 4.5em; text-align: right;">{effectiveProgress.toFixed(3)}</span>
-            <button
-                type="button"
-                disabled={manualProgress === null}
-                onclick={() => (manualProgress = null)}
-                style="font: inherit; cursor: pointer;"
-            >
-                Live
-            </button>
-        </div>
     {/if}
 </div>
