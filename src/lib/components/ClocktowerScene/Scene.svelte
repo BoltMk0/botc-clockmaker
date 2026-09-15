@@ -6,7 +6,7 @@
     import Clouds from "./subviews/Clouds.svelte";
     import Sun from "./subviews/Sun.svelte";
     import Moon from "./subviews/Moon.svelte";
-    import TextBanner from "./subviews/TextBanner.svelte";
+    import GameStatsPanel from "./subviews/GameStatsPanel.svelte";
     import Tower from "./subviews/Tower.svelte";
     import ClockFace from "./subviews/ClockFace.svelte";
     import ClockHands from "./subviews/ClockHands.svelte";
@@ -76,7 +76,14 @@
 <Clouds {smoothProgress} {visibleHeight} {horizontalOffset} />
 <Sun {smoothProgress} arcRadius={sunArcRadius} height={sunHeight} forwardDistance={sunForwardDistance} />
 <Moon {smoothProgress} {visibleHeight} {horizontalOffset} />
-<TextBanner content="Day 4" {visibleHeight} />
+<GameStatsPanel
+    day={4}
+    {progress}
+    {totalTime}
+    counts={{ townsfolk: 9, outsiders: 2, minions: 3, demons: 1 }}
+    {visibleHeight}
+    {horizontalOffset}
+/>
 <Tower {imageUrl} {normalMapUrl} {origin} {planeHeight} {horizontalOffset} />
 <ClockFace
     imageUrl={clockFaceImageUrl}

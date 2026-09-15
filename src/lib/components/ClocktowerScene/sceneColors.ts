@@ -81,7 +81,7 @@ export function mixRgb(a: Rgb, b: Rgb, t: number): Rgb {
 export const MOON_RISING_CORE_COLOR: Rgb = { r: 232, g: 232, b: 240 };
 export const MOON_RISING_GLOW_COLOR: Rgb = { r: 255, g: 255, b: 255 };
 export const MOON_CORE_COLOR: Rgb = { r: 122, g: 20, b: 16 };
-export const MOON_GLOW_COLOR: Rgb = { r: 214, g: 34, b: 15 };
+export const MOON_GLOW_COLOR: Rgb = { r: 180, g: 70, b: 55 };
 
 // A soft, light pink the blood moon's disc (and the clockface echoing it)
 // are pulled toward so they read rosy rather than as a flat red filter.

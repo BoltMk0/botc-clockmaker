@@ -93,7 +93,7 @@
      dim colored lamp. -->
 <T.DirectionalLight
     position={[x, y, z]}
-    intensity={sunBrightness * 3}
+    intensity={sunBrightness * 5}
     color={new THREE.Color().setRGB(...colorRgb, THREE.SRGBColorSpace)}
 />
 
@@ -102,7 +102,7 @@
     <T.MeshBasicMaterial
         color={new THREE.Color().setRGB(...colorRgb, THREE.SRGBColorSpace)}
         transparent
-        opacity={sunBrightness * 0.25}
+        opacity={sunBrightness * 0.3}
         blending={THREE.AdditiveBlending}
         depthWrite={false}
     />

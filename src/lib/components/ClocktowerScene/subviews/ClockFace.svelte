@@ -64,7 +64,7 @@
     // The glow is pulled toward the same soft pink as the moon's disc,
     // keeping the clockface in that desaturated rosy register rather than a
     // hot, saturated red.
-    const NIGHT_GLOW_COLOR = mixRgb(MOON_GLOW_COLOR, MOON_DISC_PINK, 0.6);
+    const NIGHT_GLOW_COLOR = mixRgb(MOON_GLOW_COLOR, MOON_DISC_PINK, 0.8);
     const glowColor = $derived(toThreeColor(NIGHT_GLOW_COLOR));
 
     const colorTexture = useTexture(untrack(() => imageUrl));
@@ -151,7 +151,7 @@
         color={glowColor}
         intensity={lightIntensity}
         distance={LIGHT_DISTANCE}
-        decay={2}
+        decay={1}
     />
 
     <T.Mesh position={[planeX, planeY, forwardOffset - 0.01]}>

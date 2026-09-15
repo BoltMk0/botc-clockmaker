@@ -37,15 +37,17 @@
     // Placement / sizing, all as fractions of the dial's height.
     const ALONG_HAND_FRACTION = 0.6; // how far out along the hand the torso sits
     const TORSO_LEN_FRACTION = 0.15; // full span, hinge in the middle
-    const TORSO_THICK_FRACTION = 0.05; // canvas window height, room for the round cap
+    const TORSO_THICK_FRACTION = 0.065; // canvas window height, room for the round cap
     const TORSO_DROOP_DEG = 20; // max sag of each torso half from the hand-perpendicular
+    // Each torso half runs this far past the hinge, so the two bars cross and
+    // overlap at the waist instead of just meeting cap-to-cap.
+    const TORSO_OVERLAP_FRACTION = 0.022;
     const STROKE_FRACTION = 0.016;
+    const TORSO_STROKE_FRACTION = 0.034; // torso bar is drawn heavier than the limbs
     const HEAD_R_FRACTION = 0.032;
     const NECK_FRACTION = 0.024;
     const ARM_LEN_FRACTION = 0.15;
     const LEG_LEN_FRACTION = 0.17;
-    const SHOULDER_HALF_FRACTION = 0.03; // spine centre to each shoulder
-    const HIP_HALF_FRACTION = 0.022;
     // How far in from the torso ends the limb joints sit, so the limb roots
     // tuck under the body instead of just touching its tips.
     const LIMB_OVERLAP_FRACTION = 0.012;
@@ -55,6 +57,7 @@
 
     const torsoLen = $derived(dialPlaneHeight * TORSO_LEN_FRACTION * BODY_SCALE);
     const torsoThick = $derived(dialPlaneHeight * TORSO_THICK_FRACTION * BODY_SCALE);
+    const torsoOverlap = $derived(dialPlaneHeight * TORSO_OVERLAP_FRACTION * BODY_SCALE);
     const limbWindow = $derived(dialPlaneHeight * LIMB_WINDOW_FRACTION * BODY_SCALE);
 
     const DROOP = (TORSO_DROOP_DEG * Math.PI) / 180;
@@ -98,11 +101,14 @@
     const hipX = $derived(hingeX + jointOut * legsDir[0]);
     const hipY = $derived(hingeY + jointOut * legsDir[1]);
 
-    // Midpoints of each half, for placing the two bar meshes.
-    const headMidX = $derived(hingeX + half * 0.5 * headDir[0]);
-    const headMidY = $derived(hingeY + half * 0.5 * headDir[1]);
-    const legsMidX = $derived(hingeX + half * 0.5 * legsDir[0]);
-    const legsMidY = $derived(hingeY + half * 0.5 * legsDir[1]);
+    // Each bar mesh spans one half PLUS the overlap past the hinge; its centre
+    // therefore sits (half - overlap)/2 out from the hinge along its direction.
+    const torsoBar = $derived(half + torsoOverlap);
+    const torsoMid = $derived((half - torsoOverlap) * 0.5);
+    const headMidX = $derived(hingeX + torsoMid * headDir[0]);
+    const headMidY = $derived(hingeY + torsoMid * headDir[1]);
+    const legsMidX = $derived(hingeX + torsoMid * legsDir[0]);
+    const legsMidY = $derived(hingeY + torsoMid * legsDir[1]);
 
     // Each upright limb canvas is anchored by its top-centre EXACTLY on its
     // joint: canvas point (cx, 0) maps to world (jointX, meshY + limbWindow/2),
@@ -130,7 +136,9 @@
     const TORSO_PX = 512;
     const torsoCanvas = document.createElement("canvas");
     torsoCanvas.width = TORSO_PX;
-    torsoCanvas.height = Math.round(TORSO_PX * (TORSO_THICK_FRACTION / (TORSO_LEN_FRACTION * 0.5)));
+    torsoCanvas.height = Math.round(
+        TORSO_PX * (TORSO_THICK_FRACTION / (TORSO_LEN_FRACTION * 0.5 + TORSO_OVERLAP_FRACTION))
+    );
     const torsoTexture = makeTexture(torsoCanvas);
     (() => {
         const ctx = torsoCanvas.getContext("2d");
@@ -140,10 +148,13 @@
         ctx.clearRect(0, 0, w, h);
         ctx.strokeStyle = BODY_COLOR;
         ctx.lineCap = "round";
-        ctx.lineWidth = (STROKE_FRACTION / TORSO_THICK_FRACTION) * h;
+        ctx.lineWidth = (TORSO_STROKE_FRACTION / TORSO_THICK_FRACTION) * h;
         const inset = ctx.lineWidth * 0.5 + 2;
+        // Inner end (x=0) is the hinge side: run the stroke flat off that edge
+        // so the two halves cross and overlap at the waist. Outer end keeps its
+        // round cap.
         ctx.beginPath();
-        ctx.moveTo(inset, h / 2);
+        ctx.moveTo(-ctx.lineWidth, h / 2);
         ctx.lineTo(w - inset, h / 2);
         ctx.stroke();
         torsoTexture.needsUpdate = true;
@@ -203,17 +214,20 @@
         ctx.arc(cx, P(NECK_FRACTION + HEAD_R_FRACTION), P(HEAD_R_FRACTION), 0, Math.PI * 2);
         ctx.fill();
 
-        // arms: out from the spine to the shoulder, then hanging down
-        for (const s of [-1, 1]) {
-            const sx = cx + s * P(SHOULDER_HALF_FRACTION);
+        // Side-on view: both arms rooted at the spine (no shoulder spread),
+        // dangling down. The near arm drifts forward, the far arm back and a
+        // touch shorter to read as depth rather than a shoulder span.
+        for (const [drift, len] of [
+            [-0.022, 0.92], // far arm first, so the near arm paints over it
+            [0.028, 1]
+        ] as const) {
             ctx.beginPath();
             ctx.moveTo(cx, 0);
-            ctx.lineTo(sx, P(0.018));
             ctx.quadraticCurveTo(
-                sx + s * P(0.015),
+                cx + P(drift * 0.7),
                 P(ARM_LEN_FRACTION * 0.5),
-                sx + s * P(0.022),
-                P(ARM_LEN_FRACTION)
+                cx + P(drift),
+                P(ARM_LEN_FRACTION * len)
             );
             ctx.stroke();
         }
@@ -242,24 +256,26 @@
         ctx.strokeStyle = BODY_COLOR;
         ctx.lineWidth = P(STROKE_FRACTION);
 
-        // Legs root at the top-centre (pinned to the torso end): out to the
-        // hip, then hanging down.
-        for (const s of [-1, 1]) {
-            const hx = cx + s * P(HIP_HALF_FRACTION);
+        // Side-on view: both legs rooted at the spine (no hip spread),
+        // hanging down. The near leg drifts forward, the far leg back and a
+        // touch shorter for depth. Each ends in a forward-pointing foot.
+        for (const [drift, len] of [
+            [-0.014, 0.93], // far leg first, so the near leg paints over it
+            [0.018, 1]
+        ] as const) {
             ctx.beginPath();
             ctx.moveTo(cx, 0);
-            ctx.lineTo(hx, P(0.016));
             ctx.quadraticCurveTo(
-                hx + s * P(0.01),
+                cx + P(drift * 0.7),
                 P(LEG_LEN_FRACTION * 0.55),
-                hx + s * P(0.016),
-                P(LEG_LEN_FRACTION)
+                cx + P(drift),
+                P(LEG_LEN_FRACTION * len)
             );
             ctx.stroke();
-            // foot
+            // foot, pointing forward
             ctx.beginPath();
-            ctx.moveTo(hx + s * P(0.016), P(LEG_LEN_FRACTION));
-            ctx.lineTo(hx + s * P(0.016 + 0.03), P(LEG_LEN_FRACTION));
+            ctx.moveTo(cx + P(drift), P(LEG_LEN_FRACTION * len));
+            ctx.lineTo(cx + P(drift + 0.03), P(LEG_LEN_FRACTION * len));
             ctx.stroke();
         }
 
@@ -271,11 +287,11 @@
      two halves that each sag up to TORSO_DROOP_DEG toward the ground - a
      shallow V in the hand's frame, riding round the dial with it. -->
 <T.Mesh position={[headMidX, headMidY, TORSO_Z]} rotation.z={headRot}>
-    <T.PlaneGeometry args={[half, torsoThick]} />
+    <T.PlaneGeometry args={[torsoBar, torsoThick]} />
     <T.MeshBasicMaterial map={torsoTexture} transparent alphaTest={0.01} />
 </T.Mesh>
 <T.Mesh position={[legsMidX, legsMidY, TORSO_Z]} rotation.z={legsRot}>
-    <T.PlaneGeometry args={[half, torsoThick]} />
+    <T.PlaneGeometry args={[torsoBar, torsoThick]} />
     <T.MeshBasicMaterial map={torsoTexture} transparent alphaTest={0.01} />
 </T.Mesh>
 
