@@ -3,7 +3,8 @@
     import { untrack } from "svelte";
     import { T } from "@threlte/core";
     import { useTexture } from "@threlte/extras";
-    import bannerTextureUrl from "$lib/assets/clocktower-scene/banner_large.png";
+    import bannerTextureUrl from "$lib/assets/clocktower-scene/banner_large_2.png";
+    import bannerNormalMapUrl from "$lib/assets/clocktower-scene/banner_large_2_normal.png";
 
     // ---------------------------------------------------------------------
     // Content margins / text styling - tweak these freely.
@@ -14,9 +15,9 @@
     // borders, so the text should be pulled well inside them.
     // ---------------------------------------------------------------------
     const CONTENT_MARGIN = {
-        top: 0.10,
+        top: 0.11,
         right: 0.14,
-        bottom: 0.17,
+        bottom: 0.15,
         left: 0.14
     };
 
@@ -29,7 +30,7 @@
     const FONT_WEIGHT = "400";
     // The app always sets `text-transform: uppercase` alongside this font.
     const UPPERCASE = true;
-    const TEXT_COLOR = "#2b1d10";
+    const TEXT_COLOR = "#c9c2a3";
     const TEXT_ALIGN: CanvasTextAlign = "center"; // "left" | "center" | "right"
     const LINE_HEIGHT = 1.18; // multiple of the font size
     // The text auto-shrinks to fit the content box; it never grows past this
@@ -38,6 +39,11 @@
     // actually fits.
     const MAX_FONT_PX = 600;
     const MIN_FONT_PX = 24;
+    // Applied to the fitted font size after the auto-shrink loop below, so
+    // the main value can be tuned independently of how much of the content
+    // box it would otherwise fill. The subtitle is unaffected by this (see
+    // `fittedFontPx` below).
+    const TEXT_SIZE_SCALE = 0.88;
 
     // Optional subtitle, drawn along the bottom of the content box in the
     // same face but much smaller. SUBTITLE_AREA_FRACTION reserves that slice
@@ -50,7 +56,7 @@
     const SUBTITLE_FONT_SCALE = 0.23;
     // Vertical nudge for the subtitle, as a fraction of the content box
     // height; +down, negative lifts it toward the main text.
-    const SUBTITLE_VERTICAL_NUDGE = -0.08;
+    const SUBTITLE_VERTICAL_NUDGE = -0.14;
     const SUBTITLE_MIN_FONT_PX = 12;
 
     // Working resolution of the overlay canvas. Width is derived from the
@@ -115,8 +121,11 @@
     });
 
     const bannerTexture = useTexture(untrack(() => bannerTextureUrl));
+    const bannerNormalTexture = useTexture(untrack(() => bannerNormalMapUrl));
 
     $effect(() => {
+        // Albedo texture needs to be interpreted as sRGB; the normal map must
+        // stay in linear space, which is three's default, so it's untouched.
         if ($bannerTexture && $bannerTexture.colorSpace !== THREE.SRGBColorSpace) {
             $bannerTexture.colorSpace = THREE.SRGBColorSpace;
         }
@@ -210,6 +219,11 @@
             if (widest <= boxW && blockH <= mainBoxH) break;
             fontPx -= 4;
         }
+        // The subtitle is sized off the fitted-but-unscaled value so it
+        // doesn't grow/shrink along with TEXT_SIZE_SCALE adjustments to the
+        // main text.
+        const fittedFontPx = fontPx;
+        fontPx = Math.max(MIN_FONT_PX, Math.round(fontPx * TEXT_SIZE_SCALE));
 
         ctx.font = `${FONT_WEIGHT} ${fontPx}px ${FONT_FAMILY}`;
         ctx.fillStyle = TEXT_COLOR;
@@ -240,7 +254,7 @@
             // main size and shrink further until it fits the space below.
             let subFontPx = Math.min(
                 MAX_FONT_PX,
-                Math.max(SUBTITLE_MIN_FONT_PX, Math.round(fontPx * SUBTITLE_FONT_SCALE))
+                Math.max(SUBTITLE_MIN_FONT_PX, Math.round(fittedFontPx * SUBTITLE_FONT_SCALE))
             );
             let subLines: string[] = [];
             while (subFontPx >= SUBTITLE_MIN_FONT_PX) {
@@ -273,11 +287,12 @@
      sun/moon directional lights and Sky ambient fill wash over the banner
      and its text - it dims and warms/cools with the rest of the scene
      rather than sitting at a flat, fully-lit brightness. -->
-{#if $bannerTexture}
+{#if $bannerTexture && $bannerNormalTexture}
     <T.Mesh position={[x, y, z]}>
         <T.PlaneGeometry args={[planeWidth, planeHeight]} />
         <T.MeshStandardMaterial
             map={$bannerTexture}
+            normalMap={$bannerNormalTexture}
             transparent
             alphaTest={0.01}
             roughness={0.9}

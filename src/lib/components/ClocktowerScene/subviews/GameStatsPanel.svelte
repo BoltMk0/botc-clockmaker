@@ -33,7 +33,7 @@
     // Same trick for the day banner, needed to work out its rendered height
     // so the lanterns hanging off its pole (see below) can be positioned
     // relative to it.
-    const DAY_BANNER_ASPECT = 1034 / 314; // banner_large.png
+    const DAY_BANNER_ASPECT = 2172 / 724; // banner_large_2.png
 
     // Per-row width, as a fraction of the panel width, so rows can differ in
     // size if wanted. Kept equal so both banners render the same size.

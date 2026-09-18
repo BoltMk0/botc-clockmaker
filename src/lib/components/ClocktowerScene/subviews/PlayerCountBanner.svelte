@@ -74,7 +74,7 @@
     const TITLE_FONT_FAMILY = '"Dumbledore", Georgia, "Times New Roman", serif';
     const TITLE_FONT_WEIGHT = "400";
     const TITLE_UPPERCASE = true;
-    const TITLE_TEXT_COLOR = "#b8b9b2";
+    const TITLE_TEXT_COLOR = "#c9c2a3";
     // Drop shadow so the text reads as sitting in the scene rather than
     // floating flat above the banner. Offsets/blur are in the working
     // canvas's own pixels (TITLE_CANVAS_HEIGHT tall).
@@ -98,7 +98,7 @@
 
     // Same silver used for the "Player Count" title, so the classifier
     // labels read as part of one consistent metal-on-wood text style.
-    const LABEL_TEXT_COLOR = "#b8b9b2";
+    const LABEL_TEXT_COLOR = "#c9c2a3";
 
     // The camera is always centred on world (0,0) and shows `visibleHeight`
     // world-units vertically; the visible width is about `visibleHeight * 2`
