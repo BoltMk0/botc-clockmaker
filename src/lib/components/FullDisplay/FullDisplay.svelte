@@ -143,7 +143,7 @@
         {/if}
     {:else if shownDisplayMode === "clocktower3d"}
         <!-- The sky, sun and moon are all nodes inside ClocktowerScene itself. -->
-        <ClocktowerScene progress={progress} totalTime={model.duration} style="top: 0; position: absolute;"/>
+        <ClocktowerScene progress={progress} totalTime={model.duration} dayNumber={model.day} playerCount={model.playerCount} style="top: 0; position: absolute;"/>
         {#if showClockNames ?? appSettings.showClockNames}
         <div class="clock-name-title dumbledore-font" style="font-size: {shownSize/10}px; bottom: 0;">{model.name}</div>
         {/if}

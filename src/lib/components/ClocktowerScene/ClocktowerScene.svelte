@@ -14,6 +14,8 @@
         // sweep (they tick once per real minute of countdown, same as the
         // 2D clocktower display), independent of `progress` alone.
         totalTime = 60,
+        dayNumber = 1,
+        playerCount = 0,
         imageUrl = clocktowerColor,
         normalMapUrl = clocktowerNormal,
         clockFaceImageUrl = clockfaceColor,
@@ -54,6 +56,8 @@
     }: {
         progress: number;
         totalTime?: number;
+        dayNumber?: number;
+        playerCount?: number;
         imageUrl?: string;
         normalMapUrl?: string;
         clockFaceImageUrl?: string;
@@ -83,6 +87,8 @@
             <Scene
                 {progress}
                 {totalTime}
+                {dayNumber}
+                {playerCount}
                 {imageUrl}
                 {normalMapUrl}
                 {clockFaceImageUrl}

@@ -59,12 +59,11 @@
     const LABEL_CANVAS_HEIGHT = 256;
 
     // ---------------------------------------------------------------------
-    // Title text ("PLAYER COUNT") drawn onto its own overlay canvas, laid
+    // Title text ("POPULATION: X") drawn onto its own overlay canvas, laid
     // over the billboard in the strip reserved above the slots by
     // SLOT_MARGIN.top. Same canvas-texture technique as TextBanner/
-    // SmallBanner.
+    // SmallBanner. `X` is the total player count, summed from `counts`.
     // ---------------------------------------------------------------------
-    const TITLE_TEXT = "Player Count";
     const TITLE_MARGIN = {
         top: 0.07,
         right: SLOT_MARGIN.right,
@@ -132,6 +131,16 @@
     } = $props();
 
     const screenWidth = $derived(visibleHeight * SCREEN_WIDTH_FACTOR);
+
+    const totalPopulation = $derived(
+        counts.townsfolk + counts.outsiders + counts.minions + counts.demons
+    );
+    // Drawn as two runs ("Population: " and the count) so the number can be
+    // rendered larger than the label it follows.
+    const titleLabelText = $derived("Population: ");
+    const titleNumberText = $derived(String(totalPopulation));
+    // The number's font size relative to the label's, so it stands out.
+    const TITLE_NUMBER_SCALE = 1.5;
 
     const bannerTexture = useTexture(untrack(() => bannerTextureUrl));
     const bannerNormalTexture = useTexture(untrack(() => bannerNormalMapUrl));
@@ -256,31 +265,50 @@
         if (!ctx) return;
         ctx.clearRect(0, 0, width, height);
 
-        const text = TITLE_UPPERCASE ? TITLE_TEXT.toUpperCase() : TITLE_TEXT;
+        const labelText = TITLE_UPPERCASE ? titleLabelText.toUpperCase() : titleLabelText;
+        const numberText = titleNumberText;
 
         const boxX = width * TITLE_MARGIN.left;
         const boxY = height * TITLE_MARGIN.top;
         const boxW = width * (1 - TITLE_MARGIN.left - TITLE_MARGIN.right);
         const boxH = height * (1 - TITLE_MARGIN.top - TITLE_MARGIN.bottom);
 
+        // Fit both runs together at their relative sizes (label at fontPx,
+        // number at fontPx * TITLE_NUMBER_SCALE) against the same box.
         let fontPx = TITLE_MAX_FONT_PX;
+        let numberFontPx = fontPx * TITLE_NUMBER_SCALE;
         while (fontPx >= TITLE_MIN_FONT_PX) {
+            numberFontPx = fontPx * TITLE_NUMBER_SCALE;
             ctx.font = `${TITLE_FONT_WEIGHT} ${fontPx}px ${TITLE_FONT_FAMILY}`;
-            const w = ctx.measureText(text).width;
-            const h = fontPx * 0.8;
+            const labelW = ctx.measureText(labelText).width;
+            ctx.font = `${TITLE_FONT_WEIGHT} ${numberFontPx}px ${TITLE_FONT_FAMILY}`;
+            const numberW = ctx.measureText(numberText).width;
+            const w = labelW + numberW;
+            const h = numberFontPx * 0.8;
             if (w <= boxW && h <= boxH) break;
             fontPx -= 4;
         }
 
-        ctx.font = `${TITLE_FONT_WEIGHT} ${fontPx}px ${TITLE_FONT_FAMILY}`;
         ctx.fillStyle = TITLE_TEXT_COLOR;
-        ctx.textAlign = "center";
+        ctx.textAlign = "left";
         ctx.textBaseline = "middle";
         ctx.shadowColor = TITLE_SHADOW_COLOR;
         ctx.shadowBlur = TITLE_SHADOW_BLUR;
         ctx.shadowOffsetX = TITLE_SHADOW_OFFSET_X;
         ctx.shadowOffsetY = TITLE_SHADOW_OFFSET_Y;
-        ctx.fillText(text, boxX + boxW / 2, boxY + boxH / 2);
+
+        ctx.font = `${TITLE_FONT_WEIGHT} ${fontPx}px ${TITLE_FONT_FAMILY}`;
+        const labelW = ctx.measureText(labelText).width;
+        ctx.font = `${TITLE_FONT_WEIGHT} ${numberFontPx}px ${TITLE_FONT_FAMILY}`;
+        const numberW = ctx.measureText(numberText).width;
+        const startX = boxX + boxW / 2 - (labelW + numberW) / 2;
+        const centerY = boxY + boxH / 2;
+
+        ctx.font = `${TITLE_FONT_WEIGHT} ${fontPx}px ${TITLE_FONT_FAMILY}`;
+        ctx.fillText(labelText, startX, centerY);
+        ctx.font = `${TITLE_FONT_WEIGHT} ${numberFontPx}px ${TITLE_FONT_FAMILY}`;
+        ctx.fillText(numberText, startX + labelW, centerY);
+
         ctx.shadowColor = "transparent";
 
         titleTexture.needsUpdate = true;

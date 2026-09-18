@@ -11,10 +11,13 @@
     import ClockFace from "./subviews/ClockFace.svelte";
     import ClockHands from "./subviews/ClockHands.svelte";
     import OriginMarker from "./subviews/OriginMarker.svelte";
+    import { getPlayerCount } from "$lib/common/util";
 
     let {
         progress,
         totalTime,
+        dayNumber,
+        playerCount,
         imageUrl,
         normalMapUrl,
         origin,
@@ -30,6 +33,8 @@
     }: {
         progress: number;
         totalTime: number;
+        dayNumber: number;
+        playerCount: number;
         imageUrl: string;
         normalMapUrl: string;
         origin: { x: number; y: number };
@@ -43,6 +48,8 @@
         clockFaceImageUrl: string;
         clockFaceNormalMapUrl: string;
     } = $props();
+
+    const counts = $derived(getPlayerCount(playerCount));
 
     // Smooth the day-progress value over time instead of snapping the sun
     // (and everything timed off it) straight to a new position whenever
@@ -77,10 +84,10 @@
 <Sun {smoothProgress} arcRadius={sunArcRadius} height={sunHeight} forwardDistance={sunForwardDistance} />
 <Moon {smoothProgress} {visibleHeight} {horizontalOffset} />
 <GameStatsPanel
-    day={4}
+    day={dayNumber}
     {progress}
     {totalTime}
-    counts={{ townsfolk: 9, outsiders: 2, minions: 3, demons: 1 }}
+    {counts}
     {visibleHeight}
     {horizontalOffset}
 />
