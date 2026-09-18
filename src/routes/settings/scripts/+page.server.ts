@@ -1,8 +1,8 @@
-import { createScript, deleteScript, listScripts } from "$lib/resources/server/scripts";
+import { createScript, deleteScript, listScriptsWithCharacters } from "$lib/resources/server/scripts";
 import { fail } from "@sveltejs/kit";
 
 export async function load() {
-    const scripts = listScripts();
+    const scripts = listScriptsWithCharacters();
     return {scripts};
 }
 

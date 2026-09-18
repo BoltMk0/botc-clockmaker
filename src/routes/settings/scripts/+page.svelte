@@ -45,6 +45,50 @@
 
     .scripts-contents {
         padding: 1em;
+        display: flex;
+        flex-direction: column;
+        gap: 0.7em;
+        min-width: 32em;
+    }
+
+    .script-card {
+        border-radius: 10px;
+        background-color: var(--theme-bg);
+        color: var(--theme-on-bg);
+        border-left: 4px solid var(--script-hue);
+        overflow: hidden;
+    }
+    .script-card.clickable {
+        cursor: pointer;
+    }
+    .script-card.clickable:hover {
+        background-color: var(--theme-bg-secondary);
+    }
+
+    .script-card-header {
+        display: flex;
+        align-items: center;
+        gap: 1em;
+        padding: 0.8em 1em;
+    }
+    .script-swatch {
+        width: 1.2em;
+        height: 1.2em;
+        border-radius: 50%;
+        background: var(--script-hue);
+        flex-shrink: 0;
+    }
+    .script-title {
+        flex: 1;
+        min-width: 0;
+    }
+    .script-name {
+        font-weight: 600;
+        font-size: 1.05em;
+    }
+    .script-subtitle {
+        font-size: 0.8em;
+        opacity: 0.7;
     }
 </style>
 
@@ -54,6 +98,8 @@
 <div class="scripts-main">
     <div class="scripts-main-header">
         <div style="font-size: large;">Scripts</div>
+        <div style="display: flex; gap: 0.5em;">
+        <a class="button-style" href="scripts/scraper">Wiki Scraper</a>
         <CustomOverlay title="Create New Script" buttonTitle="+">
             <form action="?/createScript" method="POST" use:enhance={()=>{
                 return async ({result}) => {
@@ -87,6 +133,10 @@
                             <td><input name="name" required placeholder="Script Name"/></td>
                         </tr>
                         <tr>
+                            <th>Colour</th>
+                            <td><input type="color" name="hue" value="#c45d5d" style="width: 100%; height: 2em; padding: 0;"/></td>
+                        </tr>
+                        <tr>
                             <td colspan="2">
                                 <button style="width: 100%;" type="submit">Create</button>
                             </td>
@@ -98,56 +148,54 @@
 
             </form>
         </CustomOverlay>
+        </div>
     </div>
     <div class="scripts-contents">
-        <table>
-            <tbody>
-                <tr>
-                    <th>Name</th>
-                    <th>Actions</th>
-                </tr>
-                {#each data.scripts as script(script.id)}
-                    <tr>
-                        <td style="padding-right: 2em;">{script.name}</td>
-                        <td>
-                            <button class="button-style" onclick={()=>selectScript(script.id)}>
-                                Edit
+        {#each data.scripts as script(script.id)}
+            <div class="script-card clickable" style="--script-hue: {script.hue};" onclick={()=>selectScript(script.id)} role="button" tabindex="0" onkeydown={(e)=>{ if(e.key === 'Enter' || e.key === ' ') selectScript(script.id); }}>
+                <div class="script-card-header">
+                    <div class="script-swatch"></div>
+                    <div class="script-title">
+                        <div class="script-name">{script.name}</div>
+                        <div class="script-subtitle">{script.characters.length} character{script.characters.length === 1 ? '' : 's'}</div>
+                    </div>
+                    <button class="button-style" onclick={()=>selectScript(script.id)}>
+                        Edit
+                    </button>
+                    <div onclick={(e)=>e.stopPropagation()} role="presentation">
+                    <CustomOverlay title="Confirm Delete" buttonTitle="Delete">
+                        <form action="?/deleteScript" method="POST" use:enhance={()=>{
+                            return async ({result}) => {
+                                switch(result.type){
+                                    case 'success':
+                                        location.reload();
+                                        break;
+                                    case 'redirect':
+                                        // Do nothing, the browser will handle the redirect
+                                        break;
+                                    case 'failure':
+                                        alert(`Failed to delete script: ${result.data?.error || 'Unknown error'}`);
+                                        break;
+                                    case 'error':
+                                        alert(`Failed to delete script: ${result.error}`);
+                                        break;
+                                }
+                            }
+                        }}>
+                            <input hidden name="id" value={script.id}/>
+                            <div>Are you sure you want to delete this script? This action cannot be undone.</div>
+                            <div style="width: 100%;">
+                            <input bind:value={deleteActionContent} placeholder={`Type '${script.name}' to confirm`} style="width: 100%; text-align: center;"/>
+                            </div>
+                            <button class="button-style" class:error={deleteActionContent === script.name} type="submit" style="width: 100%; margin-top: 0.5em;">
+                                {deleteActionContent === script.name ? 'Confirm Delete' : `Enter '${script.name}' to enable`}
                             </button>
-                            <CustomOverlay title="Confirm Delete" buttonTitle="Delete">
-                                <form action="?/deleteScript" method="POST" use:enhance={()=>{
-                                    return async ({result}) => {
-                                        switch(result.type){
-                                            case 'success':
-                                                location.reload();
-                                                break;
-                                            case 'redirect':
-                                                // Do nothing, the browser will handle the redirect
-                                                break;
-                                            case 'failure':
-                                                alert(`Failed to delete script: ${result.data?.error || 'Unknown error'}`);
-                                                break;
-                                            case 'error':
-                                                alert(`Failed to delete script: ${result.error}`);
-                                                break;
-                                        }
-                                    }
-                                }}>
-                                    <input hidden name="id" value={script.id}/>
-                                    <div>Are you sure you want to delete this script? This action cannot be undone.</div>
-                                    <div style="width: 100%;">
-                                    <input bind:value={deleteActionContent} placeholder={`Type '${script.name}' to confirm`} style="width: 100%; text-align: center;"/>
-                                    </div>
-                                    <button class="button-style" class:error={deleteActionContent === script.name} type="submit" style="width: 100%; margin-top: 0.5em;">
-                                        {deleteActionContent === script.name ? 'Confirm Delete' : `Enter '${script.name}' to enable`}
-                                    </button>
-                                </form>
-                            </CustomOverlay>
-                        </td>
-                    </tr>
-                    
-                {/each}
-            </tbody>
-        </table>
+                        </form>
+                    </CustomOverlay>
+                    </div>
+                </div>
+            </div>
+        {/each}
     </div>
 
 </div>
