@@ -1,9 +1,41 @@
 import type { CharacterCategory, NewCharacter } from "$lib/resources/common/gameData";
-import { addCharacter, getCharacterByName, updateCharacter } from "$lib/resources/server/characters";
+import { addCharacter, addReminderToken, getCharacterByName, updateCharacter } from "$lib/resources/server/characters";
 import { getCharacterImageResource } from "$lib/resources/server/character-images";
 import { scrapeIcon } from "./char_icon_scraper";
 import { decodeHtmlEntities, fetchWikiPage } from "./wiki";
 import type { CharacterScrapeResult, WikiCharacterListing } from "../common/types";
+
+// Reminder token texts aren't reliably structured on the wiki pages themselves, so they're
+// pulled from the community-maintained role dataset behind the clocktower.online virtual
+// grimoire, which mirrors the official reminder tokens for each character.
+const ROLES_JSON_URL = 'https://raw.githubusercontent.com/bra1n/townsquare/main/src/roles.json';
+
+type BrainRole = { name: string; reminders?: string[] };
+
+let brainRolesPromise: Promise<BrainRole[]> | null = null;
+
+function fetchBrainRoles(): Promise<BrainRole[]> {
+    if (!brainRolesPromise) {
+        brainRolesPromise = fetch(ROLES_JSON_URL).then(r => {
+            if (!r.ok) throw new Error(`Failed to fetch roles.json: ${r.statusText}`);
+            return r.json();
+        }).catch(er => {
+            brainRolesPromise = null;
+            throw er;
+        });
+    }
+    return brainRolesPromise;
+}
+
+async function scrapeReminderTokenTexts(name: string): Promise<string[]> {
+    try {
+        const roles = await fetchBrainRoles();
+        return roles.find(r => r.name === name)?.reminders ?? [];
+    } catch (er) {
+        console.error(`Failed to fetch reminder tokens for ${name}:`, er);
+        return [];
+    }
+}
 
 const CATEGORY_WIKI_PAGE: Record<CharacterCategory, string> = {
     townsfolk: 'Category:Townsfolk',
@@ -83,6 +115,13 @@ export async function scrapeCharacter(category: CharacterCategory, name: string,
 
         const existing = getCharacterByName(name);
         const character = existing ? updateCharacter(existing.id, newCharacter)! : addCharacter(newCharacter);
+
+        if (character.reminderTokens.length === 0) {
+            const reminderTexts = await scrapeReminderTokenTexts(name);
+            for (const text of reminderTexts) {
+                addReminderToken(character.id, { text, textSize: 46 });
+            }
+        }
 
         const iconResult = await scrapeIcon(character);
 
