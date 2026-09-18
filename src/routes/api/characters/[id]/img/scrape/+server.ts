@@ -1,11 +1,9 @@
 import { scrape } from '$lib/scraper/server/char_icon_scraper.js';
-import { getCharacterById } from '$lib/database/server/characters';
+import { getCharacterById } from '$lib/resources/server/characters';
 import { json } from '@sveltejs/kit';
 
 export async function POST({ params, request, fetch}) {
-    const id = Number(params.id);
-    if (!Number.isInteger(id)) return json({status: 'error', error: 'Invalid id'}, { status: 400 });
-    const character = await getCharacterById(id);
+    const character = getCharacterById(params.id);
     if (!character) return json({status: 'error', error: 'Character not found'}, { status: 404 });
 
     const origin = request.headers.get('origin') || '';

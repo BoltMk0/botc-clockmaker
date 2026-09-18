@@ -1,13 +1,15 @@
 <script lang="ts">
-    import type { ReminderToken } from "$lib/database/common/types";
+    import type { ReminderToken } from "$lib/resources/common/gameData";
 
     interface Props {
         data: ReminderToken;
+        characterId?: string | null;
         size?: string;
     }
 
     let {
         data,
+        characterId = null,
         size = '150px',
     }: Props = $props();
 
@@ -97,16 +99,16 @@
 
 <div class="reminder-token-view-main" style="--size: {size};">
     {#if isBlank}
-        {#if hasImage}
+        {#if hasImage && characterId}
             <div class="blank-img-container">
-                <img src="/api/characters/{data.character_id}/img" alt="" onerror={() => hasImage = false}/>
+                <img src="/api/characters/{characterId}/img" alt="" onerror={() => hasImage = false}/>
             </div>
         {/if}
     {:else}
-        {#if hasImage}
+        {#if hasImage && characterId}
             <div class="img-container">
 
-                <img src="/api/characters/{data.character_id}/img" alt={data.text} onerror={() => hasImage = false}/>
+                <img src="/api/characters/{characterId}/img" alt={data.text} onerror={() => hasImage = false}/>
 
             </div>
         {/if}

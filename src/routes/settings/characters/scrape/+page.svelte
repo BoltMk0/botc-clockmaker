@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { Character } from "$lib/database/common/types";
+    import type { Character } from "$lib/resources/common/gameData";
     import type { ScrapeResult } from "$lib/scraper/common/types";
     import { writable } from "svelte/store";
 
@@ -18,7 +18,7 @@
     }
 
     let progress = writable(0);
-    let statusMap = writable(new Map<number, JobStatus>());
+    let statusMap = writable(new Map<string, JobStatus>());
 
     const statusToColor: Record<string, string> = {
         'pending': 'gray',

@@ -1,26 +1,35 @@
 import { isAmbienceEngineModel, type AmbienceEngineModel } from "$lib/audio/common/model/ambienceEngineModel";
 import { getMimeTypeForExtension } from "../common/util";
-import { encodeResourceId, findResourceById, findResourceByName, getResourceData, saveResource } from "./resources";
+import { encodeResourceId, findResourceById, getResourceData } from "./resources";
+import { JSONSingletonResourceManager } from "./jsonResourceManager";
 
-function getAmbienceEngineModelResourceId(): string {
-    return encodeResourceId('appconfig', 'ambience-engine-config', getMimeTypeForExtension('.json'));
+const AMBIENCE_ENGINE_CONFIG_MANAGER = new JSONSingletonResourceManager<AmbienceEngineModel>(
+    'ambience-engine-config',
+    isAmbienceEngineModel
+);
+
+// One-time migration from the old flat-file appconfig resource, so an existing ambience mix isn't lost.
+if (AMBIENCE_ENGINE_CONFIG_MANAGER.value === null) {
+    const legacyId = encodeResourceId('appconfig', 'ambience-engine-config', getMimeTypeForExtension('.json'));
+    const legacyResource = findResourceById(legacyId);
+    const legacyData = legacyResource && getResourceData(legacyResource);
+    if (legacyData) {
+        try {
+            const model = JSON.parse(legacyData.toString('utf-8'));
+            if (isAmbienceEngineModel(model)) {
+                AMBIENCE_ENGINE_CONFIG_MANAGER.save(model);
+                console.log("Migrated legacy ambience engine config");
+            }
+        } catch (e) {
+            console.warn("Failed to migrate legacy ambience engine config resource", e);
+        }
+    }
 }
 
-export function loadAmbienceEngineModelFromResources(): AmbienceEngineModel|null {
-    const res = findResourceById(getAmbienceEngineModelResourceId());
-    if(res === null) return null;
-    const data = getResourceData(res);
-    const model = JSON.parse(String(data));
-    if(!isAmbienceEngineModel(model)){
-        console.error('Failed to load AmbienceEngineModel from resource - invalid data');
-        return null;
-    }
-    return model;
+export function loadAmbienceEngineModelFromResources(): AmbienceEngineModel | null {
+    return AMBIENCE_ENGINE_CONFIG_MANAGER.value;
 }
 
-export function saveAmbienceEngineModel(model: AmbienceEngineModel){
-    if(!isAmbienceEngineModel(model)){
-        throw new Error("Attempt to save invalid ambience engine model");
-    }
-    saveResource(getAmbienceEngineModelResourceId(), Buffer.from(JSON.stringify(model), 'utf-8'));
+export function saveAmbienceEngineModel(model: AmbienceEngineModel) {
+    AMBIENCE_ENGINE_CONFIG_MANAGER.save(model);
 }

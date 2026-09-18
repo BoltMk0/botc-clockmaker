@@ -1,8 +1,8 @@
 <script lang="ts">
-    import type { ScriptCharacter, ReminderToken, Character, GameFull } from "$lib/database/common/types.js";
+    import type { ScriptCharacter, ReminderToken, Character, GameFull } from "$lib/resources/common/gameData.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import ReminderTokenView from "$lib/components/ReminderTokenView.svelte";
-    import { fetchReminderTokensForCharacter } from "$lib/database/client/reminder_tokens.js";
+    import { fetchReminderTokensForCharacter } from "$lib/resources/client/reminderTokens.js";
     import { browser } from "$app/environment";
 
     import { goto } from '$app/navigation';
@@ -26,7 +26,7 @@
 
     interface Props {
         data: {
-            gameid: number;
+            gameid: string;
             game: GameFull|null;
             gameState: GrimoireStateHistory | null;
             availableClocks: ClocktowerModel[];
@@ -36,7 +36,7 @@
 
     let {data}: Props = $props();
 
-    function defaultAlignmentForCharacterId(characterId: number): Alignment {
+    function defaultAlignmentForCharacterId(characterId: string): Alignment {
         const char = data.game?.script.characters.find(c => c.id === characterId);
         return (char?.category === 'demon' || char?.category === 'minion') ? 'evil' : 'good';
     }
@@ -53,6 +53,7 @@
 
     function normaliseHistory(hist: GrimoireStateHistory): GrimoireStateHistory {
         return {
+            id: hist.id,
             saveslots: hist.saveslots.map(s => s ? normaliseSnapshot(s) : null),
             present: normaliseSnapshot(hist.present),
         };
@@ -67,7 +68,7 @@
             return normaliseHistory(selectedState);
         } else {
             console.log("No existing grimoire state found, initializing new state");
-            return newGrimoireStateHistory();
+            return newGrimoireStateHistory(data.gameid);
         }
     }
 
@@ -79,21 +80,20 @@
 
     // Synthetic "blank" reminder token (icon only, no text) available for every character.
     // Kept out of the database since it's identical for all characters - just rendered from the character's id.
-    const BLANK_REMINDER_ID_BASE = -1_000_000;
-    function blankReminderTokenId(characterId: number): number {
-        return BLANK_REMINDER_ID_BASE - characterId;
+    function blankReminderTokenId(characterId: string): string {
+        return `blank-${characterId}`;
     }
-    function blankReminderToken(characterId: number): ReminderToken {
-        return { id: blankReminderTokenId(characterId), character_id: characterId, text: '', textSize: 100 };
+    function blankReminderToken(characterId: string): ReminderToken {
+        return { id: blankReminderTokenId(characterId), text: '', textSize: 100 };
     }
 
-    const availableReminderTokens = $derived<Record<number, ReminderToken>>(
+    const availableReminderTokens = $derived<Record<string, ReminderToken & {characterId: string}>>(
         game ? Object.fromEntries([
-            ...game.script.characters.flatMap(c => c.reminderTokens.map(t => [t.id, t] as const)),
-            ...game.script.characters.map(c => [blankReminderTokenId(c.id), blankReminderToken(c.id)] as const)
+            ...game.script.characters.flatMap(c => c.reminderTokens.map(t => [t.id, {...t, characterId: c.id}] as const)),
+            ...game.script.characters.map(c => [blankReminderTokenId(c.id), {...blankReminderToken(c.id), characterId: c.id}] as const)
         ]) : {}
     )
-    const availableCharacters = $derived<Record<number, ScriptCharacter>>(
+    const availableCharacters = $derived<Record<string, ScriptCharacter>>(
         game ? Object.fromEntries(game.script.characters.map(c => [c.id, c])) : {}
     );
 
@@ -115,10 +115,10 @@
     const placedReminders = $derived(gameState.present.placedReminders);
 
     // Cache of fetched reminder tokens per character
-    let reminderCache = $state< Record<number, ReminderToken[]> >({});
+    let reminderCache = $state< Record<string, ReminderToken[]> >({});
 
     // Which board token's reminder tray is open
-    let activeReminderCharId = $state<number | null>(null);
+    let activeReminderCharId = $state<string | null>(null);
     let activeReminderPos = $state<{ x: number; y: number } | null>(null);
     let activeReminderAbove = $state(false);
     let reminderPopupEl = $state<HTMLDivElement | null>(null);
@@ -193,8 +193,8 @@
     class ClockClientManager {
         config: ClockClientManagerConfig = $state({ connectedClock: null, showClock: true });
         client: Clocktower|null = $state(null);
-        readonly gameId: number;
-        constructor(gameId: number){
+        readonly gameId: string;
+        constructor(gameId: string){
             this.gameId = gameId;
         }
 
@@ -242,7 +242,7 @@
         .map(c=>game?.script.characters.find(ch => ch.id === c.characterId))
         .filter(c => c !== undefined)
         .map(c=>{return [c.id, nightOrderFunction(c)]})
-        .filter(([_, order])=>order !== null) as [number, number][]).sort((a, b) => a[1] - b[1])
+        .filter(([_, order])=>order !== null) as [string, number][]).sort((a, b) => a[1] - b[1])
         .map(([id, _])=>id) ?? []);
 
     let showFooter = $state(false);
@@ -428,7 +428,7 @@
     //     }
     // }
 
-    async function loadRemindersForCharacter(characterId: number): Promise<ReminderToken[]> {
+    async function loadRemindersForCharacter(characterId: string): Promise<ReminderToken[]> {
         if (reminderCache[characterId]) return reminderCache[characterId];
         const tokens = await fetchReminderTokensForCharacter(characterId);
         reminderCache[characterId] = [blankReminderToken(characterId), ...tokens];
@@ -439,12 +439,12 @@
 
     const placedCharIds = $derived(new Set(placedTokens.map(t => t.characterId)));
 
-    function isInPlay(characterId: number): boolean {
+    function isInPlay(characterId: string): boolean {
         return placedCharIds.has(characterId);
     }
 
     let dragging = $state<{ character: ScriptCharacter; source: 'tray' | 'board'; sourceToken?: PlacedToken } | null>(null);
-    let draggingReminder = $state<{ token: ReminderToken; source: 'popup' | 'board' } | null>(null);
+    let draggingReminder = $state<{ token: ReminderToken; characterId: string; source: 'popup' | 'board' } | null>(null);
     let ghostPos = $state<{ x: number; y: number } | null>(null);
     let dragOffset = $state<{ x: number; y: number }>({ x: 0, y: 0 });
     let boardEl = $state<HTMLDivElement | null>(null);
@@ -503,9 +503,10 @@
     function startDragReminderFromPopup(e: PointerEvent, token: ReminderToken) {
         e.preventDefault();
         e.stopPropagation();
+        if (activeReminderCharId === null) return;
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
         dragOffset = { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) };
-        draggingReminder = { token, source: 'popup' };
+        draggingReminder = { token, characterId: activeReminderCharId, source: 'popup' };
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
         closeReminderTray();
     }
@@ -523,7 +524,7 @@
 
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
         dragOffset = { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) };
-        draggingReminder = { token, source: 'board' };
+        draggingReminder = { token, characterId: token.characterId, source: 'board' };
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
         gameState.present.placedReminders = placedReminders.filter(r => !(r.tokenId === reminder.tokenId && r.x === reminder.x && r.y === reminder.y));
         rescheduleSaveGrimoire();
@@ -1141,7 +1142,7 @@
                 style="left: calc(50% + {reminder.x}px); top: calc(50% + {reminder.y}px); z-index: {z_indecies.reminders};"
                 onpointerdown={(e) => startDragReminderFromBoard(e, reminder)}
             >
-                <ReminderTokenView data={token} size="{reminderTokenSize}px"/>
+                <ReminderTokenView data={token} characterId={token.characterId} size="{reminderTokenSize}px"/>
             </div>
             {/if}
         {/each}
@@ -1186,7 +1187,7 @@
                 {/if}
                 {#each reminderCache[activeReminderCharId] as rToken (rToken.id)}
                     <div class="reminder-popup-token" onpointerdown={(e) => startDragReminderFromPopup(e, rToken)}>
-                        <ReminderTokenView data={rToken} size="{reminderTokenSize}px"/>
+                        <ReminderTokenView data={rToken} characterId={activeReminderCharId} size="{reminderTokenSize}px"/>
                     </div>
                 {/each}
                 {#if reminderCache[activeReminderCharId].length === 0}
@@ -1269,7 +1270,7 @@
 
     {#if draggingReminder && ghostPos}
         <div class="drag-ghost" style="left: {ghostPos.x}px; top: {ghostPos.y}px;">
-            <ReminderTokenView data={draggingReminder.token} size="60px"/>
+            <ReminderTokenView data={draggingReminder.token} characterId={draggingReminder.characterId} size="60px"/>
         </div>
         <div class="edge-delete-indicator" class:active={isNearEdge(ghostPos.x, ghostPos.y)}></div>
     {/if}

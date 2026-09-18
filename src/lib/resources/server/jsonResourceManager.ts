@@ -16,11 +16,17 @@ export class ValidationFailedError extends Error {
 
 const RESOURCE_DATA_DIR = process.env.RESOURCE_DATA_DIR || "data/resources";
 
-export class JSONMultiResourceManager<T extends Identifiable> {
+export class JSONMultiResourceManager<T> {
     #values: T[];
     readonly #dirpath: string;
+    readonly #getId: (t: T) => string;
 
-    constructor(readonly identifier: string, private readonly validator?: (obj: unknown) => obj is T) {
+    constructor(
+        readonly identifier: string,
+        private readonly validator?: (obj: unknown) => obj is T,
+        getId?: (t: T) => string
+    ) {
+        this.#getId = getId ?? ((t: T) => (t as Identifiable).id);
         this.#dirpath = join(RESOURCE_DATA_DIR, identifier);
         if (!existsSync(this.#dirpath)) {
             mkdirSync(this.#dirpath, { recursive: true });
@@ -52,7 +58,8 @@ export class JSONMultiResourceManager<T extends Identifiable> {
     }
 
     #objectFilepath(objOrId: T | string): string {
-        return join(this.#dirpath, `${typeof objOrId === 'object' ? objOrId.id : objOrId}.json`);
+        const id = typeof objOrId === 'string' ? objOrId : this.#getId(objOrId);
+        return join(this.#dirpath, `${id}.json`);
     }
 
     #saveOne(obj: T): void {
@@ -73,7 +80,7 @@ export class JSONMultiResourceManager<T extends Identifiable> {
             throw new ValidationFailedError(`Object is not a valid ${this.identifier}`);
         }
         const validated = obj as T;
-        const existingIndex = this.getIndex(validated.id);
+        const existingIndex = this.getIndex(this.#getId(validated));
         if (existingIndex >= 0) {
             this.#values[existingIndex] = validated;
         } else {
@@ -84,7 +91,7 @@ export class JSONMultiResourceManager<T extends Identifiable> {
     }
 
     delete(val: T | string): void {
-        const id = typeof val === 'object' ? val.id : val;
+        const id = typeof val === 'string' ? val : this.#getId(val);
 
         const index = this.getIndex(id);
         if (index >= 0) {
@@ -98,16 +105,20 @@ export class JSONMultiResourceManager<T extends Identifiable> {
     }
 
     get(id: string): T | undefined {
-        return this.#values.find(v => v.id === id);
+        return this.#values.find(v => this.#getId(v) === id);
     }
 
     getIndex(id: string): number {
-        return this.#values.findIndex(v => v.id === id);
+        return this.#values.findIndex(v => this.#getId(v) === id);
     }
 }
 
+function singletonFilepath(identifier: string): string {
+    return join(RESOURCE_DATA_DIR, 'singletons', `${identifier}.json`);
+}
+
 export function loadSingletonJSONResource<T>(identifier: string, validator?: (obj: unknown) => obj is T): T | null {
-    const filepath = join(RESOURCE_DATA_DIR, 'singletons', `${identifier}.json`);
+    const filepath = singletonFilepath(identifier);
     if (!existsSync(filepath)) return null;
 
     const raw = readFileSync(filepath, { encoding: 'utf-8' });
@@ -118,6 +129,38 @@ export function loadSingletonJSONResource<T>(identifier: string, validator?: (ob
     }
 
     return obj;
+}
+
+export function saveSingletonJSONResource<T>(identifier: string, value: T): void {
+    const filepath = singletonFilepath(identifier);
+    const dir = join(RESOURCE_DATA_DIR, 'singletons');
+    if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+    }
+    writeFileSync(filepath, JSON.stringify(value, undefined, 2), { encoding: 'utf-8' });
+}
+
+export class JSONSingletonResourceManager<T> {
+    #value: T | null;
+
+    constructor(
+        readonly identifier: string,
+        private readonly validator?: (obj: unknown) => obj is T
+    ) {
+        this.#value = loadSingletonJSONResource(identifier, validator);
+    }
+
+    get value(): T | null {
+        return this.#value;
+    }
+
+    save(value: T): void {
+        if (this.validator && !this.validator(value)) {
+            throw new ValidationFailedError(`Object is not a valid ${this.identifier}`);
+        }
+        this.#value = value;
+        saveSingletonJSONResource(this.identifier, value);
+    }
 }
 
 

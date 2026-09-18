@@ -1,7 +1,7 @@
 import type { ClocktowerAudioTrackModel } from "$lib/audio/common/model/clocktowerAudioTrackModel.svelte";
 import type { ClockInstanceInfo, Config } from "$lib/common/config";
 import type { TimerOption } from "$lib/common/timerOption";
-import { setClockConfigResource } from "$lib/resources/server/clock-config";
+import { CLOCK_CONFIG_MANAGER } from "$lib/resources/server/clock-config";
 import type { TimeOfDay } from "../client/types";
 import { EventEmitter } from "../client/util/eventEmitter";
 import type { ClocktowerModel } from "../common/ClocktowerModel";
@@ -60,7 +60,7 @@ export class BOTCTClock extends EventEmitter {
             clearTimeout(this.configSaveTimeout);
         }
         this.configSaveTimeout = setTimeout(()=>{
-            setClockConfigResource(this.id, Buffer.from(JSON.stringify(this.#model)), 'application/json');
+            CLOCK_CONFIG_MANAGER.add(this.#model);
             console.log("Config auto-saved for instance", this.id);
             this.configSaveTimeout = null;
         }, 5000); // save config 5 seconds after last change

@@ -4,7 +4,7 @@ import { v7 } from "uuid";
 export type Alignment = 'good' | 'evil';
 
 export type PlacedToken = {
-    characterId: number;
+    characterId: string;
     isDead: boolean;
     alignment: Alignment;
     x: number;
@@ -12,7 +12,7 @@ export type PlacedToken = {
 };
 
 export type PlacedReminder = {
-    tokenId: number;
+    tokenId: string;
     x: number;
     y: number;
 };
@@ -29,6 +29,7 @@ export type GrimoireStateSnapshot = {
 };
 
 export type GrimoireStateHistory = {
+    id: string;
     saveslots: (GrimoireStateSnapshot | null)[];
     present: GrimoireStateSnapshot;
 };
@@ -37,7 +38,7 @@ function isPlacedToken(obj: any): obj is PlacedToken {
     const result = typeof obj === "object" &&
         typeof obj.x === "number" && isFinite(obj.x) &&
         typeof obj.y === "number" && isFinite(obj.y) &&
-        typeof obj.characterId === "number" &&
+        typeof obj.characterId === "string" &&
         typeof obj.isDead === "boolean" &&
         (obj.alignment === undefined || obj.alignment === "good" || obj.alignment === "evil");
     if(!result){
@@ -50,7 +51,7 @@ function isPlacedReminder(obj: any): obj is PlacedReminder {
     const result = typeof obj === "object" &&
         typeof obj.x === "number" && isFinite(obj.x) &&
         typeof obj.y === "number" && isFinite(obj.y) &&
-        typeof obj.tokenId === "number";
+        typeof obj.tokenId === "string";
     if(!result){
         console.error("Invalid PlacedReminder object:", obj);
     }
@@ -84,7 +85,7 @@ export function isGrimoireStateHistory(obj: any): obj is GrimoireStateHistory {
         validateGrimoireState(obj.present);
 }
 
-export function newGrimoireStateHistory(): GrimoireStateHistory {
+export function newGrimoireStateHistory(gameId: string): GrimoireStateHistory {
     const initialState: GrimoireStateSnapshot = {
         id: v7(),
         previousSnapshotId: null,
@@ -96,6 +97,7 @@ export function newGrimoireStateHistory(): GrimoireStateHistory {
         }
     };
     return {
+        id: gameId,
         saveslots: Array(5).fill(null),
         present: initialState
     };

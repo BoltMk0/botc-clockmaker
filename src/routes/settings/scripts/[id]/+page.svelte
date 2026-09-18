@@ -1,11 +1,11 @@
 <script lang="ts">
-    import { CHARACTER_CATEGORIES, type Character, type ScriptCharacter } from "$lib/database/common/types.js";
+    import { CHARACTER_CATEGORIES, type Character, type ScriptCharacter } from "$lib/resources/common/gameData.js";
     import CharacterThumb from "$lib/components/CharacterThumb.svelte";
     import { goto } from "$app/navigation";
     import type { PageData } from "./$types";
     let { data }: { data: PageData } = $props();
 
-    const characterMap = new Map<number, ScriptCharacter>(data.characters.map((c: any) => [c.id, c]));
+    const characterMap = new Map<string, ScriptCharacter>(data.characters.map((c: any) => [c.id, c]));
 
     const FILTER_OPTIONS = ['all', ...CHARACTER_CATEGORIES, 'traveler'] as const;
     type FilterOption = typeof FILTER_OPTIONS[number];
@@ -14,8 +14,8 @@
     let categoryFilter: FilterOption = $state('all');
 
     type NightList = 'first' | 'other';
-    let dragState: { list: NightList; id: number } | null = $state(null);
-    let dropTargetId: number | null = $state(null);
+    let dragState: { list: NightList; id: string } | null = $state(null);
+    let dropTargetId: string | null = $state(null);
     let dropPosition: 'before' | 'after' = $state('before');
 
     const inUseCharacterIds = $derived(new Set(data.script.characters.map((c: any) => c.id)));
@@ -43,7 +43,7 @@
         return str.charAt(0).toUpperCase() + str.slice(1);
     }
 
-    function onAddCharacter(characterId: number) {
+    function onAddCharacter(characterId: string) {
         if(data.script.characters.some((c: any) => c.id === characterId)){
             data.script.characters = data.script.characters.filter((c: any) => c.id !== characterId);
         } else {
@@ -57,7 +57,7 @@
         data = data;
     }
 
-    function onDragStart(e: DragEvent, list: NightList, id: number) {
+    function onDragStart(e: DragEvent, list: NightList, id: string) {
         dragState = { list, id };
         if (e.dataTransfer) {
             e.dataTransfer.effectAllowed = 'move';
@@ -65,7 +65,7 @@
         }
     }
 
-    function onDragOverRow(e: DragEvent, list: NightList, id: number) {
+    function onDragOverRow(e: DragEvent, list: NightList, id: string) {
         if (!dragState || dragState.list !== list) return;
         e.preventDefault();
         const row = e.currentTarget as HTMLElement;
@@ -74,7 +74,7 @@
         dropTargetId = id;
     }
 
-    function onDropRow(e: DragEvent, list: NightList, targetId: number) {
+    function onDropRow(e: DragEvent, list: NightList, targetId: string) {
         if (!dragState || dragState.list !== list) return;
         e.preventDefault();
         const currentList = list === 'first' ? firstNightList : otherNightList;

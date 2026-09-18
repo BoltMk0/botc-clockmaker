@@ -30,6 +30,14 @@ export function prettifyResourceName(name: string): string {
     return name.replace(/[-_]+/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 }
 
+export function slugify(name: string): string {
+    return name
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+}
+
 
 export function prettifyResourceType(type: ResourceType): string {
     switch(type){

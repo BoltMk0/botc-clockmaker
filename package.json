@@ -4,7 +4,7 @@
 	"version": "0.2.18",
 	"type": "module",
 	"scripts": {
-		"dev": "docker compose up database -d && vite dev",
+		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
@@ -32,7 +32,6 @@
 	"dependencies": {
 		"@threlte/core": "^8.6.0",
 		"@threlte/extras": "^9.21.1",
-		"mysql2": "^3.20.0",
 		"nodemailer": "^9.1.1",
 		"qrcode": "^1.5.4",
 		"three": "^0.185.1",

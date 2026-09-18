@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { Character } from "$lib/database/common/types";
+    import type { Character } from "$lib/resources/common/gameData";
     import TokenBackground from "./TokenBackground.svelte";
 
     let {

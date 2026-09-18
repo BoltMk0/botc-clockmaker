@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { Character } from "$lib/database/common/types";
+    import type { Character } from "$lib/resources/common/gameData";
 
     let { character, size = '2.5em' }: { character: Character; size?: string } = $props();
 

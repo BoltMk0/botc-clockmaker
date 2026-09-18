@@ -1,26 +1,36 @@
 import { getDefaultTimerOptions, isTimerOption, type TimerOption } from "$lib/common/timerOption";
 import { getMimeTypeForExtension } from "../common/util";
-import { encodeResourceId, findResourceById, getResourceData, saveResource } from "./resources";
+import { encodeResourceId, findResourceById, getResourceData } from "./resources";
+import { JSONSingletonResourceManager } from "./jsonResourceManager";
 
-const resId = encodeResourceId('appconfig', 'timer_options', getMimeTypeForExtension('.json'));
-
-export function saveTimerOptions(options: TimerOption[]){
-    const data = Buffer.from(JSON.stringify(options), 'utf-8');
-    saveResource(resId, data);
+function isTimerOptionList(data: any): data is TimerOption[] {
+    return Array.isArray(data) && data.every(isTimerOption);
 }
 
-export function getTimerOptions(): TimerOption[]{
-    const res = findResourceById(resId);
-    if(res){
-        let data = getResourceData(res);
-        if(data){
-            const parsed = JSON.parse(data.toString('utf-8'));
-            if(Array.isArray(parsed) && parsed.every(option=>isTimerOption(option))) {
-                return parsed;
-            } else {
-                console.warn('Failed to parse timer options from resource - invalid data');
+const TIMER_OPTIONS_MANAGER = new JSONSingletonResourceManager<TimerOption[]>('timer_options', isTimerOptionList);
+
+// One-time migration from the old flat-file appconfig resource, so existing timer options aren't lost.
+if (TIMER_OPTIONS_MANAGER.value === null) {
+    const legacyId = encodeResourceId('appconfig', 'timer_options', getMimeTypeForExtension('.json'));
+    const legacyResource = findResourceById(legacyId);
+    const legacyData = legacyResource && getResourceData(legacyResource);
+    if (legacyData) {
+        try {
+            const options = JSON.parse(legacyData.toString('utf-8'));
+            if (isTimerOptionList(options)) {
+                TIMER_OPTIONS_MANAGER.save(options);
+                console.log("Migrated legacy timer options");
             }
+        } catch (e) {
+            console.warn("Failed to migrate legacy timer options resource", e);
         }
     }
-    return getDefaultTimerOptions();
+}
+
+export function saveTimerOptions(options: TimerOption[]) {
+    TIMER_OPTIONS_MANAGER.save(options);
+}
+
+export function getTimerOptions(): TimerOption[] {
+    return TIMER_OPTIONS_MANAGER.value ?? getDefaultTimerOptions();
 }

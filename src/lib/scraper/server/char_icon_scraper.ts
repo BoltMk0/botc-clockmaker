@@ -1,4 +1,4 @@
-import type { Character } from "$lib/database/common/types";
+import type { Character } from "$lib/resources/common/gameData";
 import { setCharacterImageResource } from "$lib/resources/server/character-images";
 import type { ScrapeResult } from "../common/types";
 

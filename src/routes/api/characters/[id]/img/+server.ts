@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { getCharacterById } from '$lib/database/server/characters';
+import { getCharacterById } from '$lib/resources/server/characters';
 import { getCharacterImageResource, setCharacterImageResource, deleteCharacterImageResource } from '$lib/resources/server/character-images';
 import { getResourceData } from '$lib/resources/server/resources';
 
@@ -7,9 +7,7 @@ import { getResourceData } from '$lib/resources/server/resources';
 const ALLOWED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 
 async function resolveCharacter(idParam: string) {
-    const id = Number(idParam);
-    if (!Number.isInteger(id)) return { character: null, error: json({ error: 'Invalid id' }, { status: 400 }) };
-    const character = await getCharacterById(id);
+    const character = getCharacterById(idParam);
     if (!character) return { character: null, error: json({ error: 'Character not found' }, { status: 404 }) };
     return { character, error: null };
 }

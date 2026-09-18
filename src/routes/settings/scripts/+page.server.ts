@@ -1,9 +1,8 @@
-import { listCharacters } from "$lib/database/server/characters";
-import { createScript, deleteScript, listScripts, listScriptsWithCharacters } from "$lib/database/server/scripts";
+import { createScript, deleteScript, listScripts } from "$lib/resources/server/scripts";
 import { fail } from "@sveltejs/kit";
 
 export async function load() {
-    const scripts = await listScripts();
+    const scripts = listScripts();
     return {scripts};
 }
 
@@ -17,28 +16,28 @@ export const actions = {
             return fail(400, { success: false, error: 'Name is required' });
         }
         try {
-            const newScript = await createScript({name, hue}); // This should be replaced with an actual createScript function that inserts into the database and returns the new script's ID
+            const newScript = createScript({name, hue});
             return { success: true, id: newScript.id };
         } catch (err) {
             console.error(err);
-            return fail(400, { success: false, error: 'Database error' });
+            return fail(400, { success: false, error: 'Failed to create script' });
         }
     },
     deleteScript: async ({ request }) => {
         const formData = await request.formData();
-        const id = Number(formData.get('id'));
-        if (!Number.isInteger(id)) {
+        const id = formData.get('id');
+        if (typeof id !== 'string' || !id.trim()) {
             return fail(400, { success: false, error: 'Invalid script id' });
         }
         try {
-            const deleted = await deleteScript(id);
+            const deleted = deleteScript(id);
             if (!deleted) {
                 return fail(404, { success: false, error: 'Script not found' });
             }
             return { success: true };
         } catch (err) {
             console.error(err);
-            return fail(400, { success: false, error: 'Database error' });
+            return fail(400, { success: false, error: 'Failed to delete script' });
         }
     }
 }

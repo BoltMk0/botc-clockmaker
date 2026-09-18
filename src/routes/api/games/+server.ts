@@ -1,12 +1,12 @@
-import { createGameSetup, listGames, listFullGames } from '$lib/database/server/games.js';
+import { createGameSetup, listGames, listFullGames } from '$lib/resources/server/games.js';
 import { json } from '@sveltejs/kit';
 
 export async function GET({ url }) {
     const withCharacters = url.searchParams.get('characters') === 'true';
     if (withCharacters) {
-        return json(await listFullGames());
+        return json(listFullGames());
     }
-    return json(await listGames());
+    return json(listGames());
 }
 
 export async function POST({ request }) {
@@ -18,6 +18,6 @@ export async function POST({ request }) {
         return json({ error: 'script_id is required' }, { status: 400 });
     }
 
-    const game = await createGameSetup({ script_id });
+    const game = createGameSetup({ script_id });
     return json(game, { status: 201 });
 }

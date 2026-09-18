@@ -1,9 +1,9 @@
-import { isValidCharacterCategory } from "$lib/database/common/types";
-import { addCharacter, listCharacters, updateCharacter } from "$lib/database/server/characters";
+import { isValidCharacterCategory } from "$lib/resources/common/gameData";
+import { addCharacter, listCharacters, updateCharacter } from "$lib/resources/server/characters";
 import { fail } from "@sveltejs/kit";
 
 export async function load(){
-    const characters = await listCharacters();
+    const characters = listCharacters();
     return { characters };
 }
 
@@ -24,7 +24,7 @@ export const actions = {
             return fail(400, {error: 'Invalid category' });
         }
         
-        const character = await addCharacter({name, category, rules: '', player_count: 1, wakes_first_night: false, wakes_other_nights: false});
+        const character = addCharacter({name, category, rules: '', player_count: 1, wakes_first_night: false, wakes_other_nights: false});
 
         return { success: true, ...character};
     },
@@ -32,7 +32,7 @@ export const actions = {
     updateCharacter: async ({ request }) => {
         const formData = await request.formData();
         const id = formData.get('id');
-        if (typeof id !== 'string' || !id.trim() || isNaN(Number(id))) {
+        if (typeof id !== 'string' || !id.trim()) {
             return fail(400, {error: 'Valid ID is required' });
         }
 
@@ -63,7 +63,7 @@ export const actions = {
             return fail(400, {error: 'Player count must be a non-negative number' });
         }
 
-        const character = await updateCharacter(Number(id), {name, category, rules, wakes_first_night, wakes_other_nights, player_count: playerCountNumber});
+        const character = updateCharacter(id, {name, category, rules, wakes_first_night, wakes_other_nights, player_count: playerCountNumber});
 
         if(!character){
             return fail(404, {error: 'Character not found'});

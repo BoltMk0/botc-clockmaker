@@ -1,40 +1,26 @@
-import type { Resource } from "../common/types";
-import { deleteResource, findResourceByName, encodeResourceId, saveResource, listResources } from "./resources";
+import { isClocktowerModel, type ClocktowerModel } from "$lib/model/common/ClocktowerModel";
+import { JSONMultiResourceManager } from "./jsonResourceManager";
+import { listResources, getResourceData } from "./resources";
 
-function clock_id_to_resource_name(clockid: string): string {
-    return `${clockid}`;
-}
+export const CLOCK_CONFIG_MANAGER = new JSONMultiResourceManager<ClocktowerModel>(
+    'clock-config',
+    isClocktowerModel,
+    (m) => m.clock.clockId
+);
 
-function clock_id_to_resource_id(clockid: string, mimeType: string): string {
-    return encodeResourceId('clockconfig', clock_id_to_resource_name(clockid), mimeType);
-}
-
-export function listClockConfigResources(): (Resource & {clockid: string})[] {
-    const configs = listResources('clockconfig');
-    console.debug(`Found ${configs.length} clockconfig resources`)
-    const result: (Resource & {clockid: string})[] = [];
-    for(const config of configs){
-        result.push({...config, clockid: config.name});
+// One-time migration from the old flat-file clockconfig resources, so existing clock instances aren't lost.
+if (CLOCK_CONFIG_MANAGER.values.length === 0) {
+    for (const resource of listResources('clockconfig')) {
+        const data = getResourceData(resource);
+        if (!data) continue;
+        try {
+            const model = JSON.parse(data.toString('utf-8'));
+            if (isClocktowerModel(model)) {
+                CLOCK_CONFIG_MANAGER.add(model);
+                console.log(`Migrated legacy clock config for instance ${model.clock.clockId}`);
+            }
+        } catch (e) {
+            console.warn(`Failed to migrate legacy clock config resource ${resource.id}`, e);
+        }
     }
-    return result;
 }
-
-export function getClockConfigResource(clockid: string): Resource | null {
-    const resource = findResourceByName(clock_id_to_resource_name(clockid), 'clockconfig');
-    if(resource == null) return null;
-    return resource;
-}
-
-export function setClockConfigResource(clockid: string, data: Buffer, mimeType: string) {
-    const resourceId = clock_id_to_resource_id(clockid, mimeType);
-    if(resourceId == null) throw new Error(`Failed to generate resource ID for clock ${clockid}`);
-    saveResource(resourceId, data);
-}
-
-export function deleteClockConfigResource(clockid: string): boolean {
-    const resource = findResourceByName(clock_id_to_resource_name(clockid), 'clockconfig');
-    if(resource == null) return false;
-    deleteResource(resource);
-    return true;
-}
-

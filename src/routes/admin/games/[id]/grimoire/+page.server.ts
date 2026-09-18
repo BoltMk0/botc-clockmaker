@@ -1,15 +1,10 @@
-import { getFullGame } from '$lib/database/server/games.js';
+import { getFullGame } from '$lib/resources/server/games.js';
 import { get_grimoire_state_history_resource_for_game, set_grimoire_state_history_resource_for_game } from '$lib/resources/server/grimoire-state.js';
 import { getBOTCTClockInstanceManager } from '$lib/model/server/model.js';
 import { isGrimoireStateHistory } from './types.js';
 
 export async function load({params}){
-    const id = Number(params.id);
-
-    if(!Number.isInteger(id)){
-        console.error(`Invalid game ID: ${params.id}`);
-        return {game: null, error: "Invalid Id"}
-    }
+    const id = params.id;
 
     let gameState = get_grimoire_state_history_resource_for_game(id);
     if(gameState !== null && !isGrimoireStateHistory(gameState)){
@@ -17,7 +12,7 @@ export async function load({params}){
         gameState = null;
     }
     
-    const game = await getFullGame(id);
+    const game = getFullGame(id);
     if(game === null){
         console.error(`Game not found with ID: ${id}`);
         return {game: null, error: "Game not found"}
@@ -32,7 +27,7 @@ export const actions = {
     saveGrimoireState: async ({request, params}) => {
         try{
             const data = await request.json();
-            set_grimoire_state_history_resource_for_game(Number(params.id), data);
+            set_grimoire_state_history_resource_for_game(params.id, data);
         }catch(e){
             return {success: false, error: "Tokens must be valid JSON"}
         }

@@ -1,8 +1,8 @@
 <script lang="ts">
     import { enhance } from '$app/forms';
     import { page } from '$app/state';
-    import { deleteReminderToken, fetchReminderTokensForCharacter, updateReminderToken } from '$lib/database/client/reminder_tokens.js';
-    import { CHARACTER_CATEGORIES, type Character, type ReminderToken } from '$lib/database/common/types.js';
+    import { createReminderToken, deleteReminderToken, fetchReminderTokensForCharacter, updateReminderToken } from '$lib/resources/client/reminderTokens.js';
+    import { CHARACTER_CATEGORIES, type Character, type ReminderToken } from '$lib/resources/common/gameData.js';
     import HSlider from '$lib/audio/client/components/HSlider.svelte';
     import CustomOverlay from '$lib/components/CustomOverlay.svelte';
     import ReminderTokenView from '$lib/components/ReminderTokenView.svelte';
@@ -17,15 +17,15 @@
 
     let characters = $derived(data.characters);
 
-    let selectedCharacterId = $state<number|null>(page.url.searchParams.has('characterId') ? parseInt(page.url.searchParams.get('characterId')!) : null);
-    let selectedReminderTokenId = $state<number|null>(null);
+    let selectedCharacterId = $state<string|null>(page.url.searchParams.get('characterId'));
+    let selectedReminderTokenId = $state<string|null>(null);
     let searchQuery = $state<string>('');
 
     // svelte-ignore non_reactive_update
     let imageInput: HTMLInputElement;
 
 
-    function selectCharacter(characterId: number) {
+    function selectCharacter(characterId: string) {
         selectedCharacterId = characterId;
         selectedReminderTokenId = null;
         // Update URL query parameter without reloading the page
@@ -92,17 +92,9 @@
     function createNewReminderToken(){
         if(!selectedCharacterId) return;
         console.log('Creating new reminder token for character ID:', selectedCharacterId);
-        fetch('/api/reminder_tokens', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ character_id: selectedCharacterId, text: '', textSize: 60 }),
-        }).then(res => {
-            if (!res.ok) throw new Error(`Failed to create token: ${res.statusText}`);
-            return res.json();
-        }).then(responseData => {
+        createReminderToken(selectedCharacterId).then(responseData => {
             console.log('Created token:', responseData);
             if(selectedCharacterId) {
-                // Optionally, you could also refresh the token list here to show the new token immediately
                 fetchReminderTokensForCharacter(selectedCharacterId).then(tokens => {
                     selectedCharacterTokens = tokens;
 
@@ -115,10 +107,10 @@
         });
     }
 
-    function onDeleteReminderToken(tokenId: number|null) {
+    function onDeleteReminderToken(tokenId: string|null) {
         if(!tokenId || !selectedCharacterId) return;
         if(!confirm("This action cannot be undone. Are you sure you want to delete this reminder token?")) return;
-        deleteReminderToken(tokenId).then(()=>{
+        deleteReminderToken(selectedCharacterId, tokenId).then(()=>{
             // Refresh token list after deletion
             if (selectedCharacterId) {
                 fetchReminderTokensForCharacter(selectedCharacterId).then(tokens => {
@@ -131,8 +123,8 @@
     }
 
     function onReminderTokenViewBackButtonClicked(){
-        if(selectedReminderToken){
-            updateReminderToken(selectedReminderToken.id, { text: selectedReminderToken.text, textSize: selectedReminderToken.textSize }).then(()=>{
+        if(selectedReminderToken && selectedCharacterId){
+            updateReminderToken(selectedCharacterId, selectedReminderToken.id, { text: selectedReminderToken.text, textSize: selectedReminderToken.textSize }).then(()=>{
                 return fetchReminderTokensForCharacter(selectedCharacterId!)
             }).then(tokens => {
                 selectedCharacterTokens = tokens;
@@ -145,7 +137,7 @@
         };
     }
 
-    function deleteCharacter(characterId: number) {
+    function deleteCharacter(characterId: string) {
         if (!confirm('Are you sure you want to delete this character? This action cannot be undone.')) return;
         fetch(`/api/characters/${characterId}`, { method: 'DELETE' }).then(response => {
             if (!response.ok) {
@@ -299,10 +291,10 @@
 
                 <div class="reminder-token-editor-container">
                     <div style="display: grid; grid-template-columns: auto auto; align-items: end; gap: 10px;">
-                        <ReminderTokenView data={selectedReminderToken} size="200px" />
+                        <ReminderTokenView data={selectedReminderToken} characterId={selectedCharacterId} size="200px" />
                         <div style="display: flex; flex-direction: column; gap: 10px;">
-                            <ReminderTokenView data={selectedReminderToken} size="50px" />
-                            <ReminderTokenView data={selectedReminderToken} size="100px" />
+                            <ReminderTokenView data={selectedReminderToken} characterId={selectedCharacterId} size="50px" />
+                            <ReminderTokenView data={selectedReminderToken} characterId={selectedCharacterId} size="100px" />
                         </div>
                     </div>
 
@@ -388,7 +380,7 @@
                         <tbody>
                             <tr>
                                 <th>ID:</th>
-                                <td><input name="id" style="width: 100%;" type="number" placeholder="Character ID" value={selectedCharacter.id} readonly /></td>
+                                <td><input name="id" style="width: 100%;" type="text" placeholder="Character ID" value={selectedCharacter.id} readonly /></td>
                             </tr>
                             <tr>
                                 <th>Name</th>
@@ -433,7 +425,7 @@
                 <div class="reminder-token-container">
                     {#each selectedCharacterTokens as token(token.id)}
                         <button class="no-button-style" onclick={() => selectedReminderTokenId = token.id} style="position: relative;">
-                        <ReminderTokenView data={token} size="80px" />
+                        <ReminderTokenView data={token} characterId={selectedCharacterId} size="80px" />
                         </button>
                     {/each}
                     <button id="add-reminder-token-button" onclick={createNewReminderToken} >+</button>

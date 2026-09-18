@@ -1,6 +1,6 @@
 <script lang="ts">
     import { goto, invalidateAll } from '$app/navigation';
-    import type { GameFull } from '$lib/database/common/types.js';
+    import type { GameFull } from '$lib/resources/common/gameData.js';
     import CustomOverlay from '$lib/components/CustomOverlay.svelte';
     import Navbar from '$lib/components/Navbar.svelte';
     import { formatTimeAgo } from '$lib/common/util';
@@ -25,7 +25,7 @@
         }
     }
 
-    async function deleteGame(gameId: number) {
+    async function deleteGame(gameId: string) {
         if (!confirm("Are you sure you want to delete this game? This action cannot be undone.")) return;
         try {
             await fetch(`/api/games/${gameId}`, { method: 'DELETE' });

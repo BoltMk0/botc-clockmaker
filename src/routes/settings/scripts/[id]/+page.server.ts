@@ -1,15 +1,11 @@
-import { listCharacters } from '$lib/database/server/characters';
-import { getScriptWithCharacters } from '$lib/database/server/scripts';
+import { listCharacters } from '$lib/resources/server/characters';
+import { getScriptWithCharacters } from '$lib/resources/server/scripts';
 
 export async function load({ params }) {
-    const id = Number(params.id);
-    if (!Number.isInteger(id)) {
-        throw new Error('Invalid script id');
-    }
-    const script = await getScriptWithCharacters(id);
+    const script = getScriptWithCharacters(params.id);
     if (!script) {
         throw new Error('Script not found');
     }
-    const characters = await listCharacters();
+    const characters = listCharacters();
     return { script, characters };
 }

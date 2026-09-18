@@ -1,6 +1,6 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
-    import { CHARACTER_CATEGORIES, type Character, type GameFull } from "$lib/database/common/types.js";
+    import { CHARACTER_CATEGORIES, type Character, type GameFull } from "$lib/resources/common/gameData.js";
     import { getPlayerCount } from "$lib/common/util";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import { writable } from "svelte/store";
@@ -42,7 +42,7 @@
     }
 
 
-    function addCharacter(characterId: number){
+    function addCharacter(characterId: string){
         if(!game) return;
         // Remove from bluffs if present
         game.bluff_ids = game.bluff_ids.filter(id => id !== characterId);
@@ -52,9 +52,9 @@
         }
     }
 
-    function removeCharacter(characterId: number){
+    function removeCharacter(characterId: string){
         if(!game) return;
-        game.character_ids = game.character_ids.filter((id: number) => id !== characterId);
+        game.character_ids = game.character_ids.filter((id: string) => id !== characterId);
     }
 
     function addBluff(character: Character) {
@@ -62,12 +62,12 @@
         if (bluffs.length >= 3) return;
         if (!game.bluff_ids.find(id => id === character.id)) {
             // Remove from in-game if present
-            game.character_ids = game.character_ids.filter((id: number) => id !== character.id);
+            game.character_ids = game.character_ids.filter((id: string) => id !== character.id);
             // Add to bluffs
             game.bluff_ids.push(character.id);
         }
     }
-    function removeBluff(characterId: number) {
+    function removeBluff(characterId: string) {
         if (!game) return;
         game.bluff_ids = game.bluff_ids.filter(id => id !== characterId);
     }

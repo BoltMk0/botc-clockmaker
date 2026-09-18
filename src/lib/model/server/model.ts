@@ -1,9 +1,8 @@
 import { getDefaultConfig, isConfig, type Config } from '$lib/common/config';
 import { EventEmitter } from 'node:events';
 import { v7 } from 'uuid';
-import { deleteClockConfigResource, listClockConfigResources } from '$lib/resources/server/clock-config';
-import { getResourceData } from '$lib/resources/server/resources';
-import { isClocktowerModel, newClocktowerModel, type ClocktowerModel } from '../common/ClocktowerModel';
+import { CLOCK_CONFIG_MANAGER } from '$lib/resources/server/clock-config';
+import { newClocktowerModel, type ClocktowerModel } from '../common/ClocktowerModel';
 import { BOTCTClock } from './BOTCClock';
 
 
@@ -35,28 +34,12 @@ class ClockInstanceManager extends EventEmitter {
 
     constructor(){
         super();
-        const configResources = listClockConfigResources();
-        console.log(`Loading ${configResources.length} clock config resources...`)
-        for(const res of configResources){
-            const config = getResourceData(res);
-            if(!config){
-                console.warn(`Failed to load config resource ${res.name} (id: ${res.id}), skipping...`);
-                continue;
-            }
-            try {
-                let parsedModel = JSON.parse(config.toString());
-                if(isClocktowerModel(parsedModel)) {
-                    const instance = new BOTCTClock(parsedModel);
-                    this.instances.set(res.clockid, instance);
-                    console.log(`Loaded BOTCTClock instance with id: ${res.clockid} from config.`);
-                } else {
-                    console.warn(`Loaded clock model was invalid and will be skipped: ${parsedModel}`)
-                }
-                
-            } catch (e) {
-                console.warn(`Failed to parse config resource ${res.name} (id: ${res.id}), skipping...`, e);
-                continue;
-            }
+        const configs = CLOCK_CONFIG_MANAGER.values;
+        console.log(`Loading ${configs.length} clock config resources...`)
+        for(const model of configs){
+            const instance = new BOTCTClock(model);
+            this.instances.set(model.clock.clockId, instance);
+            console.log(`Loaded BOTCTClock instance with id: ${model.clock.clockId} from config.`);
         }
         if(!this.hasInstance('default')){
             const {id, instance} = this.newInstance('default');
@@ -106,7 +89,7 @@ class ClockInstanceManager extends EventEmitter {
         if (instance) {
             this.emit('instanceFreed', id);
         }
-        deleteClockConfigResource(id);
+        CLOCK_CONFIG_MANAGER.delete(id);
         this.instances.delete(id);
     }
 

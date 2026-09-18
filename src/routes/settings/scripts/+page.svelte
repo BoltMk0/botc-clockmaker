@@ -1,17 +1,17 @@
 <script lang="ts">
     import { enhance } from "$app/forms";
     import { goto } from "$app/navigation";
-    import type { Character } from "$lib/database/common/types";
+    import type { Character } from "$lib/resources/common/gameData";
     import CustomOverlay from "$lib/components/CustomOverlay.svelte";
 
     let { data }: { data: {scripts: any[], characters: Character[]} } = $props();
 
 
-    function selectScript(scriptId: number) {
+    function selectScript(scriptId: string) {
         location.href = `/settings/scripts/${scriptId}`;
     }
 
-    function deleteScript(scriptId: number) {
+    function deleteScript(scriptId: string) {
         fetch(`?/deleteScript`, { method: 'POST' }).then(response => {
             if (!response.ok) {
                 alert('Failed to delete script');

@@ -1,7 +1,7 @@
-import { listCharacters } from "$lib/database/server/characters";
+import { listCharacters } from "$lib/resources/server/characters";
 
 export async function load(){
-    const characters = await listCharacters();
+    const characters = listCharacters();
     return { characters };
 }
 
