@@ -59,7 +59,9 @@
 </script>
 
 {#snippet renderClockSettings(clock: ClocktowerModel)}
-    <ClockEditView {clock} sfx_resources={data.sfxResources}/>
+    {#key clock.clock.clockId}
+        <ClockEditView {clock} sfx_resources={data.sfxResources}/>
+    {/key}
 {/snippet}
 
 <SideTabLayout title="Clocks" items={data.clocks.map(c=>{
