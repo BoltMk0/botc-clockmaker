@@ -87,7 +87,7 @@ export function isCharacter(obj: any): obj is Character {
         typeof obj.name === "string" &&
         typeof obj.category === "string" && isValidCharacterCategory(obj.category) &&
         typeof obj.rules === "string" &&
-        typeof obj.player_count === "number" && isFinite(obj.player_count) && obj.player_count > 0 &&
+        typeof obj.player_count === "number" && isFinite(obj.player_count) && obj.player_count >= 0 &&
         typeof obj.wakes_first_night === "boolean" &&
         typeof obj.wakes_other_nights === "boolean" &&
         Array.isArray(obj.reminderTokens) && obj.reminderTokens.every(isReminderToken);
