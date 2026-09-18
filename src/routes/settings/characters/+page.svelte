@@ -281,7 +281,7 @@
                     {/each}
                 </ul>
             </div>
-                <a class="button-style" style="width: 100%;" href="characters/scrape">Image Scraper</a>
+                <a class="button-style" style="width: 100%;" href="characters/scraper">Wiki Scraper</a>
 
         </div>
         <div class="character-info">

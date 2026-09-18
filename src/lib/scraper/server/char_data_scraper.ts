@@ -1,0 +1,128 @@
+import type { CharacterCategory, NewCharacter } from "$lib/resources/common/gameData";
+import { addCharacter, getCharacterByName, updateCharacter } from "$lib/resources/server/characters";
+import { getCharacterImageResource } from "$lib/resources/server/character-images";
+import { scrapeIcon } from "./char_icon_scraper";
+import type { CharacterScrapeResult, WikiCharacterListing } from "../common/types";
+
+const WIKI_ORIGIN = 'https://wiki.bloodontheclocktower.com';
+
+const CATEGORY_WIKI_PAGE: Record<CharacterCategory, string> = {
+    townsfolk: 'Category:Townsfolk',
+    outsider: 'Category:Outsiders',
+    minion: 'Category:Minions',
+    demon: 'Category:Demons',
+    traveler: 'Category:Travellers'
+};
+
+// The wiki's MediaWiki category pages list every character in that category as
+// `<a href="/Some_Name" title="...">Display Name</a>` links inside a `mw-pages` div.
+export async function listWikiCharacters(category: CharacterCategory): Promise<WikiCharacterListing[]> {
+    const page = CATEGORY_WIKI_PAGE[category];
+    const response = await fetch(`${WIKI_ORIGIN}/${page}`);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch wiki category page ${page}: ${response.statusText} (${response.status})`);
+    }
+    const html = await response.text();
+
+    const pagesSectionMatch = html.match(/id="mw-pages">([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>/);
+    const section = pagesSectionMatch ? pagesSectionMatch[1] : html;
+
+    const listing: WikiCharacterListing[] = [];
+    const linkRegex = /<a href="\/([^":]+)" title="[^"]*">([^<]+)<\/a>/g;
+    let match: RegExpExecArray | null;
+    while ((match = linkRegex.exec(section)) !== null) {
+        const name = decodeHtmlEntities(match[2]).trim();
+        const existingCharacter = getCharacterByName(name);
+        listing.push({
+            name,
+            wikiPath: match[1],
+            exists: !!existingCharacter,
+            iconExists: !!existingCharacter && !!getCharacterImageResource(existingCharacter.id)
+        });
+    }
+    return listing;
+}
+
+// The ability text lives in the first paragraph of the "Summary" section, e.g:
+// <h2>...id="Summary">Summary</h2><p>"Each night*, choose a player: they die."</p>
+function extractRulesText(html: string): string | null {
+    const sectionMatch = html.match(/id="Summary">Summary<\/span><\/h2>([\s\S]*?)<h2/);
+    if (!sectionMatch) return null;
+
+    const firstParagraphMatch = sectionMatch[1].match(/<p>([\s\S]*?)<\/p>/);
+    if (!firstParagraphMatch) return null;
+
+    const text = decodeHtmlEntities(firstParagraphMatch[1].replace(/<[^>]+>/g, '')).trim().replace(/^"|"$/g, '').trim();
+    return text || null;
+}
+
+const NAMED_HTML_ENTITIES: Record<string, string> = {
+    amp: '&',
+    quot: '"',
+    apos: "'",
+    lt: '<',
+    gt: '>',
+    nbsp: ' '
+};
+
+function decodeHtmlEntities(text: string): string {
+    return text.replace(/&(#\d+|#x[0-9a-f]+|\w+);/gi, (match, entity) => {
+        if (entity[0] === '#') {
+            const code = entity[1].toLowerCase() === 'x' ? parseInt(entity.slice(2), 16) : parseInt(entity.slice(1), 10);
+            return String.fromCharCode(code);
+        }
+        return NAMED_HTML_ENTITIES[entity.toLowerCase()] ?? match;
+    });
+}
+
+// Best-effort guess at when the character wakes, based on wording conventions used
+// throughout the ability text (e.g. "Each night*" means every night but the first,
+// "You start knowing" / "On your first night" imply a first-night wake). Not perfect -
+// intended as a starting point for manual review, not a guaranteed-correct result.
+function guessWakePattern(rules: string): { wakes_first_night: boolean; wakes_other_nights: boolean } {
+    const mentionsEachNight = /each night/i.test(rules);
+    const exceptFirstNight = /each night\*/i.test(rules);
+
+    const wakes_first_night = /you start knowing|on your first night/i.test(rules) || (mentionsEachNight && !exceptFirstNight);
+    const wakes_other_nights = mentionsEachNight || /other night/i.test(rules);
+
+    return { wakes_first_night, wakes_other_nights };
+}
+
+export async function scrapeCharacter(category: CharacterCategory, name: string, wikiPath: string): Promise<CharacterScrapeResult> {
+    console.log("Scraping character data", name);
+    try {
+        const response = await fetch(`${WIKI_ORIGIN}/${wikiPath}`);
+        if (!response.ok) {
+            return { status: 'error', error: `Unexpected response ${response.statusText} (${response.status})` };
+        }
+
+        const html = await response.text();
+        const rules = extractRulesText(html);
+        if (!rules) {
+            return { status: 'error', error: 'Could not find ability text on wiki page' };
+        }
+
+        const newCharacter: NewCharacter = {
+            name,
+            category,
+            rules,
+            player_count: 1,
+            ...guessWakePattern(rules)
+        };
+
+        const existing = getCharacterByName(name);
+        const character = existing ? updateCharacter(existing.id, newCharacter)! : addCharacter(newCharacter);
+
+        const iconResult = await scrapeIcon(character);
+
+        return {
+            status: existing ? 'updated' : 'created',
+            iconStatus: iconResult.status,
+            iconError: iconResult.error
+        };
+    } catch (er: any) {
+        console.error(`Failed to scrape character ${name}:`, er);
+        return { status: 'error', error: er.message };
+    }
+}
