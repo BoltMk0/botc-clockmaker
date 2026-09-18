@@ -57,7 +57,7 @@
             <img src={`/api/resources/${data.id}`} alt="Character" style="max-width: 100%; max-height: 100%; border-radius: 4px;"/>
         </TokenBackground>
     {:else if data.type === 'clockconfig'}
-        <a href="/admin/{data.name}/config">Edit</a>
+        <a href="/settings/clocks">Edit</a>
     {:else if data.type === 'grimoirestate'}
             {#await fetch(`/api/resources/${data.id}`).then(res => res.json()) as Promise<GrimoireStateHistory>}
                 <div>Loading...</div>

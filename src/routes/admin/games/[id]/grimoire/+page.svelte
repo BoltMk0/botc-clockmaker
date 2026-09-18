@@ -11,6 +11,7 @@
     import FullDisplay from "$lib/components/FullDisplay/FullDisplay.svelte";
     import { onMount } from "svelte";
     import ClockSetter from "../../../[clockid]/ClockSetter.svelte";
+    import type { TimerOption } from "$lib/common/timerOption.js";
     import type { CanvasToolType } from "$lib/components/DrawableCanvas2/types.js";
     import AnotatableViewV2 from "$lib/components/DrawableCanvas2/AnotatableViewV2.svelte";
     import { newGrimoireStateHistory, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "./types.js";
@@ -30,6 +31,7 @@
             game: GameFull|null;
             gameState: GrimoireStateHistory | null;
             availableClocks: ClocktowerModel[];
+            timerOptions: TimerOption[];
             error: string|null;
         }
     }
@@ -1285,7 +1287,7 @@
                     <button class="button-style error" onclick={()=>{showTimerOptions = false; if(clockClientManagerClient === null) clockClientManager?.setVisible(false);}}>X</button>
                 </div>
                 {#if clockClientManagerClient}
-                    <ClockSetter model={clockClientManagerClient} onstart={()=>{showTimerOptions = false}}/>
+                    <ClockSetter model={clockClientManagerClient} timerOptions={data.timerOptions} onstart={()=>{showTimerOptions = false}}/>
                     <button class="button-style" onclick={() => clockClientManager?.setConnectedClock(null)}>Disconnect Clock</button>
                 {:else}
                     <div style="display: flex; flex-direction: column; gap: 5px;">
