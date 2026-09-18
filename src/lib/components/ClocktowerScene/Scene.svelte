@@ -1,6 +1,6 @@
 <script lang="ts">
     import { untrack } from "svelte";
-    import { useTask } from "@threlte/core";
+    import { useTask, useThrelte } from "@threlte/core";
     import OrthoCamera from "./subviews/OrthoCamera.svelte";
     import Sky from "./subviews/Sky.svelte";
     import Clouds from "./subviews/Clouds.svelte";
@@ -51,6 +51,21 @@
 
     const counts = $derived(getPlayerCount(playerCount));
 
+    // Every element's own size is a fraction of `visibleHeight`, so sizes
+    // already track the screen's height only, never its width. Positioning
+    // (the tower/panel's horizontal offset) is tuned for a design aspect
+    // ratio of visibleHeight * DESIGN_ASPECT wide (see the `horizontalOffset`
+    // notes in ClocktowerScene.svelte and GameStatsPanel.svelte) though, and
+    // on narrower screens the real visible width is less than that - so the
+    // fixed offset pushes the tower and panel past the actual screen edges.
+    // Scaling just the offset down (never up, so normal/wide screens are
+    // untouched) pulls them back toward centre - overlapping each other
+    // rather than running off-screen - without touching either one's size.
+    const DESIGN_ASPECT = 2;
+    const { size } = useThrelte();
+    const layoutScale = $derived(Math.min(1, $size.width / $size.height / DESIGN_ASPECT));
+    const scaledHorizontalOffset = $derived(horizontalOffset * layoutScale);
+
     // Smooth the day-progress value over time instead of snapping the sun
     // (and everything timed off it) straight to a new position whenever
     // `progress` ticks. Computed once here and shared, so the sun and moon
@@ -80,28 +95,28 @@
 
 <OrthoCamera {visibleHeight} />
 <Sky {smoothProgress} />
-<Clouds {smoothProgress} {visibleHeight} {horizontalOffset} />
+<Clouds {smoothProgress} {visibleHeight} horizontalOffset={scaledHorizontalOffset} />
 <Sun {smoothProgress} arcRadius={sunArcRadius} height={sunHeight} forwardDistance={sunForwardDistance} />
-<Moon {smoothProgress} {visibleHeight} {horizontalOffset} />
+<Moon {smoothProgress} {visibleHeight} horizontalOffset={scaledHorizontalOffset} />
 <GameStatsPanel
     day={dayNumber}
     {progress}
     {totalTime}
     {counts}
     {visibleHeight}
-    {horizontalOffset}
+    horizontalOffset={scaledHorizontalOffset}
 />
-<Tower {imageUrl} {normalMapUrl} {origin} {planeHeight} {horizontalOffset} />
+<Tower {imageUrl} {normalMapUrl} {origin} {planeHeight} horizontalOffset={scaledHorizontalOffset} />
 <ClockFace
     imageUrl={clockFaceImageUrl}
     normalMapUrl={clockFaceNormalMapUrl}
     towerPlaneHeight={planeHeight}
-    {horizontalOffset}
+    horizontalOffset={scaledHorizontalOffset}
     {smoothProgress}
 />
 
-<ClockHands progress={handsProgress} {totalTime} towerPlaneHeight={planeHeight} {horizontalOffset} />
+<ClockHands progress={handsProgress} {totalTime} towerPlaneHeight={planeHeight} horizontalOffset={scaledHorizontalOffset} />
 
 {#if showOriginMarker}
-    <OriginMarker size={planeHeight} {horizontalOffset} />
+    <OriginMarker size={planeHeight} horizontalOffset={scaledHorizontalOffset} />
 {/if}

@@ -64,8 +64,11 @@
     const LANTERN_ROPE_OVERLAP_SCALE = 0.11;
 
     // The camera is always centred on world (0,0) and shows `visibleHeight`
-    // world-units vertically; the visible width is about `visibleHeight * 2`
-    // (see the `horizontalOffset` note in ClocktowerScene.svelte).
+    // world-units vertically, and every size in this panel is a fraction of
+    // `visibleHeight` - so the panel's own size tracks the screen's height
+    // only, never its width. `SCREEN_WIDTH_FACTOR` is just the reference
+    // width (in the same height-relative units) that `widthFraction` below
+    // was tuned against - it does not depend on the real visible width.
     const SCREEN_WIDTH_FACTOR = 2;
 
     let {
@@ -75,7 +78,10 @@
         counts,
         visibleHeight,
         // The tower's rightward shift; the panel mirrors it to the left so
-        // the scene reads as centred. Same default as ClocktowerScene.
+        // the scene reads as centred. Same default as ClocktowerScene. This
+        // is the one thing allowed to shrink on narrow screens (see
+        // Scene.svelte) - it only repositions the panel toward centre
+        // (overlapping the tower if needed), it never resizes it.
         horizontalOffset = visibleHeight * 0.4
     }: {
         day: number;
