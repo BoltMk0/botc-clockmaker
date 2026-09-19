@@ -16,7 +16,7 @@
     // 1) - a single knob scaling the emissive dial, the point light it casts
     // onto the tower, and the mist halo bleeding out from it, so the three
     // stay balanced with each other as this is tuned.
-    const GLOW_INTENSITY = 0.5;
+    const GLOW_INTENSITY = 1;
     let {
         imageUrl,
         normalMapUrl,
@@ -95,9 +95,9 @@
     // out in front of the tower so it actually rakes across the
     // normal-mapped stonework around the clockface (carved ledges/mouldings
     // catch it as highlights) rather than only lighting the dial itself.
-    const LIGHT_FORWARD_DISTANCE = $derived(planeHeight * 1.2);
-    const LIGHT_DISTANCE = $derived(planeHeight * 3);
-    const lightIntensity = $derived(glowAmount * 6 * GLOW_INTENSITY);
+    const LIGHT_FORWARD_DISTANCE = $derived(planeHeight * 0.5);
+    const LIGHT_DISTANCE = $derived(planeHeight * 5);
+    const lightIntensity = $derived(glowAmount * 1 * GLOW_INTENSITY);
 
     // A soft, feathered halo bleeding out from the dial to read as mist/bloom
     // - same radial-gradient-canvas technique as the moon's and sun's halos,
@@ -161,7 +161,7 @@
         <T.MeshBasicMaterial
             map={haloTexture}
             transparent
-            opacity={glowAmount * GLOW_INTENSITY}
+            opacity={glowAmount * GLOW_INTENSITY * 0.5}
             blending={THREE.AdditiveBlending}
             depthWrite={false}
         />

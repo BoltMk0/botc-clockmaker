@@ -51,7 +51,7 @@ export function computeSeatsLayout(
     height: number,
     options: SeatsLayoutOptions
 ): { tokens: SeatsLayoutToken[]; tokenSize: number } {
-    const { minTokenSize, maxTokenSize, edgePadding, condense = 0.6, gapFactor = 1.08 } = options;
+    const { minTokenSize, maxTokenSize, edgePadding, condense = 0.6, gapFactor = 0.95 } = options;
 
     if (tokens.length === 0 || width <= 0 || height <= 0) {
         return { tokens: [], tokenSize: 0 };

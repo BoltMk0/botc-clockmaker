@@ -68,7 +68,9 @@
     // (normal-mapped relief with nothing directly lighting it) still reads
     // clearly once the sun's gone down, rather than going nearly flat black.
     const moonAppearAmount = $derived(Math.pow(1 - skyBrightness, 1.4));
-    const ambientIntensity = $derived(GI_FLOOR + skyBrightness * 2.2 + moonAppearAmount * 7);
+    // Overall multiplier on the whole ambient fill (floor, daytime and moonlit contributions alike).
+    const AMBIENT_SCALE = 2;
+    const ambientIntensity = $derived((GI_FLOOR + skyBrightness * 2.2 + moonAppearAmount * 7) * AMBIENT_SCALE);
     const GROUND_COLOR: [number, number, number] = [0.16, 0.14, 0.12];
 
     $effect(() => {

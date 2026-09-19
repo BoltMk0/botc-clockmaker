@@ -203,12 +203,12 @@
     // so this reads as scattered highlights picking out relief rather than
     // lighting the whole facade the way the sun does.
     const lightHeight = $derived(visibleHeight * 1.3);
-    const lightForwardDistance = $derived(visibleHeight * 0.2);
+    const lightForwardDistance = $derived(visibleHeight * 0.6);
 </script>
 
 <T.DirectionalLight
     position={[horizontalOffset, lightHeight, lightForwardDistance]}
-    intensity={appearAmount * 7}
+    intensity={appearAmount * 17}
     color={toThreeColor(coreColorRgb)}
 />
 
