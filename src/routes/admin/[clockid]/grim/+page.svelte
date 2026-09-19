@@ -156,6 +156,8 @@
     const TOKEN_SIZE_KEY = 'grimoire-token-size';
     let tokenSize = $state(browser ? Number(localStorage.getItem(TOKEN_SIZE_KEY)) || 150 : 150);
     const reminderTokenSize = $derived(Math.round(tokenSize * 0.5));
+    // Corner bluffs box: tokens are 70% of the on-screen board token size (which includes the view zoom).
+    const bluffCornerTokenSize = $derived(Math.round(tokenSize * viewScale * 0.7));
     // Phone-width screen (set from a media query on mount); same breakpoint as the full-screen tray CSS.
     let isMobile = $state(false);
     // Slightly smaller in the full-screen phone tray so more tokens fit per row.
@@ -1012,6 +1014,32 @@
         gap: 0.4em;
     }
 
+    .bluffs-corner {
+        position: absolute;
+        right: 8px;
+        bottom: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 8px;
+        border: none;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.6);
+        color: white;
+        cursor: pointer;
+    }
+
+    .bluffs-corner-label {
+        font-size: 0.75em;
+        opacity: 0.7;
+    }
+
+    .bluffs-corner-tokens {
+        display: flex;
+        gap: 4px;
+    }
+
     .show-bluffs-btn {
         display: flex;
         align-items: center;
@@ -1777,6 +1805,22 @@
             </div>
         {/if}
 
+    {#if loadedPreset && loadedPreset.bluff_ids.length > 0 && !showFooter}
+        <button type="button" class="bluffs-corner" onclick={showBluffs} title="Show bluffs" style="z-index: {z_indecies.ui};">
+            <span class="bluffs-corner-label">Bluffs</span>
+            <span class="bluffs-corner-tokens">
+                {#each loadedPreset.bluff_ids.slice(0, 3) as bluffId (bluffId)}
+                    {@const bluff = script?.characters.find(c => c.id === bluffId)}
+                    {#if bluff}
+                        <div style="position: relative; width: {bluffCornerTokenSize}px; height: {bluffCornerTokenSize}px;">
+                            <CharacterToken character={bluff} style="position: relative;" size="{bluffCornerTokenSize}px" norules/>
+                        </div>
+                    {/if}
+                {/each}
+            </span>
+        </button>
+    {/if}
+
     {#if !showFooter}
         <button class="open-tray-btn open-tray-tab" onclick={toggleTray} title="Show token tray" style="z-index: {z_indecies.ui};">
             <svg viewBox="0 0 24 24"><path d="M7 14l5-5 5 5z"/></svg>
@@ -2009,7 +2053,7 @@
                     <button class="button-style error" onclick={()=>{showTimerOptions = false;}}>X</button>
                 </div>
                 {#if clockClient}
-                    <ClockSetter model={clockClient} timerOptions={data.timerOptions} hasGrim={true} onstart={()=>{showTimerOptions = false}}/>
+                    <ClockSetter model={clockClient} timerOptions={data.timerOptions} hasGrim={true} inGrim onstart={()=>{showTimerOptions = false}}/>
                 {:else}
                     <div>Connecting to clock...</div>
                 {/if}

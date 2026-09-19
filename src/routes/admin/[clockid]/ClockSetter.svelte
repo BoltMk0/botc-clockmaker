@@ -16,11 +16,14 @@
         model,
         timerOptions,
         hasGrim,
+        inGrim = false,
         onstart = () => {}
     }: {
         model: Clocktower;
         timerOptions: TimerOption[];
         hasGrim: boolean;
+        // Already inside the grimoire view, so its own setup/view/remove controls are hidden.
+        inGrim?: boolean;
         onstart?: () => void;
     } = $props();
 
@@ -171,7 +174,7 @@
 
             <div class="button-container">
                 {#each timerOptions as option, index}
-                    <button class="button-container-button" class:active={option.duration === model.duration} onclick={() => setupClock(option)} disabled={model.running && model.timeOfDay === 'day'} style="grid-column: span {(index === timerOptions.length - 1 && timerOptions.length%2 === 1) ? 2 : 1};">
+                    <button class="button-container-button timer-option" class:active={option.duration === model.duration} onclick={() => setupClock(option)} disabled={model.running && model.timeOfDay === 'day'} style="grid-column: span {(index === timerOptions.length - 1 && timerOptions.length%2 === 1) ? 2 : 1};">
                         <div>
                             <div class="timer-icons" style="font-size: {option.label ? '0.8em' : '1em'};">
                                 <div>
@@ -205,7 +208,9 @@
                 </button>
             </div>
 
-            {#if grimExists}
+            {#if inGrim}
+                <!-- no grim controls while in the grim -->
+            {:else if grimExists}
                 <div class="grim-controls">
                     <a class="button-style" href="/admin/{model.id}/grim">View</a>
                     <button class="button-style error" onclick={removeGrim}>Remove</button>
@@ -283,6 +288,7 @@
     .button-container {
         display: grid;
         grid-template-columns: 1fr 1fr;
+        grid-auto-rows: 1fr;
         flex-wrap: wrap;
         gap: 5px;
         width: 100%;
@@ -306,6 +312,10 @@
 
     .button-container-button.active {
         background-color: #27ae60;
+    }
+
+    .timer-option {
+        padding: 19px 15px;
     }
 
     button:disabled {
