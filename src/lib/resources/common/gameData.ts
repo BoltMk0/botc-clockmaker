@@ -54,7 +54,7 @@ export type ScriptWithCharacters = Omit<Script, 'characters'> & {
 
 export type Preset = {
     id: string;
-    name: string;
+    name: string | null;
     script_id: string;
     character_ids: string[];
     bluff_ids: string[];
@@ -65,6 +65,10 @@ export type NewPreset = Omit<Preset, 'id'>;
 export type PresetFull = Preset & {
     script: ScriptWithCharacters;
 };
+
+export function presetDisplayName(preset: Preset, index: number): string {
+    return preset.name ?? `Preset ${index + 1}`;
+}
 
 export function isValidCharacterCategory(category: string): category is CharacterCategory {
     return CHARACTER_CATEGORIES.includes(category as CharacterCategory);
@@ -137,7 +141,7 @@ export function isScriptWithCharacters(obj: any): obj is ScriptWithCharacters {
 export function isPreset(obj: any): obj is Preset {
     const result = typeof obj === "object" &&
         typeof obj.id === "string" &&
-        typeof obj.name === "string" &&
+        (obj.name === null || typeof obj.name === "string") &&
         typeof obj.script_id === "string" &&
         Array.isArray(obj.character_ids) && obj.character_ids.every((id: any) => typeof id === "string") &&
         Array.isArray(obj.bluff_ids) && obj.bluff_ids.every((id: any) => typeof id === "string");

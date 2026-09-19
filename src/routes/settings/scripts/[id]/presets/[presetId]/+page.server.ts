@@ -15,7 +15,7 @@ export const actions = {
         try {
             const body = await request.formData();
 
-            const name = body.get('name')?.toString() || '';
+            const name = body.get('name')?.toString().trim() || null;
             const characterIdsRaw = body.get('characterIds')?.toString() || '';
             const characterIds = characterIdsRaw === '' ? [] : characterIdsRaw.split(',').filter(s => s !== '');
             const bluffIdsRaw = body.get('bluffIds')?.toString() || '';

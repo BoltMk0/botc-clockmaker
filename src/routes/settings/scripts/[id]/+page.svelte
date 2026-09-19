@@ -1,20 +1,19 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
     import { invalidateAll } from "$app/navigation";
-    import { CHARACTER_CATEGORIES } from "$lib/resources/common/gameData.js";
+    import { CHARACTER_CATEGORIES, presetDisplayName } from "$lib/resources/common/gameData.js";
     import CharacterThumb from "$lib/components/CharacterThumb.svelte";
+    import PresetSummary from "$lib/components/setup/PresetSummary.svelte";
     import type { PageData } from "./$types";
 
     let { data }: { data: PageData } = $props();
 
     async function createPreset() {
-        const name = prompt("Preset name:");
-        if (!name || !name.trim()) return;
         try {
             const response = await fetch('/api/presets', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ script_id: data.script.id, name: name.trim() })
+                body: JSON.stringify({ script_id: data.script.id, name: null })
             });
             if (!response.ok) throw new Error(`${response.status}`);
             const preset = await response.json();
@@ -126,12 +125,12 @@
                 <button class="button-style" onclick={createPreset}>+ New Preset</button>
             </div>
             <div class="preset-list">
-                {#each data.presets as preset (preset.id)}
+                {#each data.presets as preset, i (preset.id)}
                     <div class="preset-row">
-                        <span>{preset.name}</span>
+                        <PresetSummary {preset} characters={data.script.characters} index={i} />
                         <div style="display: flex; gap: 0.4em;">
                             <a class="button-style" href="/settings/scripts/{data.script.id}/presets/{preset.id}">Edit</a>
-                            <button class="button-style error" onclick={() => deletePreset(preset.id, preset.name)}>Delete</button>
+                            <button class="button-style error" onclick={() => deletePreset(preset.id, presetDisplayName(preset, i))}>Delete</button>
                         </div>
                     </div>
                 {:else}

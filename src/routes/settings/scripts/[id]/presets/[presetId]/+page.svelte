@@ -1,9 +1,9 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
-    import { CHARACTER_CATEGORIES, type Character, type PresetFull } from "$lib/resources/common/gameData.js";
-    import { getPlayerCount } from "$lib/common/util";
-    import CharacterToken from "$lib/components/CharacterToken.svelte";
-    import { enhance } from "$app/forms";
+    import type { PresetFull } from "$lib/resources/common/gameData.js";
+    import BuilderSteps from "$lib/components/setup/BuilderSteps.svelte";
+    import TokenGrid from "$lib/components/setup/TokenGrid.svelte";
+    import { PresetBuilder } from "$lib/components/setup/PresetBuilder.svelte.js";
 
     interface Props {
         data: {
@@ -12,288 +12,179 @@
         }
     }
 
-    let {data}: Props = $props();
+    let { data }: Props = $props();
 
-    // Set token size variable here
-    const tokenSize = $state('150px');
+    const STEPS = [
+        ['players', 'Players'],
+        ['tokens', 'Characters'],
+        ['extras', 'Extras'],
+        ['bluffs', 'Bluffs'],
+        ['summary', 'Summary']
+    ] as const;
 
+    const builder = new PresetBuilder();
     // svelte-ignore state_referenced_locally
-    let preset = $state(data.preset);
+    const initial = data.preset;
+    let name = $state(initial?.name ?? '');
+    let step = $state<string>('players');
+    let saving = $state(false);
 
-    const unused_characters = $derived(preset ? preset.script.characters : []);
-    const used_characters = $derived(preset ? preset.script.characters.filter(c => preset.character_ids.includes(c.id) && !preset.bluff_ids.includes(c.id)) : []);
-
-    const bluffs = $derived(preset ? preset.bluff_ids.map(id => preset.script.characters.find(c => c.id === id)).filter(Boolean) : []);
-
-    const currentTownsfolkCount = $derived(used_characters.filter(c => c.category === 'townsfolk').length);
-    const currentOutsiderCount = $derived(used_characters.filter(c => c.category === 'outsider').length);
-    const currentMinionCount = $derived(used_characters.filter(c => c.category === 'minion').length);
-    const currentDemonCount = $derived(used_characters.filter(c => c.category === 'demon').length);
-
-    let expectedPlayerCount = $state(7);
-    const expectedCharacterCounts = $derived(getPlayerCount(Number(expectedPlayerCount)));
-
-    function removeAll(){
-        if(!preset) return;
-        preset.character_ids = [];
-    }
-
-    function addCharacter(characterId: string){
-        if(!preset) return;
-        // Remove from bluffs if present
-        preset.bluff_ids = preset.bluff_ids.filter(id => id !== characterId);
-        // Add to in-play if not present
-        if(!preset.character_ids.includes(characterId)){
-            preset.character_ids.push(characterId);
+    if (initial) {
+        builder.setScript(initial.script);
+        builder.loadCharacters(initial.character_ids, initial.bluff_ids);
+        const seats = builder.chosenCharacters.length;
+        if (seats >= 5 && seats <= 15) {
+            builder.playerCount = seats;
+            step = 'summary';
+        } else {
+            builder.reset();
         }
     }
 
-    function removeCharacter(characterId: string){
-        if(!preset) return;
-        preset.character_ids = preset.character_ids.filter((id: string) => id !== characterId);
+    function goBackToStep(target: string) {
+        if (target === step) return;
+        if (target === 'extras') return;
+        if (target !== 'players' && builder.playerCount === null) return;
+        step = target;
     }
 
-    function addBluff(character: Character) {
-        if (!preset) return;
-        if (bluffs.length >= 3) return;
-        if (!preset.bluff_ids.find(id => id === character.id)) {
-            // Remove from in-play if present
-            preset.character_ids = preset.character_ids.filter((id: string) => id !== character.id);
-            // Add to bluffs
-            preset.bluff_ids.push(character.id);
+    async function save() {
+        if (!initial) return;
+        saving = true;
+        try {
+            const response = await fetch(`/api/presets/${initial.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: name.trim() || null,
+                    character_ids: builder.allCharacterIds,
+                    bluff_ids: builder.bluffIds
+                })
+            });
+            if (!response.ok) throw new Error(`${response.status}`);
+            goto(`/settings/scripts/${initial.script.id}`);
+        } catch (er) {
+            alert(`Failed to save preset: ${er}`);
+        } finally {
+            saving = false;
         }
-    }
-    function removeBluff(characterId: string) {
-        if (!preset) return;
-        preset.bluff_ids = preset.bluff_ids.filter(id => id !== characterId);
     }
 </script>
 
-
 <style>
-.preset-editor-main {
-    touch-action: none;
-}
-.preset-editor-layout {
-    display: grid;
-    gap: 1em;
-    width: 100%;
-    height: 100%;
-    grid-template-columns: 1fr 1fr;
-    box-sizing: border-box;
-    overflow: hidden;
-    padding: 1em;
-}
+    .editor-main {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 1em;
+        gap: 1em;
+        overflow: hidden;
+    }
 
-.scrollable {
-    overflow-y: auto;
-}
+    .editor-header {
+        display: flex;
+        align-items: center;
+        gap: 1em;
+    }
 
-.preset-editor-left {
-    height: 100%;
-    background: var(--theme-bg-secondary);
-    padding: 1em;
-    border-radius: 1em;
-    box-sizing: border-box;
-}
-.preset-editor-right {
-    display: grid;
-    grid-template-rows: 1fr auto;
-    gap: 1em;
-    height: 100%;
-    overflow: hidden;
-}
-.preset-editor-section {
-    background: var(--theme-bg-secondary);
-    padding: 1em;
-    border-radius: 1em;
-    box-sizing: border-box;
-}
+    .editor-steps {
+        display: flex;
+        gap: 0.5em;
+        align-items: center;
+        opacity: 0.7;
+        font-size: 0.9em;
+    }
 
-.token-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5em;
-}
-.token-list .token-wrapper {
-    position: relative;
-    width: var(--token-size);
-    height: var(--token-size);
-}
-.token-list .token-action {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    background: #fff8;
-    border: none;
-    border-radius: 50%;
-    width: 28px;
-    height: 28px;
-    font-size: 1.2em;
-    cursor: pointer;
-    z-index: 2;
-}
+    .editor-steps .active {
+        opacity: 1;
+        font-weight: bold;
+    }
 
-.preset-editor-main {
-    display: grid;
-    grid-template-rows: auto 1fr;
-    height: 100%;
-    width: 100%;
-}
+    .editor-steps button {
+        background: none;
+        border: none;
+        color: inherit;
+        font: inherit;
+        padding: 0;
+        cursor: pointer;
+    }
 
-.preset-editor-header {
-    display: flex;
-    gap: 0.5em;
-    align-items: center;
-    justify-content: space-between;
-}
+    .editor-body {
+        flex: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1em;
+    }
 
-.character-counts-table td, .character-counts-table th {
-    padding: 0.1em 0.4em;
-    text-align: center;
-}
+    .section {
+        background: var(--theme-bg-secondary);
+        padding: 1em;
+        border-radius: 1em;
+        box-sizing: border-box;
+    }
 
-h2 {
-    margin: 0;
-    font-size: 1em;
-}
+    .footer-actions {
+        display: flex;
+        justify-content: space-between;
+        gap: 1em;
+    }
 </style>
 
-
-{#if !preset}
+{#if !initial}
     <h1>Preset not found</h1>
     {#if data.error}
         <p>{data.error}</p>
     {/if}
 {:else}
-<div class="preset-editor-main">
-    <div class="preset-editor-header padded">
-        <div class="in-a-row">
-            <a href="/settings/scripts/{preset.script.id}" class="button-style" style="height: 100%;">← Back</a>
-            <div>
-                <input type="text" bind:value={preset.name} placeholder="Preset name" style="font-size: 1.2em;" class="input-style"/>
-                <div style="opacity: 0.6;">{preset.script.name}</div>
-            </div>
-        </div>
-
-        <div>
-            <table class="character-counts-table">
-                <thead>
-                    <tr>
-                        <th></th>
-                        <th>Players</th>
-                        <th>T</th>
-                        <th>O</th>
-                        <th>M</th>
-                        <th>D</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td style="padding: 0; opacity: 0.5;">Target</td>
-                        <td>
-                            <select bind:value={expectedPlayerCount}>
-                                {#each {length: 11} as _, i}
-                                    <option value={i + 5}>{i + 5}</option>
-                                {/each}
-                            </select>
-                        </td>
-                        <td>{expectedCharacterCounts.townsfolk}</td>
-                        <td>{expectedCharacterCounts.outsiders}</td>
-                        <td>{expectedCharacterCounts.minions}</td>
-                        <td>{expectedCharacterCounts.demons}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 0; opacity: 0.5;">Current</td>
-                        <td>{used_characters.reduce((acc, c) => acc + (c.player_count ?? 1), 0)}</td>
-                        <td>{currentTownsfolkCount}</td>
-                        <td>{currentOutsiderCount}</td>
-                        <td>{currentMinionCount}</td>
-                        <td>{currentDemonCount}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-        <form action="?/save" method="POST" use:enhance={()=>{
-            return async ({result}) => {
-                switch(result.type){
-                    case 'success':
-                        goto(`/settings/scripts/${preset.script.id}`);
-                        break;
-                    case 'redirect':
-                        break;
-                    case 'failure':
-                        alert(`Failed to save preset: ${result.data?.error || 'Unknown error'}`);
-                        break;
-                    case 'error':
-                        alert(`Failed to save preset: ${result.error}`);
-                        break;
-                }
-            }
-        }}>
-            <input type="hidden" name="name" value={preset.name}/>
-            <input type="hidden" name="characterIds" value={preset.character_ids.join(',')}/>
-            <input type="hidden" name="bluffIds" value={preset.bluff_ids.join(',')}/>
-            <button type="submit" class="button-style highlight">Save</button>
-        </form>
-    </div>
-    <div class="preset-editor-layout" style="--token-size: {tokenSize}">
-        <!-- LEFT: Available Characters -->
-        <div class="preset-editor-left scrollable">
-            <h2>Available Characters</h2>
-            <div class="token-list">
-            {#each CHARACTER_CATEGORIES as category, i}
-                    {#each unused_characters.filter(c => c.category === category) as character (character.id)}
-                        {#if preset.character_ids.includes(character.id) || preset.bluff_ids.includes(character.id)}
-                            <div class="token-wrapper" style="opacity: 0.4; filter: grayscale(0.4); pointer-events: none;">
-                                <CharacterToken {character} size={tokenSize} />
-                            </div>
-                        {:else}
-                            <div class="token-wrapper">
-                                <CharacterToken {character} size={tokenSize} />
-                                <button class="token-action" type="button" title="Add to preset" onclick={() => addCharacter(character.id)} onpointerdown={e => e.stopPropagation()}>+</button>
-                                <button class="token-action" type="button" title="Add as bluff" style="top:36px;" onclick={() => addBluff(character)} disabled={bluffs.length >= 3 || preset.bluff_ids.find(id => id === character.id) !== undefined} onpointerdown={e => e.stopPropagation()}>B</button>
-                            </div>
-                        {/if}
-                    {/each}
+<div class="editor-main">
+    <div class="editor-header">
+        <a href="/settings/scripts/{initial.script.id}" class="button-style">← Back</a>
+        <h1 style="margin: 0; font-size: 1.2em;">Edit preset</h1>
+        <span style="opacity: 0.6;">{initial.script.name}</span>
+        <div class="editor-steps">
+            {#each STEPS as [key, label], i}
+                {#if i > 0}<span>›</span>{/if}
+                <button class:active={step === key} onclick={() => goBackToStep(key)}>{i + 1}. {label}</button>
             {/each}
-            </div>
         </div>
+    </div>
 
-        <!-- RIGHT: In-Play and Bluffs -->
-        <div class="preset-editor-right">
-            <div class="preset-editor-section scrollable">
-                <div class="in-a-row" style="justify-content: space-between;">
-                    <h2>In-Play Characters</h2>
-                    <button class="button-style error" type="button" onclick={removeAll} onpointerdown={e => e.stopPropagation()}>Remove All</button>
-                </div>
-
-                <div class="token-list">
-                {#each CHARACTER_CATEGORIES as category}
-                        {#each used_characters.filter(c => c.category === category) as character (character.id)}
-                            <div class="token-wrapper">
-                                <CharacterToken {character} size={tokenSize} />
-                                <button class="token-action" type="button" title="Remove from preset" onclick={() => removeCharacter(character.id)} onpointerdown={e => e.stopPropagation()}>-</button>
-                            </div>
-                        {/each}
-                {/each}
-                </div>
+    <div class="editor-body">
+        {#if step === 'summary'}
+            <div class="section">
+                <h2 style="margin-top: 0;">Summary</h2>
+                <input type="text" bind:value={name} placeholder="Preset name (optional)" style="font-size: 1.2em;" class="input-style"/>
+                <p style="opacity: 0.7;">
+                    {builder.seatCharacterIds.length} player{builder.seatCharacterIds.length === 1 ? '' : 's'},
+                    {builder.bluffIds.length} bluff{builder.bluffIds.length === 1 ? '' : 's'}
+                </p>
             </div>
-            <div class="preset-editor-section bluffs">
-                <h2>Bluffs ({bluffs.length}/3)</h2>
-                <div class="token-list">
-                    {#each preset.bluff_ids as bluffId}
-                    {@const character = preset.script.characters.find(c => c.id === bluffId)}
-                    {#if character}
-                        <div class="token-wrapper">
-                            <CharacterToken {character} size={tokenSize} />
-                            <button class="token-action" type="button" title="Remove bluff" onclick={() => removeBluff(character.id)} onpointerdown={e => e.stopPropagation()}>-</button>
-                        </div>
-                    {/if}
-                    {/each}
-                </div>
+            <div class="section">
+                <h2 style="margin-top: 0;">Characters</h2>
+                <TokenGrid chars={builder.allCharacterIds.map(id => builder.charById.get(id)).filter(c => !!c)} />
             </div>
-        </div>
+            <div class="section">
+                <h2 style="margin-top: 0;">Bluffs</h2>
+                {#if builder.bluffIds.length === 0}
+                    <div style="opacity: 0.6;">No bluffs chosen.</div>
+                {:else}
+                    <TokenGrid chars={builder.bluffIds.map(id => builder.charById.get(id)).filter(c => !!c)} />
+                {/if}
+            </div>
+            <div class="footer-actions">
+                <button class="button-style" onclick={() => step = 'bluffs'}>← Back</button>
+                <button class="button-style highlight" disabled={saving || builder.playerCount === null} onclick={save}>Save</button>
+            </div>
+        {:else}
+            <BuilderSteps
+                {builder}
+                {step}
+                navigate={(s) => step = s}
+            />
+        {/if}
     </div>
 </div>
 {/if}

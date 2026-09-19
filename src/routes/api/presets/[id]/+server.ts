@@ -23,7 +23,7 @@ export async function PATCH({ params, request }) {
     if (!body) return json({ error: 'Invalid JSON body' }, { status: 400 });
 
     const { name, character_ids, bluff_ids } = body;
-    const preset = updatePreset(params.id, { name, character_ids, bluff_ids });
+    const preset = updatePreset(params.id, { name: typeof name === 'string' ? (name.trim() || null) : name, character_ids, bluff_ids });
     if (!preset) return json({ error: 'Preset not found' }, { status: 404 });
     return json(preset);
 }

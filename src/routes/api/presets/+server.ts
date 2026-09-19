@@ -17,10 +17,7 @@ export async function POST({ request }) {
     if (!script_id) {
         return json({ error: 'script_id is required' }, { status: 400 });
     }
-    if (!name) {
-        return json({ error: 'name is required' }, { status: 400 });
-    }
 
-    const preset = createPreset({ script_id, name, character_ids: [], bluff_ids: [] });
+    const preset = createPreset({ script_id, name: typeof name === 'string' && name.trim() ? name.trim() : null, character_ids: [], bluff_ids: [] });
     return json(preset, { status: 201 });
 }
