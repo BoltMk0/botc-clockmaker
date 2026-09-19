@@ -2,6 +2,7 @@
     import { goto } from "$app/navigation";
     import { type Preset, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import { newGrimoireStateHistory } from "$lib/resources/common/grimoireState.js";
+    import CharacterToken from "$lib/components/CharacterToken.svelte";
     import PresetSummary from "$lib/components/setup/PresetSummary.svelte";
     import BuilderSteps from "$lib/components/setup/BuilderSteps.svelte";
     import { PresetBuilder } from "$lib/components/setup/PresetBuilder.svelte.js";
@@ -113,6 +114,13 @@
 </script>
 
 <style>
+    .finish-tokens {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.4em;
+    }
+
     .setup-main {
         display: flex;
         flex-direction: column;
@@ -234,6 +242,11 @@
         justify-content: center;
         margin-top: 2em;
     }
+
+    .finish-choices > button {
+        padding: 1.1em 2em;
+        font-size: 1.1em;
+    }
 </style>
 
 <div class="setup-main" ondragstart={(e) => e.preventDefault()} role="presentation">
@@ -295,6 +308,14 @@
             <div class="section">
                 <h2 style="margin-top: 0;">Ready to seat {builder.seatCharacterIds.length} player{builder.seatCharacterIds.length === 1 ? '' : 's'}</h2>
                 <p>Choose how to assign characters to players.</p>
+            </div>
+            <div class="finish-tokens">
+                {#each builder.seatCharacterIds as id, i (id + i)}
+                    {@const character = builder.charById.get(id)}
+                    {#if character}
+                        <CharacterToken {character} size="80px" norules style="position: relative;" />
+                    {/if}
+                {/each}
             </div>
             <div class="finish-choices">
                 <button class="button-style highlight" disabled={submitting} onclick={drawTokens}>Draw tokens</button>

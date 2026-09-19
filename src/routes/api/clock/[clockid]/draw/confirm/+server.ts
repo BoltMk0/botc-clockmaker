@@ -18,6 +18,9 @@ export async function POST({ params, request }) {
     const slot = session.slots.find(s => s.number === number);
     if (!slot) return json({ error: 'No such slot' }, { status: 404 });
 
+    if (!slot.claimed) {
+        slot.claimOrder = Math.max(0, ...session.slots.map(s => s.claimOrder ?? 0)) + 1;
+    }
     slot.claimed = true;
     slot.playerName = playerName.trim();
     set_draw_session_for_clock(params.clockid, session);

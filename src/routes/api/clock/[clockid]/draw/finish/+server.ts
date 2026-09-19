@@ -15,7 +15,9 @@ export async function POST({ params }) {
     }
 
     const charactersById = new Map(getCharactersForScript(session.scriptId).map(c => [c.id, c]));
-    const seats = session.slots.map(slot => ({
+    // Seat order is the order players took their tokens, not the (shuffled) slot numbers.
+    const bySeatOrder = [...session.slots].sort((a, b) => (a.claimOrder ?? Infinity) - (b.claimOrder ?? Infinity) || a.number - b.number);
+    const seats = bySeatOrder.map(slot => ({
         characterId: slot.characterId,
         playerName: slot.playerName ?? '',
         alignment: alignmentForCategory(charactersById.get(slot.characterId)?.category ?? 'townsfolk')

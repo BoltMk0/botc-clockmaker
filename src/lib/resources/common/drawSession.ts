@@ -3,6 +3,8 @@ export type DrawSlot = {
     characterId: string;
     claimed: boolean; // true once the player has viewed their token and confirmed
     playerName: string | null; // optional - required when a slot is confirmed
+    // 1-based position in which players confirmed their token; this is their seat order round the table.
+    claimOrder?: number | null;
 };
 
 export type DrawSession = {
@@ -42,7 +44,8 @@ function isDrawSlot(obj: any): obj is DrawSlot {
         typeof obj.number === "number" && isFinite(obj.number) &&
         typeof obj.characterId === "string" &&
         typeof obj.claimed === "boolean" &&
-        (obj.playerName === null || typeof obj.playerName === "string");
+        (obj.playerName === null || typeof obj.playerName === "string") &&
+        (obj.claimOrder === undefined || obj.claimOrder === null || (typeof obj.claimOrder === "number" && isFinite(obj.claimOrder)));
 }
 
 export function isDrawSession(obj: any): obj is DrawSession {
