@@ -21,7 +21,12 @@ export async function POST({ params }) {
         alignment: alignmentForCategory(charactersById.get(slot.characterId)?.category ?? 'townsfolk')
     }));
 
-    const history = newGrimoireStateFromDraw(params.clockid, session.scriptId, seats, session.bluffIds);
+    const offSeats = (session.offSeatIds ?? []).map(characterId => ({
+        characterId,
+        alignment: alignmentForCategory(charactersById.get(characterId)?.category ?? 'townsfolk')
+    }));
+
+    const history = newGrimoireStateFromDraw(params.clockid, session.scriptId, seats, session.bluffIds, offSeats);
     set_grimoire_state_history_resource_for_clock(params.clockid, history);
 
     const playerCount = seats.reduce((sum, s) => sum + (charactersById.get(s.characterId)?.player_count ?? 0), 0);

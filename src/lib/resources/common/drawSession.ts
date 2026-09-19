@@ -9,6 +9,8 @@ export type DrawSession = {
     id: string; // clockid
     scriptId: string;
     bluffIds: string[];
+    // Characters with player_count == 0: nobody draws these, but they still get a token on the grim.
+    offSeatIds?: string[];
     slots: DrawSlot[];
 };
 
@@ -48,6 +50,7 @@ export function isDrawSession(obj: any): obj is DrawSession {
         typeof obj.id === "string" &&
         typeof obj.scriptId === "string" &&
         Array.isArray(obj.bluffIds) && obj.bluffIds.every((id: any) => typeof id === "string") &&
+        (obj.offSeatIds === undefined || (Array.isArray(obj.offSeatIds) && obj.offSeatIds.every((id: any) => typeof id === "string"))) &&
         Array.isArray(obj.slots) && obj.slots.every(isDrawSlot);
     if (!result) {
         console.error("Invalid DrawSession object:", obj);

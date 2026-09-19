@@ -12,7 +12,7 @@ export async function POST({ params, request }) {
     const body = await request.json().catch(() => null);
     if (!body) return json({ error: 'Invalid JSON body' }, { status: 400 });
 
-    const { scriptId, characterIds, bluffIds } = body;
+    const { scriptId, characterIds, bluffIds, offSeatIds = [] } = body;
     if (typeof scriptId !== 'string' || !scriptId) {
         return json({ error: 'scriptId is required' }, { status: 400 });
     }
@@ -23,7 +23,11 @@ export async function POST({ params, request }) {
         return json({ error: 'bluffIds must be an array of strings' }, { status: 400 });
     }
 
-    const session = newDrawSession(params.clockid, scriptId, characterIds, bluffIds);
+    if (!Array.isArray(offSeatIds) || !offSeatIds.every((id: any) => typeof id === 'string')) {
+        return json({ error: 'offSeatIds must be an array of strings' }, { status: 400 });
+    }
+
+    const session = newDrawSession(params.clockid, scriptId, characterIds, bluffIds, offSeatIds);
     return json(redactDrawSession(session), { status: 201 });
 }
 

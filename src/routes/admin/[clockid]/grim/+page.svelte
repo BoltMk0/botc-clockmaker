@@ -24,6 +24,9 @@
         clock: 10
     };
 
+    // Size of the central clock, as a multiple of the token size
+    const CLOCK_SCALE = 1.0;
+
     // Ring radii as multiples of the token size, to help line tokens up
     const ALIGNMENT_RING_FACTORS = [1.9, 2.6, 3.3];
 
@@ -413,8 +416,9 @@
     let pointerStartToken: PlacedToken | null = null;
     const TAP_THRESHOLD = 10;
 
-    // Zoom and pan so everything on the board (tokens, reminders, clock) fits inside the screen.
-    const FIT_PADDING = 48;
+    // Zoom and pan so the placed tokens fill the screen, edge to edge (rings, reminders and the clock are ignored).
+    const FIT_PADDING = 8;
+    const FIT_MAX_SCALE = 4;
     function fitView() {
         if (!boardEl) return;
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -423,14 +427,11 @@
             minY = Math.min(minY, y - half); maxY = Math.max(maxY, y + half);
         };
         for (const t of placedTokens) include(t.x, t.y, tokenSize / 2);
-        for (const r of placedReminders) include(r.x, r.y, reminderTokenSize / 2);
-        if (showClock) include(0, 0, (tokenSize * 1.5 + 50) / 2);
         if (!isFinite(minX)) { viewScale = 1; viewTx = 0; viewTy = 0; return; }
 
         const availW = Math.max(1, boardEl.offsetWidth - FIT_PADDING * 2);
         const availH = Math.max(1, boardEl.offsetHeight - FIT_PADDING * 2);
-        // Never zoom in past 1x - only shrink when the content doesn't fit.
-        const scale = Math.min(1, availW / (maxX - minX), availH / (maxY - minY));
+        const scale = Math.min(FIT_MAX_SCALE, availW / (maxX - minX), availH / (maxY - minY));
         viewScale = scale;
         // Screen position = centre + translate + scale * world, so centre the content's middle on the screen centre.
         viewTx = -scale * (minX + maxX) / 2;
@@ -1351,11 +1352,13 @@
     </div>
 
     {#if showClock}
-        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 2em; text-shadow: 0 0 10px rgba(0,0,0,0.7); z-index: {z_indecies.clock};">
+        <!-- The clock face itself ignores pointer input (so panning/dragging works over it); only a button over its centre 50% opens the timer options. -->
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 2em; text-shadow: 0 0 10px rgba(0,0,0,0.7); z-index: {z_indecies.clock}; pointer-events: none;">
             {#if clockClient}
-            <button class="no-button-style" style="position: relative; width: {tokenSize * 1.5 + 50}px; height: {tokenSize * 1.5 + 50}px; margin: 0 auto;" onclick={()=>showTimerOptions = true}>
-                <FullDisplay model={clockClient} size={tokenSize * 1.5} displayMode='original'/>
-            </button>
+            <div style="position: relative; width: {tokenSize * CLOCK_SCALE + 35}px; height: {tokenSize * CLOCK_SCALE + 35}px; margin: 0 auto;">
+                <FullDisplay model={clockClient} size={tokenSize * CLOCK_SCALE} displayMode='original'/>
+                <button class="no-button-style" aria-label="Clock controls" style="position: absolute; top: 25%; left: 25%; width: 50%; height: 50%; border-radius: 50%; pointer-events: auto;" onclick={()=>showTimerOptions = true}></button>
+            </div>
             {/if}
         </div>
     {/if}

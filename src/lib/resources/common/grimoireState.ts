@@ -111,15 +111,24 @@ export function computeCirclePositions(n: number, radius: number = 440): { x: nu
     });
 }
 
+// Y of the row of off-seat tokens: above the top seat of the default circle (radius 440) with room to spare.
+const OFF_SEAT_ROW_Y = -700;
+
+// Lays n points out in a horizontal row centred on x = 0.
+export function computeRowPositions(n: number, y: number, spacing: number = 170): { x: number, y: number }[] {
+    return Array.from({ length: n }, (_, i) => ({ x: Math.round((i - (n - 1) / 2) * spacing), y }));
+}
+
 export function newGrimoireStateFromDraw(
     clockId: string,
     scriptId: string,
     seats: { characterId: string, playerName: string, alignment: Alignment }[],
-    bluffIds: string[]
+    bluffIds: string[],
+    offSeats: { characterId: string, alignment: Alignment }[] = []
 ): GrimoireStateHistory {
     const history = newGrimoireStateHistory(clockId, scriptId);
     const positions = computeCirclePositions(seats.length);
-    history.present.placedTokens = seats.map((seat, i) => ({
+    const seatTokens: PlacedToken[] = seats.map((seat, i) => ({
         characterId: seat.characterId,
         isDead: false,
         alignment: seat.alignment,
@@ -127,8 +136,18 @@ export function newGrimoireStateFromDraw(
         y: positions[i].y,
         playerName: seat.playerName
     }));
+    // Characters that don't take a seat (player_count == 0) sit in a row above the town, apart from it.
+    const rowPositions = computeRowPositions(offSeats.length, OFF_SEAT_ROW_Y);
+    const offSeatTokens: PlacedToken[] = offSeats.map((off, i) => ({
+        characterId: off.characterId,
+        isDead: false,
+        alignment: off.alignment,
+        x: rowPositions[i].x,
+        y: rowPositions[i].y
+    }));
+    history.present.placedTokens = [...seatTokens, ...offSeatTokens];
     history.loadedPreset = {
-        character_ids: seats.map(s => s.characterId),
+        character_ids: [...seats.map(s => s.characterId), ...offSeats.map(o => o.characterId)],
         bluff_ids: bluffIds
     };
     return history;

@@ -65,7 +65,7 @@
             const res = await fetch(`/api/clock/${data.clockid}/draw`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ scriptId: builder.script.id, characterIds: builder.seatCharacterIds, bluffIds: builder.bluffIds })
+                body: JSON.stringify({ scriptId: builder.script.id, characterIds: builder.seatCharacterIds, bluffIds: builder.bluffIds, offSeatIds: builder.zeroCountChars.map(c => c.id) })
             });
             if (!res.ok) {
                 const body = await res.json().catch(() => null);

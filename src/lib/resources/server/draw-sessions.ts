@@ -12,7 +12,7 @@ function shuffled<T>(items: T[]): T[] {
     return result;
 }
 
-export function newDrawSession(clockId: string, scriptId: string, seatCharacterIds: string[], bluffIds: string[]): DrawSession {
+export function newDrawSession(clockId: string, scriptId: string, seatCharacterIds: string[], bluffIds: string[], offSeatIds: string[] = []): DrawSession {
     const shuffledCharacterIds = shuffled(seatCharacterIds);
     const slots: DrawSlot[] = shuffledCharacterIds.map((characterId, i) => ({
         number: i + 1,
@@ -20,7 +20,7 @@ export function newDrawSession(clockId: string, scriptId: string, seatCharacterI
         claimed: false,
         playerName: null
     }));
-    const session: DrawSession = { id: clockId, scriptId, bluffIds, slots };
+    const session: DrawSession = { id: clockId, scriptId, bluffIds, offSeatIds, slots };
     DRAW_SESSION_MANAGER.add(session);
     return session;
 }
