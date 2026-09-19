@@ -1,5 +1,5 @@
 <script lang="ts">
-    import Navbar from '$lib/components/Navbar.svelte';
+    import TopNavbar from '$lib/components/TopNavbar.svelte';
 
     let { data }: { data: { clockid: string, name: string, hasGrim: boolean } } = $props();
 
@@ -21,7 +21,7 @@
     }
 </script>
 
-<Navbar/>
+<TopNavbar/>
 
 <div class="storytell">
     <div class="storytell-header">

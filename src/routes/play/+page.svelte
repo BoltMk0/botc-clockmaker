@@ -1,7 +1,8 @@
 <script lang="ts">
     import { invalidateAll } from '$app/navigation';
-    import Navbar from '$lib/components/Navbar.svelte';
+    import TopNavbar from '$lib/components/TopNavbar.svelte';
     import PlusIcon from '$lib/components/PlusIcon.svelte';
+    import CogIcon from '$lib/components/CogIcon.svelte';
     import type { ClocktowerModel } from '$lib/model/common/ClocktowerModel';
 
     let { data }: { data: { games: { instance: ClocktowerModel, scriptName: string | null }[] } } = $props();
@@ -24,22 +25,9 @@
         });
     }
 
-    function deleteGame(instance: ClocktowerModel){
-        const name = instance.config.teamName ?? instance.clock.clockId;
-        if(!confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) return;
-        fetch(`/api/clock/${instance.clock.clockId}/delete`, { method: 'POST' }).then(response => {
-            if(!response.ok){
-                alert("Failed to delete game");
-                throw new Error('Failed to delete game');
-            }
-            return invalidateAll();
-        }).catch(error => {
-            console.error("Error deleting game:", error);
-        });
-    }
 </script>
 
-<Navbar/>
+<TopNavbar/>
 
 <div class="play">
     <div class="play-header">
@@ -52,6 +40,9 @@
             {@const id = instance.clock.clockId}
             <div class="game-panel">
                 <div class="game-panel-name">{instance.config.teamName ?? id}</div>
+                <a class="settings-link" href="/settings/clocks?select={id}" aria-label="Game settings" title="Settings">
+                    <CogIcon size={24}/>
+                </a>
                 <div class="game-panel-stats">
                     <div class="stat">
                         <div class="stat-label">Script</div>
@@ -68,10 +59,8 @@
                 </div>
                 <div class="game-panel-actions">
                     <a class="button-style" href="/townsquare/{id}">Town Square</a>
-                    <a class="button-style" href="/settings/clocks?select={id}">Settings</a>
                     <a class="button-style" href="/admin/{id}/storytell">Storytell</a>
                 </div>
-                <button class="button-style error delete-btn" onclick={() => deleteGame(instance)}>Delete Game</button>
             </div>
         {/each}
 
@@ -135,6 +124,7 @@
     }
 
     .game-panel {
+        position: relative;
         display: flex;
         flex-direction: column;
         gap: 0.8em;
@@ -147,6 +137,20 @@
     .game-panel-name {
         font-size: x-large;
         word-break: break-word;
+        padding-right: 2em;
+    }
+
+    .settings-link {
+        position: absolute;
+        top: 0.8em;
+        right: 1em;
+        display: flex;
+        color: var(--theme-on-bg);
+        opacity: 0.6;
+    }
+
+    .settings-link:hover {
+        opacity: 1;
     }
 
     .game-panel-stats {
@@ -167,12 +171,11 @@
 
     .game-panel-actions {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(2, 1fr);
         gap: 0.5em;
     }
 
-    .game-panel-actions .button-style,
-    .delete-btn {
+    .game-panel-actions .button-style {
         box-sizing: border-box;
         text-align: center;
     }
@@ -183,11 +186,6 @@
         display: flex;
         align-items: center;
         justify-content: center;
-    }
-
-    .delete-btn {
-        opacity: 0.7;
-        font-size: small;
     }
 
     .new-game-row {

@@ -1,6 +1,6 @@
 <script lang="ts">
     import { page } from '$app/state';
-    import Navbar from '$lib/components/Navbar.svelte';
+    import TopNavbar from '$lib/components/TopNavbar.svelte';
 
     const paths = [
         '/settings/resources',
@@ -20,7 +20,7 @@
 </script>
 
 
-<Navbar/>
+<TopNavbar/>
 
 <div class="settings-layout-main">
     <div class="settings-layout-links in-a-column">

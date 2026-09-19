@@ -1,5 +1,5 @@
 <script lang="ts">
-    import Navbar from '$lib/components/Navbar.svelte';
+    import TopNavbar from '$lib/components/TopNavbar.svelte';
 
     const menuItems = [
         { label: 'Play', href: '/play' },
@@ -8,7 +8,7 @@
     ];
 </script>
 
-<Navbar/>
+<TopNavbar/>
 
 <div class="home-menu">
     <img class="home-icon" src="/icons/appicon_256x256.png" alt="" />
