@@ -2,6 +2,7 @@
     import type { Character } from "$lib/resources/common/gameData";
     import TokenBackground from "./TokenBackground.svelte";
     import DeadVoteIcon from "./DeadVoteIcon.svelte";
+    import type { Alignment } from "$lib/resources/common/grimoireState";
 
     let {
         character,
@@ -12,9 +13,12 @@
         playerName = undefined,
         dead = false,
         hasDeadVote = false,
+        alignment = undefined,
     }: {
         // Shows the dead-vote marker on a dead player's token.
         hasDeadVote?: boolean;
+        // When set, the icon image is recoloured to that alignment's colour, keeping whites (see ALIGNMENT_ICON_COLORS).
+        alignment?: Alignment | undefined;
         character: Character;
         nightOrder?: number | undefined;
         style?: string;
@@ -37,13 +41,51 @@
         minion: '#dc2626',
         demon: '#7c3aed',
         traveler: '#ca8a04',
+        loric: '#0d9488',
+        fabled: '#db2777',
     };
 
     const color = $derived(categoryColors[character.category] ?? '#666');
+
+    // Colour the icon is forced to for each alignment (hex).
+    const ALIGNMENT_ICON_COLORS: Record<Alignment, string> = { good: '#558bdf', evil: '#ca4444' };
+    // The icon's brightness is kept (so its detail still reads) and mapped onto the colour: each channel becomes
+    // colour * (LIGHTNESS_GAIN * luminance + LIGHTNESS_BIAS), with the icon's own transparency untouched.
+    const LIGHTNESS_GAIN = 1.2;
+    const LIGHTNESS_BIAS = 0.35;
+    // Areas of the icon at least this bright (luminance 0-1) are left white rather than tinted; the transition
+    // to fully white takes WHITE_SOFTNESS of luminance, so anti-aliased edges don't get a hard fringe.
+    const WHITE_THRESHOLD = 0.8;
+    const WHITE_SOFTNESS = 0.125;
+    // A white layer whose alpha ramps from 0 to 1 with the icon's luminance across the range above.
+    const whiteMaskMatrix = `0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 ${0.2126 / WHITE_SOFTNESS} ${0.7152 / WHITE_SOFTNESS} ${0.0722 / WHITE_SOFTNESS} 0 ${-WHITE_THRESHOLD / WHITE_SOFTNESS}`;
+    const iconFilterId = `icon-tint-${Math.random().toString(36).slice(2, 10)}`;
+    const iconFilterMatrix = $derived.by(() => {
+        if (!alignment) return '';
+        const hex = ALIGNMENT_ICON_COLORS[alignment].replace('#', '');
+        const [r, g, b] = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
+        const row = (c: number) => `${c * LIGHTNESS_GAIN * 0.2126} ${c * LIGHTNESS_GAIN * 0.7152} ${c * LIGHTNESS_GAIN * 0.0722} 0 ${c * LIGHTNESS_BIAS}`;
+        return `${row(r)} ${row(g)} ${row(b)} 0 0 0 1 0`;
+    });
+    const iconFilter = $derived(alignment ? `url(#${iconFilterId})` : undefined);
 </script>
 
 
 <div style="position: absolute; {style}">
+    {#if alignment}
+        <svg width="0" height="0" style="position: absolute;" aria-hidden="true">
+            <filter id={iconFilterId} color-interpolation-filters="sRGB">
+                <feColorMatrix in="SourceGraphic" type="matrix" values={iconFilterMatrix} result="tint" />
+                <feColorMatrix in="SourceGraphic" type="matrix" values={whiteMaskMatrix} result="whiteRaw" />
+                <!-- Keep only where the icon itself is opaque, then lay the white over the tint. -->
+                <feComposite in="whiteRaw" in2="SourceAlpha" operator="in" result="white" />
+                <feMerge>
+                    <feMergeNode in="tint" />
+                    <feMergeNode in="white" />
+                </feMerge>
+            </filter>
+        </svg>
+    {/if}
     <div style="position:relative; width: {size}; height: {size};">
         
         <TokenBackground {size} style="border: calc({size} / 40) solid {color};">
@@ -53,7 +95,7 @@
             <div style="position: relative; width: 100%; height: 100%;">
                 <div style="position: absolute; width: 62%; height: 62%; top: {playerName ? '50%' : '45%'}; left: 50%; transform: translate(-50%, -50%);">
                     {#if !imageFailed}
-                        <img src={`/api/characters/${character.id}/img`} alt={character.name} class="category-icon-img" onerror={() => imageFailed = true} />
+                        <img src={`/api/characters/${character.id}/img`} alt={character.name} class="category-icon-img" style:filter={iconFilter} onerror={() => imageFailed = true} />
                     {:else}
                         <div class="category-icon-default dumbledore-font">{character.name.split(' ').map(word => word[0].toUpperCase()).join('')}</div>
                     {/if}
@@ -79,7 +121,7 @@
         <div class="token-content" style="--token-size: {size}; --token-color: {color}; grid-template-rows: {norules ? '4fr 2fr' : '3fr 4fr'};">
             <div class="category-icon-container">
                 {#if !imageFailed}
-                    <img src={`/api/characters/${character.id}/img`} alt={character.name} class="category-icon-img" onerror={() => imageFailed = true} />
+                    <img src={`/api/characters/${character.id}/img`} alt={character.name} class="category-icon-img" style:filter={iconFilter} onerror={() => imageFailed = true} />
                 {:else}
                     <div class="category-icon-default dumbledore-font">{character.name.split(' ').map(word => word[0].toUpperCase()).join('')}</div>
                 {/if}
