@@ -1035,8 +1035,14 @@
             flex-direction: column;
             padding-bottom: 0;
         }
+        .token-tray-header {
+            position: relative;
+            min-height: 40px;
+        }
         .tray-close-btn {
             display: block;
+            top: 0;
+            right: 0;
         }
         .token-tray {
             flex: 1;
@@ -1145,6 +1151,12 @@
     .overlay-panel .popup-player-name {
         font-size: 1em;
         padding: 8px 10px;
+    }
+
+    /* Sits above the icon, clear of the close button in the corner. */
+    .overlay-panel .overlay-player-name {
+        width: calc(100% - 80px);
+        text-align: center;
     }
 
     .overlay-rules {
@@ -1685,6 +1697,16 @@
                 {#if activeToken}
                     {@const activeChar = script?.characters.find(c => c.id === activeCharacterId)}
                     <div class="popup-meta">
+                        {#if isPlayerToken(activeToken)}
+                            <input
+                                type="text"
+                                class="popup-player-name"
+                                placeholder="Player name"
+                                value={activeToken.playerName ?? ''}
+                                oninput={(e) => setPlayerName((e.target as HTMLInputElement).value)}
+                                onpointerdown={(e) => e.stopPropagation()}
+                            />
+                        {/if}
                         <div class="popup-toggles">
                             <button type="button" class="popup-toggle" class:dead={activeToken.isDead} onclick={toggleAlive}>
                                 {activeToken.isDead ? 'Dead' : 'Alive'}
@@ -1696,16 +1718,6 @@
                                 <button type="button" class="popup-toggle" onclick={() => viewCharacter(activeChar.id)}>Show</button>
                             {/if}
                         </div>
-                        {#if isPlayerToken(activeToken)}
-                            <input
-                                type="text"
-                                class="popup-player-name"
-                                placeholder="Player name"
-                                value={activeToken.playerName ?? ''}
-                                oninput={(e) => setPlayerName((e.target as HTMLInputElement).value)}
-                                onpointerdown={(e) => e.stopPropagation()}
-                            />
-                        {/if}
                         <button type="button" class="popup-toggle" onclick={() => pickingCharacter = true}>
                             {activeChar ? 'Change character' : 'Choose character'}
                         </button>
@@ -1741,7 +1753,7 @@
     <div class="grimoire-footer" bind:this={footerEl} style="--tray-token: {trayTokenSize}px; transform: translateY({showFooter && !dragging && !draggingReminder ? '0' : '100%'}); z-index: {z_indecies.ui};">
         <div class="token-tray-container">
             <div class="token-tray-header">
-                <button class="button-style tray-close-btn" onclick={() => showFooter = false}>Close</button>
+                <button class="overlay-close tray-close-btn" onclick={() => showFooter = false} aria-label="Close">✕</button>
                 {#if script}
                     <div style="opacity: 0.7;">{script.name}</div>
                 {/if}
@@ -1849,6 +1861,15 @@
         <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 10};" onclick={(e) => { if (!(e.target as Element).closest('input')) closeOverlay(); }}>
             <div class="overlay-panel">
                 <button class="overlay-close" onclick={closeOverlay} aria-label="Close">✕</button>
+                {#if overlayFromBoard && activeToken && isPlayerToken(activeToken)}
+                    <input
+                        type="text"
+                        class="popup-player-name overlay-player-name"
+                        placeholder="Player name"
+                        value={activeToken.playerName ?? ''}
+                        oninput={(e) => setPlayerName((e.target as HTMLInputElement).value)}
+                    />
+                {/if}
                 {#if oc}
                     <img class="overlay-icon" src={`/api/characters/${oc.id}/img`} alt="" onerror={(e) => (e.currentTarget as HTMLImageElement).style.display = 'none'} />
                     <div class="overlay-name dumbledore-font">{oc.name}</div>
@@ -1872,15 +1893,6 @@
                             <button type="button" class="button-style" onclick={() => viewCharacter(oc.id)}>Show</button>
                         {/if}
                     </div>
-                    {#if isPlayerToken(activeToken)}
-                        <input
-                            type="text"
-                            class="popup-player-name"
-                            placeholder="Player name"
-                            value={activeToken.playerName ?? ''}
-                            oninput={(e) => setPlayerName((e.target as HTMLInputElement).value)}
-                        />
-                    {/if}
                     <button type="button" class="button-style" onclick={(e) => { e.stopPropagation(); pickingCharacter = true; }}>
                         {oc ? 'Change character' : 'Choose character'}
                     </button>

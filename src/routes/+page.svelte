@@ -12,7 +12,8 @@
 <Navbar/>
 
 <div class="home-menu">
-    <div class="home-title dumbledore-font">Blood on the Clocktower</div>
+    <img class="home-icon" src="/icons/appicon_256x256.png" alt="" />
+    <div class="home-title dumbledore-font">Clockmaker</div>
     <div class="home-menu-buttons">
         {#each menuItems as item}
             <a class="button-style home-menu-button" href={item.href}>{item.label}</a>
@@ -30,6 +31,14 @@
         width: 100%;
         height: 100%;
         box-sizing: border-box;
+    }
+
+    .home-icon {
+        width: 128px;
+        height: 128px;
+        border-radius: 22%;
+        box-shadow: 0 4px 12px #0008;
+        margin-bottom: -1em;
     }
 
     .home-title {
