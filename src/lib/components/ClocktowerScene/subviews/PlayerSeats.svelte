@@ -13,7 +13,7 @@
     const MAX_TOKEN_SIZE_FRACTION = 0.19;
     // Small, so tokens spread out closer to the edges of the (now much
     // bigger) seats area rather than clustering conservatively inward.
-    const EDGE_PADDING_FRACTION = -0.05;
+    const EDGE_PADDING_FRACTION = 0;
 
     let {
         area,
