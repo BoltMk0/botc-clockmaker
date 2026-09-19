@@ -1031,7 +1031,6 @@
     }
 
     .bluffs-corner-label {
-        font-size: 0.75em;
         opacity: 0.7;
     }
 
@@ -1807,7 +1806,7 @@
 
     {#if loadedPreset && loadedPreset.bluff_ids.length > 0 && !showFooter}
         <button type="button" class="bluffs-corner" onclick={showBluffs} title="Show bluffs" style="z-index: {z_indecies.ui};">
-            <span class="bluffs-corner-label">Bluffs</span>
+            <span class="bluffs-corner-label" style="font-size: {Math.round(tokenSize * viewScale * 0.15)}px;">Bluffs</span>
             <span class="bluffs-corner-tokens">
                 {#each loadedPreset.bluff_ids.slice(0, 3) as bluffId (bluffId)}
                     {@const bluff = script?.characters.find(c => c.id === bluffId)}

@@ -64,13 +64,10 @@
                         <textPath href="#{curvedPathId}" startOffset="50%">{character.name.toUpperCase()}</textPath>
                     </text>
                 </svg>
-                {#if dead}
-                    <div class="dead-shroud"></div>
-                {/if}
                 {#if playerName}
                     <!-- Mirror image of the character name: the letters' outer edge is at radius 40 (as the character name's baseline is),
-                         so with ~8 units of capital height the baseline goes at 32. Drawn after the shroud so it stays readable. -->
-                    <svg class="curved-name" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                         so with ~8 units of capital height the baseline goes at 32. Layered above the shroud so it stays readable. -->
+                    <svg class="curved-name player-name-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
                         <path id={playerNamePathId} d="M 18 50 A 32 32 0 0 1 82 50" fill="none" stroke="none"/>
                         <text class="player-name-text dumbledore-font" text-anchor="middle" font-size="12">
                             <textPath href="#{playerNamePathId}" startOffset="50%">{playerName.toUpperCase()}</textPath>
@@ -97,6 +94,11 @@
         {/if}
 
         </TokenBackground>
+
+        {#if dead && norules}
+            <!-- Outside TokenBackground (which clips to its padding box) so the shroud covers the border too. -->
+            <div class="dead-shroud"></div>
+        {/if}
 
         {#if hasDeadVote}
             <DeadVoteIcon size="calc({size} / 2)" style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2;" />
@@ -204,6 +206,11 @@
         fill: black;
         font-weight: bold;
         letter-spacing: -1px;
+    }
+
+    /* Above the shroud (a later sibling) so the player's name stays readable. */
+    .player-name-svg {
+        z-index: 1;
     }
 
     .dead-shroud {
