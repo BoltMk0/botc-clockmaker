@@ -18,12 +18,12 @@
     // population title (see TextBanner.svelte/PlayerCountBanner.svelte's
     // TEXT_COLOR), so player names read as part of the same signage system.
     const TEXT_COLOR = "#c9c2a3";
-    const MAX_FONT_PX = 220;
+    const MAX_FONT_PX = 100;
     const MIN_FONT_PX = 40;
     // Inset from the token's own edge before text can be drawn, as a
     // fraction of the token's width/height - keeps names off the carved
     // wooden rim.
-    const CONTENT_MARGIN = 0.22;
+    const CONTENT_MARGIN = 0.08;
 
     const CANVAS_SIZE = 512;
 
