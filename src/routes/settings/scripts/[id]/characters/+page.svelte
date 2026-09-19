@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { CHARACTER_CATEGORIES, type Character, type ScriptCharacter } from "$lib/resources/common/gameData.js";
+    import { ALL_CHARACTER_CATEGORIES, type Character, type ScriptCharacter } from "$lib/resources/common/gameData.js";
     import CharacterThumb from "$lib/components/CharacterThumb.svelte";
     import { goto } from "$app/navigation";
     import type { PageData } from "./$types";
@@ -7,7 +7,7 @@
 
     const characterMap = new Map<string, ScriptCharacter>(data.characters.map((c: any) => [c.id, c]));
 
-    const FILTER_OPTIONS = ['all', ...CHARACTER_CATEGORIES, 'traveler'] as const;
+    const FILTER_OPTIONS = ['all', ...ALL_CHARACTER_CATEGORIES] as const;
     type FilterOption = typeof FILTER_OPTIONS[number];
 
     let searchQuery = $state("");
@@ -264,6 +264,8 @@
     .category-minion    { background-color: #d96a4a; color: #fff; }
     .category-demon     { background-color: #b63737; color: #fff; }
     .category-traveler  { background-color: #7a6fb6; color: #fff; }
+    .category-loric     { background-color: #2f9e8f; color: #fff; }
+    .category-fabled    { background-color: #c9508b; color: #fff; }
 
     .night-order-column {
         height: 100%;
@@ -376,7 +378,7 @@
                     <div>In Script</div>
                 </div>
                 <div class="character-category-column-content">
-                    {#each [...CHARACTER_CATEGORIES, 'traveler'] as category}
+                    {#each ALL_CHARACTER_CATEGORIES as category}
                         {@const inCat = data.script.characters.filter((c: ScriptCharacter) => c.category === category)}
                         {#if inCat.length > 0}
                             <div style="opacity: 0.6;">{captialiseString(category)} ({inCat.length})</div>

@@ -1,6 +1,10 @@
-export type CharacterCategory = 'townsfolk' | 'outsider' | 'minion' | 'demon' | 'traveler';
+export type CharacterCategory = 'townsfolk' | 'outsider' | 'minion' | 'demon' | 'traveler' | 'loric' | 'fabled';
 
 export const CHARACTER_CATEGORIES: CharacterCategory[] = ['townsfolk', 'outsider', 'minion', 'demon'];
+
+// Every category a character can have. CHARACTER_CATEGORIES is just the four that make up a
+// player's team in setup (and count towards the player-count breakdown); the rest are extras.
+export const ALL_CHARACTER_CATEGORIES: CharacterCategory[] = [...CHARACTER_CATEGORIES, 'traveler', 'loric', 'fabled'];
 
 export type ReminderToken = {
     id: string;
@@ -71,7 +75,7 @@ export function presetDisplayName(preset: Preset, index: number): string {
 }
 
 export function isValidCharacterCategory(category: string): category is CharacterCategory {
-    return CHARACTER_CATEGORIES.includes(category as CharacterCategory);
+    return ALL_CHARACTER_CATEGORIES.includes(category as CharacterCategory);
 }
 
 export function alignmentForCategory(category: CharacterCategory): 'good' | 'evil' {

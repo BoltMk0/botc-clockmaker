@@ -142,7 +142,7 @@
     <div class="section">
         <TokenGrid
             chars={builder.script.characters}
-            headingSuffix={category => category === 'traveler' ? '' : `(${builder.currentCounts[COUNT_KEYS[category]]}/${builder.expectedCounts[COUNT_KEYS[category]]})`}
+            headingSuffix={category => !(category in COUNT_KEYS) ? '' : `(${builder.currentCounts[COUNT_KEYS[category as keyof typeof COUNT_KEYS]]}/${builder.expectedCounts[COUNT_KEYS[category as keyof typeof COUNT_KEYS]]})`}
             isSelected={c => builder.chosenCharacterIds.includes(c.id)}
             onpick={c => builder.toggleCharacter(c.id)}
             isDisabled={() => builder.chosenCharacterIds.length >= (builder.playerCount ?? 0)}

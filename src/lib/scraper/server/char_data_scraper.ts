@@ -58,7 +58,9 @@ const CATEGORY_WIKI_PAGE: Record<CharacterCategory, string> = {
     outsider: 'Category:Outsiders',
     minion: 'Category:Minions',
     demon: 'Category:Demons',
-    traveler: 'Category:Travellers'
+    traveler: 'Category:Travellers',
+    loric: 'Category:Loric',
+    fabled: 'Category:Fabled'
 };
 
 // The wiki's MediaWiki category pages list every character in that category as

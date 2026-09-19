@@ -1,11 +1,11 @@
 import { json } from '@sveltejs/kit';
-import { isValidCharacterCategory, CHARACTER_CATEGORIES } from '$lib/resources/common/gameData';
+import { isValidCharacterCategory, ALL_CHARACTER_CATEGORIES } from '$lib/resources/common/gameData';
 import { listWikiCharacters, scrapeCharacter } from '$lib/scraper/server/char_data_scraper';
 
 export async function GET({ url }) {
     const category = url.searchParams.get('category');
     if (!category || !isValidCharacterCategory(category)) {
-        return json({ error: `category query param must be one of: ${CHARACTER_CATEGORIES.join(', ')}` }, { status: 400 });
+        return json({ error: `category query param must be one of: ${ALL_CHARACTER_CATEGORIES.join(', ')}` }, { status: 400 });
     }
 
     return await listWikiCharacters(category)
@@ -19,7 +19,7 @@ export async function POST({ request }) {
 
     const { category, name, wikiPath } = body;
     if (!category || !isValidCharacterCategory(category)) {
-        return json({ error: `category must be one of: ${CHARACTER_CATEGORIES.join(', ')}` }, { status: 400 });
+        return json({ error: `category must be one of: ${ALL_CHARACTER_CATEGORIES.join(', ')}` }, { status: 400 });
     }
     if (typeof name !== 'string' || !name.trim() || typeof wikiPath !== 'string' || !wikiPath.trim()) {
         return json({ error: 'name and wikiPath are required' }, { status: 400 });

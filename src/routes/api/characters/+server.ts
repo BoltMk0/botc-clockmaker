@@ -1,8 +1,8 @@
 import { json } from '@sveltejs/kit';
 import { listCharacters, listCharactersByCategory, addCharacter } from '$lib/resources/server/characters';
-import type { CharacterCategory } from '$lib/resources/common/gameData';
+import { ALL_CHARACTER_CATEGORIES, type CharacterCategory } from '$lib/resources/common/gameData';
 
-const VALID_CATEGORIES: CharacterCategory[] = ['townsfolk', 'outsider', 'minion', 'demon', 'traveler'];
+const VALID_CATEGORIES = ALL_CHARACTER_CATEGORIES;
 
 export async function GET({ url }) {
     const category = url.searchParams.get('category') as CharacterCategory | null;

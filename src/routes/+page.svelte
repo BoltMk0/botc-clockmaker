@@ -2,8 +2,7 @@
     import Navbar from '$lib/components/Navbar.svelte';
 
     const menuItems = [
-        { label: 'Town Square', href: '/townsquare' },
-        { label: 'Storytelling', href: '/admin/storytelling' },
+        { label: 'Play', href: '/play' },
         { label: 'Rules', href: '/rules' },
         { label: 'Settings', href: '/settings' }
     ];

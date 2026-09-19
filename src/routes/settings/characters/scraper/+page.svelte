@@ -1,7 +1,7 @@
 <script lang="ts">
     import CharacterThumb from "$lib/components/CharacterThumb.svelte";
     import type { Character, CharacterCategory } from "$lib/resources/common/gameData";
-    import { CHARACTER_CATEGORIES } from "$lib/resources/common/gameData";
+    import { ALL_CHARACTER_CATEGORIES } from "$lib/resources/common/gameData";
     import { slugify } from "$lib/resources/common/util";
     import type { CharacterScrapeResult, WikiCharacterListing } from "$lib/scraper/common/types";
     import { writable } from "svelte/store";
@@ -19,7 +19,7 @@
         iconError?: string;
     };
 
-    const allListings = CHARACTER_CATEGORIES.flatMap(
+    const allListings = ALL_CHARACTER_CATEGORIES.flatMap(
         category => data.listingsByCategory[category].map(listing => ({ category, listing }))
     );
 
@@ -31,7 +31,7 @@
     let jobsByName = writable(new Map<string, JobStatus>());
     let running = writable(false);
     let currentName = writable<string | null>(null);
-    let openCategories = writable(new Set<CharacterCategory>(CHARACTER_CATEGORIES));
+    let openCategories = writable(new Set<CharacterCategory>(ALL_CHARACTER_CATEGORIES));
 
     function toggleCategory(category: CharacterCategory) {
         openCategories.update(set => {
@@ -88,7 +88,7 @@
     <div class="scraper-toolbar">
         <div class="toolbar-heading">
             <h2>Character Wiki Scraper</h2>
-            <p>Pulls townsfolk, outsiders, minions and demons - name, ability text and token icon - from the <a href="https://wiki.bloodontheclocktower.com/Main_Page" target="_blank" rel="noreferrer">Blood on the Clocktower wiki</a>.</p>
+            <p>Pulls townsfolk, outsiders, minions, demons, travellers, loric and fabled - name, ability text and token icon - from the <a href="https://wiki.bloodontheclocktower.com/Main_Page" target="_blank" rel="noreferrer">Blood on the Clocktower wiki</a>.</p>
         </div>
         <div class="toolbar-actions">
             <button class="button-style primary" onclick={() => ($running ? running.set(false) : scrapeAll())}>
@@ -101,14 +101,14 @@
                 {:else if $progress > 0}
                     Done - {successCount} succeeded, {errorCount} failed
                 {:else}
-                    {allListings.length} characters found across {CHARACTER_CATEGORIES.length} categories
+                    {allListings.length} characters found across {ALL_CHARACTER_CATEGORIES.length} categories
                 {/if}
             </div>
         </div>
     </div>
 
     <div class="scraper-body">
-        {#each CHARACTER_CATEGORIES as category}
+        {#each ALL_CHARACTER_CATEGORIES as category}
             {@const listings = data.listingsByCategory[category]}
             <div class="category-group">
                 <button class="category-header no-button-style" onclick={() => toggleCategory(category)}>

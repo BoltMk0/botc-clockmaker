@@ -11,6 +11,8 @@
         minion: '#dc2626',
         demon: '#7c3aed',
         traveler: '#ca8a04',
+        loric: '#0d9488',
+        fabled: '#db2777',
     };
 
     const color = $derived(categoryColors[character.category] ?? '#666');

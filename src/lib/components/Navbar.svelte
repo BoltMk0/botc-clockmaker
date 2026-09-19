@@ -129,7 +129,7 @@
     <ul style="list-style-type: none; padding: 0 2em 0 1em; margin: 0; margin-bottom: 1em;">
         <li><a href="/" target="_self">Home</a></li>
         <li>
-            <a href="/townsquare" target="_self">Town Square</a>
+            <a href="/play" target="_self">Play</a>
             {#if clients !== undefined && clients.length > 0}
             <ul>
                 <li><a href="/townsquare/all" target="_self">All</a></li>
@@ -137,14 +137,13 @@
                     <li>
                         <a href="/townsquare/{client.clock.clockId}" target="_self">{client.config.teamName}</a>
                         <ul>
-                            <li><a href="/admin/{client.clock.clockId}" target="_self">Remote</a></li>
+                            <li><a href="/admin/{client.clock.clockId}/storytell" target="_self">Storytell</a></li>
                         </ul>
                     </li>
                 {/each}
             </ul>
             {/if}
         </li>
-        <li><a href="/admin/storytelling" target="_self">Storytelling</a></li>
         <li><a href="/admin/mixer">Audio Mixer</a></li>
         <li><a href="/rules" target="_self">Rules</a></li>
         <li><a href="/settings" target="_self">Settings</a></li>

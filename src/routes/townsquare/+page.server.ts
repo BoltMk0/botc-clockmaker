@@ -1,6 +1,5 @@
-import { getBOTCTClockInstanceManager } from "$lib/model/server/model";
+import { redirect } from "@sveltejs/kit";
 
-export async function load(){
-    const manager = getBOTCTClockInstanceManager();
-    return { instances: manager.listInstances() };
+export function load(){
+    throw redirect(302, "/play");
 }

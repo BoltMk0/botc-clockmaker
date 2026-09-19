@@ -25,5 +25,6 @@
 </script>
 <Navbar/>
 {#if model}
-<ClockSetter {model} timerOptions={data.timerOptions} hasGrim={data.hasGrim}/>
+<!-- grim setup/view/delete live on the storytell page now, so hide them here -->
+<ClockSetter {model} timerOptions={data.timerOptions} hasGrim={data.hasGrim} inGrim={true}/>
 {/if}
