@@ -10,6 +10,11 @@
         exportedDimensions?: { width: number, height: number };
         layers: CanvasLayer[];
         activeLayerIndex: number;
+        idleGestures?: boolean;
+        idleIgnore?: string;
+        idlePanIgnore?: string;
+        ongesturestart?: () => void;
+        onresetview?: () => void;
         viewScale?: number;
         viewTx?: number;
         viewTy?: number;
@@ -25,6 +30,11 @@
         layers,
         activeLayerIndex,
         onchange,
+        idleGestures = true,
+        idleIgnore = '',
+        idlePanIgnore = '',
+        ongesturestart,
+        onresetview,
         viewScale = $bindable(1),
         viewTx = $bindable(0),
         viewTy = $bindable(0),
@@ -40,6 +50,9 @@
         width: 100%;
         height: 100%;
         box-sizing: border-box;
+        /* Off-screen content (tokens past the edge, or the zoomed/panned wrapper) must not extend
+           the scrollable area of an ancestor, or the browser's native scroll fights our pan/zoom. */
+        overflow: hidden;
     }
 
     .content-wrapper {
@@ -59,7 +72,7 @@
     <div class="content-wrapper" style="transform: translate({viewTx}px, {viewTy}px) scale({viewScale});">
         {@render children?.()}
     </div>
-    <DrawableCanvas2 {onchange} bind:viewTx bind:viewTy bind:viewScale {tool} {canvasStyle} {exportedDimensions} {layers} {activeLayerIndex}/>
+    <DrawableCanvas2 {onchange} bind:viewTx bind:viewTy bind:viewScale {tool} {idleGestures} {idleIgnore} {idlePanIgnore} {ongesturestart} {onresetview} {canvasStyle} {exportedDimensions} {layers} {activeLayerIndex}/>
 </div>
 
 

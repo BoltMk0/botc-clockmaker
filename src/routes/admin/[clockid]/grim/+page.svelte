@@ -131,10 +131,15 @@
 
 
     const canvasLayers = $derived(workingGameSnapshot.canvas.layers); // Set on mount by AnotatableView, source of truth for layers
+    // Pinch-zoom / pan of the board (bound to the annotatable view; also works outside draw mode)
+    let viewScale = $state(1);
+    let viewTx = $state(0);
+    let viewTy = $state(0);
     let activeCanvasLayerIndex = $state<number>(0); // Set on mount by AnotatableView, source of truth for active layer index
 
     // Token size control
     let showTokenSizeSlider = $state(false);
+    let sidebarOpen = $state(false);
     const TOKEN_SIZE_KEY = 'grimoire-token-size';
     let tokenSize = $state(browser ? Number(localStorage.getItem(TOKEN_SIZE_KEY)) || 150 : 150);
     const reminderTokenSize = $derived(Math.round(tokenSize * 0.5));
@@ -244,12 +249,11 @@
         void reminderCache[activeReminderCharId];
         void activeToken?.isDead;
         void activeToken?.alignment;
-        const boardRect = boardEl.getBoundingClientRect();
         const popupRect = reminderPopupEl.getBoundingClientRect();
         const margin = 8;
         const halfWidth = popupRect.width / 2;
         const minX = halfWidth + margin;
-        const maxX = boardRect.width - halfWidth - margin;
+        const maxX = window.innerWidth - halfWidth - margin;
         if (maxX < minX) return;
         const clampedX = Math.max(minX, Math.min(maxX, activeReminderPos.x));
         if (clampedX !== activeReminderPos.x) {
@@ -409,6 +413,41 @@
     let pointerStartToken: PlacedToken | null = null;
     const TAP_THRESHOLD = 10;
 
+    // Zoom and pan so everything on the board (tokens, reminders, clock) fits inside the screen.
+    const FIT_PADDING = 48;
+    function fitView() {
+        if (!boardEl) return;
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        const include = (x: number, y: number, half: number) => {
+            minX = Math.min(minX, x - half); maxX = Math.max(maxX, x + half);
+            minY = Math.min(minY, y - half); maxY = Math.max(maxY, y + half);
+        };
+        for (const t of placedTokens) include(t.x, t.y, tokenSize / 2);
+        for (const r of placedReminders) include(r.x, r.y, reminderTokenSize / 2);
+        if (showClock) include(0, 0, (tokenSize * 1.5 + 50) / 2);
+        if (!isFinite(minX)) { viewScale = 1; viewTx = 0; viewTy = 0; return; }
+
+        const availW = Math.max(1, boardEl.offsetWidth - FIT_PADDING * 2);
+        const availH = Math.max(1, boardEl.offsetHeight - FIT_PADDING * 2);
+        // Never zoom in past 1x - only shrink when the content doesn't fit.
+        const scale = Math.min(1, availW / (maxX - minX), availH / (maxY - minY));
+        viewScale = scale;
+        // Screen position = centre + translate + scale * world, so centre the content's middle on the screen centre.
+        viewTx = -scale * (minX + maxX) / 2;
+        viewTy = -scale * (minY + maxY) / 2;
+    }
+
+    // A second finger landed: whatever tap/drag the first finger was starting is now part of a pinch instead.
+    function cancelPendingBoardTap() {
+        pointerStartPos = null;
+        pointerStartToken = null;
+    }
+
+    function boardCentre(): { x: number; y: number } {
+        const rect = boardEl!.getBoundingClientRect();
+        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    }
+
     function startDragFromTray(e: PointerEvent, character: ScriptCharacter) {
         e.preventDefault();
         closeReminderTray();
@@ -441,9 +480,9 @@
         }
 
         closeReminderTray();
-        const rect = boardEl.getBoundingClientRect();
-        const tokenScreenX = rect.left + rect.width / 2 + token.x;
-        const tokenScreenY = rect.top + rect.height / 2 + token.y;
+        const centre = boardCentre();
+        const tokenScreenX = centre.x + token.x * viewScale;
+        const tokenScreenY = centre.y + token.y * viewScale;
         dragOffset = { x: e.clientX - tokenScreenX, y: e.clientY - tokenScreenY };
         dragging = { character: character, source: 'board', sourceToken: token };
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
@@ -486,15 +525,16 @@
         }
         activeReminderCharId = token.characterId;
         if(!boardEl) return;
-        const boardRect = boardEl.getBoundingClientRect();
+        const centre = boardCentre();
         // Use the current token size for vertical offset, plus a small gap (10px)
         const gap = 10;
+        const halfToken = (tokenSize / 2) * viewScale;
         activeReminderAbove = token.y > 0;
         activeReminderPos = {
-            x: boardRect.width / 2 + token.x,
+            x: centre.x + token.x * viewScale,
             y: activeReminderAbove
-                ? boardRect.height / 2 + token.y - tokenSize / 2 - gap
-                : boardRect.height / 2 + token.y + tokenSize / 2 + gap,
+                ? centre.y + token.y * viewScale - halfToken - gap
+                : centre.y + token.y * viewScale + halfToken + gap,
         };
         await loadRemindersForCharacter(token.characterId);
         reminderCache = reminderCache; // trigger reactivity
@@ -572,11 +612,11 @@
         // Handle reminder token drop
         if (draggingReminder) {
             if (boardEl && !isNearEdge(e.clientX, e.clientY)) {
-                const boardRect = boardEl.getBoundingClientRect();
+                const centre = boardCentre();
                 const dropX = e.clientX - dragOffset.x;
                 const dropY = e.clientY - dragOffset.y;
-                const x = dropX - boardRect.left - boardRect.width / 2;
-                const y = dropY - boardRect.top - boardRect.height / 2;
+                const x = (dropX - centre.x) / viewScale;
+                const y = (dropY - centre.y) / viewScale;
                 gameState.present.placedReminders = [...placedReminders, { tokenId: draggingReminder.token.id, x, y }];
                 rescheduleSaveGrimoire();
             }
@@ -590,22 +630,23 @@
         if (!dragging) return;
 
         if (boardEl) {
-            const boardRect = boardEl.getBoundingClientRect();
+            const centre = boardCentre();
             const footerRect = footerEl?.getBoundingClientRect();
             const isOverFooter = footerRect && (
                 e.clientX >= footerRect.left && e.clientX <= footerRect.right &&
                 e.clientY >= footerRect.top && e.clientY <= footerRect.bottom
             );
+            // The board rect grows/shrinks with zoom, so test against the screen rather than the rect.
             const isOverBoard = !isOverFooter && (
-                e.clientX >= boardRect.left && e.clientX <= boardRect.right &&
-                e.clientY >= boardRect.top && e.clientY <= boardRect.bottom
+                e.clientX >= 0 && e.clientX <= window.innerWidth &&
+                e.clientY >= 0 && e.clientY <= window.innerHeight
             );
 
             if (isOverBoard && !isNearEdge(e.clientX, e.clientY)) {
                 const dropX = e.clientX - dragOffset.x;
                 const dropY = e.clientY - dragOffset.y;
-                const x = dropX - boardRect.left - boardRect.width / 2;
-                const y = dropY - boardRect.top - boardRect.height / 2;
+                const x = (dropX - centre.x) / viewScale;
+                const y = (dropY - centre.y) / viewScale;
                 const newPlacedToken: PlacedToken = {
                     characterId: dragging.character.id,
                     x, y,
@@ -627,6 +668,7 @@
     onMount(()=>{
         if(!browser) return;
         clockClient = new Clocktower(data.model);
+        fitView();
         return () => {
             if(saveGrimoireTimeout){
                 clearTimeout(saveGrimoireTimeout);
@@ -671,6 +713,17 @@
 <svelte:window onpointermove={onPointerMove} onpointerup={onPointerUp}/>
 
 <style>
+    /* Pins the whole grim view to the viewport and clips everything else (e.g. the hidden tray sitting
+       below the screen, popups, drag ghosts) so nothing can extend the page's scrollable area. */
+    .grim-root {
+        position: fixed;
+        inset: 0;
+        overflow: hidden;
+        overscroll-behavior: none;
+        /* All touch gestures (pinch/pan/drag) are handled in JS; stop the browser zooming or scrolling the page. */
+        touch-action: none;
+    }
+
     .grimoire-board {
         position: absolute;
         inset: 0;
@@ -935,7 +988,7 @@
     .sidebar {
         position: absolute;
         left: 0;
-        top: 50px;
+        top: 0;
         display: flex;
         flex-direction: column;
         gap: 8px;
@@ -1079,6 +1132,7 @@
 </style>
 
 
+    <div class="grim-root">
     <div class="save-status {saveStatus}" style="z-index: {z_indecies.ui};" title={
         saveStatus === 'saved' ? 'All changes saved'
         : saveStatus === 'saving' ? 'Saving…'
@@ -1097,6 +1151,16 @@
     </div>
 
     <div class="sidebar" style="z-index: {z_indecies.ui};">
+        <!-- Collapse / expand the sidebar -->
+        <button class="sidebar-btn" class:active={sidebarOpen} onclick={() => sidebarOpen = !sidebarOpen} title="{sidebarOpen ? 'Hide' : 'Show'} menu">
+            {#if sidebarOpen}
+                <svg viewBox="0 0 24 24"><path d="M7.41 15.41 12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+            {:else}
+                <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            {/if}
+        </button>
+
+        {#if sidebarOpen}
         <!-- Canvas control -->
          <div style="position: relative">
             <button class="sidebar-btn" class:active={editing} onclick={() => {
@@ -1233,9 +1297,10 @@
             <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
         </button>
 
+        {/if}
     </div>
 
-    <AnotatableViewV2 tool={editing ? activeTool : null} onchange={rescheduleSaveGrimoire} layers={canvasLayers} activeLayerIndex={activeCanvasLayerIndex} canvasStyle="z-index: {z_indecies.canvas};">
+    <AnotatableViewV2 ongesturestart={cancelPendingBoardTap} onresetview={fitView} bind:viewScale bind:viewTx bind:viewTy idleGestures={!dragging && !draggingReminder} idleIgnore=".sidebar, .grimoire-footer, .reminder-popup, [role='dialog']" idlePanIgnore=".board-token, .board-reminder, button, a, input, [role='dialog']" tool={editing ? activeTool : null} onchange={rescheduleSaveGrimoire} layers={canvasLayers} activeLayerIndex={activeCanvasLayerIndex} canvasStyle="z-index: {z_indecies.canvas};">
 
     <div class="grimoire-board" bind:this={boardEl}>
         {#if !tokensLocked}
@@ -1439,7 +1504,7 @@
 
     {#if dragging && ghostPos}
         <div class="drag-ghost" style="left: {ghostPos.x}px; top: {ghostPos.y}px; z-index: {z_indecies.ui};">
-            <CharacterToken character={dragging.character} style="position: relative;" size={tokenSize + 'px'} norules/>
+            <CharacterToken character={dragging.character} style="position: relative;" size={tokenSize * viewScale + 'px'} norules/>
         </div>
         {#if dragging.source === 'board'}
             <div class="edge-delete-indicator" class:active={isNearEdge(ghostPos.x, ghostPos.y)} style="z-index: {z_indecies.ui};"></div>
@@ -1448,7 +1513,7 @@
 
     {#if draggingReminder && ghostPos}
         <div class="drag-ghost" style="left: {ghostPos.x}px; top: {ghostPos.y}px;">
-            <ReminderTokenView data={draggingReminder.token} characterId={draggingReminder.characterId} size="60px"/>
+            <ReminderTokenView data={draggingReminder.token} characterId={draggingReminder.characterId} size="{reminderTokenSize * viewScale}px"/>
         </div>
         <div class="edge-delete-indicator" class:active={isNearEdge(ghostPos.x, ghostPos.y)}></div>
     {/if}
@@ -1470,4 +1535,4 @@
             </div>
         </div>
     {/if}
-
+    </div>

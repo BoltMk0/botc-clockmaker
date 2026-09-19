@@ -13,6 +13,16 @@
         activeLayerIndex: number;
         layers: CanvasLayer[];
         tool: CanvasToolType | null;
+        /** When no tool is active: allow two-finger pinch/pan (and two-finger tap to reset) anywhere on screen. */
+        idleGestures?: boolean;
+        /** Touches starting inside an element matching this selector are ignored by the idle gestures. */
+        idleIgnore?: string;
+        /** A single finger dragging on empty space pans the view, unless it starts inside an element matching this selector. */
+        idlePanIgnore?: string;
+        /** Called when an idle two-finger gesture begins, so the host can cancel any tap/drag the first finger started. */
+        ongesturestart?: () => void;
+        /** Overrides what an idle two-finger tap does (default: back to 1x, unpanned). */
+        onresetview?: () => void;
         viewScale: number;
         viewTx: number;
         viewTy: number;
@@ -25,6 +35,11 @@
         activeLayerIndex,
         layers = $bindable<CanvasLayer[]>([]),
         tool = $bindable<CanvasToolType|null>(null),
+        idleGestures = true,
+        idleIgnore = '',
+        idlePanIgnore = '',
+        ongesturestart,
+        onresetview,
         viewScale = $bindable<number>(1),
         viewTx = $bindable<number>(0),
         viewTy = $bindable<number>(0),
@@ -79,8 +94,6 @@
         redrawFromStrokes();
     });
 
-    // Reset view when tool is set to null (e.g. after finishing editing).
-    $effect(()=>{if(tool === null) {viewScale = 1; viewTx = 0; viewTy = 0;}}); // Reset zoom and pan when no tool is active.
 
 
 
@@ -596,6 +609,125 @@
     }
 
 
+    ////// IDLE (NO TOOL) PINCH / PAN //////
+    // With no tool active the canvas lets pointer events through to the tokens beneath it, so we watch
+    // touches on the window instead and only react once a second finger joins.
+    const idleTouches = new Map<number, {x: number; y: number}>();
+    let idlePrevMid: {x: number; y: number} | null = null;
+    let idlePrevDist = 1;
+    let idleStart = 0;
+    let idleMoved = false;
+    // True from the moment a second finger joins until every finger is lifted (plus a short tail to swallow the trailing click).
+    let idleGesturing = false;
+    // Single-finger pan candidate (a touch that started on empty space); `active` once it has moved past the threshold.
+    let idlePan: { id: number; startX: number; startY: number; lastX: number; lastY: number; active: boolean } | null = null;
+    const IDLE_PAN_THRESHOLD = 8;
+    let idleSuppressClickUntil = 0;
+
+    function idleActive() {
+        return tool === null && idleGestures && !!canvas;
+    }
+
+    function idlePos(event: PointerEvent): CanvasPoint {
+        const rect = canvas.getBoundingClientRect();
+        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    }
+
+    function idleBeginPinch() {
+        const [p1, p2] = [...idleTouches.values()];
+        idlePrevMid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+        idlePrevDist = Math.max(1, Math.hypot(p2.x - p1.x, p2.y - p1.y));
+        idleStart = Date.now();
+        idleMoved = false;
+        idleGesturing = true;
+        idlePan = null; // a second finger turns any single-finger pan into a pinch
+        ongesturestart?.();
+    }
+
+    function onIdleClick(event: MouseEvent) {
+        if (idleGesturing || Date.now() < idleSuppressClickUntil) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    }
+
+    function onIdlePointerDown(event: PointerEvent) {
+        if (!idleActive() || event.pointerType !== 'touch') return;
+        if (idleIgnore && (event.target as Element | null)?.closest?.(idleIgnore)) return;
+        const pos = idlePos(event);
+        idleTouches.set(event.pointerId, pos);
+        if (idleTouches.size === 1) {
+            const onInteractive = !!idlePanIgnore && !!(event.target as Element | null)?.closest?.(idlePanIgnore);
+            idlePan = onInteractive ? null : { id: event.pointerId, startX: pos.x, startY: pos.y, lastX: pos.x, lastY: pos.y, active: false };
+        }
+        if (idleTouches.size === 2) idleBeginPinch();
+        // Once a gesture is under way, extra fingers must not reach the tokens/buttons underneath.
+        if (idleGesturing) event.stopPropagation();
+    }
+
+    function onIdlePointerMove(event: PointerEvent) {
+        if (!idleTouches.has(event.pointerId)) return;
+        if (!idleActive()) { idleTouches.clear(); idlePrevMid = null; idlePan = null; idleGesturing = false; return; }
+        const pos = idlePos(event);
+        idleTouches.set(event.pointerId, pos);
+
+        if (idleTouches.size === 1 && idlePan?.id === event.pointerId) {
+            if (!idlePan.active) {
+                if (Math.hypot(pos.x - idlePan.startX, pos.y - idlePan.startY) < IDLE_PAN_THRESHOLD) return;
+                idlePan.active = true;
+                idleGesturing = true;
+                ongesturestart?.();
+            }
+            viewTx += pos.x - idlePan.lastX;
+            viewTy += pos.y - idlePan.lastY;
+            idlePan.lastX = pos.x;
+            idlePan.lastY = pos.y;
+            event.stopPropagation();
+            event.preventDefault();
+            return;
+        }
+
+        if (idleGesturing) event.stopPropagation(); // keep the first finger from dragging a token mid-gesture
+        if (idleTouches.size < 2 || idlePrevMid === null) return;
+
+        const [p1, p2] = [...idleTouches.values()];
+        const newMid: CanvasPoint = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+        const newDist = Math.max(1, Math.hypot(p2.x - p1.x, p2.y - p1.y));
+        const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, viewScale * newDist / idlePrevDist));
+        const actualF = newScale / viewScale;
+        viewTx = newMid.x - actualF * (idlePrevMid.x - (viewTx + canvasCenterX)) - canvasCenterX;
+        viewTy = newMid.y - actualF * (idlePrevMid.y - (viewTy + canvasCenterY)) - canvasCenterY;
+        viewScale = newScale;
+
+        const dx = newMid.x - idlePrevMid.x;
+        const dy = newMid.y - idlePrevMid.y;
+        const distRatio = newDist / idlePrevDist;
+        if (dx * dx + dy * dy > TWO_FINGER_TAP_MOVE_THRESHOLD * TWO_FINGER_TAP_MOVE_THRESHOLD || distRatio < 0.9 || distRatio > 1.1) {
+            idleMoved = true;
+        }
+        idlePrevMid = newMid;
+        idlePrevDist = newDist;
+        event.preventDefault();
+    }
+
+    function onIdlePointerEnd(event: PointerEvent) {
+        if (!idleTouches.delete(event.pointerId)) return;
+        if (idlePan?.id === event.pointerId) idlePan = null;
+        if (idleGesturing) {
+            event.stopPropagation(); // don't let lifting a finger count as a tap on whatever is underneath
+            if (idleTouches.size === 0) {
+                idleGesturing = false;
+                idleSuppressClickUntil = Date.now() + 400;
+            }
+        }
+        if (idleTouches.size < 2 && idlePrevMid !== null) {
+            // A quick two-finger tap resets the view.
+            if (!idleMoved && Date.now() - idleStart < TWO_FINGER_TAP_MAX_MS) (onresetview ?? resetView)();
+            idlePrevMid = null;
+        }
+    }
+
+
     let exportBoxStyle = $derived(exportedDimensions
         ? `left:${(-exportedDimensions.width / 2) * viewScale + viewTx + canvasCenterX}px; top:${(-exportedDimensions.height / 2) * viewScale + viewTy + canvasCenterY}px; width:${exportedDimensions.width * viewScale}px; height:${exportedDimensions.height * viewScale}px;`
         : '');
@@ -627,6 +759,14 @@
         resizeObserver?.disconnect();
     });
 </script>
+
+<svelte:window
+    onpointerdowncapture={onIdlePointerDown}
+    onpointermovecapture={onIdlePointerMove}
+    onpointerupcapture={onIdlePointerEnd}
+    onpointercancelcapture={onIdlePointerEnd}
+    onclickcapture={onIdleClick}
+/>
 
 <div class="canvas-wrapper"
     aria-hidden="{tool === null}"
