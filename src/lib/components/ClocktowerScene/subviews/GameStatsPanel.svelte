@@ -5,7 +5,8 @@
     import Lantern from "./Lantern.svelte";
     import RopeChain from "./RopeChain.svelte";
     import PlayerSeats from "./PlayerSeats.svelte";
-    import SideRolesPanel from "./SideRolesPanel.svelte";
+    import PlayerSeatToken from "./PlayerSeatToken.svelte";
+    import SideRolesTitle from "./SideRolesTitle.svelte";
     import { sideRoleCharacters } from "$lib/components/playerSeatsLayout";
     import type { GrimoireStateHistory } from "$lib/resources/common/grimoireState";
     import type { ScriptWithCharacters } from "$lib/resources/common/gameData";
@@ -145,10 +146,21 @@
         script?: ScriptWithCharacters | null;
     } = $props();
 
-    // Loric and fabled in the game: listed in their own panel at the top-right rather than seated.
+    // Loric and fabled in the game: a vertical stack of tokens at the top-right rather than seated.
     const sideRoles = $derived(sideRoleCharacters(grimoireState, script));
     // Margin from the screen's top/right edges, as a fraction of visibleHeight.
     const SIDE_ROLES_MARGIN_FRACTION = 0.027;
+    const SIDE_ROLE_TOKEN_FRACTION = 0.18;
+    const SIDE_ROLE_GAP_FRACTION = 0;
+    // Tokens per column; more than this wraps into another column to the left.
+    const SIDE_ROLES_PER_COLUMN = 3;
+    const SIDE_ROLES_TITLE_HEIGHT_FRACTION = 0.034;
+    const SIDE_ROLES_TITLE_WIDTH_FRACTION = 0.3;
+    const sideRolesTitle = $derived.by(() => {
+        const hasLoric = sideRoles.some(c => c.category === "loric");
+        const hasFabled = sideRoles.some(c => c.category === "fabled");
+        return hasLoric && hasFabled ? "Loric & Fabled" : hasFabled ? "Fabled" : "Loric";
+    });
 
     // Time remaining as M:SS (clamped at 0).
     const timeLabel = $derived.by(() => {
@@ -273,13 +285,31 @@
     <PlayerSeats area={rows.seatsArea} {grimoireState} {script} {visibleHeight} z={PANEL.z} />
 {/if}
 {#if hasGrim && sideRoles.length > 0}
-    <!-- Keyed on the row count: the panel's canvas texture changes size with it, and a texture can't be resized in place. -->
-    {#key sideRoles.length}
-        <SideRolesPanel
-            characters={sideRoles}
-            {visibleHeight}
-            anchor={{ x: realHalfWidth - visibleHeight * SIDE_ROLES_MARGIN_FRACTION, y: visibleHeight * (0.5 - SIDE_ROLES_MARGIN_FRACTION) }}
+    {@const margin = visibleHeight * SIDE_ROLES_MARGIN_FRACTION}
+    {@const tokenSize = visibleHeight * SIDE_ROLE_TOKEN_FRACTION}
+    {@const gap = visibleHeight * SIDE_ROLE_GAP_FRACTION}
+    {@const titleH = visibleHeight * SIDE_ROLES_TITLE_HEIGHT_FRACTION}
+    {@const right = realHalfWidth - margin}
+    {@const top = visibleHeight / 2 - margin}
+    {@const columns = Math.ceil(sideRoles.length / SIDE_ROLES_PER_COLUMN)}
+    {@const containerWidth = columns * tokenSize + (columns - 1) * gap}
+    <SideRolesTitle
+        text={sideRolesTitle}
+        width={visibleHeight * SIDE_ROLES_TITLE_WIDTH_FRACTION}
+        anchor={{ x: right - containerWidth / 2, y: top }}
+        z={PANEL.z}
+    />
+    {#each sideRoles as character, i (character.id)}
+        <PlayerSeatToken
+            playerName=""
+            {character}
+            placement={{
+                // Columns fill top-to-bottom, starting from the right edge and wrapping leftward.
+                x: right - tokenSize / 2 - Math.floor(i / SIDE_ROLES_PER_COLUMN) * (tokenSize + gap),
+                y: top - titleH - tokenSize / 2 - (i % SIDE_ROLES_PER_COLUMN) * (tokenSize + gap),
+                width: tokenSize
+            }}
             z={PANEL.z}
         />
-    {/key}
+    {/each}
 {/if}
