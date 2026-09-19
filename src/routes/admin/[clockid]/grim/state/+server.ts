@@ -1,4 +1,4 @@
-import { get_grimoire_state_history_resource_for_clock, set_grimoire_state_history_resource_for_clock } from '$lib/resources/server/grimoire-state.js';
+import { get_grimoire_state_history_resource_for_clock, set_grimoire_state_history_resource_for_clock, delete_grimoire_state_history_resource_for_clock } from '$lib/resources/server/grimoire-state.js';
 import { json } from '@sveltejs/kit';
 import { isGrimoireStateHistory } from '$lib/resources/common/grimoireState';
 import { getCharactersForScript } from '$lib/resources/server/scripts.js';
@@ -42,4 +42,10 @@ export async function POST({params, request}){
         console.error("Error saving grimoire state history:", e);
         return json({error: "Invalid JSON data"}, {status: 400});
     }
+}
+
+export async function DELETE({params}){
+    delete_grimoire_state_history_resource_for_clock(params.clockid);
+    console.log("Deleted grimoire state history for clock", params.clockid);
+    return json({message: "Grimoire state history deleted successfully"});
 }

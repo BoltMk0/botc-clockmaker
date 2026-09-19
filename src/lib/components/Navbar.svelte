@@ -127,10 +127,12 @@
         X
     </button>
     <ul style="list-style-type: none; padding: 0 2em 0 1em; margin: 0; margin-bottom: 1em;">
-        {#if clients !== undefined && clients.length > 0}
+        <li><a href="/" target="_self">Home</a></li>
         <li>
-            <a href="/" target="_self">Clocks</a>
+            <a href="/townsquare" target="_self">Town Square</a>
+            {#if clients !== undefined && clients.length > 0}
             <ul>
+                <li><a href="/townsquare/all" target="_self">All</a></li>
                 {#each clients as client}
                     <li>
                         <a href="/{client.clock.clockId}" target="_self">{client.config.teamName}</a>
@@ -140,10 +142,10 @@
                     </li>
                 {/each}
             </ul>
+            {/if}
         </li>
-         {/if}
+        <li><a href="/admin/storytelling" target="_self">Storytelling</a></li>
         <li><a href="/admin/mixer">Audio Mixer</a></li>
-        <!-- <li><a href="/admin/games" target="_self">Games</a></li> -->
         <li><a href="/rules" target="_self">Rules</a></li>
         <li><a href="/settings" target="_self">Settings</a></li>
     </ul>

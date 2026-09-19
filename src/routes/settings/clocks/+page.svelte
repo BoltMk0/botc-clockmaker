@@ -1,5 +1,6 @@
 <script lang="ts">
     import { goto, invalidateAll } from '$app/navigation';
+    import { page } from '$app/state';
     import type { Config } from '$lib/common/config.js';
     import SideTabLayout from '$lib/components/SideTabLayout.svelte';
     import { v7 } from 'uuid';
@@ -14,7 +15,15 @@
 
     const {data}: {data: Props} = $props();
 
-    var selectedIndex = $state(0);
+    // Deep-linked from elsewhere (e.g. the Town Square game list's "Settings"
+    // buttons) via ?select=<clockId>, so that link lands on the right clock's
+    // tab instead of always defaulting to the first one.
+    const selectedClockId = page.url.searchParams.get('select');
+    const initialIndex = selectedClockId
+        ? Math.max(0, data.clocks.findIndex(c => c.clock.clockId === selectedClockId))
+        : 0;
+
+    var selectedIndex = $state(initialIndex);
 
     $inspect("Loaded SFX:", data.sfxResources)
 

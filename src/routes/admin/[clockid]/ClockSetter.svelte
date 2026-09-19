@@ -9,17 +9,64 @@
     import bell_slash from '$lib/assets/bell.slash.png';
     import type { Clocktower } from "$lib/model/client/Clocktower.svelte";
     import { type TimerOption } from "$lib/common/timerOption";
+    import { newGrimoireStateHistory } from "$lib/resources/common/grimoireState";
 
 
     let {
         model,
         timerOptions,
+        hasGrim,
         onstart = () => {}
     }: {
         model: Clocktower;
         timerOptions: TimerOption[];
+        hasGrim: boolean;
         onstart?: () => void;
     } = $props();
+
+    // Whether a grimoire state exists for this clock - tracked locally
+    // (seeded from the initial server-loaded value) so the Setup/View/Remove
+    // buttons below can update immediately after an action without a full
+    // page reload. The virtual grimoire is optional: some tables run without
+    // one, so this lets a game exist with or without it.
+    let grimExists = $state(hasGrim);
+    let settingUpGrim = $state(false);
+
+    function setupGrim(){
+        if(settingUpGrim) return;
+        settingUpGrim = true;
+        const history = newGrimoireStateHistory(model.id);
+        fetch(`/admin/${model.id}/grim/state`, {
+            method: 'POST',
+            body: JSON.stringify(history),
+            headers: {'Content-Type': 'application/json'}
+        }).then(response => {
+            if (!response.ok) {
+                alert("Failed to set up grim");
+                throw new Error('Failed to set up grim');
+            }
+            grimExists = true;
+        }).catch(error => {
+            console.error("Error setting up grim:", error);
+        }).finally(() => {
+            settingUpGrim = false;
+        });
+    }
+
+    function removeGrim(){
+        if(!confirm("Are you sure you want to remove the grim for this game? This action cannot be undone.")) return;
+        fetch(`/admin/${model.id}/grim/state`, {
+            method: 'DELETE'
+        }).then(response => {
+            if (!response.ok) {
+                alert("Failed to remove grim");
+                throw new Error('Failed to remove grim');
+            }
+            grimExists = false;
+        }).catch(error => {
+            console.error("Error removing grim:", error);
+        });
+    }
 
     function onStop(){
         fetch(`/api/clock/${model.id}/stop`, {
@@ -114,63 +161,81 @@
     
 </script>
 <div class="clock-setter-main">
-    <div class="button-container">
-        <div class="button-container-button" style="padding: 5px;">
-            
-            <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px;">
-                <button class="button-style updown" onclick={()=>{setDay(model.day-1)}}>-</button>
-                <div>
-                    <div style="opacity: 0.5;">Day</div>
-                    <div>{model.day}</div>
-                </div>
-                <button class="button-style updown" onclick={()=>{setDay(model.day+1)}}>+</button>
-            </div>
-        </div>
-        <div class="button-container-button" style="padding: 5px;">
-            <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px;">
-                <button class="button-style updown" onclick={()=>{setPlayers(model.playerCount-1)}}>-</button>
-                <div>
-                    <div style="opacity: 0.5;">Players</div>
-                    <div>{model.playerCount}</div>
-                </div>
-                <button class="button-style updown" onclick={()=>{setPlayers(model.playerCount+1)}}>+</button>
-            </div>
-        </div>
-        {#each timerOptions as option, index}
-            <button class="button-container-button" class:active={option.duration === model.duration} onclick={() => setupClock(option)} disabled={model.running && model.timeOfDay === 'day'} style="grid-column: span {(index === timerOptions.length - 1 && timerOptions.length%2 === 1) ? 2 : 1};">
-                <div>
-                    <div class="timer-icons" style="font-size: {option.label ? '0.8em' : '1em'};">
+    <div class="sections-wrap">
+        <div class="setter-section">
+            <div class="time-remaining-display">{formatTime(model.secondsRemaining)}</div>
+
+            <div class="day-player-row">
+                <div class="button-container-button" style="padding: 5px;">
+                    <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px;">
+                        <button class="button-style updown" onclick={()=>{setDay(model.day-1)}}>-</button>
                         <div>
-                            <img class="timer-icon-img" src="{timer}" alt="Timer"/>
-                            {formatTime(option.duration)}
+                            <div style="opacity: 0.5;">Day</div>
+                            <div>{model.day}</div>
                         </div>
+                        <button class="button-style updown" onclick={()=>{setDay(model.day+1)}}>+</button>
+                    </div>
+                </div>
+                <div class="button-container-button" style="padding: 5px;">
+                    <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px;">
+                        <button class="button-style updown" onclick={()=>{setPlayers(model.playerCount-1)}}>-</button>
                         <div>
-                            {#if option.ringBellWhenRemaining !== null}
-                            <img class="timer-icon-img" src="{bell}" alt="Bell"/>
-                            {formatTime(option.ringBellWhenRemaining)}
-                            {:else}
-                            <img class="timer-icon-img" src="{bell_slash}" alt="No bell"/>
+                            <div style="opacity: 0.5;">Players</div>
+                            <div>{model.playerCount}</div>
+                        </div>
+                        <button class="button-style updown" onclick={()=>{setPlayers(model.playerCount+1)}}>+</button>
+                    </div>
+                </div>
+            </div>
+
+            {#if grimExists}
+                <div class="grim-controls">
+                    <a class="button-style" href="/admin/{model.id}/grim">View</a>
+                    <button class="button-style error" onclick={removeGrim}>Remove</button>
+                </div>
+            {:else}
+                <button class="button-style" onclick={setupGrim} disabled={settingUpGrim} style="width: 100%; box-sizing: border-box; text-align: center;">Setup Grim</button>
+            {/if}
+        </div>
+
+        <div class="setter-section">
+            <div class="button-container">
+                {#each timerOptions as option, index}
+                    <button class="button-container-button" class:active={option.duration === model.duration} onclick={() => setupClock(option)} disabled={model.running && model.timeOfDay === 'day'} style="grid-column: span {(index === timerOptions.length - 1 && timerOptions.length%2 === 1) ? 2 : 1};">
+                        <div>
+                            <div class="timer-icons" style="font-size: {option.label ? '0.8em' : '1em'};">
+                                <div>
+                                    <img class="timer-icon-img" src="{timer}" alt="Timer"/>
+                                    {formatTime(option.duration)}
+                                </div>
+                                <div>
+                                    {#if option.ringBellWhenRemaining !== null}
+                                    <img class="timer-icon-img" src="{bell}" alt="Bell"/>
+                                    {formatTime(option.ringBellWhenRemaining)}
+                                    {:else}
+                                    <img class="timer-icon-img" src="{bell_slash}" alt="No bell"/>
+                                    {/if}
+                                </div>
+                            </div>
+                            {#if option.label}
+                            <div style="font-size: 1.2em; margin-top: 5px;">{option.label}</div>
                             {/if}
                         </div>
-                    </div>
-                    {#if option.label}
-                    <div style="font-size: 1.2em; margin-top: 5px;">{option.label}</div>
-                    {/if}
-                </div>
-            </button>
-        {/each}
+                    </button>
+                {/each}
+            </div>
+            <div style="display: grid; grid-template-columns: 2fr 3fr 3fr 2fr; font-size: 1em; gap: 5px;">
+                <a class="button-style" id="edit-button" href="/settings/clocks">
+                    <img class="button-icon-img" src="{gearshape}" alt="Config"/>
+                </a>
+                <button class="button-container-button stop-btn" onclick={onStop} disabled={!model.running || model.timeOfDay === 'night'}>Stop</button>
+                <button class="button-container-button start-btn" onclick={onStart} disabled={model.running}>Start</button>
+                <button class="button-container-button ring-bell-btn" onclick={onBell}>
+                    <img class="button-icon-img" src="{bell_and_waves}" alt="Ring Bell"/>
+                </button>
+            </div>
+        </div>
     </div>
-    <div style="display: grid; grid-template-columns: 2fr 3fr 3fr 2fr; font-size: 1em; gap: 5px;">
-        <a class="button-style" id="edit-button" href="/settings/clocks">
-            <img class="button-icon-img" src="{gearshape}" alt="Config"/>
-        </a>
-        <button class="button-container-button stop-btn" onclick={onStop} disabled={!model.running || model.timeOfDay === 'night'}>Stop</button>
-        <button class="button-container-button start-btn" onclick={onStart} disabled={model.running}>Start</button>
-        <button class="button-container-button ring-bell-btn" onclick={onBell}>
-            <img class="button-icon-img" src="{bell_and_waves}" alt="Ring Bell"/>
-        </button>
-    </div>
-    <a class="button-style" href="/admin/{model.id}/grim" style="width: 100%; box-sizing: border-box; text-align: center;">Grim</a>
 </div>
 
 <style>
@@ -191,8 +256,49 @@
         display: grid;
         gap: 5px;
         justify-items: stretch;
-        align-items: center;
-        height: 100%;
+        align-items: start;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .sections-wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        justify-content: center;
+        align-items: start;
+        width: 100%;
+    }
+
+    .setter-section {
+        display: grid;
+        gap: 5px;
+        width: 100%;
+        max-width: 320px;
+        min-width: 300px;
+    }
+
+    .time-remaining-display {
+        font-size: 2.5em;
+        text-align: center;
+        padding: 10px;
+    }
+
+    .day-player-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 5px;
+    }
+
+    .grim-controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 5px;
+    }
+
+    .grim-controls .button-style {
+        box-sizing: border-box;
+        text-align: center;
     }
 
     .button-container {

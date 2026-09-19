@@ -1496,7 +1496,7 @@
                     <button class="button-style error" onclick={()=>{showTimerOptions = false;}}>X</button>
                 </div>
                 {#if clockClient}
-                    <ClockSetter model={clockClient} timerOptions={data.timerOptions} onstart={()=>{showTimerOptions = false}}/>
+                    <ClockSetter model={clockClient} timerOptions={data.timerOptions} hasGrim={true} onstart={()=>{showTimerOptions = false}}/>
                 {:else}
                     <div>Connecting to clock...</div>
                 {/if}

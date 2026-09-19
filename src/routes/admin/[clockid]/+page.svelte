@@ -1,6 +1,5 @@
 <script lang="ts">
     import ClockSetter from "./ClockSetter.svelte";
-    import FullDisplay from "$lib/components/FullDisplay/FullDisplay.svelte";
     import {onMount } from "svelte";
     import { type Unsubscriber } from "svelte/store";
     import { page } from "$app/state";
@@ -26,12 +25,5 @@
 </script>
 <Navbar/>
 {#if model}
-<div style="width: min-content; display: grid; grid-template-rows: auto auto; gap: 20px;">
-    <div style="height: 300px;">
-    <FullDisplay {model} displayMode='original' size={240}/>
-    </div>
-    <div style="">
-        <ClockSetter {model} timerOptions={data.timerOptions}/>
-    </div>
-</div>
+<ClockSetter {model} timerOptions={data.timerOptions} hasGrim={data.hasGrim}/>
 {/if}
