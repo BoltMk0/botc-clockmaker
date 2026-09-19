@@ -1,4 +1,8 @@
 <script lang="ts">
+    import BookIcon from '$lib/components/BookIcon.svelte';
+    import ClockIcon from '$lib/components/ClockIcon.svelte';
+    import PlusIcon from '$lib/components/PlusIcon.svelte';
+    import TrashIcon from '$lib/components/TrashIcon.svelte';
     import TopNavbar from '$lib/components/TopNavbar.svelte';
 
     let { data }: { data: { clockid: string, name: string, hasGrim: boolean } } = $props();
@@ -30,21 +34,21 @@
         <div class="storytell-subtitle">Storytell</div>
     </div>
 
+    <div class="storytell-halves">
     <div class="storytell-section">
         <div class="storytell-section-title">Grim</div>
         {#if grimExists}
-            <div class="row">
-                <a class="button-style" href="/admin/{data.clockid}/grim">Open Grim</a>
-                <button class="button-style error" onclick={removeGrim}>Delete Grim</button>
-            </div>
+            <a class="button-style" href="/admin/{data.clockid}/grim"><BookIcon size={40}/><span>Open Grim</span></a>
+            <button class="button-style error delete-grim" onclick={removeGrim}><TrashIcon size={22}/><span>Delete Grim</span></button>
         {:else}
-            <a class="button-style setup-btn" href="/admin/{data.clockid}/grim/setup">Setup new grim</a>
+            <a class="button-style setup-btn" href="/admin/{data.clockid}/grim/setup"><PlusIcon size={40}/><span>Setup new grim</span></a>
         {/if}
     </div>
 
     <div class="storytell-section">
         <div class="storytell-section-title">Clock</div>
-        <a class="button-style" href="/admin/{data.clockid}">Clock timer controls</a>
+        <a class="button-style fill" href="/admin/{data.clockid}"><ClockIcon size={40}/><span>Clock timer controls</span></a>
+    </div>
     </div>
 </div>
 
@@ -68,7 +72,7 @@
         gap: 0.4em;
         margin-bottom: 1.5em;
         width: 100%;
-        max-width: 400px;
+        max-width: 600px;
     }
 
     .storytell-back {
@@ -93,13 +97,19 @@
         opacity: 0.6;
     }
 
+    .storytell-halves {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2em;
+        width: 100%;
+        max-width: 600px;
+    }
+
     .storytell-section {
         display: flex;
         flex-direction: column;
-        gap: 0.6em;
-        width: 100%;
-        max-width: 400px;
-        margin-bottom: 1.5em;
+        gap: 0.8em;
+        min-width: 0;
     }
 
     .storytell-section-title {
@@ -107,16 +117,27 @@
         opacity: 0.6;
     }
 
-    .row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.5em;
-    }
-
     .storytell-section .button-style {
         box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5em;
         text-align: center;
-        padding: 0.8em 1em;
+        padding: 1em;
+        font-size: large;
+        min-height: 5em;
+    }
+
+    .storytell-section .fill {
+        flex: 1;
+    }
+
+    .storytell-section .delete-grim {
+        flex: 0 0 auto;
+        flex-direction: row;
+        min-height: 0;
         font-size: large;
     }
 

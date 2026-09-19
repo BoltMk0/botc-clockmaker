@@ -51,7 +51,7 @@
     {/each}
 </div>
 
-<Navbar/>
+<Navbar townSquare/>
 
 {#if appSettings.showQRCodes && qrCodes.length > 0}
 <div class="qr-codes-panel left">

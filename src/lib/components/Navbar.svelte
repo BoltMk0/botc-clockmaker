@@ -6,6 +6,9 @@
     import SiteQRCode from "./SiteQRCode.svelte";
     import { page } from "$app/state";
 
+    // In the town square the menu is just the display settings (cogwheel icon, no page links), with a back button to /play.
+    let { townSquare = false }: { townSquare?: boolean } = $props();
+
     let visible = $state(false);
     let showQRPopup = $state(false);
     let clients: ClocktowerModel[] | undefined = $state(undefined);
@@ -114,18 +117,32 @@
     }
 </style>
 
-<button aria-label="Menu" class="no-button-style hamburger" onclick={()=>{visible = true;}} style="position: absolute; top: 10px; left: 10px;">
-    <svg width={36} height={36} viewBox="0 0 100 100" style="fill: #FFF; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));">
-        <rect x={0} y={0} width={100} height={20} rx={10} ry={10}/>
-        <rect x={0} y={40} width={100} height={20} rx={10} ry={10}/>
-        <rect x={0} y={80} width={100} height={20} rx={10} ry={10}/>
-    </svg>
+{#if townSquare}
+    <a aria-label="Back to Play" class="hamburger" href="/play" style="position: absolute; top: 10px; left: 10px; display: flex;">
+        <svg width={36} height={36} viewBox="0 0 24 24" style="fill: none; stroke: #FFF; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));">
+            <path d="M15 5l-7 7 7 7" />
+        </svg>
+    </a>
+{/if}
+<button aria-label={townSquare ? "Settings" : "Menu"} class="no-button-style hamburger" onclick={()=>{visible = true;}} style="position: absolute; top: 10px; left: {townSquare ? 56 : 10}px;">
+    {#if townSquare}
+        <svg width={36} height={36} viewBox="0 0 24 24" style="fill: #FFF; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));">
+            <path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.07-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7 7 0 0 0-1.62-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96a.5.5 0 0 0-.6.22L2.75 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.05.31-.08.63-.08.94s.03.63.08.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.12.22.37.29.6.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.26.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.09.48 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z" />
+        </svg>
+    {:else}
+        <svg width={36} height={36} viewBox="0 0 100 100" style="fill: #FFF; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));">
+            <rect x={0} y={0} width={100} height={20} rx={10} ry={10}/>
+            <rect x={0} y={40} width={100} height={20} rx={10} ry={10}/>
+            <rect x={0} y={80} width={100} height={20} rx={10} ry={10}/>
+        </svg>
+    {/if}
 </button>
 
 <div class="navbar-main" style="transform: translateX({visible ? "0" : "-100%"});">
     <button onclick={()=>{visible = false;}} class="close-button">
         X
     </button>
+    {#if !townSquare}
     <ul style="list-style-type: none; padding: 0 2em 0 1em; margin: 0; margin-bottom: 1em;">
         <li><a href="/" target="_self">Home</a></li>
         <li>
@@ -148,6 +165,7 @@
         <li><a href="/rules" target="_self">Rules</a></li>
         <li><a href="/settings" target="_self">Settings</a></li>
     </ul>
+    {/if}
 
     <div style="display: grid; gap: 10px;">
         <div class="navbar-settings-pane">

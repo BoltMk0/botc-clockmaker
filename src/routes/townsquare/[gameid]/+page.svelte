@@ -24,6 +24,6 @@
 <FullDisplay model={model}/>
 {/if}
 
-<Navbar/>
+<Navbar townSquare/>
 
 
