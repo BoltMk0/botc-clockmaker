@@ -4,6 +4,7 @@
     import { T } from "@threlte/core";
     import { useTexture } from "@threlte/extras";
     import tokenTextureUrl from "$lib/assets/clocktower-scene/player_token.png";
+    import deadVoteUrl from "$lib/assets/clocktower-scene/dead_vote.png";
     import tokenNormalMapUrl from "$lib/assets/clocktower-scene/player_token_normal.png";
 
     // A single seated player's token, rendered as a lit mesh (like every
@@ -43,11 +44,13 @@
     let {
         playerName,
         isDead = false,
+        hasDeadVote = false,
         placement,
         z = 0.2
     }: {
         playerName: string;
         isDead?: boolean;
+        hasDeadVote?: boolean;
         placement: { x: number; y: number; width: number };
         z?: number;
     } = $props();
@@ -130,7 +133,7 @@
         const text = (playerName.trim() || "?").toUpperCase();
         const boxSize = CANVAS_SIZE * (1 - CONTENT_MARGIN * 2);
         const centerX = CANVAS_SIZE / 2;
-        const centerY = CANVAS_SIZE / 2;
+        const centerY = CANVAS_SIZE * (hasDeadVote ? VOTE_TEXT_CENTER_Y : 0.5);
 
         let fontPx = MAX_FONT_PX;
         let lines: string[] = [];
@@ -140,7 +143,7 @@
             lines = wrapLines(ctx, text, boxSize);
             const widest = Math.max(0, ...lines.map(l => ctx.measureText(l).width));
             const blockH = lines.length * fontPx * lineHeight;
-            if (widest <= boxSize && blockH <= boxSize) break;
+            if (widest <= boxSize && blockH <= boxSize * (hasDeadVote ? 0.55 : 1)) break;
             fontPx -= 6;
         }
 
@@ -228,6 +231,18 @@
     })();
 
     const opacity = $derived(isDead ? DEAD_OPACITY : 1);
+
+    const voteTexture = useTexture(untrack(() => deadVoteUrl));
+    $effect(() => {
+        if ($voteTexture && $voteTexture.colorSpace !== THREE.SRGBColorSpace) {
+            $voteTexture.colorSpace = THREE.SRGBColorSpace;
+        }
+    });
+
+    // The marker sits below the name; the name moves up to keep the pair centred on the token.
+    const VOTE_ICON_FRACTION = 0.34; // of the token's width
+    const VOTE_TEXT_CENTER_Y = 0.4; // fraction of the token's height, when the marker is shown
+    const VOTE_ICON_CENTER_Y = 0.7;
 </script>
 
 <!-- The background/text planes use MeshStandardMaterial (like the tower/
@@ -257,6 +272,13 @@
         <T.Mesh position={[x, y, z + 0.005]}>
             <T.PlaneGeometry args={[planeWidth, planeHeight]} />
             <T.MeshBasicMaterial map={skullTexture} transparent depthWrite={false} />
+        </T.Mesh>
+    {/if}
+
+    {#if hasDeadVote && $voteTexture}
+        <T.Mesh position={[x, y - planeHeight * (VOTE_ICON_CENTER_Y - 0.5), z + 0.02]}>
+            <T.PlaneGeometry args={[planeWidth * VOTE_ICON_FRACTION, planeWidth * VOTE_ICON_FRACTION]} />
+            <T.MeshBasicMaterial map={$voteTexture} transparent depthWrite={false} />
         </T.Mesh>
     {/if}
 

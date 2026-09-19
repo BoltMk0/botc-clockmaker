@@ -10,11 +10,17 @@ export type PlacedToken = {
     id: string;
     characterId: string | null;
     isDead: boolean;
+    // Dead players get one vote for the rest of the game; this is set once they've spent it.
+    deadVoteUsed?: boolean;
     alignment: Alignment;
     x: number;
     y: number;
     playerName?: string;
 };
+
+export function hasDeadVote(token: { isDead: boolean; deadVoteUsed?: boolean }): boolean {
+    return token.isDead && !token.deadVoteUsed;
+}
 
 export function isPlayerToken(token: PlacedToken): boolean {
     return (token.playerName ?? '').trim() !== '';
@@ -67,6 +73,7 @@ function isPlacedToken(obj: any): obj is PlacedToken {
         (obj.id === undefined || typeof obj.id === "string") &&
         (obj.characterId === null || typeof obj.characterId === "string") &&
         typeof obj.isDead === "boolean" &&
+        (obj.deadVoteUsed === undefined || typeof obj.deadVoteUsed === "boolean") &&
         (obj.alignment === undefined || obj.alignment === "good" || obj.alignment === "evil") &&
         (obj.playerName === undefined || typeof obj.playerName === "string");
     if(!result){

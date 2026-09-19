@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { Character } from "$lib/resources/common/gameData";
     import TokenBackground from "./TokenBackground.svelte";
+    import DeadVoteIcon from "./DeadVoteIcon.svelte";
 
     let {
         character,
@@ -10,7 +11,10 @@
         norules = false,
         playerName = undefined,
         dead = false,
+        hasDeadVote = false,
     }: {
+        // Shows the dead-vote marker on a dead player's token.
+        hasDeadVote?: boolean;
         character: Character;
         nightOrder?: number | undefined;
         style?: string;
@@ -93,6 +97,10 @@
         {/if}
 
         </TokenBackground>
+
+        {#if hasDeadVote}
+            <DeadVoteIcon size="calc({size} / 2)" style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2;" />
+        {/if}
 
         {#if nightOrder !== undefined && nightOrder >= 0}
             <div class="night-order" style="font-size: calc({size} / 8); border-width: calc({size} / 80); position: absolute; top: 0; left: 85%; transform: translate(-50%, -30%);">

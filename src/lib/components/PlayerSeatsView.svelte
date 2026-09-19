@@ -1,6 +1,6 @@
 <script lang="ts">
     import PlayerToken from "./PlayerToken.svelte";
-    import type { GrimoireStateHistory } from "$lib/resources/common/grimoireState";
+    import { hasDeadVote, type GrimoireStateHistory } from "$lib/resources/common/grimoireState";
     import type { ScriptWithCharacters } from "$lib/resources/common/gameData";
     import { computeSeatsLayout, filterSeatTokens } from "./playerSeatsLayout";
 
@@ -34,6 +34,8 @@
         <PlayerToken
             playerName={token.playerName ?? ''}
             isDead={token.isDead}
+            hasDeadVote={hasDeadVote(token)}
+            deadVoteBelowName
             size="{layout.tokenSize}px"
             style="left: calc(50% + {x}px); top: calc(50% + {y}px); transform: translate(-50%, -50%);"
         />

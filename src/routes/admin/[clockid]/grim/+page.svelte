@@ -13,7 +13,7 @@
     import type { CanvasToolType } from "$lib/components/DrawableCanvas2/types.js";
     import AnotatableViewV2 from "$lib/components/DrawableCanvas2/AnotatableViewV2.svelte";
     import PlayerToken from "$lib/components/PlayerToken.svelte";
-    import { isPlayerToken, layoutTokensAtDefaultPositions, newGrimoireStateHistory, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
+    import { hasDeadVote, isPlayerToken, layoutTokensAtDefaultPositions, newGrimoireStateHistory, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
     import { v7 } from "uuid";
     import type { PageData } from "./$types";
 
@@ -657,6 +657,15 @@
         rescheduleSaveGrimoire();
     }
 
+    function toggleDeadVote() {
+        if (!activeToken) return;
+        const target = activeToken;
+        gameState.present.placedTokens = gameState.present.placedTokens.map(t =>
+            t === target ? { ...t, deadVoteUsed: !t.deadVoteUsed } : t
+        );
+        rescheduleSaveGrimoire();
+    }
+
     function toggleAlignment() {
         if (!activeToken) return;
         const target = activeToken;
@@ -1273,13 +1282,13 @@
         cursor: grabbing;
     }
 
-    .board-token.dead :global(img) {
+    .board-token.dead :global(img:not(.dead-vote-icon)) {
         filter: grayscale(0.7) brightness(0.6);
     }
-    .board-token.misaligned :global(img) {
+    .board-token.misaligned :global(img:not(.dead-vote-icon)) {
         filter: hue-rotate(180deg);
     }
-    .board-token.misaligned.dead :global(img) {
+    .board-token.misaligned.dead :global(img:not(.dead-vote-icon)) {
         filter: grayscale(0.7) brightness(0.9) hue-rotate(180deg);
     }
     .night-order-badge {
@@ -1665,9 +1674,9 @@
                 onpointerdown={(e) => startDragFromBoard(e, token)}
             >
                 {#if character}
-                    <CharacterToken {character} style="position: relative;" size={tokenSize + 'px'} norules dead={token.isDead} playerName={token.playerName?.trim() || undefined}/>
+                    <CharacterToken {character} style="position: relative;" size={tokenSize + 'px'} norules dead={token.isDead} hasDeadVote={hasDeadVote(token)} playerName={token.playerName?.trim() || undefined}/>
                 {:else}
-                    <PlayerToken playerName={token.playerName ?? ''} isDead={token.isDead} style="position: relative;" size={tokenSize + 'px'}/>
+                    <PlayerToken playerName={token.playerName ?? ''} isDead={token.isDead} hasDeadVote={hasDeadVote(token)} style="position: relative;" size={tokenSize + 'px'}/>
                 {/if}
             </div>
             {/if}
@@ -1734,6 +1743,11 @@
                             <button type="button" class="popup-toggle" class:evil={activeToken.alignment === 'evil'} onclick={toggleAlignment}>
                                 {activeToken.alignment === 'evil' ? 'Evil' : 'Good'}
                             </button>
+                            {#if activeToken.isDead}
+                                <button type="button" class="popup-toggle" onclick={toggleDeadVote}>
+                                    {activeToken.deadVoteUsed ? 'Vote used' : 'Has vote'}
+                                </button>
+                            {/if}
                             {#if activeChar}
                                 <button type="button" class="popup-toggle" onclick={() => viewCharacter(activeChar.id)}>Show</button>
                             {/if}
@@ -1909,6 +1923,11 @@
                         <button type="button" class="popup-toggle" class:evil={activeToken.alignment === 'evil'} onclick={() => { toggleAlignment(); closeOverlay(); }}>
                             {activeToken.alignment === 'evil' ? 'Evil' : 'Good'}
                         </button>
+                        {#if activeToken.isDead}
+                            <button type="button" class="popup-toggle" onclick={() => { toggleDeadVote(); closeOverlay(); }}>
+                                {activeToken.deadVoteUsed ? 'Vote used' : 'Has vote'}
+                            </button>
+                        {/if}
                         {#if oc}
                             <button type="button" class="button-style" onclick={() => viewCharacter(oc.id)}>Show</button>
                         {/if}
