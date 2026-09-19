@@ -127,15 +127,6 @@
                     <td>Clock Name</td>
                     <td><input type="text" bind:value={clock.config.teamName} placeholder="Optional name for the clock"/></td>
                 </tr>
-                <tr>
-                    <td>Theme</td>
-                    <td>
-                        <div style="background-color: hsl({clock.config.theme.hue}, 80%, 60%); padding: 5px 20px; box-sizing: border-box; border-radius: 5px; color: black; font-weight: bold;">
-                            Color
-                            <HSlider bind:value={clock.config.theme.hue} min={0} max={360}/>
-                        </div>
-                    </td>
-                </tr>
             </tbody>
         </table>
     </div>

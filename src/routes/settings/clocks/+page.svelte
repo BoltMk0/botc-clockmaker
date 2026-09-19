@@ -73,7 +73,7 @@
     {/key}
 {/snippet}
 
-<SideTabLayout title="Clocks" items={data.clocks.map(c=>{
+<SideTabLayout title="Games" items={data.clocks.map(c=>{
     return {
         label: c.config.teamName ?? c.clock.clockId,
         snippet: renderClockSettings,
