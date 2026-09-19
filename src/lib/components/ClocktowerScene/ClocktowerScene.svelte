@@ -1,5 +1,6 @@
 <script lang="ts">
     import * as THREE from "three";
+    import { fade } from "svelte/transition";
     import { browser } from "$app/environment";
     import { Canvas } from "@threlte/core";
     import Scene from "./Scene.svelte";
@@ -204,7 +205,7 @@
             />
         </Canvas>
         {#if !assetsReady}
-            <div class="loading-overlay">
+            <div class="loading-overlay" out:fade={{ duration: 400 }}>
                 <div class="spinner"></div>
                 <div class="loading-text dumbledore-font">Loading...</div>
             </div>
