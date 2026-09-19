@@ -23,6 +23,8 @@
         unnamedTokens: 15,
         reminders: 30,
         canvas: 10,
+        // Above tokens and reminders, below the UI chrome.
+        nightOrder: 40,
         ui: 50,
         clock: 10
     };
@@ -1280,6 +1282,24 @@
     .board-token.misaligned.dead :global(img) {
         filter: grayscale(0.7) brightness(0.9) hue-rotate(180deg);
     }
+    .night-order-badge {
+        position: absolute;
+        transform: translate(-50%, -30%);
+        border-style: solid;
+        border-radius: 50%;
+        background-color: rgb(194, 120, 15);
+        border-color: white;
+        box-shadow: 0 3px 4px #0008;
+        color: white;
+        text-shadow: 0 0 5px #0004;
+        height: 1.5em;
+        width: 1.5em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        user-select: none;
+    }
     .board-reminder {
         position: absolute;
         transform: translate(-50%, -50%);
@@ -1645,11 +1665,21 @@
                 onpointerdown={(e) => startDragFromBoard(e, token)}
             >
                 {#if character}
-                    <CharacterToken {character} nightOrder={nightOrderByCharacterId.indexOf(character.id)} style="position: relative;" size={tokenSize + 'px'} norules dead={token.isDead} playerName={token.playerName?.trim() || undefined}/>
+                    <CharacterToken {character} style="position: relative;" size={tokenSize + 'px'} norules dead={token.isDead} playerName={token.playerName?.trim() || undefined}/>
                 {:else}
                     <PlayerToken playerName={token.playerName ?? ''} isDead={token.isDead} style="position: relative;" size={tokenSize + 'px'}/>
                 {/if}
             </div>
+            {/if}
+        {/each}
+
+        {#each placedTokens as token (token.id)}
+            {@const order = token.characterId ? nightOrderByCharacterId.indexOf(token.characterId) : -1}
+            {#if order >= 0 && script?.characters.some(c => c.id === token.characterId)}
+            <div
+                class="night-order-badge"
+                style="left: calc(50% + {token.x + tokenSize * 0.35}px); top: calc(50% + {token.y - tokenSize * 0.5}px); font-size: {tokenSize / 8}px; border-width: {tokenSize / 80}px; z-index: {z_indecies.nightOrder};"
+            >{order + 1}</div>
             {/if}
         {/each}
 
