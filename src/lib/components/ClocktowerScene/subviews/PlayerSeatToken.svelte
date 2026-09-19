@@ -3,6 +3,7 @@
     import { untrack } from "svelte";
     import { T } from "@threlte/core";
     import { useTexture } from "@threlte/extras";
+    import type { Character } from "$lib/resources/common/gameData";
     import tokenTextureUrl from "$lib/assets/clocktower-scene/player_token.png";
     import deadVoteUrl from "$lib/assets/clocktower-scene/dead_vote.png";
     import tokenNormalMapUrl from "$lib/assets/clocktower-scene/player_token_normal.png";
@@ -41,14 +42,20 @@
     const TEXT_SHADOW_BLUR_FRACTION = 0.1; // fraction of the fitted font size
     const TEXT_SHADOW_OFFSET_FRACTION = 0.03;
 
+    // Colour of a public-role (traveller) token's fallback initials; matches CharacterToken.svelte's category colours.
+    const CHARACTER_RING_COLORS: Record<string, string> = { traveler: "#ca8a04" };
+
     let {
         playerName,
+        character = null,
         isDead = false,
         hasDeadVote = false,
         placement,
         z = 0.2
     }: {
         playerName: string;
+        // Publicly-known role (a traveller): drawn like the grim's character token, minus the alignment.
+        character?: Character | null;
         isDead?: boolean;
         hasDeadVote?: boolean;
         placement: { x: number; y: number; width: number };
@@ -87,6 +94,76 @@
             .then(() => (fontReady = true))
             .catch(() => (fontReady = true));
     });
+
+    let iconImage = $state<HTMLImageElement | null>(null);
+    $effect(() => {
+        const id = character?.id;
+        iconImage = null;
+        if (!id) return;
+        const img = new Image();
+        img.onload = () => { iconImage = img; };
+        img.src = `/api/characters/${id}/img`;
+    });
+
+    // Unit of the grim token's 100x100 SVG viewBox, shrunk a little to stay inside the carved rim.
+    const UNIT = (CANVAS_SIZE / 100) * 0.86;
+    const CHAR_LETTER_SPACING = 0.5; // in units
+
+    // Draws `text` along a circle of `radius` (units) around the canvas centre, centred on the bottom
+    // (letters' tops toward the centre) or the top (letters' tops outward) of the circle.
+    function drawArcText(ctx: CanvasRenderingContext2D, text: string, radius: number, position: "bottom" | "top") {
+        const r = radius * UNIT;
+        const spacing = CHAR_LETTER_SPACING * UNIT;
+        const widths = [...text].map(ch => ctx.measureText(ch).width + spacing);
+        const total = widths.reduce((a, b) => a + b, 0) - spacing;
+        let a = -total / r / 2;
+        [...text].forEach((ch, i) => {
+            const mid = a + widths[i] / r / 2 - spacing / r / 2;
+            ctx.save();
+            ctx.translate(CANVAS_SIZE / 2, CANVAS_SIZE / 2);
+            if (position === "bottom") {
+                ctx.translate(r * Math.sin(mid), r * Math.cos(mid));
+                ctx.rotate(-mid);
+            } else {
+                ctx.translate(r * Math.sin(mid), -r * Math.cos(mid));
+                ctx.rotate(mid);
+            }
+            ctx.fillText(ch, 0, 0);
+            ctx.restore();
+            a += widths[i] / r;
+        });
+    }
+
+    function drawCharacterToken(ctx: CanvasRenderingContext2D, char: Character, name: string) {
+        const cx = CANVAS_SIZE / 2;
+        const color = CHARACTER_RING_COLORS[char.category] ?? "#999";
+
+        // Icon: 62% of the token, a bit higher when there's no player name below the top arc.
+        const iconR = 31 * UNIT;
+        const iconY = cx + (name ? 0 : -5 * UNIT);
+        if (iconImage) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, iconY, iconR, 0, Math.PI * 2);
+            ctx.clip();
+            const side = iconR * 2 * 1.5;
+            ctx.drawImage(iconImage, cx - side / 2, iconY - side / 2, side, side);
+            ctx.restore();
+        } else {
+            ctx.fillStyle = color;
+            ctx.font = `${FONT_WEIGHT} ${iconR}px ${FONT_FAMILY}`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(char.name.split(" ").map(w => w[0]?.toUpperCase() ?? "").join(""), cx, iconY);
+        }
+
+        ctx.fillStyle = TEXT_COLOR;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "alphabetic";
+        ctx.font = `${FONT_WEIGHT} ${12 * UNIT}px ${FONT_FAMILY}`;
+        drawArcText(ctx, char.name.toUpperCase(), 40, "bottom");
+        if (name) drawArcText(ctx, name.toUpperCase(), 32, "top");
+    }
 
     function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
         const lines: string[] = [];
@@ -129,6 +206,15 @@
         const ctx = textCanvas.getContext("2d");
         if (!ctx) return;
         ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+        if (character) {
+            ctx.shadowColor = TEXT_SHADOW_COLOR;
+            ctx.shadowBlur = 6;
+            drawCharacterToken(ctx, character, playerName.trim());
+            ctx.shadowColor = "transparent";
+            textTexture.needsUpdate = true;
+            return;
+        }
 
         const text = (playerName.trim() || "?").toUpperCase();
         const boxSize = CANVAS_SIZE * (1 - CONTENT_MARGIN * 2);

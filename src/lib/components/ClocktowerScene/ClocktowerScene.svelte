@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { fetchScriptWithSideCharacters } from "$lib/resources/client/scriptWithSideCharacters";
     import * as THREE from "three";
     import { fade } from "svelte/transition";
     import { browser } from "$app/environment";
@@ -205,9 +206,9 @@
                 if (body.scriptId !== lastScriptId) {
                     lastScriptId = body.scriptId;
                     if (body.scriptId) {
-                        const scriptRes = await fetch(`/api/scripts/${body.scriptId}`);
-                        if (!cancelled && scriptRes.ok) {
-                            script = await scriptRes.json();
+                        const fetched = await fetchScriptWithSideCharacters(body.scriptId);
+                        if (!cancelled && fetched) {
+                            script = fetched;
                         }
                     } else {
                         script = null;

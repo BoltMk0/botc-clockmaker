@@ -29,6 +29,12 @@
         z?: number;
     } = $props();
 
+    // Travellers are public roles, so their seats show the character; every other role stays hidden.
+    function publicCharacter(characterId: string | null) {
+        const character = characterId ? script?.characters.find(c => c.id === characterId) : null;
+        return character?.category === 'traveler' ? character : null;
+    }
+
     const seatTokens = $derived(filterSeatTokens(grimoireState, script));
 
     const layout = $derived(
@@ -43,6 +49,7 @@
 {#each layout.tokens as { token, x, y } (token.id)}
     <PlayerSeatToken
         playerName={token.playerName ?? ''}
+        character={publicCharacter(token.characterId)}
         isDead={token.isDead}
         hasDeadVote={hasDeadVote(token)}
         placement={{

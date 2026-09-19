@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { fetchScriptWithSideCharacters } from "$lib/resources/client/scriptWithSideCharacters";
     import { alignmentForCategory, ALL_CHARACTER_CATEGORIES, type Character, type CharacterCategory, type ReminderToken, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import ReminderTokenView from "$lib/components/ReminderTokenView.svelte";
@@ -103,20 +104,8 @@
             script = null;
             return;
         }
-        // Travellers, loric and fabled aren't part of a script's own list, but are available in every game.
-        const sideCharacters = fetch('/api/characters').then(r => r.ok ? r.json() as Promise<Character[]> : []).catch(() => [] as Character[]);
-        Promise.all([
-            fetch(`/api/scripts/${id}`).then(r => r.ok ? r.json() as Promise<ScriptWithCharacters> : null),
-            sideCharacters
-        ]).then(([s, all]) => {
+        fetchScriptWithSideCharacters(id).then(s => {
             if (gameState.scriptId !== id) return;
-            if (s) {
-                const have = new Set(s.characters.map(c => c.id));
-                const extra: ScriptCharacter[] = all
-                    .filter(c => SIDE_CATEGORIES.some(sc => sc.category === c.category) && !have.has(c.id))
-                    .map(c => ({ ...c, firstNightOrder: c.defaultFirstNightOrder, otherNightOrder: c.defaultOtherNightOrder }));
-                s = { ...s, characters: [...s.characters, ...extra] };
-            }
             script = s;
         }).catch(() => { if (gameState.scriptId === id) script = null; });
     });
