@@ -13,6 +13,8 @@
     import ClockHands from "./subviews/ClockHands.svelte";
     import OriginMarker from "./subviews/OriginMarker.svelte";
     import { getPlayerCount } from "$lib/common/util";
+    import type { GrimoireStateHistory } from "$lib/resources/common/grimoireState";
+    import type { ScriptWithCharacters } from "$lib/resources/common/gameData";
 
     let {
         progress,
@@ -34,7 +36,8 @@
         clockFaceImageUrl,
         clockFaceNormalMapUrl,
         hasGrim = false,
-        seatsAreaRect = $bindable<{ x: number; y: number; width: number; height: number } | null>(null)
+        grimoireState = null,
+        script = null
     }: {
         progress: number;
         totalTime: number;
@@ -55,7 +58,8 @@
         clockFaceImageUrl: string;
         clockFaceNormalMapUrl: string;
         hasGrim?: boolean;
-        seatsAreaRect?: { x: number; y: number; width: number; height: number } | null;
+        grimoireState?: GrimoireStateHistory | null;
+        script?: ScriptWithCharacters | null;
     } = $props();
 
     const counts = $derived(getPlayerCount(playerCount));
@@ -115,7 +119,8 @@
     {visibleHeight}
     horizontalOffset={scaledHorizontalOffset}
     {hasGrim}
-    bind:seatsAreaRect
+    {grimoireState}
+    {script}
 />
 <Tower {imageUrl} {normalMapUrl} {origin} {planeHeight} horizontalOffset={scaledHorizontalOffset} {verticalOffset} />
 <ClockFace

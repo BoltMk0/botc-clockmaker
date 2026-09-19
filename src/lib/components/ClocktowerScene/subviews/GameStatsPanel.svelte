@@ -4,6 +4,9 @@
     import PlayerCountBanner, { type PlayerCounts } from "./PlayerCountBanner.svelte";
     import Lantern from "./Lantern.svelte";
     import RopeChain from "./RopeChain.svelte";
+    import PlayerSeats from "./PlayerSeats.svelte";
+    import type { GrimoireStateHistory } from "$lib/resources/common/grimoireState";
+    import type { ScriptWithCharacters } from "$lib/resources/common/gameData";
 
     // ---------------------------------------------------------------------
     // Panel layout - tweak these freely.
@@ -105,10 +108,11 @@
         // without one. Without a grim there's no player-seats view to show,
         // so the count banner stacks under the day banner in one panel
         // instead of moving to the right edge; with one, the day banner
-        // moves up to the top and the freed space below it (reported via
-        // `seatsAreaRect`) is where the caller renders the seats overlay.
+        // moves up to the top and the freed space below it is filled with a
+        // PlayerSeats view (see `grimoireState`/`script` below).
         hasGrim = false,
-        seatsAreaRect = $bindable<{ x: number; y: number; width: number; height: number } | null>(null)
+        grimoireState = null,
+        script = null
     }: {
         day: number;
         // Day progress 0..1 and the day's total length in seconds - together
@@ -119,7 +123,8 @@
         visibleHeight: number;
         horizontalOffset?: number;
         hasGrim?: boolean;
-        seatsAreaRect?: { x: number; y: number; width: number; height: number } | null;
+        grimoireState?: GrimoireStateHistory | null;
+        script?: ScriptWithCharacters | null;
     } = $props();
 
     // Time remaining as M:SS (clamped at 0).
@@ -215,13 +220,6 @@
         };
     });
 
-    // One-way sync out to the caller, in world units - it converts this to
-    // screen pixels to position the player-seats DOM overlay (see
-    // ClocktowerScene.svelte), since that overlay is plain HTML layered over
-    // the canvas, not a mesh this component can render itself.
-    $effect(() => {
-        seatsAreaRect = rows.seatsArea;
-    });
 </script>
 
 <TextBanner
@@ -238,3 +236,6 @@
 {#each rows.lanterns as lantern, i (i)}
     <Lantern {visibleHeight} placement={lantern} {progress} z={PANEL.z} />
 {/each}
+{#if hasGrim && rows.seatsArea}
+    <PlayerSeats area={rows.seatsArea} {grimoireState} {script} {visibleHeight} z={PANEL.z} />
+{/if}
