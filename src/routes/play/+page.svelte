@@ -2,6 +2,8 @@
     import { invalidateAll } from '$app/navigation';
     import TopNavbar from '$lib/components/TopNavbar.svelte';
     import PlusIcon from '$lib/components/PlusIcon.svelte';
+    import BookIcon from '$lib/components/BookIcon.svelte';
+    import TownSquareIcon from '$lib/components/TownSquareIcon.svelte';
     import CogIcon from '$lib/components/CogIcon.svelte';
     import type { ClocktowerModel } from '$lib/model/common/ClocktowerModel';
 
@@ -58,8 +60,8 @@
                     </div>
                 </div>
                 <div class="game-panel-actions">
-                    <a class="button-style" href="/townsquare/{id}">Town Square</a>
-                    <a class="button-style" href="/admin/{id}/storytell">Storytell</a>
+                    <a class="button-style" href="/townsquare/{id}"><TownSquareIcon size={36}/><span>Town Square</span></a>
+                    <a class="button-style" href="/admin/{id}/storytell"><BookIcon size={36}/><span>Storytell</span></a>
                 </div>
             </div>
         {/each}
@@ -184,6 +186,8 @@
         padding: 1.1em 0.5em;
         font-size: large;
         display: flex;
+        flex-direction: column;
+        gap: 0.4em;
         align-items: center;
         justify-content: center;
     }

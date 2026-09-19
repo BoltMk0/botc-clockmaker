@@ -2,7 +2,6 @@
     import { onMount } from 'svelte';
     import type { PageData } from './$types';
     import PillIndexDisplay from './PillIndexDisplay.svelte';
-    import Navbar from '$lib/components/Navbar.svelte';
     const SLIDE_INTERVAL = 14000 as const;
     const {data}: {data: PageData} = $props();
 
@@ -75,9 +74,27 @@
     <a href="/settings/resources">Upload Slides</a>
 {/if}
 
-<Navbar/>
+<a class="back-button" href="/" aria-label="Back to main menu">
+    <svg width={36} height={36} viewBox="0 0 24 24" style="fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));">
+        <path d="M15 5l-7 7 7 7" />
+    </svg>
+</a>
 
 <style>
+    .back-button {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        display: flex;
+        color: #FFF;
+        opacity: 0.85;
+        z-index: 1000;
+    }
+
+    .back-button:hover {
+        opacity: 1;
+    }
+
     img {
         opacity: 0;
         position: absolute;

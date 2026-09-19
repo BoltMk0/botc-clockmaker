@@ -13,6 +13,7 @@
 <div class="home-menu">
     <img class="home-icon" src="/icons/appicon_256x256.png" alt="" />
     <div class="home-title dumbledore-font">Clockmaker</div>
+    <div class="home-version">v{__APP_VERSION__}</div>
     <div class="home-menu-buttons">
         {#each menuItems as item}
             <a class="button-style home-menu-button" href={item.href}>{item.label}</a>
@@ -45,6 +46,12 @@
         text-align: center;
         opacity: 0.9;
         text-shadow: 0 2px 4px #0008;
+    }
+
+    .home-version {
+        font-size: small;
+        opacity: 0.5;
+        margin-top: -1.8em;
     }
 
     .home-menu-buttons {
