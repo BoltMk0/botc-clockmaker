@@ -19,6 +19,8 @@
 
     const z_indecies = {
         tokens: 20,
+        // Character-only tokens sit above the drawing but behind every player's token.
+        unnamedTokens: 15,
         reminders: 30,
         canvas: 10,
         ui: 50,
@@ -899,6 +901,11 @@
         user-select: none;
     }
 
+    /* Character tokens with no player name are only reminders, so let them sit back a little. */
+    .board-token.unnamed {
+        opacity: 0.8;
+    }
+
     .board-token:active {
         cursor: grabbing;
     }
@@ -1633,8 +1640,9 @@
             <div
                 class="board-token"
                 class:dead={token.isDead}
+                class:unnamed={!isPlayerToken(token)}
                 class:misaligned={token.characterId !== null && defaultAlignmentForCharacterId(token.characterId) !== token.alignment}
-                style="left: calc(50% + {token.x}px); top: calc(50% + {token.y}px); z-index: {z_indecies.tokens};"
+                style="left: calc(50% + {token.x}px); top: calc(50% + {token.y}px); z-index: {isPlayerToken(token) ? z_indecies.tokens : z_indecies.unnamedTokens};"
                 onpointerdown={(e) => startDragFromBoard(e, token)}
             >
                 {#if character}

@@ -611,7 +611,7 @@
 
     ////// IDLE (NO TOOL) PINCH / PAN //////
     // With no tool active the canvas lets pointer events through to the tokens beneath it, so we watch
-    // touches on the window instead and only react once a second finger joins.
+    // touches (and mouse drags) on the window instead; a second finger turns a pan into a pinch.
     const idleTouches = new Map<number, {x: number; y: number}>();
     let idlePrevMid: {x: number; y: number} | null = null;
     let idlePrevDist = 1;
@@ -628,7 +628,7 @@
         return tool === null && idleGestures && !!canvas;
     }
 
-    function idlePos(event: PointerEvent): CanvasPoint {
+    function idlePos(event: MouseEvent): CanvasPoint {
         const rect = canvas.getBoundingClientRect();
         return { x: event.clientX - rect.left, y: event.clientY - rect.top };
     }
@@ -658,7 +658,9 @@
             idleSuppressClickUntil = 0;
             if (idleTouches.size === 0) idleGesturing = false;
         }
-        if (!idleActive() || event.pointerType !== 'touch') return;
+        // Touches can pan and pinch; the mouse's primary button can pan by click-dragging empty space.
+        const isPanPointer = event.pointerType === 'touch' || (event.pointerType === 'mouse' && event.button === 0);
+        if (!idleActive() || !isPanPointer) return;
         if (idleIgnore && (event.target as Element | null)?.closest?.(idleIgnore)) return;
         const pos = idlePos(event);
         idleTouches.set(event.pointerId, pos);
@@ -734,6 +736,24 @@
     }
 
 
+    // Scroll wheel (or trackpad pinch, which arrives as ctrl+wheel) zooms about the cursor.
+    const WHEEL_ZOOM_SENSITIVITY = 0.0015;
+    const PINCH_WHEEL_ZOOM_SENSITIVITY = 0.01;
+
+    function onIdleWheel(event: WheelEvent) {
+        if (!idleActive()) return;
+        if (idleIgnore && (event.target as Element | null)?.closest?.(idleIgnore)) return;
+        event.preventDefault();
+        const pixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 400 : 1);
+        const sensitivity = event.ctrlKey ? PINCH_WHEEL_ZOOM_SENSITIVITY : WHEEL_ZOOM_SENSITIVITY;
+        const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, viewScale * Math.exp(-pixels * sensitivity)));
+        const actualF = newScale / viewScale;
+        const pos = idlePos(event);
+        viewTx = pos.x - actualF * (pos.x - (viewTx + canvasCenterX)) - canvasCenterX;
+        viewTy = pos.y - actualF * (pos.y - (viewTy + canvasCenterY)) - canvasCenterY;
+        viewScale = newScale;
+    }
+
     let exportBoxStyle = $derived(exportedDimensions
         ? `left:${(-exportedDimensions.width / 2) * viewScale + viewTx + canvasCenterX}px; top:${(-exportedDimensions.height / 2) * viewScale + viewTy + canvasCenterY}px; width:${exportedDimensions.width * viewScale}px; height:${exportedDimensions.height * viewScale}px;`
         : '');
@@ -754,6 +774,8 @@
 
         if (browser && typeof window !== 'undefined') {
             window.addEventListener('resize', resizeCanvasAndRedraw, { passive: true });
+            // Not passive, so the browser's own page zoom (ctrl+wheel) can be cancelled.
+            window.addEventListener('wheel', onIdleWheel, { passive: false });
         }
     });
 
@@ -761,6 +783,7 @@
         cancelPendingTouch();
         if (browser && typeof window !== 'undefined') {
             window.removeEventListener('resize', resizeCanvasAndRedraw);
+            window.removeEventListener('wheel', onIdleWheel);
         }
         resizeObserver?.disconnect();
     });
