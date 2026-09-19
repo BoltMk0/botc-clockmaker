@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { alignmentForCategory, CHARACTER_CATEGORIES, type ReminderToken, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
+    import { alignmentForCategory, ALL_CHARACTER_CATEGORIES, type Character, type CharacterCategory, type ReminderToken, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import ReminderTokenView from "$lib/components/ReminderTokenView.svelte";
     import { fetchReminderTokensForCharacter } from "$lib/resources/client/reminderTokens.js";
@@ -103,8 +103,20 @@
             script = null;
             return;
         }
-        fetch(`/api/scripts/${id}`).then(r => r.ok ? r.json() : null).then(s => {
+        // Travellers, loric and fabled aren't part of a script's own list, but are available in every game.
+        const sideCharacters = fetch('/api/characters').then(r => r.ok ? r.json() as Promise<Character[]> : []).catch(() => [] as Character[]);
+        Promise.all([
+            fetch(`/api/scripts/${id}`).then(r => r.ok ? r.json() as Promise<ScriptWithCharacters> : null),
+            sideCharacters
+        ]).then(([s, all]) => {
             if (gameState.scriptId !== id) return;
+            if (s) {
+                const have = new Set(s.characters.map(c => c.id));
+                const extra: ScriptCharacter[] = all
+                    .filter(c => SIDE_CATEGORIES.some(sc => sc.category === c.category) && !have.has(c.id))
+                    .map(c => ({ ...c, firstNightOrder: c.defaultFirstNightOrder, otherNightOrder: c.defaultOtherNightOrder }));
+                s = { ...s, characters: [...s.characters, ...extra] };
+            }
             script = s;
         }).catch(() => { if (gameState.scriptId === id) script = null; });
     });
@@ -113,12 +125,20 @@
 
     const sortedScriptCharacters = $derived(
         [...(script?.characters ?? [])].sort((a, b) => {
-            const ac = CHARACTER_CATEGORIES.indexOf(a.category as any);
-            const bc = CHARACTER_CATEGORIES.indexOf(b.category as any);
+            const ac = ALL_CHARACTER_CATEGORIES.indexOf(a.category as any);
+            const bc = ALL_CHARACTER_CATEGORIES.indexOf(b.category as any);
             if (ac !== bc) return ac - bc;
             return a.name.localeCompare(b.name);
         })
     );
+
+    // Categories that get their own tray section rather than being lumped into "Other" / "All Characters".
+    const SIDE_CATEGORIES: { category: CharacterCategory; title: string }[] = [
+        { category: 'traveler', title: 'Travellers' },
+        { category: 'loric', title: 'Loric' },
+        { category: 'fabled', title: 'Fabled' },
+    ];
+    const isSideCategory = (c: ScriptCharacter) => SIDE_CATEGORIES.some(s => s.category === c.category);
 
     // Synthetic "blank" reminder token (icon only, no text) available for every character.
     // Kept out of the database since it's identical for all characters - just rendered from the character's id.
@@ -1897,9 +1917,9 @@
                 </div>
                 {/if}
                 <div>
-                    <div style="text-align: center;">Other</div>
+                    <div style="text-align: center;">{script.name}</div>
                     <div class="sub-tray">
-                        {#each script.characters.filter(c => !loadedPreset?.character_ids.includes(c.id) && !loadedPreset?.bluff_ids.includes(c.id)) as character (character.id)}
+                        {#each sortedScriptCharacters.filter(c => !isSideCategory(c)) as character (character.id)}
                                 <div
                                     class="tray-token"
                                     class:dragging={dragging?.character?.id === character.id}
@@ -1911,11 +1931,31 @@
                         {/each}
                     </div>
                 </div>
+                {#each SIDE_CATEGORIES as side (side.category)}
+                {@const sideCharacters = script.characters.filter(c => c.category === side.category && !loadedPreset?.character_ids.includes(c.id) && !loadedPreset?.bluff_ids.includes(c.id))}
+                {#if sideCharacters.length > 0}
+                <div>
+                    <div style="text-align: center;">{side.title}</div>
+                    <div class="sub-tray">
+                        {#each sideCharacters as character (character.id)}
+                                <div
+                                    class="tray-token"
+                                    class:dragging={dragging?.character?.id === character.id}
+                                    class:in-play={isInPlay(character.id)}
+                                    onclick={() => openCharacterOverlay(character)}
+                                >
+                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} norules/>
+                                </div>
+                        {/each}
+                    </div>
+                </div>
+                {/if}
+                {/each}
                 {:else}
                 <div>
                     <div style="text-align: center;">All Characters</div>
                     <div class="sub-tray">
-                        {#each sortedScriptCharacters as character (character.id)}
+                        {#each sortedScriptCharacters.filter(c => !isSideCategory(c)) as character (character.id)}
                                 <div
                                     class="tray-token"
                                     class:dragging={dragging?.character?.id === character.id}
@@ -1927,6 +1967,26 @@
                         {/each}
                     </div>
                 </div>
+                {#each SIDE_CATEGORIES as side (side.category)}
+                {@const sideCharacters = sortedScriptCharacters.filter(c => c.category === side.category)}
+                {#if sideCharacters.length > 0}
+                <div>
+                    <div style="text-align: center;">{side.title}</div>
+                    <div class="sub-tray">
+                        {#each sideCharacters as character (character.id)}
+                                <div
+                                    class="tray-token"
+                                    class:dragging={dragging?.character?.id === character.id}
+                                    class:in-play={isInPlay(character.id)}
+                                    onclick={() => openCharacterOverlay(character)}
+                                >
+                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} norules/>
+                                </div>
+                        {/each}
+                    </div>
+                </div>
+                {/if}
+                {/each}
                 {/if}
             </div>
         </div>
