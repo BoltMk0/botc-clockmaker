@@ -1007,7 +1007,14 @@
 
     .overlay-toggles {
         display: flex;
+        flex-wrap: nowrap;
         gap: 6px;
+    }
+
+    /* Alive / Good / Show share one line, so trim the horizontal padding to fit. */
+    .overlay-panel .overlay-toggles > button {
+        padding: 16px 16px;
+        white-space: nowrap;
     }
 
     .overlay-panel .popup-toggle {
@@ -1735,9 +1742,8 @@
     {#if overlayCharacter}
         {@const oc = overlayCharacter}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 10};" onclick={closeOverlay}>
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div class="overlay-panel" onclick={(e) => e.stopPropagation()}>
+        <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 10};" onclick={(e) => { if (!(e.target as Element).closest('input')) closeOverlay(); }}>
+            <div class="overlay-panel">
                 <button class="overlay-close" onclick={closeOverlay} aria-label="Close">✕</button>
                 <img class="overlay-icon" src={`/api/characters/${oc.id}/img`} alt="" onerror={(e) => (e.currentTarget as HTMLImageElement).style.display = 'none'} />
                 <div class="overlay-name dumbledore-font">{oc.name}</div>
@@ -1753,6 +1759,7 @@
                         <button type="button" class="popup-toggle" class:evil={activeToken.alignment === 'evil'} onclick={() => { toggleAlignment(); closeOverlay(); }}>
                             {activeToken.alignment === 'evil' ? 'Evil' : 'Good'}
                         </button>
+                        <button type="button" class="button-style" onclick={() => viewCharacter(oc.id)}>Show</button>
                     </div>
                     {#if oc.player_count > 0}
                         <input
@@ -1764,7 +1771,9 @@
                         />
                     {/if}
                 {/if}
-                <button class="button-style" onclick={() => viewCharacter(oc.id)}>Show</button>
+                {#if !overlayFromBoard}
+                    <button class="button-style" onclick={() => viewCharacter(oc.id)}>Show</button>
+                {/if}
                 <div class="overlay-drag-hint">{overlayFromBoard ? 'Drag a reminder onto the grim' : 'Drag onto the grim'}</div>
                 <div class="overlay-tokens">
                     {#if !overlayFromBoard}
