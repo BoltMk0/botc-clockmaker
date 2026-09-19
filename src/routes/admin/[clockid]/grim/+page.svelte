@@ -327,6 +327,11 @@
         }
         saveGrimoireTimeout = setTimeout(() => {
             saveGrimoireTimeout = null;
+            // Don't persist a half-finished drag (the dragged token is temporarily removed from state)
+            if (dragging || draggingReminder) {
+                rescheduleSaveGrimoire();
+                return;
+            }
             saveGrimoire();
         }, 1000);
     }
@@ -378,7 +383,8 @@
     async function loadRemindersForCharacter(characterId: string): Promise<ReminderToken[]> {
         if (reminderCache[characterId]) return reminderCache[characterId];
         const tokens = await fetchReminderTokensForCharacter(characterId);
-        reminderCache[characterId] = [blankReminderToken(characterId), ...tokens];
+        // The blank token is only a fallback for characters with no reminders of their own
+        reminderCache[characterId] = tokens.length > 0 ? tokens : [blankReminderToken(characterId)];
         return reminderCache[characterId];
     }
 
@@ -442,7 +448,6 @@
         dragging = { character: character, source: 'board', sourceToken: token };
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
         gameState.present.placedTokens = placedTokens.filter(t => t !== token);
-        rescheduleSaveGrimoire();
     }
 
     function startDragReminderFromPopup(e: PointerEvent, token: ReminderToken) {
@@ -472,7 +477,6 @@
         draggingReminder = { token, characterId: token.characterId, source: 'board' };
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
         gameState.present.placedReminders = placedReminders.filter(r => !(r.tokenId === reminder.tokenId && r.x === reminder.x && r.y === reminder.y));
-        rescheduleSaveGrimoire();
     }
 
     async function toggleReminderTray(token: PlacedToken) {
@@ -579,6 +583,7 @@
             // If near edge, it's deleted (not re-added)
             draggingReminder = null;
             ghostPos = null;
+            rescheduleSaveGrimoire();
             return;
         }
 
@@ -616,6 +621,7 @@
 
         dragging = null;
         ghostPos = null;
+        rescheduleSaveGrimoire();
     }
 
     onMount(()=>{
