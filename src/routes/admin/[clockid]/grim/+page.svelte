@@ -24,6 +24,9 @@
         clock: 10
     };
 
+    // Ring radii as multiples of the token size, to help line tokens up
+    const ALIGNMENT_RING_FACTORS = [1.9, 2.6, 3.3];
+
     let {data}: {data: PageData} = $props();
 
     function defaultAlignmentForCharacterId(characterId: string): Alignment {
@@ -667,6 +670,18 @@
         inset: 0;
     }
 
+    .alignment-ring {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.015);
+        box-sizing: border-box;
+        pointer-events: none;
+    }
+
     .board-token {
         position: absolute;
         transform: translate(-50%, -50%);
@@ -1222,6 +1237,11 @@
     <AnotatableViewV2 tool={editing ? activeTool : null} onchange={rescheduleSaveGrimoire} layers={canvasLayers} activeLayerIndex={activeCanvasLayerIndex} canvasStyle="z-index: {z_indecies.canvas};">
 
     <div class="grimoire-board" bind:this={boardEl}>
+        {#if !tokensLocked}
+            {#each ALIGNMENT_RING_FACTORS as factor}
+                <div class="alignment-ring" style="width: {tokenSize * factor * 2}px; height: {tokenSize * factor * 2}px; z-index: {z_indecies.canvas - 1};"></div>
+            {/each}
+        {/if}
         {#each placedTokens as token, i (token.characterId + '-' + i)}
             {@const character = script?.characters.find(c => c.id === token.characterId)}
             {#if character}
