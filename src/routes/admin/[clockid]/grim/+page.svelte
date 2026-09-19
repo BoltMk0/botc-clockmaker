@@ -568,6 +568,15 @@
         rescheduleSaveGrimoire();
     }
 
+    function setPlayerName(name: string) {
+        if (!activeToken) return;
+        const target = activeToken;
+        gameState.present.placedTokens = gameState.present.placedTokens.map(t =>
+            t === target ? { ...t, playerName: name } : t
+        );
+        rescheduleSaveGrimoire();
+    }
+
     function closeReminderTray() {
         activeReminderCharId = null;
         activeReminderPos = null;
@@ -651,6 +660,7 @@
                     x, y,
                     isDead: dragging.sourceToken?.isDead ?? false,
                     alignment: dragging.sourceToken?.alignment ?? defaultAlignmentForCharacterId(dragging.character.id),
+                    playerName: dragging.sourceToken?.playerName,
                 };
                 gameState.present.placedTokens = [...gameState.present.placedTokens, newPlacedToken];
                 rescheduleSaveGrimoire();
@@ -866,6 +876,16 @@
         color: #fecaca;
         border-color: #7f1d1d;
     }
+    .popup-player-name {
+        background: #1f2937;
+        color: #e5e7eb;
+        border: 1px solid #4b5563;
+        border-radius: 6px;
+        padding: 4px 8px;
+        font-size: 0.85em;
+        width: 100%;
+        box-sizing: border-box;
+    }
     .popup-divider {
         width: 1px;
         align-self: stretch;
@@ -903,6 +923,23 @@
         background:
             radial-gradient(ellipse at 50% 30%, rgba(10, 10, 15, 0.75) 35%, rgba(10, 10, 15, 0.25) 70%, rgba(10, 10, 15, 0) 100%);
         box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.85);
+    }
+
+    .token-player-name-arc {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translate(-50%, -40%);
+        pointer-events: none;
+        overflow: visible;
+    }
+    .token-player-name-text {
+        fill: #fff;
+        stroke: #000;
+        stroke-width: 2px;
+        paint-order: stroke fill;
+        font-weight: bold;
+        letter-spacing: 0.5px;
     }
 
     .board-reminder {
@@ -1227,6 +1264,11 @@
             </svg>
         </button>
 
+        <!-- Player name view -->
+        <button class="sidebar-btn" onclick={() => {saveGrimoire().then(()=>goto(`/admin/${data.clockid}/grim/players`))} } title="Player name view">
+            <svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 8 1.34 8 4v2H4v-2c0-2.66 5.3-4 8-4zm0-2a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/></svg>
+        </button>
+
         <!-- Go back -->
         <button class="sidebar-btn" onclick={() => {saveGrimoire().then(()=>goto(`/admin/${data.clockid}`))} } title="Back to clock">
             <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
@@ -1250,6 +1292,15 @@
                 <CharacterToken {character} nightOrder={nightOrderByCharacterId.indexOf(token.characterId)} style="position: relative;" size={tokenSize + 'px'} norules/>
                 {#if token.isDead}
                     <div class="token-shroud" style="width: {tokenSize}px; height: {tokenSize}px; z-index: {z_indecies.tokens + 1};"></div>
+                {/if}
+                {#if character.player_count > 0 && token.playerName}
+                    {@const playerNameArcId = `player-name-arc-${token.characterId}`}
+                    <svg class="token-player-name-arc" viewBox="0 0 100 40" preserveAspectRatio="xMidYMax meet" aria-hidden="true" style="width: {tokenSize}px; height: {tokenSize * 0.4}px; z-index: {z_indecies.tokens + 1};">
+                        <path id={playerNameArcId} d="M 4 39 A 50 50 0 0 1 96 39" fill="none" stroke="none"/>
+                        <text class="token-player-name-text dumbledore-font" text-anchor="middle" font-size="14">
+                            <textPath href="#{playerNameArcId}" startOffset="50%">{token.playerName}</textPath>
+                        </text>
+                    </svg>
                 {/if}
             </div>
             {/if}
@@ -1297,6 +1348,16 @@
                                 {activeToken.alignment === 'evil' ? 'Evil' : 'Good'}
                             </button>
                         </div>
+                        {#if (activeChar?.player_count ?? 0) > 0}
+                            <input
+                                type="text"
+                                class="popup-player-name"
+                                placeholder="Player name"
+                                value={activeToken.playerName ?? ''}
+                                oninput={(e) => setPlayerName((e.target as HTMLInputElement).value)}
+                                onpointerdown={(e) => e.stopPropagation()}
+                            />
+                        {/if}
                         {#if activeChar?.rules}
                             <div class="popup-rules">
                                 <div class="popup-rules-name">{activeChar.name}</div>

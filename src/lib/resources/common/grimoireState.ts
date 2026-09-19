@@ -9,6 +9,7 @@ export type PlacedToken = {
     alignment: Alignment;
     x: number;
     y: number;
+    playerName?: string;
 };
 
 export type PlacedReminder = {
@@ -47,7 +48,8 @@ function isPlacedToken(obj: any): obj is PlacedToken {
         typeof obj.y === "number" && isFinite(obj.y) &&
         typeof obj.characterId === "string" &&
         typeof obj.isDead === "boolean" &&
-        (obj.alignment === undefined || obj.alignment === "good" || obj.alignment === "evil");
+        (obj.alignment === undefined || obj.alignment === "good" || obj.alignment === "evil") &&
+        (obj.playerName === undefined || typeof obj.playerName === "string");
     if(!result){
         console.error("Invalid PlacedToken object:", obj);
     }
