@@ -451,27 +451,26 @@
         viewTy = -scale * (minY + maxY) / 2;
     }
 
-    // Moves every token back to where the draw first put it (seats round the circle, everything else in the row above).
+    // Spaces the players evenly round the circle in their current order; unnamed tokens and reminders rotate with the nearest player.
     function resetTokenPositions() {
         if (placedTokens.length === 0) return;
-        if (!confirm("Move all tokens back to their starting positions and resize them to fit?")) return;
+        if (!confirm("Space the players evenly (other tokens follow their nearest player) and resize the tokens to fit?")) return;
         closeReminderTray();
-        gameState.present.placedTokens = layoutTokensAtDefaultPositions(
-            placedTokens,
-            isPlayerToken
-        );
+        const laidOut = layoutTokensAtDefaultPositions(placedTokens, placedReminders);
+        gameState.present.placedTokens = laidOut.tokens;
+        gameState.present.placedReminders = laidOut.reminders;
         fitTokenSizeToSpacing();
         rescheduleSaveGrimoire();
         fitView();
     }
 
-    // Sets the token size to the largest the slider allows that keeps every token clear of its nearest neighbour.
+    // Sets the token size to the largest the slider allows that keeps every player token clear of its nearest neighbour.
     const TOKEN_SIZE_MIN = 80;
     const TOKEN_SIZE_MAX = 240;
     const TOKEN_GAP_FACTOR = 0.94;
     function fitTokenSizeToSpacing() {
         let minDist = Infinity;
-        const tokens = gameState.present.placedTokens;
+        const tokens = gameState.present.placedTokens.filter(isPlayerToken);
         for (let i = 0; i < tokens.length; i++) {
             for (let j = i + 1; j < tokens.length; j++) {
                 minDist = Math.min(minDist, Math.hypot(tokens[i].x - tokens[j].x, tokens[i].y - tokens[j].y));

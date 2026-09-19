@@ -143,24 +143,49 @@ function clockwiseFromTop(t: { x: number, y: number }): number {
     return (Math.atan2(t.y, t.x) + Math.PI / 2 + 2 * Math.PI) % (2 * Math.PI);
 }
 
-// Puts every token back at its default start position: tokens that take a seat go round the circle (in their angular order
-// around the centre), the rest go in the row above it. Everything else about each token is left as it was.
+const angleOf = (p: { x: number, y: number }) => Math.atan2(p.y, p.x);
+// Wraps an angle difference into (-PI, PI].
+const wrapAngle = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
+
+// Spaces the player tokens evenly round the circle, keeping their current order round the table (ranked by
+// clockwise angle from the top, so a token dragged in between two others ends up between them). Every other
+// token - character tokens with no player name, and reminders - travels with the nearest player by angle: when
+// that player moves to their new seat, the token is rotated about the board centre by the same angle, so it
+// stays in the same place relative to them. Everything else about each token is left as it was.
 export function layoutTokensAtDefaultPositions(
     tokens: PlacedToken[],
-    takesSeat: (token: PlacedToken) => boolean
-): PlacedToken[] {
-    const seated = tokens.filter(takesSeat);
-    const offSeat = tokens.filter(t => !takesSeat(t));
-    // Seats keep their current order round the table: rank them by clockwise angle from the top, so a token
-    // dragged in between two others ends up between them. Off-seat tokens keep their left-to-right order.
-    const positionOf = new Map<PlacedToken, { x: number, y: number }>();
-    const circle = computeCirclePositions(seated.length);
-    [...seated].sort((a, b) => clockwiseFromTop(a) - clockwiseFromTop(b))
-        .forEach((t, i) => positionOf.set(t, circle[i]));
-    const row = computeRowPositions(offSeat.length, OFF_SEAT_ROW_Y);
-    [...offSeat].sort((a, b) => a.x - b.x)
-        .forEach((t, i) => positionOf.set(t, row[i]));
-    return tokens.map(t => ({ ...t, ...positionOf.get(t)! }));
+    reminders: PlacedReminder[]
+): { tokens: PlacedToken[], reminders: PlacedReminder[] } {
+    const players = tokens.filter(isPlayerToken);
+    if (players.length === 0) return { tokens, reminders };
+
+    const newPositionOf = new Map<PlacedToken, { x: number, y: number }>();
+    const circle = computeCirclePositions(players.length);
+    [...players].sort((a, b) => clockwiseFromTop(a) - clockwiseFromTop(b))
+        .forEach((t, i) => newPositionOf.set(t, circle[i]));
+
+    // How far the nearest player (by angle) rotates about the centre, and so how far to turn a token that follows them.
+    const rotationFollowing = (p: { x: number, y: number }): number => {
+        const a = angleOf(p);
+        let nearest = players[0];
+        let nearestDiff = Infinity;
+        for (const player of players) {
+            const diff = Math.abs(wrapAngle(angleOf(player) - a));
+            if (diff < nearestDiff) { nearest = player; nearestDiff = diff; }
+        }
+        return wrapAngle(angleOf(newPositionOf.get(nearest)!) - angleOf(nearest));
+    };
+    const rotated = (p: { x: number, y: number }) => {
+        const delta = rotationFollowing(p);
+        const cos = Math.cos(delta);
+        const sin = Math.sin(delta);
+        return { x: Math.round(p.x * cos - p.y * sin), y: Math.round(p.x * sin + p.y * cos) };
+    };
+
+    return {
+        tokens: tokens.map(t => ({ ...t, ...(newPositionOf.get(t) ?? rotated(t)) })),
+        reminders: reminders.map(r => ({ ...r, ...rotated(r) }))
+    };
 }
 
 export function newGrimoireStateFromDraw(
