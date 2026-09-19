@@ -1,7 +1,7 @@
 <script lang="ts">
     import PlayerSeatToken from "./PlayerSeatToken.svelte";
     import { computeSeatsLayout, filterSeatTokens } from "$lib/components/playerSeatsLayout";
-    import { playerDisplayName, seatNumbers, type GrimoireStateHistory } from "$lib/resources/common/grimoireState";
+    import type { GrimoireStateHistory } from "$lib/resources/common/grimoireState";
     import type { ScriptWithCharacters } from "$lib/resources/common/gameData";
 
     // Lays out the game's seated players' tokens within `area` (a world-unit
@@ -30,7 +30,6 @@
     } = $props();
 
     const seatTokens = $derived(filterSeatTokens(grimoireState, script));
-    const numbers = $derived(seatNumbers(seatTokens));
 
     const layout = $derived(
         computeSeatsLayout(seatTokens, area.width, area.height, {
@@ -43,7 +42,7 @@
 
 {#each layout.tokens as { token, x, y } (token.id)}
     <PlayerSeatToken
-        playerName={playerDisplayName(token, numbers)}
+        playerName={token.playerName ?? ''}
         isDead={token.isDead}
         placement={{
             // The layout's x/y are CSS-style offsets from centre (+y = down);

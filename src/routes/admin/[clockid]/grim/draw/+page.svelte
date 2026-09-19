@@ -89,20 +89,20 @@
     }
 
     async function confirmName() {
-        if (activeNumber === null) return;
+        if (activeNumber === null || !nameInput.trim()) return;
         confirming = true;
         try {
             const res = await fetch(`/api/clock/${data.clockid}/draw/confirm`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ number: activeNumber, playerName: nameInput.trim() || null })
+                body: JSON.stringify({ number: activeNumber, playerName: nameInput.trim() })
             });
             if (!res.ok) {
                 alert('Failed to confirm your name.');
                 return;
             }
             const slot = slots.find(s => s.number === activeNumber);
-            if (slot) { slot.claimed = true; slot.playerName = nameInput.trim() || null; }
+            if (slot) { slot.claimed = true; slot.playerName = nameInput.trim(); }
             closeModal();
         } finally {
             confirming = false;
@@ -256,8 +256,8 @@
                 {:else}
                     <div>Unknown character</div>
                 {/if}
-                <input type="text" class="input-style name-input" placeholder="Your name (optional)" bind:value={nameInput} use:focusOnMount onkeydown={(e) => { if (e.key === 'Enter') confirmName(); }}/>
-                <button class="button-style highlight" onclick={confirmName} disabled={confirming}>Confirm</button>
+                <input type="text" class="input-style name-input" placeholder="Your name" bind:value={nameInput} use:focusOnMount onkeydown={(e) => { if (e.key === 'Enter') confirmName(); }}/>
+                <button class="button-style highlight" onclick={confirmName} disabled={confirming || !nameInput.trim()}>Confirm</button>
             {/if}
         </div>
     </div>

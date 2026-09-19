@@ -29,7 +29,8 @@ export async function POST({ params }) {
     const history = newGrimoireStateFromDraw(params.clockid, session.scriptId, seats, session.bluffIds, offSeats);
     set_grimoire_state_history_resource_for_clock(params.clockid, history);
 
-    const playerCount = seats.reduce((sum, s) => sum + (charactersById.get(s.characterId)?.player_count ?? 0), 0);
+    // Every drawn seat is a named player.
+    const playerCount = seats.filter(s => s.playerName.trim()).length;
     const clock = getBOTCTClockInstanceManager().getInstance(params.clockid);
     if (clock) {
         clock.playerCount = playerCount;

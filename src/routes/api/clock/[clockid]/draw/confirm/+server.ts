@@ -8,8 +8,8 @@ export async function POST({ params, request }) {
     if (typeof number !== 'number') {
         return json({ error: 'number is required' }, { status: 400 });
     }
-    if (playerName !== undefined && playerName !== null && typeof playerName !== 'string') {
-        return json({ error: 'playerName must be a string' }, { status: 400 });
+    if (typeof playerName !== 'string' || !playerName.trim()) {
+        return json({ error: 'playerName is required' }, { status: 400 });
     }
 
     const session = get_draw_session_for_clock(params.clockid);
@@ -19,7 +19,7 @@ export async function POST({ params, request }) {
     if (!slot) return json({ error: 'No such slot' }, { status: 404 });
 
     slot.claimed = true;
-    slot.playerName = playerName?.trim() || null;
+    slot.playerName = playerName.trim();
     set_draw_session_for_clock(params.clockid, session);
 
     return json({ message: 'Player name confirmed' });

@@ -13,7 +13,7 @@
     import type { CanvasToolType } from "$lib/components/DrawableCanvas2/types.js";
     import AnotatableViewV2 from "$lib/components/DrawableCanvas2/AnotatableViewV2.svelte";
     import PlayerToken from "$lib/components/PlayerToken.svelte";
-    import { isPlayerToken, layoutTokensAtDefaultPositions, playerDisplayName, seatNumbers, newGrimoireStateHistory, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
+    import { isPlayerToken, layoutTokensAtDefaultPositions, newGrimoireStateHistory, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
     import { v7 } from "uuid";
     import type { PageData } from "./$types";
 
@@ -102,20 +102,8 @@
         fetch(`/api/scripts/${id}`).then(r => r.ok ? r.json() : null).then(s => {
             if (gameState.scriptId !== id) return;
             script = s;
-            migrateSeatedTokensToPlayers();
         }).catch(() => { if (gameState.scriptId === id) script = null; });
     });
-
-    // Saves from before players existed have nameless tokens for seated characters; those are players now.
-    function migrateSeatedTokensToPlayers() {
-        if (!script) return;
-        const seated = new Set(script.characters.filter(c => c.player_count > 0).map(c => c.id));
-        if (!gameState.present.placedTokens.some(t => t.playerName === undefined && t.characterId !== null && seated.has(t.characterId))) return;
-        gameState.present.placedTokens = gameState.present.placedTokens.map(t =>
-            t.playerName === undefined && t.characterId !== null && seated.has(t.characterId) ? { ...t, playerName: '' } : t
-        );
-        rescheduleSaveGrimoire();
-    }
 
     const loadedPreset = $derived(gameState.loadedPreset);
 
@@ -171,7 +159,6 @@
 
     const placedTokens = $derived(gameState.present.placedTokens);
     const placedReminders = $derived(gameState.present.placedReminders);
-    const playerSeatNumbers = $derived(seatNumbers(placedTokens));
 
     // Cache of fetched reminder tokens per character
     let reminderCache = $state< Record<string, ReminderToken[]> >({});
@@ -808,8 +795,6 @@
                         x, y,
                         isDead: false,
                         alignment: defaultAlignmentForCharacterId(dragging.character?.id ?? null),
-                        // Characters that take a seat are played by someone, so they start as a (nameless) player.
-                        playerName: (dragging.character?.player_count ?? 0) > 0 ? '' : undefined,
                     };
                 gameState.present.placedTokens = [...gameState.present.placedTokens, newPlacedToken];
                 rescheduleSaveGrimoire();
@@ -1653,9 +1638,9 @@
                 onpointerdown={(e) => startDragFromBoard(e, token)}
             >
                 {#if character}
-                    <CharacterToken {character} nightOrder={nightOrderByCharacterId.indexOf(character.id)} style="position: relative;" size={tokenSize + 'px'} norules dead={token.isDead} playerName={isPlayerToken(token) ? playerDisplayName(token, playerSeatNumbers) : undefined}/>
+                    <CharacterToken {character} nightOrder={nightOrderByCharacterId.indexOf(character.id)} style="position: relative;" size={tokenSize + 'px'} norules dead={token.isDead} playerName={token.playerName?.trim() || undefined}/>
                 {:else}
-                    <PlayerToken playerName={playerDisplayName(token, playerSeatNumbers)} isDead={token.isDead} style="position: relative;" size={tokenSize + 'px'}/>
+                    <PlayerToken playerName={token.playerName ?? ''} isDead={token.isDead} style="position: relative;" size={tokenSize + 'px'}/>
                 {/if}
             </div>
             {/if}
@@ -1697,16 +1682,14 @@
                 {#if activeToken}
                     {@const activeChar = script?.characters.find(c => c.id === activeCharacterId)}
                     <div class="popup-meta">
-                        {#if isPlayerToken(activeToken)}
-                            <input
-                                type="text"
-                                class="popup-player-name"
-                                placeholder="Player name"
-                                value={activeToken.playerName ?? ''}
-                                oninput={(e) => setPlayerName((e.target as HTMLInputElement).value)}
-                                onpointerdown={(e) => e.stopPropagation()}
-                            />
-                        {/if}
+                        <input
+                            type="text"
+                            class="popup-player-name"
+                            placeholder="Player name"
+                            value={activeToken.playerName ?? ''}
+                            oninput={(e) => setPlayerName((e.target as HTMLInputElement).value)}
+                            onpointerdown={(e) => e.stopPropagation()}
+                        />
                         <div class="popup-toggles">
                             <button type="button" class="popup-toggle" class:dead={activeToken.isDead} onclick={toggleAlive}>
                                 {activeToken.isDead ? 'Dead' : 'Alive'}
@@ -1861,7 +1844,7 @@
         <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 10};" onclick={(e) => { if (!(e.target as Element).closest('input')) closeOverlay(); }}>
             <div class="overlay-panel">
                 <button class="overlay-close" onclick={closeOverlay} aria-label="Close">✕</button>
-                {#if overlayFromBoard && activeToken && isPlayerToken(activeToken)}
+                {#if overlayFromBoard && activeToken}
                     <input
                         type="text"
                         class="popup-player-name overlay-player-name"

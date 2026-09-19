@@ -3,9 +3,9 @@ import { v7 } from "uuid";
 
 export type Alignment = 'good' | 'evil';
 
-// A token on the board. A token with a playerName is a player (they take a seat); the character is just
-// what's currently assigned to them, and may be null until the storyteller picks one. A token with no
-// playerName is a free-standing character token (e.g. one that takes no seat).
+// A token on the board. A token with a non-empty playerName is a player (they take a seat and count towards
+// the player count); the character is just what's currently assigned to them, and may be null until the
+// storyteller picks one. A token with no player name is only a character token, kept as a reminder.
 export type PlacedToken = {
     id: string;
     characterId: string | null;
@@ -17,7 +17,7 @@ export type PlacedToken = {
 };
 
 export function isPlayerToken(token: PlacedToken): boolean {
-    return token.playerName !== undefined;
+    return (token.playerName ?? '').trim() !== '';
 }
 
 // Older saves have no token ids; give each token one so it can be tracked independently of its character.
@@ -141,18 +141,6 @@ export function computeRowPositions(n: number, y: number, spacing: number = 170)
 // Clockwise angle of a token around the board centre, from the top (0) round to just under a full turn.
 function clockwiseFromTop(t: { x: number, y: number }): number {
     return (Math.atan2(t.y, t.x) + Math.PI / 2 + 2 * Math.PI) % (2 * Math.PI);
-}
-
-// Seat numbers (1-based) for the player tokens, counting clockwise round the table from the top.
-export function seatNumbers(tokens: PlacedToken[]): Map<string, number> {
-    return new Map(tokens.filter(isPlayerToken)
-        .sort((a, b) => clockwiseFromTop(a) - clockwiseFromTop(b))
-        .map((t, i) => [t.id, i + 1]));
-}
-
-// What to show on a player's token: their name, or their seat number if they haven't been given one.
-export function playerDisplayName(token: PlacedToken, numbers: Map<string, number>): string {
-    return token.playerName?.trim() || String(numbers.get(token.id) ?? '');
 }
 
 // Puts every token back at its default start position: tokens that take a seat go round the circle (in their angular order

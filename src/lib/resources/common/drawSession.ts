@@ -2,7 +2,7 @@ export type DrawSlot = {
     number: number;
     characterId: string;
     claimed: boolean; // true once the player has viewed their token and confirmed
-    playerName: string | null; // optional - left empty on the grim when not entered
+    playerName: string | null; // optional - required when a slot is confirmed
 };
 
 export type DrawSession = {
