@@ -32,7 +32,9 @@
         verticalOffset,
         mistHeightFraction,
         clockFaceImageUrl,
-        clockFaceNormalMapUrl
+        clockFaceNormalMapUrl,
+        hasGrim = false,
+        seatsAreaRect = $bindable<{ x: number; y: number; width: number; height: number } | null>(null)
     }: {
         progress: number;
         totalTime: number;
@@ -52,6 +54,8 @@
         mistHeightFraction: number;
         clockFaceImageUrl: string;
         clockFaceNormalMapUrl: string;
+        hasGrim?: boolean;
+        seatsAreaRect?: { x: number; y: number; width: number; height: number } | null;
     } = $props();
 
     const counts = $derived(getPlayerCount(playerCount));
@@ -110,6 +114,8 @@
     {counts}
     {visibleHeight}
     horizontalOffset={scaledHorizontalOffset}
+    {hasGrim}
+    bind:seatsAreaRect
 />
 <Tower {imageUrl} {normalMapUrl} {origin} {planeHeight} horizontalOffset={scaledHorizontalOffset} {verticalOffset} />
 <ClockFace

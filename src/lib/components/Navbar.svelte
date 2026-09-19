@@ -135,7 +135,7 @@
                 <li><a href="/townsquare/all" target="_self">All</a></li>
                 {#each clients as client}
                     <li>
-                        <a href="/{client.clock.clockId}" target="_self">{client.config.teamName}</a>
+                        <a href="/townsquare/{client.clock.clockId}" target="_self">{client.config.teamName}</a>
                         <ul>
                             <li><a href="/admin/{client.clock.clockId}" target="_self">Remote</a></li>
                         </ul>

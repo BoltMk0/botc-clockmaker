@@ -1,23 +1,26 @@
 import { getBOTCTClockInstanceManager, InstanceNotFoundError } from '$lib/model/server/model';
 import { listAmbienceResources } from '$lib/resources/server/ambience-resources';
+import { get_grimoire_state_history_resource_for_clock } from '$lib/resources/server/grimoire-state';
 import { error } from '@sveltejs/kit';
 
 
 export async function load({params}){
     try {
-        const clock = getBOTCTClockInstanceManager().getInstance(params.clockid);
+        const clock = getBOTCTClockInstanceManager().getInstance(params.gameid);
         const clientIds = getBOTCTClockInstanceManager().listInstances().map(instance => ({id: instance.clock.clockId, name: instance.config.teamName ?? instance.clock.clockId}));
         const ambienceResources = listAmbienceResources();
+        const hasGrim = get_grimoire_state_history_resource_for_clock(params.gameid) !== null;
         return {
             model: clock.model,
             clientIds,
-            ambienceResources
+            ambienceResources,
+            hasGrim
         }
     } catch (er) {
         if (er instanceof InstanceNotFoundError) {
-            return error(404, `Clock instance with id ${params.clockid} not found`);
+            return error(404, `Clock instance with id ${params.gameid} not found`);
         } else {
-            console.error(`Error loading clock instance with id ${params.clockid}:`, er);
+            console.error(`Error loading clock instance with id ${params.gameid}:`, er);
             return error(500, `Error loading clock instance: ${er instanceof Error ? er.message : String(er)}`);
         }
     }

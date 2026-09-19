@@ -2,8 +2,12 @@
     import * as THREE from "three";
     import { fade } from "svelte/transition";
     import { browser } from "$app/environment";
+    import { onMount } from "svelte";
     import { Canvas } from "@threlte/core";
     import Scene from "./Scene.svelte";
+    import PlayerSeatsView from "$lib/components/PlayerSeatsView.svelte";
+    import { isGrimoireStateHistory, type GrimoireStateHistory } from "$lib/resources/common/grimoireState";
+    import type { ScriptWithCharacters } from "$lib/resources/common/gameData";
     import clocktowerColor from "$lib/assets/clocktower-scene/clocktower-color.png";
     import clocktowerNormal from "$lib/assets/clocktower-scene/clocktower-normal.png";
     import clockfaceColor from "$lib/assets/clocktower-scene/clockface-color.png";
@@ -75,7 +79,11 @@
         // a fraction of `visibleHeight` - see Mist.svelte's `heightFraction`.
         mistHeightFraction = 0.4,
         showOriginMarker = false,
-        style = ""
+        style = "",
+        // The clock this scene belongs to - used to poll whether a virtual
+        // grimoire exists for it and, if so, to drive the player-seats
+        // overlay layered over the day/count banners (see below).
+        clockId
     }: {
         progress: number;
         totalTime?: number;
@@ -96,6 +104,7 @@
         mistHeightFraction?: number;
         showOriginMarker?: boolean;
         style?: string;
+        clockId: string;
     } = $props();
 
     // The scene's various subviews each load their own textures independently
@@ -166,9 +175,81 @@
             cancelled = true;
         };
     });
+
+    // Whether a grim exists for this clock, and (if so) its live state -
+    // some tables run without a virtual grimoire, so this is polled rather
+    // than assumed, and reused both to pick which GameStatsPanel layout to
+    // use (see `hasGrim` below) and to feed the player-seats overlay,
+    // without fetching the same state twice.
+    let grimoireState = $state<GrimoireStateHistory | null>(null);
+    let script = $state<ScriptWithCharacters | null>(null);
+    const hasGrim = $derived(grimoireState !== null);
+
+    onMount(() => {
+        if (!browser) return;
+
+        let cancelled = false;
+        let lastScriptId: string | null = null;
+
+        async function poll() {
+            try {
+                const res = await fetch(`/admin/${clockId}/grim/state`);
+                if (cancelled) return;
+                if (!res.ok) {
+                    grimoireState = null;
+                    return;
+                }
+                const body = await res.json();
+                if (!isGrimoireStateHistory(body)) return;
+                grimoireState = body;
+
+                if (body.scriptId !== lastScriptId) {
+                    lastScriptId = body.scriptId;
+                    if (body.scriptId) {
+                        const scriptRes = await fetch(`/api/scripts/${body.scriptId}`);
+                        if (!cancelled && scriptRes.ok) {
+                            script = await scriptRes.json();
+                        }
+                    } else {
+                        script = null;
+                    }
+                }
+            } catch {
+                // Ignore transient fetch failures; we'll just try again next tick.
+            }
+        }
+
+        poll();
+        const interval = setInterval(poll, 2000);
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
+        };
+    });
+
+    // The player-seats overlay is plain HTML layered over the canvas (its
+    // content - PlayerToken components - isn't something Threlte can render
+    // as a mesh), so it's positioned by converting the world-space rect
+    // GameStatsPanel reports (via `seatsAreaRect`) into screen pixels. This
+    // mirrors OrthoCamera.svelte's own projection exactly: zoom = container
+    // height / visibleHeight (1 world unit = `zoom` px), world (0,0) sits at
+    // the container's centre, and world Y grows up while screen Y grows down.
+    let containerWidth = $state(0);
+    let containerHeight = $state(0);
+    let seatsAreaRect = $state<{ x: number; y: number; width: number; height: number } | null>(null);
+
+    const seatsOverlayPx = $derived.by(() => {
+        if (!seatsAreaRect || containerHeight <= 0) return null;
+        const zoom = containerHeight / visibleHeight;
+        const centerX = containerWidth / 2 + seatsAreaRect.x * zoom;
+        const centerY = containerHeight / 2 - seatsAreaRect.y * zoom;
+        const width = seatsAreaRect.width * zoom;
+        const height = seatsAreaRect.height * zoom;
+        return { left: centerX - width / 2, top: centerY - height / 2, width, height };
+    });
 </script>
 
-<div style="position: relative; width: 100%; height: 100%; {style}">
+<div style="position: relative; width: 100%; height: 100%; {style}" bind:clientWidth={containerWidth} bind:clientHeight={containerHeight}>
     {#if browser}
         <!-- Mounted regardless of `assetsReady` so the scene starts loading
              its own textures (each subview's own useTexture call) and
@@ -202,8 +283,18 @@
                 {verticalOffset}
                 {mistHeightFraction}
                 {showOriginMarker}
+                {hasGrim}
+                bind:seatsAreaRect
             />
         </Canvas>
+        {#if hasGrim && seatsOverlayPx}
+            <div
+                class="seats-overlay"
+                style="left: {seatsOverlayPx.left}px; top: {seatsOverlayPx.top}px; width: {seatsOverlayPx.width}px; height: {seatsOverlayPx.height}px;"
+            >
+                <PlayerSeatsView {grimoireState} {script} />
+            </div>
+        {/if}
         {#if !assetsReady}
             <div class="loading-overlay" out:fade={{ duration: 400 }}>
                 <div class="spinner"></div>
@@ -214,6 +305,11 @@
 </div>
 
 <style>
+    .seats-overlay {
+        position: absolute;
+        pointer-events: none;
+    }
+
     .loading-overlay {
         position: absolute;
         inset: 0;

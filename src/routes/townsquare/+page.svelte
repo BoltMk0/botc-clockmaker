@@ -50,7 +50,7 @@
     <div class="game-list">
         {#each data.instances as instance (instance.clock.clockId)}
             <div class="game-row">
-                <a class="game-row-link" href="/{instance.clock.clockId}" aria-label="Open {instance.config.teamName ?? instance.clock.clockId}"></a>
+                <a class="game-row-link" href="/townsquare/{instance.clock.clockId}" aria-label="Open {instance.config.teamName ?? instance.clock.clockId}"></a>
                 <span class="game-row-name">{instance.config.teamName ?? instance.clock.clockId}</span>
                 <div class="game-row-actions">
                     <a class="button-style" href="/settings/clocks?select={instance.clock.clockId}">Settings</a>

@@ -29,7 +29,18 @@
     // to the far right of the actual screen (not mirrored off the tower's
     // offset like the day banner/lanterns above). Margin is a fraction of
     // the real visible screen width, measured in from the right edge.
+    // Only used when a grim exists (see `hasGrim` below) - otherwise the
+    // count banner stacks directly under the day banner in the same panel.
     const COUNT_RIGHT_MARGIN_FRACTION = 0.02;
+
+    // With a grim, the day/time banner sits close to the top of the screen
+    // instead of being centred above the count banner, freeing up the space
+    // below it (down to the screen bottom) for the player-seats overlay -
+    // reported upward via `seatsAreaRect`. Margin is a fraction of
+    // `visibleHeight`, measured down from the top edge; the gap similarly
+    // separates the day banner's bottom edge from the top of that space.
+    const DAY_TOP_MARGIN_FRACTION = 0.05;
+    const SEATS_GAP_FRACTION = 0.03;
 
     // The count banner's own texture aspect (width / height), used to turn
     // its row width into its rendered height so it can be positioned before
@@ -89,7 +100,15 @@
         // is the one thing allowed to shrink on narrow screens (see
         // Scene.svelte) - it only repositions the panel toward centre
         // (overlapping the tower if needed), it never resizes it.
-        horizontalOffset = visibleHeight * 0.4
+        horizontalOffset = visibleHeight * 0.4,
+        // Whether this game has a virtual grimoire set up - some tables run
+        // without one. Without a grim there's no player-seats view to show,
+        // so the count banner stacks under the day banner in one panel
+        // instead of moving to the right edge; with one, the day banner
+        // moves up to the top and the freed space below it (reported via
+        // `seatsAreaRect`) is where the caller renders the seats overlay.
+        hasGrim = false,
+        seatsAreaRect = $bindable<{ x: number; y: number; width: number; height: number } | null>(null)
     }: {
         day: number;
         // Day progress 0..1 and the day's total length in seconds - together
@@ -99,6 +118,8 @@
         counts: PlayerCounts;
         visibleHeight: number;
         horizontalOffset?: number;
+        hasGrim?: boolean;
+        seatsAreaRect?: { x: number; y: number; width: number; height: number } | null;
     } = $props();
 
     // Time remaining as M:SS (clamped at 0).
@@ -123,12 +144,16 @@
     const { size } = useThrelte();
     const realHalfWidth = $derived(visibleHeight * ($size.width / $size.height) / 2);
 
-    // The panel spans the full screen height: the count banner's bottom
-    // edge sits flush with the bottom of the screen, and the day banner is
-    // centred in whatever vertical space is left above it, up to the top
-    // edge of the screen. The camera is centred on world (0,0) and shows
-    // `visibleHeight` world-units vertically, so the screen's top/bottom
-    // edges sit at +/- visibleHeight / 2.
+    // The panel spans the full screen height. Without a grim, the count
+    // banner's bottom edge sits flush with the bottom of the screen and the
+    // day banner is centred in whatever vertical space is left above it, up
+    // to the top edge of the screen - a single stacked panel. With a grim,
+    // the day banner instead sits near the top (count banner pinned to the
+    // real right edge separately - see `countX` below) so the rest of the
+    // panel's column, down to the screen bottom, is free for the seats
+    // overlay. The camera is centred on world (0,0) and shows `visibleHeight`
+    // world-units vertically, so the screen's top/bottom edges sit at
+    // +/- visibleHeight / 2.
     const rows = $derived.by(() => {
         const dayW = panelW * DAY_WIDTH_SCALE;
         const dayH = dayW / DAY_BANNER_ASPECT;
@@ -138,10 +163,30 @@
         const screenTop = visibleHeight / 2;
         const screenBottom = -visibleHeight / 2;
 
-        const countY = screenBottom + countH / 2 - (countH/6);
-        const countTop = countY + countH / 2;
-        const countX = realHalfWidth - screenWidth * COUNT_RIGHT_MARGIN_FRACTION - countW / 2;
-        const dayY = (screenTop + countTop) / 2;
+        let dayY: number;
+        let countX: number;
+        let countY: number;
+        let seatsArea: { x: number; y: number; width: number; height: number } | null = null;
+
+        if (hasGrim) {
+            dayY = screenTop - visibleHeight * DAY_TOP_MARGIN_FRACTION - dayH / 2;
+            countY = screenBottom + countH / 2 - (countH/6);
+            countX = realHalfWidth - screenWidth * COUNT_RIGHT_MARGIN_FRACTION - countW / 2;
+
+            const seatsTop = (dayY - dayH / 2) - visibleHeight * SEATS_GAP_FRACTION;
+            seatsArea = {
+                x: panelX,
+                y: (seatsTop + screenBottom) / 2,
+                width: dayW,
+                height: Math.max(0, seatsTop - screenBottom)
+            };
+        } else {
+            countY = screenBottom + countH / 2 - (countH/6);
+            const countTop = countY + countH / 2;
+            countX = panelX;
+            dayY = (screenTop + countTop) / 2;
+        }
+
         const dayTop = dayY + dayH / 2;
 
         // The pole's own y, and how far out (each side) its ends reach.
@@ -165,8 +210,17 @@
             ropes: [
                 { x: panelX - poleEdgeX, topY: poleY, bottomY: lanternTopY, thickness: ropeThickness },
                 { x: panelX + poleEdgeX, topY: poleY, bottomY: lanternTopY, thickness: ropeThickness }
-            ]
+            ],
+            seatsArea
         };
+    });
+
+    // One-way sync out to the caller, in world units - it converts this to
+    // screen pixels to position the player-seats DOM overlay (see
+    // ClocktowerScene.svelte), since that overlay is plain HTML layered over
+    // the canvas, not a mesh this component can render itself.
+    $effect(() => {
+        seatsAreaRect = rows.seatsArea;
     });
 </script>
 
