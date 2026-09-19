@@ -442,34 +442,43 @@
     let pointerStartToken: PlacedToken | null = null;
     const TAP_THRESHOLD = 10;
 
-    // Zoom and pan so the placed tokens fill the screen, edge to edge (rings, reminders and the clock are ignored).
+    // Loric and fabled tokens sit apart from the town, so they're ignored when spacing or framing it.
+    function isSideRoleToken(t: PlacedToken): boolean {
+        const category = script?.characters.find(c => c.id === t.characterId)?.category;
+        return category === 'loric' || category === 'fabled';
+    }
+
+    // Zoom so the placed tokens fill the screen, edge to edge, with the town centred (rings, reminders, the clock, loric/fabled and unnamed tokens are ignored).
     const FIT_PADDING = 8;
     const FIT_MAX_SCALE = 4;
     function fitView() {
         if (!boardEl) return;
-        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-        const include = (x: number, y: number, half: number) => {
-            minX = Math.min(minX, x - half); maxX = Math.max(maxX, x + half);
-            minY = Math.min(minY, y - half); maxY = Math.max(maxY, y + half);
-        };
-        for (const t of placedTokens) include(t.x, t.y, tokenSize / 2);
-        if (!isFinite(minX)) { viewScale = 1; viewTx = 0; viewTy = 0; return; }
+        // Half-extents of the framed tokens about the board's centre (0, 0): the view is centred on the centre of the
+        // town circle, not on the bounding box of whatever tokens happen to be placed, so the town sits mid-screen.
+        let halfW = 0, halfH = 0;
+        // Only seated players count: loric/fabled and other character tokens with no player name are ignored.
+        const framed = placedTokens.filter(t => isPlayerToken(t) && !isSideRoleToken(t));
+        const tokens = framed.length > 0 ? framed : placedTokens;
+        for (const t of tokens) {
+            halfW = Math.max(halfW, Math.abs(t.x) + tokenSize / 2);
+            halfH = Math.max(halfH, Math.abs(t.y) + tokenSize / 2);
+        }
+        if (tokens.length === 0) { viewScale = 1; viewTx = 0; viewTy = 0; return; }
 
         const availW = Math.max(1, boardEl.offsetWidth - FIT_PADDING * 2);
         const availH = Math.max(1, boardEl.offsetHeight - FIT_PADDING * 2);
-        const scale = Math.min(FIT_MAX_SCALE, availW / (maxX - minX), availH / (maxY - minY));
-        viewScale = scale;
-        // Screen position = centre + translate + scale * world, so centre the content's middle on the screen centre.
-        viewTx = -scale * (minX + maxX) / 2;
-        viewTy = -scale * (minY + maxY) / 2;
+        viewScale = Math.min(FIT_MAX_SCALE, availW / (halfW * 2), availH / (halfH * 2));
+        // Screen position = centre + translate + scale * world, so no translation keeps the board's centre on screen centre.
+        viewTx = 0;
+        viewTy = 0;
     }
 
     // Spaces the players evenly round the circle in their current order; unnamed tokens and reminders rotate with the nearest player.
     function resetTokenPositions() {
         if (placedTokens.length === 0) return;
-        if (!confirm("Space the players evenly (other tokens follow their nearest player) and resize the tokens to fit?")) return;
+        if (!confirm("Space the players evenly (other tokens follow their nearest player; loric and fabled stay put) and resize the tokens to fit?")) return;
         closeReminderTray();
-        const laidOut = layoutTokensAtDefaultPositions(placedTokens, placedReminders);
+        const laidOut = layoutTokensAtDefaultPositions(placedTokens, placedReminders, isSideRoleToken);
         gameState.present.placedTokens = laidOut.tokens;
         gameState.present.placedReminders = laidOut.reminders;
         fitTokenSizeToSpacing();
@@ -480,17 +489,19 @@
     // Sets the token size to the largest the slider allows that keeps every player token clear of its nearest neighbour.
     const TOKEN_SIZE_MIN = 80;
     const TOKEN_SIZE_MAX = 240;
-    const TOKEN_GAP_FACTOR = 0.94;
+    const TOKEN_GAP_FACTOR = 0.8;
+    // The auto-fit never goes above this (the slider still allows up to TOKEN_SIZE_MAX by hand).
+    const AUTO_TOKEN_SIZE_MAX = 200;
     function fitTokenSizeToSpacing() {
         let minDist = Infinity;
-        const tokens = gameState.present.placedTokens.filter(isPlayerToken);
+        const tokens = gameState.present.placedTokens.filter(t => isPlayerToken(t) && !isSideRoleToken(t));
         for (let i = 0; i < tokens.length; i++) {
             for (let j = i + 1; j < tokens.length; j++) {
                 minDist = Math.min(minDist, Math.hypot(tokens[i].x - tokens[j].x, tokens[i].y - tokens[j].y));
             }
         }
         if (!isFinite(minDist)) return;
-        tokenSize = Math.max(TOKEN_SIZE_MIN, Math.min(TOKEN_SIZE_MAX, Math.floor(minDist * TOKEN_GAP_FACTOR)));
+        tokenSize = Math.max(TOKEN_SIZE_MIN, Math.min(AUTO_TOKEN_SIZE_MAX, Math.floor(minDist * TOKEN_GAP_FACTOR)));
     }
 
     // A second finger landed: whatever tap/drag the first finger was starting is now part of a pinch instead.

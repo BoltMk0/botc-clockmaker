@@ -159,11 +159,13 @@ const wrapAngle = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 // token - character tokens with no player name, and reminders - travels with the nearest player by angle: when
 // that player moves to their new seat, the token is rotated about the board centre by the same angle, so it
 // stays in the same place relative to them. Everything else about each token is left as it was.
+// Tokens for which `isFixed` returns true (loric and fabled) stay exactly where they are, and aren't seated as players.
 export function layoutTokensAtDefaultPositions(
     tokens: PlacedToken[],
-    reminders: PlacedReminder[]
+    reminders: PlacedReminder[],
+    isFixed: (token: PlacedToken) => boolean = () => false
 ): { tokens: PlacedToken[], reminders: PlacedReminder[] } {
-    const players = tokens.filter(isPlayerToken);
+    const players = tokens.filter(t => isPlayerToken(t) && !isFixed(t));
     if (players.length === 0) return { tokens, reminders };
 
     const newPositionOf = new Map<PlacedToken, { x: number, y: number }>();
@@ -190,7 +192,7 @@ export function layoutTokensAtDefaultPositions(
     };
 
     return {
-        tokens: tokens.map(t => ({ ...t, ...(newPositionOf.get(t) ?? rotated(t)) })),
+        tokens: tokens.map(t => isFixed(t) ? t : ({ ...t, ...(newPositionOf.get(t) ?? rotated(t)) })),
         reminders: reminders.map(r => ({ ...r, ...rotated(r) }))
     };
 }
