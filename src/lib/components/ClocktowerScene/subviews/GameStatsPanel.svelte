@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { useThrelte } from "@threlte/core";
     import TextBanner from "./TextBanner.svelte";
     import PlayerCountBanner, { type PlayerCounts } from "./PlayerCountBanner.svelte";
     import Lantern from "./Lantern.svelte";
@@ -23,6 +24,12 @@
         widthFraction: 0.34,
         z: 0.2
     };
+
+    // The player count banner sits apart from the rest of the panel, pinned
+    // to the far right of the actual screen (not mirrored off the tower's
+    // offset like the day banner/lanterns above). Margin is a fraction of
+    // the real visible screen width, measured in from the right edge.
+    const COUNT_RIGHT_MARGIN_FRACTION = 0.02;
 
     // The count banner's own texture aspect (width / height), used to turn
     // its row width into its rendered height so it can be positioned before
@@ -106,6 +113,16 @@
     const panelW = $derived(screenWidth * PANEL.widthFraction);
     const panelX = $derived(-horizontalOffset * PANEL.mirror + screenWidth * PANEL.nudgeX);
 
+    // The real visible half-width, in the same world units as everything
+    // else here - unlike `screenWidth` above (a fixed design reference used
+    // for tuning fractions), this tracks the actual canvas aspect so the
+    // count banner can be pinned to the real right edge of the screen. See
+    // OrthoCamera.svelte: zoom = size.height / visibleHeight, and 1 world
+    // unit = 1px at zoom 1, so half the real width in world units is
+    // visibleHeight * (size.width / size.height) / 2.
+    const { size } = useThrelte();
+    const realHalfWidth = $derived(visibleHeight * ($size.width / $size.height) / 2);
+
     // The panel spans the full screen height: the count banner's bottom
     // edge sits flush with the bottom of the screen, and the day banner is
     // centred in whatever vertical space is left above it, up to the top
@@ -123,6 +140,7 @@
 
         const countY = screenBottom + countH / 2 - (countH/6);
         const countTop = countY + countH / 2;
+        const countX = realHalfWidth - screenWidth * COUNT_RIGHT_MARGIN_FRACTION - countW / 2;
         const dayY = (screenTop + countTop) / 2;
         const dayTop = dayY + dayH / 2;
 
@@ -139,7 +157,7 @@
 
         return {
             day: { x: panelX, y: dayY, width: dayW },
-            count: { x: panelX, y: countY, width: countW },
+            count: { x: countX, y: countY, width: countW },
             lanterns: [
                 { x: panelX - poleEdgeX, y: lanternY, width: lanternW },
                 { x: panelX + poleEdgeX, y: lanternY, width: lanternW }

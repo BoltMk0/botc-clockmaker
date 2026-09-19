@@ -7,12 +7,14 @@
         minuteHandLength,
         rotationZ,
         horizontalOffset,
+        verticalOffset = 0,
         z
     }: {
         dialPlaneHeight: number;
         minuteHandLength: number;
         rotationZ: number;
         horizontalOffset: number;
+        verticalOffset?: number;
         z: number;
     } = $props();
 
@@ -65,7 +67,7 @@
     // The hinge - where the hand skewers the body - rides the hand's tip.
     const along = $derived(minuteHandLength * ALONG_HAND_FRACTION);
     const hingeX = $derived(horizontalOffset + along * Math.cos(rotationZ));
-    const hingeY = $derived(along * Math.sin(rotationZ));
+    const hingeY = $derived(verticalOffset + along * Math.sin(rotationZ));
 
     // Hand-perpendicular unit vector: the torso's rigid rest line. Turns with
     // the hand.

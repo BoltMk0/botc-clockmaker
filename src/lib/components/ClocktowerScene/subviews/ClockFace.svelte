@@ -32,6 +32,7 @@
         // Where the tower's own origin point lands in world space - the
         // clockface's origin is placed there too, so the two coincide.
         horizontalOffset,
+        verticalOffset = 0,
         // Slightly in front of the tower plane (z=0) so it isn't coplanar
         // and z-fighting with it.
         forwardOffset = 0.05,
@@ -42,6 +43,7 @@
         origin?: { x: number; y: number };
         towerPlaneHeight: number;
         horizontalOffset: number;
+        verticalOffset?: number;
         forwardOffset?: number;
         smoothProgress: number;
     } = $props();
@@ -87,7 +89,7 @@
     // Same placement convention as Tower.svelte: position the plane so the
     // defined origin point lands on the target world position.
     const planeX = $derived((0.5 - origin.x) * planeWidth + horizontalOffset);
-    const planeY = $derived((origin.y - 0.5) * planeHeight);
+    const planeY = $derived((origin.y - 0.5) * planeHeight + verticalOffset);
 
     // A real light at the dial, not just an emissive material - positioned
     // out in front of the tower so it actually rakes across the

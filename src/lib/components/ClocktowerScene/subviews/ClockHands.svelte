@@ -17,12 +17,14 @@
         progress,
         totalTime,
         towerPlaneHeight,
-        horizontalOffset
+        horizontalOffset,
+        verticalOffset = 0
     }: {
         progress: number;
         totalTime: number;
         towerPlaneHeight: number;
         horizontalOffset: number;
+        verticalOffset?: number;
     } = $props();
 
     const dialPlaneHeight = $derived(
@@ -160,13 +162,13 @@
     })();
 </script>
 
-<T.Mesh position={[horizontalOffset, 0, NUMERALS_Z]}>
+<T.Mesh position={[horizontalOffset, verticalOffset, NUMERALS_Z]}>
     <T.PlaneGeometry args={[dialPlaneHeight, dialPlaneHeight]} />
     <T.MeshBasicMaterial map={numeralTexture} transparent alphaTest={0.01} />
 </T.Mesh>
 
 {#if $minuteTexture}
-    <T.Mesh position={[horizontalOffset, 0, HANDS_Z]} rotation.z={handRotationZ(minuteHandProgress)}>
+    <T.Mesh position={[horizontalOffset, verticalOffset, HANDS_Z]} rotation.z={handRotationZ(minuteHandProgress)}>
         <T is={minuteGeometry} attach="geometry" />
         <T.MeshBasicMaterial map={$minuteTexture} transparent alphaTest={0.01} />
     </T.Mesh>
@@ -177,12 +179,13 @@
         {minuteHandLength}
         rotationZ={handRotationZ(minuteHandProgress)}
         {horizontalOffset}
+        {verticalOffset}
         z={HANDS_Z + 0.005}
     />
 {/if}
 
 {#if $hourTexture}
-    <T.Mesh position={[horizontalOffset, 0, HANDS_Z - 0.001]} rotation.z={handRotationZ(hourHandProgress)}>
+    <T.Mesh position={[horizontalOffset, verticalOffset, HANDS_Z - 0.001]} rotation.z={handRotationZ(hourHandProgress)}>
         <T is={hourGeometry} attach="geometry" />
         <T.MeshBasicMaterial map={$hourTexture} transparent alphaTest={0.01} />
     </T.Mesh>

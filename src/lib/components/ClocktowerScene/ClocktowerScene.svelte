@@ -51,6 +51,13 @@
         // framing untouched. Strip 4 of 5 spans 60%-80% of the width, so its
         // center sits 20% of the full width right of dead-center.
         horizontalOffset = visibleHeight * 0.4,
+        // Lifts the tower (clockface/hands riding along with it) off dead-
+        // center vertically, same idea as `horizontalOffset` but on the Y
+        // axis - a fraction of `visibleHeight`, +up.
+        verticalOffset = visibleHeight * 0.07,
+        // How much of the screen's vertical extent the mist layer covers, as
+        // a fraction of `visibleHeight` - see Mist.svelte's `heightFraction`.
+        mistHeightFraction = 0.4,
         showOriginMarker = false,
         style = ""
     }: {
@@ -69,6 +76,8 @@
         sunHeight?: number;
         sunForwardDistance?: number;
         horizontalOffset?: number;
+        verticalOffset?: number;
+        mistHeightFraction?: number;
         showOriginMarker?: boolean;
         style?: string;
     } = $props();
@@ -100,6 +109,8 @@
                 {sunHeight}
                 {sunForwardDistance}
                 {horizontalOffset}
+                {verticalOffset}
+                {mistHeightFraction}
                 {showOriginMarker}
             />
         </Canvas>

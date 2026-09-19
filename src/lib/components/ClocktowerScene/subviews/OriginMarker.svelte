@@ -7,14 +7,16 @@
     // calibrating that point against new art.
     let {
         size,
-        horizontalOffset
+        horizontalOffset,
+        verticalOffset = 0
     }: {
         size: number;
         horizontalOffset: number;
+        verticalOffset?: number;
     } = $props();
 </script>
 
-<T.Mesh position={[horizontalOffset, 0, 0.1]}>
+<T.Mesh position={[horizontalOffset, verticalOffset, 0.1]}>
     <T.RingGeometry args={[size * 0.01, size * 0.015, 32]} />
     <T.MeshBasicMaterial color="#ff00ff" transparent opacity={0.8} depthTest={false} />
 </T.Mesh>

@@ -6,6 +6,7 @@
     import Clouds from "./subviews/Clouds.svelte";
     import Sun from "./subviews/Sun.svelte";
     import Moon from "./subviews/Moon.svelte";
+    import Mist from "./subviews/Mist.svelte";
     import GameStatsPanel from "./subviews/GameStatsPanel.svelte";
     import Tower from "./subviews/Tower.svelte";
     import ClockFace from "./subviews/ClockFace.svelte";
@@ -28,6 +29,8 @@
         sunForwardDistance,
         showOriginMarker,
         horizontalOffset,
+        verticalOffset,
+        mistHeightFraction,
         clockFaceImageUrl,
         clockFaceNormalMapUrl
     }: {
@@ -45,6 +48,8 @@
         sunForwardDistance: number;
         showOriginMarker: boolean;
         horizontalOffset: number;
+        verticalOffset: number;
+        mistHeightFraction: number;
         clockFaceImageUrl: string;
         clockFaceNormalMapUrl: string;
     } = $props();
@@ -106,17 +111,28 @@
     {visibleHeight}
     horizontalOffset={scaledHorizontalOffset}
 />
-<Tower {imageUrl} {normalMapUrl} {origin} {planeHeight} horizontalOffset={scaledHorizontalOffset} />
+<Tower {imageUrl} {normalMapUrl} {origin} {planeHeight} horizontalOffset={scaledHorizontalOffset} {verticalOffset} />
 <ClockFace
     imageUrl={clockFaceImageUrl}
     normalMapUrl={clockFaceNormalMapUrl}
     towerPlaneHeight={planeHeight}
     horizontalOffset={scaledHorizontalOffset}
+    {verticalOffset}
     {smoothProgress}
 />
 
-<ClockHands progress={handsProgress} {totalTime} towerPlaneHeight={planeHeight} horizontalOffset={scaledHorizontalOffset} />
+<ClockHands
+    progress={handsProgress}
+    {totalTime}
+    towerPlaneHeight={planeHeight}
+    horizontalOffset={scaledHorizontalOffset}
+    {verticalOffset}
+/>
 
 {#if showOriginMarker}
-    <OriginMarker size={planeHeight} horizontalOffset={scaledHorizontalOffset} />
+    <OriginMarker size={planeHeight} horizontalOffset={scaledHorizontalOffset} {verticalOffset} />
 {/if}
+
+<!-- Sits in front of the tower/clock face/hands but behind the day/count
+     banners - see Mist.svelte's MIST_Z vs GameStatsPanel's PANEL.z. -->
+<Mist {smoothProgress} {visibleHeight} heightFraction={mistHeightFraction} />

@@ -9,13 +9,15 @@
         normalMapUrl,
         origin,
         planeHeight,
-        horizontalOffset
+        horizontalOffset,
+        verticalOffset = 0
     }: {
         imageUrl: string;
         normalMapUrl: string;
         origin: { x: number; y: number };
         planeHeight: number;
         horizontalOffset: number;
+        verticalOffset?: number;
     } = $props();
 
     // Textures are loaded once for the component's lifetime - imageUrl/normalMapUrl
@@ -46,7 +48,7 @@
     // amount instead moves the whole tower into the right third of frame,
     // without touching the camera or the sun's own screen-relative arc.
     const planeX = $derived((0.5 - origin.x) * planeWidth + horizontalOffset);
-    const planeY = $derived((origin.y - 0.5) * planeHeight);
+    const planeY = $derived((origin.y - 0.5) * planeHeight + verticalOffset);
 </script>
 
 {#if $colorTexture && $normalTexture}

@@ -104,6 +104,28 @@
     // (see the `horizontalOffset` note in ClocktowerScene.svelte).
     const SCREEN_WIDTH_FACTOR = 2;
 
+    // ---------------------------------------------------------------------
+    // Drop shadow, so the banner reads clearly against a bright sky instead
+    // of blending in. A soft blurred rectangle rendered as its own plane
+    // just behind and offset from the banner (same blur-a-canvas-shape
+    // technique as Clouds.svelte) - the banner itself covers most of it,
+    // leaving just a soft dark edge peeking out on the offset side, like a
+    // CSS box-shadow.
+    // ---------------------------------------------------------------------
+    const SHADOW_CANVAS_HEIGHT = 512;
+    // Inset from the canvas edges before blurring, as a fraction of canvas
+    // height - keeps the blur from being clipped by the texture's own edge.
+    const SHADOW_MARGIN_FRACTION = 0.16;
+    const SHADOW_BLUR_FRACTION = 0.03;
+    const SHADOW_CORNER_RADIUS_FRACTION = 0;
+    const SHADOW_OPACITY = 0.3;
+    // Offset of the shadow plane's centre from the banner's, as a fraction
+    // of the banner's own width/height (+right, +up).
+    const SHADOW_OFFSET_X_FRACTION = -0.1;
+    const SHADOW_OFFSET_Y_FRACTION = 0;
+    // How far behind the banner's own z the shadow plane sits.
+    const SHADOW_Z_OFFSET = 0.05;
+
     let {
         counts,
         visibleHeight,
@@ -313,12 +335,60 @@
 
         titleTexture.needsUpdate = true;
     });
+
+    // Shadow plane's own canvas texture - a single blurred rounded rect,
+    // redrawn only when the banner's aspect ratio changes (unlike the title,
+    // it has no text to re-render).
+    const shadowCanvas: HTMLCanvasElement = document.createElement("canvas");
+    const shadowTexture = new THREE.CanvasTexture(shadowCanvas);
+    shadowTexture.generateMipmaps = false;
+    shadowTexture.minFilter = THREE.LinearFilter;
+    shadowTexture.magFilter = THREE.LinearFilter;
+
+    $effect(() => {
+        const ratio = aspect;
+        const height = SHADOW_CANVAS_HEIGHT;
+        const width = Math.round(height * ratio);
+        shadowCanvas.width = width;
+        shadowCanvas.height = height;
+
+        const ctx = shadowCanvas.getContext("2d");
+        if (!ctx) return;
+        ctx.clearRect(0, 0, width, height);
+
+        const margin = height * SHADOW_MARGIN_FRACTION;
+        const rectX = margin;
+        const rectY = margin;
+        const rectW = width - margin * 2;
+        const rectH = height - margin * 2;
+        const radius = height * SHADOW_CORNER_RADIUS_FRACTION;
+
+        ctx.fillStyle = `rgba(0, 0, 0, ${SHADOW_OPACITY})`;
+        ctx.filter = `blur(${height * SHADOW_BLUR_FRACTION}px)`;
+        ctx.beginPath();
+        ctx.roundRect(rectX, rectY, rectW, rectH, radius);
+        ctx.fill();
+        ctx.filter = "none";
+
+        shadowTexture.needsUpdate = true;
+    });
 </script>
 
 <!-- MeshStandardMaterial (like the tower / TextBanner) so the scene's
      sun/moon directional lights and Sky ambient fill wash over the banner
      rather than leaving it flatly lit. -->
 {#if $bannerTexture && $bannerNormalTexture}
+    <T.Mesh
+        position={[
+            x + planeWidth * SHADOW_OFFSET_X_FRACTION,
+            y + planeHeight * SHADOW_OFFSET_Y_FRACTION,
+            z - SHADOW_Z_OFFSET
+        ]}
+    >
+        <T.PlaneGeometry args={[planeWidth, planeHeight]} />
+        <T.MeshBasicMaterial map={shadowTexture} transparent depthWrite={false} />
+    </T.Mesh>
+
     <T.Mesh position={[x, y, z]}>
         <T.PlaneGeometry args={[planeWidth, planeHeight]} />
         <T.MeshStandardMaterial
