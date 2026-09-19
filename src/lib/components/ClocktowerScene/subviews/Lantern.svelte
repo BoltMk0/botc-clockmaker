@@ -32,17 +32,17 @@
     // clouds all sit at z values well below this) so it washes additively
     // over the whole frame near the lantern, reading as ambient light spill
     // rather than a bright halo sitting on top of the art.
-    const WASH_GLOW_SIZE_SCALE = 7;
-    const WASH_GLOW_OPACITY = 0.5;
+    const WASH_GLOW_SIZE_SCALE = 9;
+    const WASH_GLOW_OPACITY = 0.4;
     const WASH_Z = 8;
 
-    const POINT_LIGHT_Z_FORWARD = 2; // pulls the real light source toward the camera/tower
-    const POINT_LIGHT_INTENSITY = 8;
-    const POINT_LIGHT_DISTANCE_SCALE = 30; // relative to lantern width
+    const POINT_LIGHT_Z_FORWARD = 1.8; // pulls the real light source toward the camera/tower
+    const POINT_LIGHT_INTENSITY = 5;
+    const POINT_LIGHT_DISTANCE_SCALE = 55; // relative to lantern width
 
     // A gentle candle-flicker: two out-of-phase sine waves rather than one,
     // so it doesn't read as a metronomic pulse.
-    const FLICKER_SPEED_A = 5.3;
+    const FLICKER_SPEED_A = 6.3;
     const FLICKER_SPEED_B = 11.7;
     const FLICKER_AMOUNT_A = 0.06;
     const FLICKER_AMOUNT_B = 0.03;

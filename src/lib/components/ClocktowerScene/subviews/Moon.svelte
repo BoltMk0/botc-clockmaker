@@ -208,7 +208,7 @@
 
 <T.DirectionalLight
     position={[horizontalOffset, lightHeight, lightForwardDistance]}
-    intensity={appearAmount * 4}
+    intensity={appearAmount * 7}
     color={toThreeColor(coreColorRgb)}
 />
 
