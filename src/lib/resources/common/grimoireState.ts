@@ -119,6 +119,20 @@ export function computeRowPositions(n: number, y: number, spacing: number = 170)
     return Array.from({ length: n }, (_, i) => ({ x: Math.round((i - (n - 1) / 2) * spacing), y }));
 }
 
+// Puts every token back at its default start position: tokens that take a seat go round the circle (in their
+// current order), the rest go in the row above it. Everything else about each token is left as it was.
+export function layoutTokensAtDefaultPositions(
+    tokens: PlacedToken[],
+    takesSeat: (characterId: string) => boolean
+): PlacedToken[] {
+    const seatCount = tokens.filter(t => takesSeat(t.characterId)).length;
+    const circle = computeCirclePositions(seatCount);
+    const row = computeRowPositions(tokens.length - seatCount, OFF_SEAT_ROW_Y);
+    let seatIndex = 0;
+    let rowIndex = 0;
+    return tokens.map(t => ({ ...t, ...(takesSeat(t.characterId) ? circle[seatIndex++] : row[rowIndex++]) }));
+}
+
 export function newGrimoireStateFromDraw(
     clockId: string,
     scriptId: string,

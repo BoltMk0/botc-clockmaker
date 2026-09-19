@@ -8,17 +8,24 @@
         style = '',
         size = '200px',
         norules = false,
+        playerName = undefined,
+        dead = false,
     }: {
         character: Character;
         nightOrder?: number | undefined;
         style?: string;
         size?: string;
         norules?: boolean;
+        // Name of the player holding this token, curved along the top inside edge (norules mode only).
+        playerName?: string | undefined;
+        // Draws the darkening shroud over a dead player's token (norules mode only).
+        dead?: boolean;
     } = $props();
 
     let imageFailed = $state(false);
 
     const curvedPathId = `curved-name-${Math.random().toString(36).slice(2, 10)}`;
+    const playerNamePathId = `player-name-${Math.random().toString(36).slice(2, 10)}`;
 
     const categoryColors: Record<string, string> = {
         townsfolk: '#2563eb',
@@ -40,7 +47,7 @@
 
         {#if norules}
             <div style="position: relative; width: 100%; height: 100%;">
-                <div style="position: absolute; width: 62%; height: 62%; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+                <div style="position: absolute; width: 62%; height: 62%; top: {playerName ? '50%' : '45%'}; left: 50%; transform: translate(-50%, -50%);">
                     {#if !imageFailed}
                         <img src={`/api/characters/${character.id}/img`} alt={character.name} class="category-icon-img" onerror={() => imageFailed = true} />
                     {:else}
@@ -53,6 +60,19 @@
                         <textPath href="#{curvedPathId}" startOffset="50%">{character.name.toUpperCase()}</textPath>
                     </text>
                 </svg>
+                {#if dead}
+                    <div class="dead-shroud"></div>
+                {/if}
+                {#if playerName}
+                    <!-- Mirror image of the character name: the letters' outer edge is at radius 40 (as the character name's baseline is),
+                         so with ~8 units of capital height the baseline goes at 32. Drawn after the shroud so it stays readable. -->
+                    <svg class="curved-name" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                        <path id={playerNamePathId} d="M 18 50 A 32 32 0 0 1 82 50" fill="none" stroke="none"/>
+                        <text class="player-name-text dumbledore-font" text-anchor="middle" font-size="12">
+                            <textPath href="#{playerNamePathId}" startOffset="50%">{playerName.toUpperCase()}</textPath>
+                        </text>
+                    </svg>
+                {/if}
             </div>
         {:else}
         <div class="token-content" style="--token-size: {size}; --token-color: {color}; grid-template-rows: {norules ? '4fr 2fr' : '3fr 4fr'};">
@@ -168,5 +188,23 @@
         fill: black;
         font-weight: bold;
         letter-spacing: 0.5px;
+    }
+    /* Same as .curved-name-text, except the letter spacing: this text's letters point outward from a radius-32
+       baseline, so the same baseline spacing would fan out ~25% wider than the character name's. -1px gives
+       the same angle between letters (measured against the real font). */
+    .player-name-text {
+        fill: black;
+        font-weight: bold;
+        letter-spacing: -1px;
+    }
+
+    .dead-shroud {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        border-radius: 50%;
+        background:
+            radial-gradient(ellipse at 50% 30%, rgba(10, 10, 15, 0.75) 35%, rgba(10, 10, 15, 0.25) 70%, rgba(10, 10, 15, 0) 100%);
+        box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.85);
     }
 </style>

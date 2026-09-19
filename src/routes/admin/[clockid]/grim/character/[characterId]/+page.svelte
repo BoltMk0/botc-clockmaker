@@ -64,6 +64,13 @@
         margin: 0;
     }
 
+    .category {
+        text-transform: capitalize;
+        opacity: 0.6;
+        font-size: 1.1em;
+        margin-top: -0.6em;
+    }
+
     .description {
         max-width: 32em;
         font-size: 1.2em;
@@ -82,5 +89,6 @@
         <div class="character-icon-default dumbledore-font">{initials}</div>
     {/if}
     <h1 class="dumbledore-font">{data.character.name}</h1>
+    <div class="category">{data.character.category}</div>
     <div class="description">{data.character.rules}</div>
 </div>

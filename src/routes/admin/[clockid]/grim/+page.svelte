@@ -12,7 +12,7 @@
     import ClockSetter from "../ClockSetter.svelte";
     import type { CanvasToolType } from "$lib/components/DrawableCanvas2/types.js";
     import AnotatableViewV2 from "$lib/components/DrawableCanvas2/AnotatableViewV2.svelte";
-    import { newGrimoireStateHistory, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
+    import { layoutTokensAtDefaultPositions, newGrimoireStateHistory, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
     import { v7 } from "uuid";
     import type { PageData } from "./$types";
 
@@ -149,7 +149,10 @@
     const TOKEN_SIZE_KEY = 'grimoire-token-size';
     let tokenSize = $state(browser ? Number(localStorage.getItem(TOKEN_SIZE_KEY)) || 150 : 150);
     const reminderTokenSize = $derived(Math.round(tokenSize * 0.5));
-    const trayTokenSize = $derived(Math.max(40, Math.round(tokenSize * 0.53)));
+    // Phone-width screen (set from a media query on mount); same breakpoint as the full-screen tray CSS.
+    let isMobile = $state(false);
+    // Slightly smaller in the full-screen phone tray so more tokens fit per row.
+    const trayTokenSize = $derived(Math.max(40, Math.round(tokenSize * 0.53 * (isMobile ? 0.8 : 1))));
 
     const placedTokens = $derived(gameState.present.placedTokens);
     const placedReminders = $derived(gameState.present.placedReminders);
@@ -441,6 +444,19 @@
         viewTy = -scale * (minY + maxY) / 2;
     }
 
+    // Moves every token back to where the draw first put it (seats round the circle, non-seat characters in the row above).
+    function resetTokenPositions() {
+        if (placedTokens.length === 0) return;
+        if (!confirm("Move all tokens back to their starting positions?")) return;
+        closeReminderTray();
+        gameState.present.placedTokens = layoutTokensAtDefaultPositions(
+            placedTokens,
+            characterId => (availableCharacters[characterId]?.player_count ?? 1) > 0
+        );
+        rescheduleSaveGrimoire();
+        fitView();
+    }
+
     // A second finger landed: whatever tap/drag the first finger was starting is now part of a pinch instead.
     function cancelPendingBoardTap() {
         pointerStartPos = null;
@@ -451,7 +467,6 @@
     let overlayCharacter = $state<ScriptCharacter | null>(null);
     // True when the overlay was opened from a token on the board (adds the alive/good/name controls, drops the character token).
     let overlayFromBoard = $state(false);
-    let isMobile = $state(false);
 
     function openCharacterOverlay(character: ScriptCharacter, fromBoard = false) {
         overlayCharacter = character;
@@ -941,9 +956,11 @@
         .sub-tray {
             grid-auto-flow: row;
             grid-template-rows: none;
-            grid-template-columns: repeat(auto-fill, minmax(calc(var(--tray-token) + 12px), 1fr));
+            /* Fixed-width columns (not 1fr) so spare row width doesn't stretch the gaps between tokens. */
+            grid-template-columns: repeat(auto-fill, calc(var(--tray-token) + 2px));
+            justify-content: center;
             justify-items: center;
-            gap: 0.6em;
+            gap: 0.15em;
         }
     }
 
@@ -1161,34 +1178,6 @@
     .board-token.misaligned.dead :global(img) {
         filter: grayscale(0.7) brightness(0.9) hue-rotate(180deg);
     }
-    .token-shroud {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        pointer-events: none;
-        border-radius: 50%;
-        background:
-            radial-gradient(ellipse at 50% 30%, rgba(10, 10, 15, 0.75) 35%, rgba(10, 10, 15, 0.25) 70%, rgba(10, 10, 15, 0) 100%);
-        box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.85);
-    }
-
-    .token-player-name-arc {
-        position: absolute;
-        top: 0;
-        left: 0;
-        pointer-events: none;
-        overflow: visible;
-    }
-    /* Same as .curved-name-text in CharacterToken, except the letter spacing. The character name's letters point
-       inward from a radius-40 baseline; ours point outward from a radius-32 baseline, so the same baseline spacing
-       would fan out ~25% wider. -1px gives the same angle between letters (measured against the real font). */
-    .token-player-name-text {
-        fill: black;
-        font-weight: bold;
-        letter-spacing: -1px;
-    }
-
     .board-reminder {
         position: absolute;
         transform: translate(-50%, -50%);
@@ -1496,6 +1485,22 @@
         </div>
         {/if}
 
+        {#if !tokensLocked}
+        <!-- Put all tokens back in their starting positions -->
+        <button class="sidebar-btn" onclick={resetTokenPositions} title="Reset token positions">
+            <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="3.5" r="2.2" fill="currentColor"/>
+                <circle cx="18" cy="6" r="2.2" fill="currentColor"/>
+                <circle cx="20.5" cy="12" r="2.2" fill="currentColor"/>
+                <circle cx="18" cy="18" r="2.2" fill="currentColor"/>
+                <circle cx="12" cy="20.5" r="2.2" fill="currentColor"/>
+                <circle cx="6" cy="18" r="2.2" fill="currentColor"/>
+                <circle cx="3.5" cy="12" r="2.2" fill="currentColor"/>
+                <circle cx="6" cy="6" r="2.2" fill="currentColor"/>
+            </svg>
+        </button>
+        {/if}
+
         <!-- Show/Hide clock -->
         <button class="sidebar-btn" class:active={showClock} onclick={() => showClock = !showClock} title="{showClock ? 'Hide' : 'Show'} clock">
             <svg viewBox="0 0 24 24">
@@ -1536,20 +1541,7 @@
                 style="left: calc(50% + {token.x}px); top: calc(50% + {token.y}px); z-index: {z_indecies.tokens};"
                 onpointerdown={(e) => startDragFromBoard(e, token)}
             >
-                <CharacterToken {character} nightOrder={nightOrderByCharacterId.indexOf(token.characterId)} style="position: relative;" size={tokenSize + 'px'} norules/>
-                {#if token.isDead}
-                    <div class="token-shroud" style="width: {tokenSize}px; height: {tokenSize}px; z-index: {z_indecies.tokens + 1};"></div>
-                {/if}
-                {#if character.player_count > 0 && token.playerName}
-                    {@const playerNameArcId = `player-name-arc-${token.characterId}`}
-                    <!-- Styled exactly like the character's own curved name (see CharacterToken), mirrored along the top inside edge. -->
-                    <svg class="token-player-name-arc" viewBox="0 0 100 100" aria-hidden="true" style="width: {tokenSize}px; height: {tokenSize}px; z-index: {z_indecies.tokens + 1};">
-                        <path id={playerNameArcId} d="M 18 50 A 32 32 0 0 1 82 50" fill="none" stroke="none"/>
-                        <text class="token-player-name-text dumbledore-font" text-anchor="middle" font-size="12">
-                            <textPath href="#{playerNameArcId}" startOffset="50%">{token.playerName.toUpperCase()}</textPath>
-                        </text>
-                    </svg>
-                {/if}
+                <CharacterToken {character} nightOrder={nightOrderByCharacterId.indexOf(token.characterId)} style="position: relative;" size={tokenSize + 'px'} norules dead={token.isDead} playerName={character.player_count > 0 ? token.playerName : undefined}/>
             </div>
             {/if}
         {/each}
