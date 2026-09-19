@@ -60,13 +60,16 @@
     // global illumination - bounced/scattered skylight that keeps things
     // dimly visible even with no direct light hitting them (real night scenes
     // are never fully unlit; starlight and sky glow alone provide some fill).
-    const GI_FLOOR = 5;
+    const GI_FLOOR = 7;
     const ambientColorRgb = $derived(parseCssColor(getSceneSkyColor(smoothProgress)));
     // Same fade-in curve the moon itself uses, so the ambient fill brightens
-    // in step with it rather than just sitting at a flat night-time floor.
+    // in step with it rather than just sitting at a flat night-time floor -
+    // boosted well beyond the daytime contribution so unlit/shadowed detail
+    // (normal-mapped relief with nothing directly lighting it) still reads
+    // clearly once the sun's gone down, rather than going nearly flat black.
     const moonAppearAmount = $derived(Math.pow(1 - skyBrightness, 1.4));
-    const ambientIntensity = $derived(GI_FLOOR + skyBrightness * 2.2 + moonAppearAmount * 3);
-    const GROUND_COLOR: [number, number, number] = [0.09, 0.08, 0.07];
+    const ambientIntensity = $derived(GI_FLOOR + skyBrightness * 2.2 + moonAppearAmount * 7);
+    const GROUND_COLOR: [number, number, number] = [0.16, 0.14, 0.12];
 
     $effect(() => {
         const p = Math.min(Math.max(smoothProgress, 0), 1);

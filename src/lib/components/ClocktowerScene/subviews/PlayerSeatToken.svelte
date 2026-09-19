@@ -28,6 +28,15 @@
 
     const CANVAS_SIZE = 512;
 
+    // Dead tokens fade out almost entirely...
+    const DEAD_OPACITY = 0.28;
+    // ...but keep a faint white skull glyph behind the name, hand-drawn
+    // (rather than a Unicode/emoji glyph, whose colour and even shape can't
+    // be relied on across platforms) so it reads clearly regardless of OS/
+    // browser.
+    const SKULL_COLOR = "rgba(255, 255, 255, 0.35)";
+    const SKULL_SIZE_FRACTION = 0.62; // fraction of the token's own size
+
     let {
         playerName,
         isDead = false,
@@ -147,40 +156,76 @@
         textTexture.needsUpdate = true;
     });
 
-    // A soft dark shroud drawn over dead tokens - same radial-gradient
-    // technique used for the sun/moon/lantern halos elsewhere in the scene,
-    // just inverted (dark instead of a glow) and clipped to the token's own
-    // circular shape via its own alpha.
-    const shroudCanvas: HTMLCanvasElement = document.createElement("canvas");
-    shroudCanvas.width = CANVAS_SIZE;
-    shroudCanvas.height = CANVAS_SIZE;
-    const shroudTexture = new THREE.CanvasTexture(shroudCanvas);
-    shroudTexture.generateMipmaps = false;
-    shroudTexture.minFilter = THREE.LinearFilter;
-    shroudTexture.magFilter = THREE.LinearFilter;
+    // The faint skull glyph shown behind a dead player's name - drawn once
+    // per token (it doesn't depend on any reactive value), as a rounded
+    // cranium with eye/nose sockets and a jaw punched out via
+    // "destination-out", plus a few teeth gaps.
+    const skullCanvas: HTMLCanvasElement = document.createElement("canvas");
+    skullCanvas.width = CANVAS_SIZE;
+    skullCanvas.height = CANVAS_SIZE;
+    const skullTexture = new THREE.CanvasTexture(skullCanvas);
+    skullTexture.generateMipmaps = false;
+    skullTexture.minFilter = THREE.LinearFilter;
+    skullTexture.magFilter = THREE.LinearFilter;
 
-    $effect(() => {
-        const ctx = shroudCanvas.getContext("2d");
+    (() => {
+        const ctx = skullCanvas.getContext("2d");
         if (!ctx) return;
+
+        const cx = CANVAS_SIZE / 2;
+        const cy = CANVAS_SIZE / 2;
+        const r = (CANVAS_SIZE * SKULL_SIZE_FRACTION) / 2;
+
         ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-        const gradient = ctx.createRadialGradient(
-            CANVAS_SIZE * 0.5, CANVAS_SIZE * 0.35, 0,
-            CANVAS_SIZE * 0.5, CANVAS_SIZE * 0.35, CANVAS_SIZE * 0.5
-        );
-        gradient.addColorStop(0, "rgba(10, 10, 15, 0.75)");
-        gradient.addColorStop(0.7, "rgba(10, 10, 15, 0.3)");
-        gradient.addColorStop(1, "rgba(10, 10, 15, 0)");
-        ctx.fillStyle = gradient;
+        ctx.fillStyle = SKULL_COLOR;
+
+        // Cranium: a rounded dome over a slightly narrower jaw.
         ctx.beginPath();
-        ctx.arc(CANVAS_SIZE / 2, CANVAS_SIZE / 2, CANVAS_SIZE / 2, 0, Math.PI * 2);
+        ctx.arc(cx, cy - r * 0.15, r * 0.85, Math.PI, 0);
+        ctx.lineTo(cx + r * 0.7, cy + r * 0.45);
+        ctx.quadraticCurveTo(cx + r * 0.55, cy + r * 0.75, cx, cy + r * 0.75);
+        ctx.quadraticCurveTo(cx - r * 0.55, cy + r * 0.75, cx - r * 0.7, cy + r * 0.45);
+        ctx.closePath();
         ctx.fill();
-        shroudTexture.needsUpdate = true;
-    });
+
+        // Punch out the eye sockets, nasal cavity and teeth gaps so the
+        // token's own wood shows through them instead of solid white.
+        ctx.globalCompositeOperation = "destination-out";
+        ctx.fillStyle = "rgba(0, 0, 0, 1)";
+
+        for (const dx of [-0.38, 0.38]) {
+            ctx.beginPath();
+            ctx.ellipse(cx + dx * r, cy - r * 0.1, r * 0.26, r * 0.32, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(cx, cy + r * 0.05);
+        ctx.lineTo(cx - r * 0.12, cy + r * 0.32);
+        ctx.lineTo(cx + r * 0.12, cy + r * 0.32);
+        ctx.closePath();
+        ctx.fill();
+
+        const teethTop = cy + r * 0.5;
+        const teethBottom = cy + r * 0.72;
+        for (let i = -2; i <= 2; i++) {
+            const gx = cx + i * r * 0.16;
+            ctx.fillRect(gx - r * 0.02, teethTop, r * 0.04, teethBottom - teethTop);
+        }
+
+        ctx.globalCompositeOperation = "source-over";
+        skullTexture.needsUpdate = true;
+    })();
+
+    const opacity = $derived(isDead ? DEAD_OPACITY : 1);
 </script>
 
-<!-- All three planes use MeshStandardMaterial (like the tower/banners) so
-     the scene's sun/moon lights wash over the token, and the normal map
-     gives the carved wooden rim real per-pixel shading. -->
+<!-- The background/text planes use MeshStandardMaterial (like the tower/
+     banners) so the scene's sun/moon lights wash over the token, and the
+     normal map gives the carved wooden rim real per-pixel shading. Dead
+     tokens fade the whole thing down to DEAD_OPACITY rather than just
+     darkening it, with the skull (unlit - it should read the same day or
+     night) sitting behind the name to signal why. -->
 {#if $tokenTexture && $tokenNormalTexture}
     <T.Mesh position={[x, y, z]}>
         <T.PlaneGeometry args={[planeWidth, planeHeight]} />
@@ -188,27 +233,32 @@
             map={$tokenTexture}
             normalMap={$tokenNormalTexture}
             transparent
+            {opacity}
             alphaTest={0.01}
             roughness={0.9}
             metalness={0}
         />
     </T.Mesh>
 
+    {#if isDead}
+        <!-- Not multiplied by `opacity` - its faintness is already baked
+             into SKULL_COLOR's own alpha, so it stays legible even though
+             the token around it has faded almost away. -->
+        <T.Mesh position={[x, y, z + 0.005]}>
+            <T.PlaneGeometry args={[planeWidth, planeHeight]} />
+            <T.MeshBasicMaterial map={skullTexture} transparent depthWrite={false} />
+        </T.Mesh>
+    {/if}
+
     <T.Mesh position={[x, y, z + 0.01]}>
         <T.PlaneGeometry args={[planeWidth, planeHeight]} />
         <T.MeshStandardMaterial
             map={textTexture}
             transparent
+            {opacity}
             depthWrite={false}
             roughness={0.9}
             metalness={0}
         />
     </T.Mesh>
-
-    {#if isDead}
-        <T.Mesh position={[x, y, z + 0.02]}>
-            <T.PlaneGeometry args={[planeWidth, planeHeight]} />
-            <T.MeshBasicMaterial map={shroudTexture} transparent depthWrite={false} />
-        </T.Mesh>
-    {/if}
 {/if}
