@@ -24,6 +24,9 @@
         clock: 10
     };
 
+    // Size of the draggable character token in the character overview overlay
+    const OVERLAY_TOKEN_SIZE = 96;
+
     // Size of the central clock, as a multiple of the token size
     const CLOCK_SCALE = 1.0;
 
@@ -283,7 +286,7 @@
         const handler = (e: PointerEvent) => {
             const target = e.target as HTMLElement | null;
             if (!target) return;
-            if (target.closest('.grimoire-footer, .open-tray-btn')) return;
+            if (target.closest('.grimoire-footer, .open-tray-btn, .character-overlay')) return;
             showFooter = false;
         };
         document.addEventListener('pointerdown', handler, true);
@@ -442,6 +445,39 @@
     function cancelPendingBoardTap() {
         pointerStartPos = null;
         pointerStartToken = null;
+    }
+
+    // Character overview opened by tapping a token in the tray
+    let overlayCharacter = $state<ScriptCharacter | null>(null);
+
+    function openCharacterOverlay(character: ScriptCharacter) {
+        overlayCharacter = character;
+        loadRemindersForCharacter(character.id).then(() => { reminderCache = reminderCache; });
+    }
+
+    // The moment a drag starts from the overlay, get the tray and overlay out of the way so the grim shows.
+    function startDragCharacterFromOverlay(e: PointerEvent, character: ScriptCharacter) {
+        startDragFromTray(e, character);
+        dragOffset = { x: 0, y: 0 };
+        ghostPos = { x: e.clientX, y: e.clientY };
+        overlayCharacter = null;
+        showFooter = false;
+    }
+
+    function startDragReminderFromOverlay(e: PointerEvent, token: ReminderToken, characterId: string) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeReminderTray();
+        dragOffset = { x: 0, y: 0 };
+        draggingReminder = { token, characterId, source: 'popup' };
+        ghostPos = { x: e.clientX, y: e.clientY };
+        overlayCharacter = null;
+        showFooter = false;
+    }
+
+    async function viewCharacter(characterId: string) {
+        await saveGrimoire();
+        goto(`/admin/${data.clockid}/grim/character/${characterId}`);
     }
 
     function boardCentre(): { x: number; y: number } {
@@ -807,16 +843,14 @@
 
     .tray-token {
         flex-shrink: 0;
-        cursor: grab;
-        touch-action: none;
+        cursor: pointer;
+        /* Tapping opens the character overview, so let the tray scroll under the finger. */
+        touch-action: manipulation;
         user-select: none;
         opacity: 1;
         transition: opacity 0.15s;
     }
 
-    .tray-token:active {
-        cursor: grabbing;
-    }
 
     .tray-token.dragging {
         opacity: 0.3;
@@ -824,6 +858,123 @@
 
     .tray-token.in-play {
         opacity: 0.4;
+    }
+
+    .tray-close-btn {
+        display: none;
+    }
+
+    /* On phones the tray takes over the whole screen and scrolls vertically. */
+    @media (max-width: 768px) {
+        .grimoire-footer {
+            top: 0;
+            height: 100%;
+        }
+        .token-tray-container {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding-bottom: 0;
+        }
+        .tray-close-btn {
+            display: block;
+        }
+        .token-tray {
+            flex: 1;
+            min-height: 0;
+            flex-direction: column;
+            gap: 0.5em;
+            width: 100%;
+            margin: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
+            scrollbar-gutter: auto;
+            touch-action: pan-y;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 3em;
+        }
+        .sub-tray {
+            grid-auto-flow: row;
+            grid-template-rows: none;
+            grid-template-columns: repeat(auto-fill, minmax(calc(var(--tray-token) + 12px), 1fr));
+            justify-items: center;
+            gap: 0.6em;
+        }
+    }
+
+    .character-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow-y: auto;
+        background: rgba(0, 0, 0, 0.75);
+    }
+
+    .overlay-panel {
+        position: relative;
+        margin: auto;
+        width: min(92vw, 380px);
+        max-height: 92%;
+        overflow-y: auto;
+        box-sizing: border-box;
+        padding: 1.4em 1.2em 1.2em;
+        border-radius: 1em;
+        background: var(--theme-bg-secondary);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.7em;
+        text-align: center;
+    }
+
+    .overlay-close {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(0, 0, 0, 0.5);
+        color: white;
+        cursor: pointer;
+    }
+
+    .overlay-name {
+        font-size: 1.6em;
+    }
+
+    .overlay-category {
+        text-transform: capitalize;
+        opacity: 0.6;
+        font-size: 0.85em;
+    }
+
+    .overlay-rules {
+        opacity: 0.9;
+        line-height: 1.35;
+    }
+
+    .overlay-drag-hint {
+        opacity: 0.6;
+        font-size: 0.8em;
+        margin-top: 0.4em;
+    }
+
+    .overlay-tokens {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 0.8em;
+    }
+
+    .overlay-drag-token {
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
     }
 
     .drag-ghost {
@@ -1379,6 +1530,9 @@
                             <button type="button" class="popup-toggle" class:evil={activeToken.alignment === 'evil'} onclick={toggleAlignment}>
                                 {activeToken.alignment === 'evil' ? 'Evil' : 'Good'}
                             </button>
+                            {#if activeChar}
+                                <button type="button" class="popup-toggle" onclick={() => viewCharacter(activeChar.id)}>Show</button>
+                            {/if}
                         </div>
                         {#if (activeChar?.player_count ?? 0) > 0}
                             <input
@@ -1417,10 +1571,10 @@
     {/if}
 
     <!-- FOOTER -->
-    <div class="grimoire-footer" bind:this={footerEl} style="transform: translateY({showFooter && !dragging && !draggingReminder ? '0' : '100%'}); z-index: {z_indecies.ui};">
+    <div class="grimoire-footer" bind:this={footerEl} style="--tray-token: {trayTokenSize}px; transform: translateY({showFooter && !dragging && !draggingReminder ? '0' : '100%'}); z-index: {z_indecies.ui};">
         <div class="token-tray-container">
             <div class="token-tray-header">
-                <button class="button-style" onclick={() => goto(`/admin/${data.clockid}/grim/setup`)}>Setup new game</button>
+                <button class="button-style tray-close-btn" onclick={() => showFooter = false}>Close</button>
                 {#if script}
                     <div style="opacity: 0.7;">{script.name}</div>
                 {/if}
@@ -1440,7 +1594,7 @@
                                     class="tray-token"
                                     class:dragging={dragging?.character.id === character.id}
                                     class:in-play={isInPlay(character.id)}
-                                    onpointerdown={(e) => startDragFromTray(e, character)}
+                                    onclick={() => openCharacterOverlay(character)}
                                 >
                                     <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} norules/>
                                 </div>
@@ -1460,7 +1614,7 @@
                                     class="tray-token"
                                     class:dragging={dragging?.character.id === character_id}
                                     class:in-play={isInPlay(character_id)}
-                                    onpointerdown={(e) => startDragFromTray(e, character)}
+                                    onclick={() => openCharacterOverlay(character)}
                                 >
                                     <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} norules/>
                                 </div>
@@ -1477,7 +1631,7 @@
                                     class="tray-token"
                                     class:dragging={dragging?.character.id === character.id}
                                     class:in-play={isInPlay(character.id)}
-                                    onpointerdown={(e) => startDragFromTray(e, character)}
+                                    onclick={() => openCharacterOverlay(character)}
                                 >
                                     <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} norules/>
                                 </div>
@@ -1493,7 +1647,7 @@
                                     class="tray-token"
                                     class:dragging={dragging?.character.id === character.id}
                                     class:in-play={isInPlay(character.id)}
-                                    onpointerdown={(e) => startDragFromTray(e, character)}
+                                    onclick={() => openCharacterOverlay(character)}
                                 >
                                     <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} norules/>
                                 </div>
@@ -1504,6 +1658,34 @@
             </div>
         </div>
     </div>
+
+    {#if overlayCharacter}
+        {@const oc = overlayCharacter}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 10};" onclick={() => overlayCharacter = null}>
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div class="overlay-panel" onclick={(e) => e.stopPropagation()}>
+                <button class="overlay-close" onclick={() => overlayCharacter = null} aria-label="Close">✕</button>
+                <div class="overlay-name dumbledore-font">{oc.name}</div>
+                <div class="overlay-category">{oc.category}</div>
+                {#if oc.rules}
+                    <div class="overlay-rules">{oc.rules}</div>
+                {/if}
+                <button class="button-style" onclick={() => viewCharacter(oc.id)}>Show</button>
+                <div class="overlay-drag-hint">Drag onto the grim</div>
+                <div class="overlay-tokens">
+                    <div class="overlay-drag-token" onpointerdown={(e) => startDragCharacterFromOverlay(e, oc)}>
+                        <CharacterToken character={oc} style="position: relative;" size="{OVERLAY_TOKEN_SIZE}px" norules/>
+                    </div>
+                    {#each reminderCache[oc.id] ?? [] as rToken (rToken.id)}
+                        <div class="overlay-drag-token" onpointerdown={(e) => startDragReminderFromOverlay(e, rToken, oc.id)}>
+                            <ReminderTokenView data={rToken} characterId={oc.id} size="{OVERLAY_TOKEN_SIZE * 0.7}px"/>
+                        </div>
+                    {/each}
+                </div>
+            </div>
+        </div>
+    {/if}
 
     {#if dragging && ghostPos}
         <div class="drag-ghost" style="left: {ghostPos.x}px; top: {ghostPos.y}px; z-index: {z_indecies.ui};">

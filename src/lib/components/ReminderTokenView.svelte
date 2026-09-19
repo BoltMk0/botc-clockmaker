@@ -71,6 +71,8 @@
     img {
         position: absolute;
         top: 0;
+        /* Explicit, so an inherited text-align: center can't shift the image's static position. */
+        left: 0;
         height: 100%;
         width: 100%;
         object-fit: contain;
