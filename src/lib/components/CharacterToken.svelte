@@ -40,7 +40,7 @@
 
         {#if norules}
             <div style="position: relative; width: 100%; height: 100%;">
-                <div style="position: absolute; width: 70%; height: 70%; top: 45%; left: 50%; transform: translate(-50%, -50%);">
+                <div style="position: absolute; width: 62%; height: 62%; top: 50%; left: 50%; transform: translate(-50%, -50%);">
                     {#if !imageFailed}
                         <img src={`/api/characters/${character.id}/img`} alt={character.name} class="category-icon-img" onerror={() => imageFailed = true} />
                     {:else}

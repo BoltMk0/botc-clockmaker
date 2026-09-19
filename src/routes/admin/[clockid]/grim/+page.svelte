@@ -1169,18 +1169,17 @@
     .token-player-name-arc {
         position: absolute;
         top: 0;
-        left: 50%;
-        transform: translate(-50%, -40%);
+        left: 0;
         pointer-events: none;
         overflow: visible;
     }
+    /* Same as .curved-name-text in CharacterToken, except the letter spacing. The character name's letters point
+       inward from a radius-40 baseline; ours point outward from a radius-32 baseline, so the same baseline spacing
+       would fan out ~25% wider. -1px gives the same angle between letters (measured against the real font). */
     .token-player-name-text {
-        fill: #fff;
-        stroke: #000;
-        stroke-width: 2px;
-        paint-order: stroke fill;
+        fill: black;
         font-weight: bold;
-        letter-spacing: 0.5px;
+        letter-spacing: -1px;
     }
 
     .board-reminder {
@@ -1536,10 +1535,11 @@
                 {/if}
                 {#if character.player_count > 0 && token.playerName}
                     {@const playerNameArcId = `player-name-arc-${token.characterId}`}
-                    <svg class="token-player-name-arc" viewBox="0 0 100 40" preserveAspectRatio="xMidYMax meet" aria-hidden="true" style="width: {tokenSize}px; height: {tokenSize * 0.4}px; z-index: {z_indecies.tokens + 1};">
-                        <path id={playerNameArcId} d="M 4 39 A 50 50 0 0 1 96 39" fill="none" stroke="none"/>
-                        <text class="token-player-name-text dumbledore-font" text-anchor="middle" font-size="14">
-                            <textPath href="#{playerNameArcId}" startOffset="50%">{token.playerName}</textPath>
+                    <!-- Styled exactly like the character's own curved name (see CharacterToken), mirrored along the top inside edge. -->
+                    <svg class="token-player-name-arc" viewBox="0 0 100 100" aria-hidden="true" style="width: {tokenSize}px; height: {tokenSize}px; z-index: {z_indecies.tokens + 1};">
+                        <path id={playerNameArcId} d="M 18 50 A 32 32 0 0 1 82 50" fill="none" stroke="none"/>
+                        <text class="token-player-name-text dumbledore-font" text-anchor="middle" font-size="12">
+                            <textPath href="#{playerNameArcId}" startOffset="50%">{token.playerName.toUpperCase()}</textPath>
                         </text>
                     </svg>
                 {/if}
