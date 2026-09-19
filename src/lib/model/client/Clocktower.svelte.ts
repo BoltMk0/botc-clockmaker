@@ -65,7 +65,7 @@ export class Clocktower extends EventEmitter<ClocktowerEvents> {
         this.#model = $state(model);
         this.running = $derived(this.#model.clock.time.serverStartTime !== null); 
         this.secondsRemaining = $derived(Math.max(0, this.#model.clock.time.duration - this.progress * this.#model.clock.time.duration));
-        this.timeOfDay = $derived<TimeOfDay>(this.progress === 1 ? 'night' : 'day');
+        this.timeOfDay = $derived<TimeOfDay>(this.#model.clock.time.duration === 0 || this.progress === 1 ? 'night' : 'day');
         this.#serverDeltaTimeManager = new ServerDeltaTimeManager();
         this.#sseConnection = new SSEClient(`/events/clock/${this.id}`, (msg)=>{
             if(msg.type !== 'sync') console.log(msg);

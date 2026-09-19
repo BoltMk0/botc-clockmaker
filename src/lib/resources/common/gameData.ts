@@ -70,6 +70,10 @@ export function isValidCharacterCategory(category: string): category is Characte
     return CHARACTER_CATEGORIES.includes(category as CharacterCategory);
 }
 
+export function alignmentForCategory(category: CharacterCategory): 'good' | 'evil' {
+    return (category === 'demon' || category === 'minion') ? 'evil' : 'good';
+}
+
 export function isReminderToken(obj: any): obj is ReminderToken {
     const result = typeof obj === "object" &&
         typeof obj.id === "string" &&

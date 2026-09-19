@@ -9,11 +9,11 @@
     // condense-then-scale-out layout the storyteller's DOM players view
     // (PlayerSeatsView.svelte) uses, just parameterised in world units
     // instead of CSS pixels.
-    const MIN_TOKEN_SIZE_FRACTION = 0.035; // fraction of visibleHeight
-    const MAX_TOKEN_SIZE_FRACTION = 0.18;
+    const MIN_TOKEN_SIZE_FRACTION = 0.12; // fraction of visibleHeight
+    const MAX_TOKEN_SIZE_FRACTION = 0.19;
     // Small, so tokens spread out closer to the edges of the (now much
     // bigger) seats area rather than clustering conservatively inward.
-    const EDGE_PADDING_FRACTION = 0;
+    const EDGE_PADDING_FRACTION = -0.05;
 
     let {
         area,

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { CHARACTER_CATEGORIES, type Preset, type ReminderToken, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
+    import { alignmentForCategory, CHARACTER_CATEGORIES, type ReminderToken, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import ReminderTokenView from "$lib/components/ReminderTokenView.svelte";
     import { fetchReminderTokensForCharacter } from "$lib/resources/client/reminderTokens.js";
@@ -28,7 +28,7 @@
 
     function defaultAlignmentForCharacterId(characterId: string): Alignment {
         const char = script?.characters.find(c => c.id === characterId);
-        return (char?.category === 'demon' || char?.category === 'minion') ? 'evil' : 'good';
+        return char ? alignmentForCategory(char.category) : 'good';
     }
 
     function normaliseSnapshot(snap: GrimoireStateSnapshot): GrimoireStateSnapshot {
@@ -81,10 +81,6 @@
 
     // SCRIPT / PRESET SELECTION
     let script = $state<ScriptWithCharacters | null>(null);
-    let showScriptPicker = $state(false);
-    let expandedPresetScriptId = $state<string | null>(null);
-    let scriptPresetsCache = $state<Record<string, Preset[]>>({});
-    let loadingPresetsScriptId = $state<string | null>(null);
 
     $effect(() => {
         const id = gameState.scriptId;
@@ -107,59 +103,6 @@
             return a.name.localeCompare(b.name);
         })
     );
-
-    function closeScriptPicker() {
-        showScriptPicker = false;
-        expandedPresetScriptId = null;
-    }
-
-    function startNewGame(newScriptId: string) {
-        const hasContent = gameState.present.placedTokens.length > 0 || gameState.present.placedReminders.length > 0;
-        if (hasContent && !confirm("Starting a new game will reset the grimoire board. Continue?")) {
-            return;
-        }
-        closeScriptPicker();
-        const fresh = newGrimoireStateHistory(data.clockid, newScriptId || null);
-        gameState.scriptId = fresh.scriptId;
-        gameState.loadedPreset = null;
-        gameState.saveslots = fresh.saveslots;
-        gameState.present = fresh.present;
-        saveGrimoire();
-    }
-
-    async function toggleScriptPresets(scriptId: string) {
-        if (expandedPresetScriptId === scriptId) {
-            expandedPresetScriptId = null;
-            return;
-        }
-        expandedPresetScriptId = scriptId;
-        if (scriptPresetsCache[scriptId]) return;
-        loadingPresetsScriptId = scriptId;
-        try {
-            const res = await fetch(`/api/presets?script_id=${scriptId}`);
-            scriptPresetsCache[scriptId] = res.ok ? await res.json() : [];
-        } catch {
-            scriptPresetsCache[scriptId] = [];
-        } finally {
-            if (loadingPresetsScriptId === scriptId) loadingPresetsScriptId = null;
-        }
-    }
-
-    function loadPresetForScript(scriptId: string, preset: Preset) {
-        if (scriptId !== (gameState.scriptId ?? '')) {
-            const hasContent = gameState.present.placedTokens.length > 0 || gameState.present.placedReminders.length > 0;
-            if (hasContent && !confirm("Changing the script will reset the grimoire board. Continue?")) {
-                return;
-            }
-            const fresh = newGrimoireStateHistory(data.clockid, scriptId || null);
-            gameState.scriptId = fresh.scriptId;
-            gameState.saveslots = fresh.saveslots;
-            gameState.present = fresh.present;
-        }
-        gameState.loadedPreset = { character_ids: [...preset.character_ids], bluff_ids: [...preset.bluff_ids] };
-        closeScriptPicker();
-        saveGrimoire();
-    }
 
     // Synthetic "blank" reminder token (icon only, no text) available for every character.
     // Kept out of the database since it's identical for all characters - just rendered from the character's id.
@@ -284,7 +227,7 @@
         .map(([id, _])=>id) ?? []);
 
     let showFooter = $state(false);
-    let tokensLocked = $derived(browser ? localStorage.getItem(`grimoire-locked-${data.clockid}`) === 'true' : false);
+    let tokensLocked = $derived(browser ? localStorage.getItem(`grimoire-locked-${data.clockid}`) !== 'false' : true);
     let editing = $state(false);
 
 
@@ -1388,7 +1331,10 @@
     <div class="grimoire-footer" bind:this={footerEl} style="transform: translateY({showFooter && !dragging && !draggingReminder ? '0' : '100%'}); z-index: {z_indecies.ui};">
         <div class="token-tray-container">
             <div class="token-tray-header">
-                <button class="button-style" onclick={() => showScriptPicker = true}>{script ? script.name : 'Select a script'}</button>
+                <button class="button-style" onclick={() => goto(`/admin/${data.clockid}/grim/setup`)}>Setup new game</button>
+                {#if script}
+                    <div style="opacity: 0.7;">{script.name}</div>
+                {/if}
             </div>
             <div class="token-tray">
                 {#if !script}
@@ -1504,43 +1450,3 @@
         </div>
     {/if}
 
-    {#if showScriptPicker}
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <div style="position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.8); z-index: {z_indecies.ui + 1};" onclick={closeScriptPicker} role="dialog" tabindex="0">
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div style="background: var(--theme-bg-secondary); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; max-height: 80vh; width: min(90vw, 420px); box-sizing: border-box;" onclick={(e) => e.stopPropagation()}>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em; gap: 2em;">
-                    <h2 style="margin: 0; padding: 0;">Select a Script</h2>
-                    <button class="button-style error" onclick={closeScriptPicker}>X</button>
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 10px; overflow-y: auto;">
-                    {#each data.scripts as s (s.id)}
-                        <div class="script-picker-row" class:active={gameState.scriptId === s.id}>
-                            <div class="script-picker-header">
-                                <div class="script-picker-name">{s.name}</div>
-                                <button class="button-style" onclick={() => startNewGame(s.id)}>New game</button>
-                                <button class="button-style" class:active={expandedPresetScriptId === s.id} onclick={() => toggleScriptPresets(s.id)}>Load Preset</button>
-                            </div>
-                            {#if expandedPresetScriptId === s.id}
-                                <div class="script-picker-presets">
-                                    {#if loadingPresetsScriptId === s.id}
-                                        <div style="opacity: 0.6;">Loading…</div>
-                                    {:else if (scriptPresetsCache[s.id]?.length ?? 0) === 0}
-                                        <div style="opacity: 0.6;">No presets available.</div>
-                                    {:else}
-                                        {#each [...scriptPresetsCache[s.id]].sort((a, b) => a.character_ids.length - b.character_ids.length) as p (p.id)}
-                                            <button class="button-style" onclick={() => loadPresetForScript(s.id, p)} style="width: 100%; text-align: center;">
-                                                {p.name} <span style="opacity: 0.6;">({p.character_ids.length}p)</span>
-                                            </button>
-                                        {/each}
-                                    {/if}
-                                </div>
-                            {/if}
-                        </div>
-                    {:else}
-                        <div style="opacity: 0.6;">No scripts available.</div>
-                    {/each}
-                </div>
-            </div>
-        </div>
-    {/if}

@@ -102,6 +102,38 @@ export function isGrimoireStateHistory(obj: any): obj is GrimoireStateHistory {
         validateGrimoireState(obj.present);
 }
 
+// Evenly distributes n points around a circle of the given radius (px, relative to board
+// center - see PlacedToken.x/y), starting at the top and going clockwise.
+export function computeCirclePositions(n: number, radius: number = 440): { x: number, y: number }[] {
+    return Array.from({ length: n }, (_, i) => {
+        const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
+        return { x: Math.round(radius * Math.cos(angle)), y: Math.round(radius * Math.sin(angle)) };
+    });
+}
+
+export function newGrimoireStateFromDraw(
+    clockId: string,
+    scriptId: string,
+    seats: { characterId: string, playerName: string, alignment: Alignment }[],
+    bluffIds: string[]
+): GrimoireStateHistory {
+    const history = newGrimoireStateHistory(clockId, scriptId);
+    const positions = computeCirclePositions(seats.length);
+    history.present.placedTokens = seats.map((seat, i) => ({
+        characterId: seat.characterId,
+        isDead: false,
+        alignment: seat.alignment,
+        x: positions[i].x,
+        y: positions[i].y,
+        playerName: seat.playerName
+    }));
+    history.loadedPreset = {
+        character_ids: seats.map(s => s.characterId),
+        bluff_ids: bluffIds
+    };
+    return history;
+}
+
 export function newGrimoireStateHistory(clockId: string, scriptId: string | null = null): GrimoireStateHistory {
     const initialState: GrimoireStateSnapshot = {
         id: v7(),

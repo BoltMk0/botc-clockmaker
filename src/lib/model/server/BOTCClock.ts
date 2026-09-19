@@ -45,6 +45,7 @@ export class BOTCTClock extends EventEmitter {
     get id() { return this.#model.clock.clockId; }
 
     get timeOfDay(): TimeOfDay {
+        if(this.#model.clock.time.duration === 0) return 'night';
         if(this.#model.clock.time.serverStartTime === null) return 'day';
         let elapsedTime = Date.now() - this.#model.clock.time.serverStartTime;
         if(elapsedTime > this.#model.clock.time.duration) return 'night';

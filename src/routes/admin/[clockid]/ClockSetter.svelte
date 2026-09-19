@@ -9,7 +9,7 @@
     import bell_slash from '$lib/assets/bell.slash.png';
     import type { Clocktower } from "$lib/model/client/Clocktower.svelte";
     import { type TimerOption } from "$lib/common/timerOption";
-    import { newGrimoireStateHistory } from "$lib/resources/common/grimoireState";
+    import { goto } from "$app/navigation";
 
 
     let {
@@ -30,27 +30,8 @@
     // page reload. The virtual grimoire is optional: some tables run without
     // one, so this lets a game exist with or without it.
     let grimExists = $state(hasGrim);
-    let settingUpGrim = $state(false);
-
     function setupGrim(){
-        if(settingUpGrim) return;
-        settingUpGrim = true;
-        const history = newGrimoireStateHistory(model.id);
-        fetch(`/admin/${model.id}/grim/state`, {
-            method: 'POST',
-            body: JSON.stringify(history),
-            headers: {'Content-Type': 'application/json'}
-        }).then(response => {
-            if (!response.ok) {
-                alert("Failed to set up grim");
-                throw new Error('Failed to set up grim');
-            }
-            grimExists = true;
-        }).catch(error => {
-            console.error("Error setting up grim:", error);
-        }).finally(() => {
-            settingUpGrim = false;
-        });
+        goto(`/admin/${model.id}/grim/setup`);
     }
 
     function removeGrim(){
@@ -194,7 +175,7 @@
                     <button class="button-style error" onclick={removeGrim}>Remove</button>
                 </div>
             {:else}
-                <button class="button-style" onclick={setupGrim} disabled={settingUpGrim} style="width: 100%; box-sizing: border-box; text-align: center;">Setup Grim</button>
+                <button class="button-style" onclick={setupGrim} style="width: 100%; box-sizing: border-box; text-align: center; background: transparent; border: 2px dashed currentColor; opacity: 0.45; padding: 0.8em 1em;">Setup Grim</button>
             {/if}
         </div>
 
