@@ -18,7 +18,6 @@
     // population title (see TextBanner.svelte/PlayerCountBanner.svelte's
     // TEXT_COLOR), so player names read as part of the same signage system.
     const TEXT_COLOR = "#c9c2a3";
-    const DEAD_TEXT_COLOR = "#6b6558";
     const MAX_FONT_PX = 220;
     const MIN_FONT_PX = 40;
     // Inset from the token's own edge before text can be drawn, as a
@@ -146,7 +145,7 @@
         }
 
         ctx.font = `${FONT_WEIGHT} ${fontPx}px ${FONT_FAMILY}`;
-        ctx.fillStyle = isDead ? DEAD_TEXT_COLOR : TEXT_COLOR;
+        ctx.fillStyle = TEXT_COLOR;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         // A drop shadow so the name stays legible over both the wood grain
