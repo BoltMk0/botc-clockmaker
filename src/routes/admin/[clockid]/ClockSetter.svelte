@@ -169,17 +169,6 @@
                 </div>
             </div>
 
-            {#if grimExists}
-                <div class="grim-controls">
-                    <a class="button-style" href="/admin/{model.id}/grim">View</a>
-                    <button class="button-style error" onclick={removeGrim}>Remove</button>
-                </div>
-            {:else}
-                <button class="button-style" onclick={setupGrim} style="width: 100%; box-sizing: border-box; text-align: center; background: transparent; border: 2px dashed currentColor; opacity: 0.45; padding: 0.8em 1em;">Setup Grim</button>
-            {/if}
-        </div>
-
-        <div class="setter-section">
             <div class="button-container">
                 {#each timerOptions as option, index}
                     <button class="button-container-button" class:active={option.duration === model.duration} onclick={() => setupClock(option)} disabled={model.running && model.timeOfDay === 'day'} style="grid-column: span {(index === timerOptions.length - 1 && timerOptions.length%2 === 1) ? 2 : 1};">
@@ -215,6 +204,15 @@
                     <img class="button-icon-img" src="{bell_and_waves}" alt="Ring Bell"/>
                 </button>
             </div>
+
+            {#if grimExists}
+                <div class="grim-controls">
+                    <a class="button-style" href="/admin/{model.id}/grim">View</a>
+                    <button class="button-style error" onclick={removeGrim}>Remove</button>
+                </div>
+            {:else}
+                <button class="button-style" onclick={setupGrim} style="width: 100%; box-sizing: border-box; text-align: center; background: transparent; border: 2px dashed currentColor; opacity: 0.45; padding: 0.8em 1em;">Setup Grim</button>
+            {/if}
         </div>
     </div>
 </div>
