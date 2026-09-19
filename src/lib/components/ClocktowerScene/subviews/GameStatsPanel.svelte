@@ -5,6 +5,8 @@
     import Lantern from "./Lantern.svelte";
     import RopeChain from "./RopeChain.svelte";
     import PlayerSeats from "./PlayerSeats.svelte";
+    import SideRolesPanel from "./SideRolesPanel.svelte";
+    import { sideRoleCharacters } from "$lib/components/playerSeatsLayout";
     import type { GrimoireStateHistory } from "$lib/resources/common/grimoireState";
     import type { ScriptWithCharacters } from "$lib/resources/common/gameData";
 
@@ -143,6 +145,11 @@
         script?: ScriptWithCharacters | null;
     } = $props();
 
+    // Loric and fabled in the game: listed in their own panel at the top-right rather than seated.
+    const sideRoles = $derived(sideRoleCharacters(grimoireState, script));
+    // Margin from the screen's top/right edges, as a fraction of visibleHeight.
+    const SIDE_ROLES_MARGIN_FRACTION = 0.027;
+
     // Time remaining as M:SS (clamped at 0).
     const timeLabel = $derived.by(() => {
         const secs = Math.max(0, Math.round(totalTime * (1 - progress)));
@@ -264,4 +271,15 @@
 {/each}
 {#if hasGrim && rows.seatsArea}
     <PlayerSeats area={rows.seatsArea} {grimoireState} {script} {visibleHeight} z={PANEL.z} />
+{/if}
+{#if hasGrim && sideRoles.length > 0}
+    <!-- Keyed on the row count: the panel's canvas texture changes size with it, and a texture can't be resized in place. -->
+    {#key sideRoles.length}
+        <SideRolesPanel
+            characters={sideRoles}
+            {visibleHeight}
+            anchor={{ x: realHalfWidth - visibleHeight * SIDE_ROLES_MARGIN_FRACTION, y: visibleHeight * (0.5 - SIDE_ROLES_MARGIN_FRACTION) }}
+            z={PANEL.z}
+        />
+    {/key}
 {/if}

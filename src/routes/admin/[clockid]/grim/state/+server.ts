@@ -25,7 +25,7 @@ export async function POST({params, request}){
         // Keep the clock's player count in sync with the characters currently placed on the
         // board, so the storyteller doesn't have to set it by hand as they seat players.
         // Every token carrying a player name is a seated player, except travellers (who don't count towards the player count).
-        const playerCount = body.present.placedTokens.filter(t => isPlayerToken(t) && (!t.characterId || getCharacterById(t.characterId)?.category !== 'traveler')).length;
+        const playerCount = body.present.placedTokens.filter(t => isPlayerToken(t) && (!t.characterId || !['traveler', 'loric', 'fabled'].includes(getCharacterById(t.characterId)?.category ?? ''))).length;
         const clock = getBOTCTClockInstanceManager().getInstance(params.clockid);
         if (clock) clock.playerCount = playerCount;
 

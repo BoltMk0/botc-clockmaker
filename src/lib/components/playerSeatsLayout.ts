@@ -1,5 +1,5 @@
 import { isPlayerToken, type GrimoireStateHistory, type PlacedToken } from "$lib/resources/common/grimoireState";
-import type { ScriptWithCharacters } from "$lib/resources/common/gameData";
+import type { ScriptCharacter, ScriptWithCharacters } from "$lib/resources/common/gameData";
 
 // Which placed tokens actually represent a player seat (as opposed to a
 // travveler/demon-only bluff or some other non-seated marker): anything
@@ -8,7 +8,22 @@ export function filterSeatTokens(
     grimoireState: GrimoireStateHistory | null,
     script: ScriptWithCharacters | null
 ): PlacedToken[] {
-    return (grimoireState?.present.placedTokens ?? []).filter(isPlayerToken);
+    // Loric and fabled never take a seat; they're shown in their own panel (see sideRoleCharacters).
+    return (grimoireState?.present.placedTokens ?? []).filter(t => {
+        const category = script?.characters.find(c => c.id === t.characterId)?.category;
+        return isPlayerToken(t) && category !== 'loric' && category !== 'fabled';
+    });
+}
+
+// The loric and fabled characters on the board (each listed once): loric first, then fabled, each by name.
+export function sideRoleCharacters(
+    grimoireState: GrimoireStateHistory | null,
+    script: ScriptWithCharacters | null
+): ScriptCharacter[] {
+    const onBoard = new Set((grimoireState?.present.placedTokens ?? []).map(t => t.characterId));
+    return (script?.characters ?? [])
+        .filter(c => (c.category === 'loric' || c.category === 'fabled') && onBoard.has(c.id))
+        .sort((a, b) => (a.category === b.category ? 0 : a.category === 'loric' ? -1 : 1) || a.name.localeCompare(b.name));
 }
 
 export type SeatsLayoutToken = { token: PlacedToken; x: number; y: number };
