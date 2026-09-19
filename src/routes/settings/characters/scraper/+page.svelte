@@ -24,7 +24,7 @@
     );
 
     function thumbCharacter(category: CharacterCategory, name: string): Character {
-        return { id: slugify(name), name, category, rules: '', player_count: 1, wakes_first_night: false, wakes_other_nights: false, reminderTokens: [] };
+        return { id: slugify(name), name, category, rules: '', player_count: 1, wakes_first_night: false, wakes_other_nights: false, defaultFirstNightOrder: null, defaultOtherNightOrder: null, reminderTokens: [] };
     }
 
     let progress = writable(0);

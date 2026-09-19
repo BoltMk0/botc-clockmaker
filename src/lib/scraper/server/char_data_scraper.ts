@@ -10,7 +10,7 @@ import type { CharacterScrapeResult, WikiCharacterListing } from "../common/type
 // grimoire, which mirrors the official reminder tokens for each character.
 const ROLES_JSON_URL = 'https://raw.githubusercontent.com/bra1n/townsquare/main/src/roles.json';
 
-type BrainRole = { name: string; reminders?: string[] };
+type BrainRole = { name: string; reminders?: string[]; firstNight?: number; otherNight?: number };
 
 let brainRolesPromise: Promise<BrainRole[]> | null = null;
 
@@ -34,6 +34,22 @@ async function scrapeReminderTokenTexts(name: string): Promise<string[]> {
     } catch (er) {
         console.error(`Failed to fetch reminder tokens for ${name}:`, er);
         return [];
+    }
+}
+
+// roles.json ranks every character on a single global first/other-night scale; 0 means the
+// character doesn't wake that night at all, so that maps to "no default order" here.
+async function scrapeDefaultNightOrder(name: string): Promise<{ defaultFirstNightOrder: number | null; defaultOtherNightOrder: number | null }> {
+    try {
+        const roles = await fetchBrainRoles();
+        const role = roles.find(r => r.name === name);
+        return {
+            defaultFirstNightOrder: role?.firstNight ? role.firstNight : null,
+            defaultOtherNightOrder: role?.otherNight ? role.otherNight : null
+        };
+    } catch (er) {
+        console.error(`Failed to fetch default night order for ${name}:`, er);
+        return { defaultFirstNightOrder: null, defaultOtherNightOrder: null };
     }
 }
 
@@ -110,7 +126,8 @@ export async function scrapeCharacter(category: CharacterCategory, name: string,
             category,
             rules,
             player_count: 1,
-            ...guessWakePattern(rules)
+            ...guessWakePattern(rules),
+            ...await scrapeDefaultNightOrder(name)
         };
 
         const existing = getCharacterByName(name);

@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { isGrimoireStateHistory } from "../../../routes/admin/games/[id]/grimoire/types";
+import { isGrimoireStateHistory } from "../common/grimoireState";
 
 type Identifiable = {
     id: string;

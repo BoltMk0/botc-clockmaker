@@ -54,7 +54,9 @@
             }
             data.script.characters.push(char);
         }
-        data = data;
+        // `data = data` is a no-op: same reference in, same reference out, so Svelte's
+        // equality check skips invalidation. A shallow copy forces reactivity to notice.
+        data = { ...data };
     }
 
     function onDragStart(e: DragEvent, list: NightList, id: string) {
@@ -108,6 +110,30 @@
             if (n === undefined) return c;
             return { ...c, [key]: n };
         });
+        // `data` is only shallow-reactive as a prop, and `data = data` is a same-reference
+        // no-op, so reassign a shallow copy to force $derived (firstNightList/otherNightList)
+        // to notice this nested mutation.
+        data = { ...data };
+    }
+
+    // Re-derives the order for one night from each character's canonical default night order,
+    // discarding any manual ordering. Characters that don't wake this night, or have no
+    // scraped default, end up with no order.
+    function resetNightOrder(list: NightList) {
+        const key = list === 'first' ? 'firstNightOrder' : 'otherNightOrder';
+        const defaultKey = list === 'first' ? 'defaultFirstNightOrder' : 'defaultOtherNightOrder';
+        const wakesKey = list === 'first' ? 'wakes_first_night' : 'wakes_other_nights';
+
+        const ranked = (data.script.characters as ScriptCharacter[])
+            .filter(c => c[wakesKey] && c[defaultKey] != null)
+            .sort((a, b) => (a[defaultKey] as number) - (b[defaultKey] as number));
+        const rankById = new Map(ranked.map((c, i) => [c.id, i + 1]));
+
+        data.script.characters = (data.script.characters as ScriptCharacter[]).map(c => ({
+            ...c,
+            [key]: rankById.get(c.id) ?? null
+        }));
+        data = { ...data };
     }
 
     function clearDrag() {
@@ -249,6 +275,15 @@
     .night-section-header {
         font-weight: 600;
         padding: 0.25em 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5em;
+    }
+    .reset-order-button {
+        font-weight: normal;
+        font-size: 0.8em;
+        padding: 0.15em 0.6em;
     }
     .night-list {
         overflow-y: auto;
@@ -300,7 +335,7 @@
 <div style="width: 100%; height: 100%;">
     <div style="width: 100%; height: 100%; display: grid; grid-template-rows: auto 1fr; gap: 1em; overflow: hidden;" class="scripts-main">
         <div style="justify-content: space-between; background-color: var(--theme-bg-secondary); padding: 0.5em 1em;" class="in-a-row padded">
-            <button class="button-style" onclick={() => goto('/settings/scripts')}>Back</button>
+            <button class="button-style" onclick={() => goto(`/settings/scripts/${data.script.id}`)}>Back</button>
             <div style="display: flex; align-items: center; gap: 0.5em;">
                 <input type="color" bind:value={data.script.hue} style="width: 2.2em; height: 2.2em; padding: 0;" title="Script colour"/>
                 <input type="text" placeholder="Script Name" bind:value={data.script.name} style="font-size: large; padding: 0.2em 0.5em;" class="input-style" required/>
@@ -362,7 +397,10 @@
             </div>
 
             <div class="night-order-column">
-                <div class="night-section-header">First Night ({firstNightList.length})</div>
+                <div class="night-section-header">
+                    <span>First Night ({firstNightList.length})</span>
+                    <button type="button" class="button-style reset-order-button" onclick={() => resetNightOrder('first')}>Reset</button>
+                </div>
                 <div class="night-list" role="list">
                     {#each firstNightList as character, i (character.id)}
                         <div
@@ -388,7 +426,10 @@
                     {/each}
                 </div>
 
-                <div class="night-section-header">Other Nights ({otherNightList.length})</div>
+                <div class="night-section-header">
+                    <span>Other Nights ({otherNightList.length})</span>
+                    <button type="button" class="button-style reset-order-button" onclick={() => resetNightOrder('other')}>Reset</button>
+                </div>
                 <div class="night-list" role="list">
                     {#each otherNightList as character, i (character.id)}
                         <div

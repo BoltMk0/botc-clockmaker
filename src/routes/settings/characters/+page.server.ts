@@ -2,6 +2,12 @@ import { isValidCharacterCategory } from "$lib/resources/common/gameData";
 import { addCharacter, listCharacters, updateCharacter } from "$lib/resources/server/characters";
 import { fail } from "@sveltejs/kit";
 
+function parseNightOrderField(value: FormDataEntryValue | null): number | null {
+    if (typeof value !== 'string' || value.trim() === '') return null;
+    const n = Number(value);
+    return isFinite(n) ? n : null;
+}
+
 export async function load(){
     const characters = listCharacters();
     return { characters };
@@ -24,7 +30,7 @@ export const actions = {
             return fail(400, {error: 'Invalid category' });
         }
         
-        const character = addCharacter({name, category, rules: '', player_count: 1, wakes_first_night: false, wakes_other_nights: false});
+        const character = addCharacter({name, category, rules: '', player_count: 1, wakes_first_night: false, wakes_other_nights: false, defaultFirstNightOrder: null, defaultOtherNightOrder: null});
 
         return { success: true, ...character};
     },
@@ -63,7 +69,10 @@ export const actions = {
             return fail(400, {error: 'Player count must be a non-negative number' });
         }
 
-        const character = updateCharacter(id, {name, category, rules, wakes_first_night, wakes_other_nights, player_count: playerCountNumber});
+        const defaultFirstNightOrder = parseNightOrderField(formData.get('defaultFirstNightOrder'));
+        const defaultOtherNightOrder = parseNightOrderField(formData.get('defaultOtherNightOrder'));
+
+        const character = updateCharacter(id, {name, category, rules, wakes_first_night, wakes_other_nights, player_count: playerCountNumber, defaultFirstNightOrder, defaultOtherNightOrder});
 
         if(!character){
             return fail(404, {error: 'Character not found'});

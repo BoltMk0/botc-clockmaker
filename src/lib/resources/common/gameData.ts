@@ -18,6 +18,11 @@ export type Character = {
     player_count: number;
     wakes_first_night: boolean;
     wakes_other_nights: boolean;
+    // The character's canonical night order rank, as published by the game (e.g. from the
+    // bra1n/townsquare role dataset). Scripts derive their own per-script night order from
+    // this default; null means the character doesn't wake on that night.
+    defaultFirstNightOrder: number | null;
+    defaultOtherNightOrder: number | null;
     reminderTokens: ReminderToken[];
 };
 
@@ -47,23 +52,18 @@ export type ScriptWithCharacters = Omit<Script, 'characters'> & {
     characters: ScriptCharacter[];
 };
 
-export type Game = {
+export type Preset = {
     id: string;
-    created: number;
-    last_played: number | null;
+    name: string;
     script_id: string;
     character_ids: string[];
     bluff_ids: string[];
 };
 
-export type NewGame = {
-    script_id: string;
-};
+export type NewPreset = Omit<Preset, 'id'>;
 
-export type GameFull = Game & {
+export type PresetFull = Preset & {
     script: ScriptWithCharacters;
-    character_ids: string[];
-    bluff_ids: string[];
 };
 
 export function isValidCharacterCategory(category: string): category is CharacterCategory {
@@ -90,6 +90,8 @@ export function isCharacter(obj: any): obj is Character {
         typeof obj.player_count === "number" && isFinite(obj.player_count) && obj.player_count >= 0 &&
         typeof obj.wakes_first_night === "boolean" &&
         typeof obj.wakes_other_nights === "boolean" &&
+        (obj.defaultFirstNightOrder === null || typeof obj.defaultFirstNightOrder === "number") &&
+        (obj.defaultOtherNightOrder === null || typeof obj.defaultOtherNightOrder === "number") &&
         Array.isArray(obj.reminderTokens) && obj.reminderTokens.every(isReminderToken);
     if(!result){
         console.error("Invalid Character object:", obj);
@@ -128,27 +130,24 @@ export function isScriptWithCharacters(obj: any): obj is ScriptWithCharacters {
     return result;
 }
 
-export function isGame(obj: any): obj is Game {
+export function isPreset(obj: any): obj is Preset {
     const result = typeof obj === "object" &&
         typeof obj.id === "string" &&
-        typeof obj.created === "number" &&
-        (obj.last_played === null || typeof obj.last_played === "number") &&
+        typeof obj.name === "string" &&
         typeof obj.script_id === "string" &&
         Array.isArray(obj.character_ids) && obj.character_ids.every((id: any) => typeof id === "string") &&
         Array.isArray(obj.bluff_ids) && obj.bluff_ids.every((id: any) => typeof id === "string");
     if(!result){
-        console.error("Invalid Game object:", obj);
+        console.error("Invalid Preset object:", obj);
     }
     return result;
 }
 
-export function isGameFull(obj: any): obj is GameFull {
-    const result = isGame(obj) &&
-        isScriptWithCharacters((obj as any).script) &&
-        Array.isArray((obj as any).character_ids) && (obj as any).character_ids.every((id: any) => typeof id === "string") &&
-        Array.isArray((obj as any).bluff_ids) && (obj as any).bluff_ids.every((id: any) => typeof id === "string");
+export function isPresetFull(obj: any): obj is PresetFull {
+    const result = isPreset(obj) &&
+        isScriptWithCharacters((obj as any).script);
     if(!result){
-        console.error("Invalid GameFull object:", obj);
+        console.error("Invalid PresetFull object:", obj);
     }
     return result;
 }

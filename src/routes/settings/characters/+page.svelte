@@ -417,6 +417,18 @@
                                     </div>
                                 </td>
                             </tr>
+                            <tr>
+                                <th>Default Night Order</th>
+                                <td>
+                                    <div class="in-a-row">
+                                        <label for="defaultFirstNightOrder">First Night</label>
+                                        <input type="number" id="defaultFirstNightOrder" name="defaultFirstNightOrder" style="width: 6em;" value={selectedCharacter.defaultFirstNightOrder ?? ''} />
+
+                                        <label for="defaultOtherNightOrder">Other Nights</label>
+                                        <input type="number" id="defaultOtherNightOrder" name="defaultOtherNightOrder" style="width: 6em;" value={selectedCharacter.defaultOtherNightOrder ?? ''} />
+                                    </div>
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </form>

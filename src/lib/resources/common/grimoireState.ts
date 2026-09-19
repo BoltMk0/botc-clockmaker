@@ -28,8 +28,15 @@ export type GrimoireStateSnapshot = {
     }
 };
 
+export type LoadedPreset = {
+    character_ids: string[];
+    bluff_ids: string[];
+};
+
 export type GrimoireStateHistory = {
-    id: string;
+    id: string; // clockid
+    scriptId: string | null;
+    loadedPreset: LoadedPreset | null;
     saveslots: (GrimoireStateSnapshot | null)[];
     present: GrimoireStateSnapshot;
 };
@@ -59,6 +66,12 @@ function isPlacedReminder(obj: any): obj is PlacedReminder {
 
 }
 
+function isLoadedPreset(obj: any): obj is LoadedPreset {
+    return typeof obj === "object" &&
+        Array.isArray(obj.character_ids) && obj.character_ids.every((id: any) => typeof id === "string") &&
+        Array.isArray(obj.bluff_ids) && obj.bluff_ids.every((id: any) => typeof id === "string");
+}
+
 export function validateGrimoireState(obj: any): obj is GrimoireStateSnapshot {
     return typeof obj === "object" &&
         typeof obj.id === "string" &&
@@ -80,12 +93,14 @@ export function validateGrimoireState(obj: any): obj is GrimoireStateSnapshot {
 
 export function isGrimoireStateHistory(obj: any): obj is GrimoireStateHistory {
     return obj !== null && obj !== undefined && typeof obj === "object" &&
+        (obj.scriptId === null || typeof obj.scriptId === "string") &&
+        (obj.loadedPreset === null || isLoadedPreset(obj.loadedPreset)) &&
         Array.isArray(obj.saveslots) &&
         obj.saveslots.every((slot: any) => slot === null || validateGrimoireState(slot)) &&
         validateGrimoireState(obj.present);
 }
 
-export function newGrimoireStateHistory(gameId: string): GrimoireStateHistory {
+export function newGrimoireStateHistory(clockId: string, scriptId: string | null = null): GrimoireStateHistory {
     const initialState: GrimoireStateSnapshot = {
         id: v7(),
         previousSnapshotId: null,
@@ -97,7 +112,9 @@ export function newGrimoireStateHistory(gameId: string): GrimoireStateHistory {
         }
     };
     return {
-        id: gameId,
+        id: clockId,
+        scriptId,
+        loadedPreset: null,
         saveslots: Array(5).fill(null),
         present: initialState
     };

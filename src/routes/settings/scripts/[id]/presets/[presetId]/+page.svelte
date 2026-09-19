@@ -1,14 +1,13 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
-    import { CHARACTER_CATEGORIES, type Character, type GameFull } from "$lib/resources/common/gameData.js";
+    import { CHARACTER_CATEGORIES, type Character, type PresetFull } from "$lib/resources/common/gameData.js";
     import { getPlayerCount } from "$lib/common/util";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
-    import { writable } from "svelte/store";
     import { enhance } from "$app/forms";
 
     interface Props {
         data: {
-            game: GameFull | null;
+            preset: PresetFull | null;
             error?: string;
         }
     }
@@ -19,66 +18,63 @@
     const tokenSize = $state('150px');
 
     // svelte-ignore state_referenced_locally
-    let game = $state(data.game);
+    let preset = $state(data.preset);
 
-    const unused_characters = $derived(game ? game.script.characters : []);
-    const used_characters = $derived(game ? game.script.characters.filter(c => game.character_ids.includes(c.id) && !game.bluff_ids.includes(c.id)) : []);
+    const unused_characters = $derived(preset ? preset.script.characters : []);
+    const used_characters = $derived(preset ? preset.script.characters.filter(c => preset.character_ids.includes(c.id) && !preset.bluff_ids.includes(c.id)) : []);
 
-    const bluffs = $derived(game ? game.bluff_ids.map(id => game.script.characters.find(c => c.id === id)).filter(Boolean) : []);
+    const bluffs = $derived(preset ? preset.bluff_ids.map(id => preset.script.characters.find(c => c.id === id)).filter(Boolean) : []);
 
     const currentTownsfolkCount = $derived(used_characters.filter(c => c.category === 'townsfolk').length);
     const currentOutsiderCount = $derived(used_characters.filter(c => c.category === 'outsider').length);
     const currentMinionCount = $derived(used_characters.filter(c => c.category === 'minion').length);
     const currentDemonCount = $derived(used_characters.filter(c => c.category === 'demon').length);
 
-    // $: expectedPlayerCount = used_characters.map(c=>c.player_count).reduce((a,b)=>a+b,0);
     let expectedPlayerCount = $state(7);
-    const expectedCharacterCounts = $derived(getPlayerCount(Number(expectedPlayerCount)));  
+    const expectedCharacterCounts = $derived(getPlayerCount(Number(expectedPlayerCount)));
 
     function removeAll(){
-        if(!data.game) return;
-        data.game.character_ids = [];
-        data.game = data.game; // trigger update
+        if(!preset) return;
+        preset.character_ids = [];
     }
 
-
     function addCharacter(characterId: string){
-        if(!game) return;
+        if(!preset) return;
         // Remove from bluffs if present
-        game.bluff_ids = game.bluff_ids.filter(id => id !== characterId);
-        // Add to in-game if not present
-        if(!game.character_ids.includes(characterId)){
-            game.character_ids.push(characterId);
+        preset.bluff_ids = preset.bluff_ids.filter(id => id !== characterId);
+        // Add to in-play if not present
+        if(!preset.character_ids.includes(characterId)){
+            preset.character_ids.push(characterId);
         }
     }
 
     function removeCharacter(characterId: string){
-        if(!game) return;
-        game.character_ids = game.character_ids.filter((id: string) => id !== characterId);
+        if(!preset) return;
+        preset.character_ids = preset.character_ids.filter((id: string) => id !== characterId);
     }
 
     function addBluff(character: Character) {
-        if (!game) return;
+        if (!preset) return;
         if (bluffs.length >= 3) return;
-        if (!game.bluff_ids.find(id => id === character.id)) {
-            // Remove from in-game if present
-            game.character_ids = game.character_ids.filter((id: string) => id !== character.id);
+        if (!preset.bluff_ids.find(id => id === character.id)) {
+            // Remove from in-play if present
+            preset.character_ids = preset.character_ids.filter((id: string) => id !== character.id);
             // Add to bluffs
-            game.bluff_ids.push(character.id);
+            preset.bluff_ids.push(character.id);
         }
     }
     function removeBluff(characterId: string) {
-        if (!game) return;
-        game.bluff_ids = game.bluff_ids.filter(id => id !== characterId);
+        if (!preset) return;
+        preset.bluff_ids = preset.bluff_ids.filter(id => id !== characterId);
     }
 </script>
 
 
 <style>
-.admin-game-main {
+.preset-editor-main {
     touch-action: none;
 }
-.admin-game-layout {
+.preset-editor-layout {
     display: grid;
     gap: 1em;
     width: 100%;
@@ -93,21 +89,21 @@
     overflow-y: auto;
 }
 
-.admin-game-left {
+.preset-editor-left {
     height: 100%;
     background: var(--theme-bg-secondary);
     padding: 1em;
     border-radius: 1em;
     box-sizing: border-box;
 }
-.admin-game-right {
+.preset-editor-right {
     display: grid;
     grid-template-rows: 1fr auto;
     gap: 1em;
     height: 100%;
     overflow: hidden;
 }
-.admin-game-section {
+.preset-editor-section {
     background: var(--theme-bg-secondary);
     padding: 1em;
     border-radius: 1em;
@@ -138,14 +134,14 @@
     z-index: 2;
 }
 
-.admin-game-main {
+.preset-editor-main {
     display: grid;
     grid-template-rows: auto 1fr;
     height: 100%;
     width: 100%;
 }
 
-.admin-game-header {
+.preset-editor-header {
     display: flex;
     gap: 0.5em;
     align-items: center;
@@ -164,20 +160,19 @@ h2 {
 </style>
 
 
-{#if !game}
-    <h1>Game not found</h1>
+{#if !preset}
+    <h1>Preset not found</h1>
     {#if data.error}
         <p>{data.error}</p>
     {/if}
 {:else}
-<div class="admin-game-main">
-    <div class="admin-game-header padded">
+<div class="preset-editor-main">
+    <div class="preset-editor-header padded">
         <div class="in-a-row">
-            <a href="/admin/games" class="button-style" style="height: 100%;">← Back</a>
+            <a href="/settings/scripts/{preset.script.id}" class="button-style" style="height: 100%;">← Back</a>
             <div>
-                <h1 style="margin: 0;">{game.script.name}</h1>
-                <div style="opacity: 0.6;">Created: {new Date(game.created).toLocaleString()}</div>
-                <div style="opacity: 0.6;">Last Played: {game.last_played ? new Date(game.last_played).toLocaleString() : "Never"}</div>
+                <input type="text" bind:value={preset.name} placeholder="Preset name" style="font-size: 1.2em;" class="input-style"/>
+                <div style="opacity: 0.6;">{preset.script.name}</div>
             </div>
         </div>
 
@@ -219,45 +214,45 @@ h2 {
                 </tbody>
             </table>
         </div>
-        <form action="?/saveCharacters" method="POST" use:enhance={()=>{
+        <form action="?/save" method="POST" use:enhance={()=>{
             return async ({result}) => {
                 switch(result.type){
                     case 'success':
-                        goto('/admin/games');
+                        goto(`/settings/scripts/${preset.script.id}`);
                         break;
                     case 'redirect':
-                        // Do nothing, the browser will handle the redirect
                         break;
                     case 'failure':
-                        alert(`Failed to save characters: ${result.data?.error || 'Unknown error'}`);
+                        alert(`Failed to save preset: ${result.data?.error || 'Unknown error'}`);
                         break;
                     case 'error':
-                        alert(`Failed to save characters: ${result.error}`);
+                        alert(`Failed to save preset: ${result.error}`);
                         break;
                 }
             }
         }}>
-            <input type="hidden" name="characterIds" value={game.character_ids.join(',')}/>
-            <input type="hidden" name="bluffIds" value={game.bluff_ids.join(',')}/>
+            <input type="hidden" name="name" value={preset.name}/>
+            <input type="hidden" name="characterIds" value={preset.character_ids.join(',')}/>
+            <input type="hidden" name="bluffIds" value={preset.bluff_ids.join(',')}/>
             <button type="submit" class="button-style highlight">Save</button>
         </form>
     </div>
-    <div class="admin-game-layout" style="--token-size: {tokenSize}">
+    <div class="preset-editor-layout" style="--token-size: {tokenSize}">
         <!-- LEFT: Available Characters -->
-        <div class="admin-game-left scrollable">
+        <div class="preset-editor-left scrollable">
             <h2>Available Characters</h2>
             <div class="token-list">
             {#each CHARACTER_CATEGORIES as category, i}
                     {#each unused_characters.filter(c => c.category === category) as character (character.id)}
-                        {#if game.character_ids.includes(character.id) || game.bluff_ids.includes(character.id)}
+                        {#if preset.character_ids.includes(character.id) || preset.bluff_ids.includes(character.id)}
                             <div class="token-wrapper" style="opacity: 0.4; filter: grayscale(0.4); pointer-events: none;">
                                 <CharacterToken {character} size={tokenSize} />
                             </div>
                         {:else}
                             <div class="token-wrapper">
                                 <CharacterToken {character} size={tokenSize} />
-                                <button class="token-action" type="button" title="Add to game" onclick={() => addCharacter(character.id)} onpointerdown={e => e.stopPropagation()}>+</button>
-                                <button class="token-action" type="button" title="Add as bluff" style="top:36px;" onclick={() => addBluff(character)} disabled={bluffs.length >= 3 || game.bluff_ids.find(id => id === character.id) !== undefined} onpointerdown={e => e.stopPropagation()}>B</button>
+                                <button class="token-action" type="button" title="Add to preset" onclick={() => addCharacter(character.id)} onpointerdown={e => e.stopPropagation()}>+</button>
+                                <button class="token-action" type="button" title="Add as bluff" style="top:36px;" onclick={() => addBluff(character)} disabled={bluffs.length >= 3 || preset.bluff_ids.find(id => id === character.id) !== undefined} onpointerdown={e => e.stopPropagation()}>B</button>
                             </div>
                         {/if}
                     {/each}
@@ -265,11 +260,11 @@ h2 {
             </div>
         </div>
 
-        <!-- RIGHT: In-Game and Bluffs -->
-        <div class="admin-game-right">
-            <div class="admin-game-section scrollable">
+        <!-- RIGHT: In-Play and Bluffs -->
+        <div class="preset-editor-right">
+            <div class="preset-editor-section scrollable">
                 <div class="in-a-row" style="justify-content: space-between;">
-                    <h2>In-Game Characters</h2>
+                    <h2>In-Play Characters</h2>
                     <button class="button-style error" type="button" onclick={removeAll} onpointerdown={e => e.stopPropagation()}>Remove All</button>
                 </div>
 
@@ -278,17 +273,17 @@ h2 {
                         {#each used_characters.filter(c => c.category === category) as character (character.id)}
                             <div class="token-wrapper">
                                 <CharacterToken {character} size={tokenSize} />
-                                <button class="token-action" type="button" title="Remove from game" onclick={() => removeCharacter(character.id)} onpointerdown={e => e.stopPropagation()}>-</button>
+                                <button class="token-action" type="button" title="Remove from preset" onclick={() => removeCharacter(character.id)} onpointerdown={e => e.stopPropagation()}>-</button>
                             </div>
                         {/each}
                 {/each}
                 </div>
             </div>
-            <div class="admin-game-section bluffs">
+            <div class="preset-editor-section bluffs">
                 <h2>Bluffs ({bluffs.length}/3)</h2>
                 <div class="token-list">
-                    {#each game.bluff_ids as bluffId}
-                    {@const character = game.script.characters.find(c => c.id === bluffId)}
+                    {#each preset.bluff_ids as bluffId}
+                    {@const character = preset.script.characters.find(c => c.id === bluffId)}
                     {#if character}
                         <div class="token-wrapper">
                             <CharacterToken {character} size={tokenSize} />
@@ -300,6 +295,5 @@ h2 {
             </div>
         </div>
     </div>
-    <!-- pointerDragging removed: touch/tablet drag now scrolls as normal -->
 </div>
 {/if}

@@ -1,9 +1,9 @@
-import { get_grimoire_state_history_resource_for_game, set_grimoire_state_history_resource_for_game } from '$lib/resources/server/grimoire-state.js';
+import { get_grimoire_state_history_resource_for_clock, set_grimoire_state_history_resource_for_clock } from '$lib/resources/server/grimoire-state.js';
 import { json } from '@sveltejs/kit';
-import { isGrimoireStateHistory } from '../types';
+import { isGrimoireStateHistory } from '$lib/resources/common/grimoireState';
 
 export async function GET({params}){
-    const data = get_grimoire_state_history_resource_for_game(params.id);
+    const data = get_grimoire_state_history_resource_for_clock(params.clockid);
     if(!data){
         return json({error: "Grimoire state not found"}, {status: 404});
     }
@@ -18,8 +18,8 @@ export async function POST({params, request}){
             return json({error: "Invalid grimoire state history data"}, {status: 400});
         }
 
-        set_grimoire_state_history_resource_for_game(params.id, body);
-        console.log("Saved grimoire state history for game", params.id);
+        set_grimoire_state_history_resource_for_clock(params.clockid, body);
+        console.log("Saved grimoire state history for clock", params.clockid);
         return json({message: "Grimoire state history saved successfully"});
     }catch(e){
         console.error("Error saving grimoire state history:", e);

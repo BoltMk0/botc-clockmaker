@@ -33,7 +33,7 @@
 
 
 <div style="position: absolute; {style}">
-    <div style="position:relative">
+    <div style="position:relative; width: {size}; height: {size};">
         
         <TokenBackground {size} style="border: calc({size} / 40) solid {color};">
         
@@ -72,15 +72,16 @@
         </div>
         {/if}
 
+        </TokenBackground>
+
         {#if nightOrder !== undefined && nightOrder >= 0}
-            <div class="night-order" style="font-size: calc({size} / 8); border-width: calc({size} / 80); position: absolute; top: 40%; left: 80%; transform: translate(-50%, -100%);">
+            <div class="night-order" style="font-size: calc({size} / 8); border-width: calc({size} / 80); position: absolute; top: 0; left: 85%; transform: translate(-50%, -30%);">
                 {nightOrder+1}
             </div>
         {/if}
-        
-        </TokenBackground>
+
     </div>
-    
+
 </div>
 
 <style>
@@ -94,6 +95,7 @@
         text-shadow: 0 0 5px #0004;
         height: 1.5em;
         width: 1.5em;
+        z-index: 1;
         display: flex;
         align-items: center;
         justify-content: center;

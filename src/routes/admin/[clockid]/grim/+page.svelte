@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { ScriptCharacter, ReminderToken, Character, GameFull } from "$lib/resources/common/gameData.js";
+    import { CHARACTER_CATEGORIES, type Preset, type ReminderToken, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import ReminderTokenView from "$lib/components/ReminderTokenView.svelte";
     import { fetchReminderTokensForCharacter } from "$lib/resources/client/reminderTokens.js";
@@ -7,15 +7,14 @@
 
     import { goto } from '$app/navigation';
     import { Clocktower } from "$lib/model/client/Clocktower.svelte.js";
-    import type { ClocktowerModel } from "$lib/model/common/ClocktowerModel.js";
     import FullDisplay from "$lib/components/FullDisplay/FullDisplay.svelte";
     import { onMount } from "svelte";
-    import ClockSetter from "../../../[clockid]/ClockSetter.svelte";
-    import type { TimerOption } from "$lib/common/timerOption.js";
+    import ClockSetter from "../ClockSetter.svelte";
     import type { CanvasToolType } from "$lib/components/DrawableCanvas2/types.js";
     import AnotatableViewV2 from "$lib/components/DrawableCanvas2/AnotatableViewV2.svelte";
-    import { newGrimoireStateHistory, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "./types.js";
+    import { newGrimoireStateHistory, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
     import { v7 } from "uuid";
+    import type { PageData } from "./$types";
 
     const z_indecies = {
         tokens: 20,
@@ -25,21 +24,10 @@
         clock: 10
     };
 
-    interface Props {
-        data: {
-            gameid: string;
-            game: GameFull|null;
-            gameState: GrimoireStateHistory | null;
-            availableClocks: ClocktowerModel[];
-            timerOptions: TimerOption[];
-            error: string|null;
-        }
-    }
-
-    let {data}: Props = $props();
+    let {data}: {data: PageData} = $props();
 
     function defaultAlignmentForCharacterId(characterId: string): Alignment {
-        const char = data.game?.script.characters.find(c => c.id === characterId);
+        const char = script?.characters.find(c => c.id === characterId);
         return (char?.category === 'demon' || char?.category === 'minion') ? 'evil' : 'good';
     }
 
@@ -56,29 +44,122 @@
     function normaliseHistory(hist: GrimoireStateHistory): GrimoireStateHistory {
         return {
             id: hist.id,
+            scriptId: hist.scriptId ?? null,
+            loadedPreset: hist.loadedPreset ?? null,
             saveslots: hist.saveslots.map(s => s ? normaliseSnapshot(s) : null),
             present: normaliseSnapshot(hist.present),
         };
     }
 
-    function getInitialGameState(data: Props['data']): GrimoireStateHistory {
+    function getLocallyStoredGrimoireState(): GrimoireStateHistory | null {
+        if (!browser) return null;
+        const key = `grimoire-state-${data.clockid}`;
+        try {
+            const saved = localStorage.getItem(key);
+            if (!saved) return null;
+            return JSON.parse(saved) as GrimoireStateHistory;
+        } catch {
+            return null;
+        }
+    }
+
+    function getInitialGameState(data: PageData): GrimoireStateHistory {
         const locallySavedState = getLocallyStoredGrimoireState();
 
-        const selectedState = (data.gameState?.present.timestamp || 0) > (locallySavedState?.present.timestamp || 0) ? data.gameState : locallySavedState;
+        const selectedState = (data.grimoireState?.present.timestamp || 0) > (locallySavedState?.present.timestamp || 0) ? data.grimoireState : locallySavedState;
         if(selectedState) {
             console.log("Using grimoire state with timestamp", selectedState.present.timestamp);
             return normaliseHistory(selectedState);
         } else {
             console.log("No existing grimoire state found, initializing new state");
-            return newGrimoireStateHistory(data.gameid);
+            return newGrimoireStateHistory(data.clockid);
         }
     }
 
     // svelte-ignore state_referenced_locally
     const gameState = $state(getInitialGameState(data));
 
-    const game = $derived(data.game);
-    const availableClocks = $derived(data.availableClocks);
+    // SCRIPT / PRESET SELECTION
+    let script = $state<ScriptWithCharacters | null>(null);
+    let showScriptPicker = $state(false);
+    let expandedPresetScriptId = $state<string | null>(null);
+    let scriptPresetsCache = $state<Record<string, Preset[]>>({});
+    let loadingPresetsScriptId = $state<string | null>(null);
+
+    $effect(() => {
+        const id = gameState.scriptId;
+        if (!id) {
+            script = null;
+            return;
+        }
+        fetch(`/api/scripts/${id}`).then(r => r.ok ? r.json() : null).then(s => {
+            if (gameState.scriptId === id) script = s;
+        }).catch(() => { if (gameState.scriptId === id) script = null; });
+    });
+
+    const loadedPreset = $derived(gameState.loadedPreset);
+
+    const sortedScriptCharacters = $derived(
+        [...(script?.characters ?? [])].sort((a, b) => {
+            const ac = CHARACTER_CATEGORIES.indexOf(a.category as any);
+            const bc = CHARACTER_CATEGORIES.indexOf(b.category as any);
+            if (ac !== bc) return ac - bc;
+            return a.name.localeCompare(b.name);
+        })
+    );
+
+    function closeScriptPicker() {
+        showScriptPicker = false;
+        expandedPresetScriptId = null;
+    }
+
+    function startNewGame(newScriptId: string) {
+        const hasContent = gameState.present.placedTokens.length > 0 || gameState.present.placedReminders.length > 0;
+        if (hasContent && !confirm("Starting a new game will reset the grimoire board. Continue?")) {
+            return;
+        }
+        closeScriptPicker();
+        const fresh = newGrimoireStateHistory(data.clockid, newScriptId || null);
+        gameState.scriptId = fresh.scriptId;
+        gameState.loadedPreset = null;
+        gameState.saveslots = fresh.saveslots;
+        gameState.present = fresh.present;
+        saveGrimoire();
+    }
+
+    async function toggleScriptPresets(scriptId: string) {
+        if (expandedPresetScriptId === scriptId) {
+            expandedPresetScriptId = null;
+            return;
+        }
+        expandedPresetScriptId = scriptId;
+        if (scriptPresetsCache[scriptId]) return;
+        loadingPresetsScriptId = scriptId;
+        try {
+            const res = await fetch(`/api/presets?script_id=${scriptId}`);
+            scriptPresetsCache[scriptId] = res.ok ? await res.json() : [];
+        } catch {
+            scriptPresetsCache[scriptId] = [];
+        } finally {
+            if (loadingPresetsScriptId === scriptId) loadingPresetsScriptId = null;
+        }
+    }
+
+    function loadPresetForScript(scriptId: string, preset: Preset) {
+        if (scriptId !== (gameState.scriptId ?? '')) {
+            const hasContent = gameState.present.placedTokens.length > 0 || gameState.present.placedReminders.length > 0;
+            if (hasContent && !confirm("Changing the script will reset the grimoire board. Continue?")) {
+                return;
+            }
+            const fresh = newGrimoireStateHistory(data.clockid, scriptId || null);
+            gameState.scriptId = fresh.scriptId;
+            gameState.saveslots = fresh.saveslots;
+            gameState.present = fresh.present;
+        }
+        gameState.loadedPreset = { character_ids: [...preset.character_ids], bluff_ids: [...preset.bluff_ids] };
+        closeScriptPicker();
+        saveGrimoire();
+    }
 
     // Synthetic "blank" reminder token (icon only, no text) available for every character.
     // Kept out of the database since it's identical for all characters - just rendered from the character's id.
@@ -90,13 +171,13 @@
     }
 
     const availableReminderTokens = $derived<Record<string, ReminderToken & {characterId: string}>>(
-        game ? Object.fromEntries([
-            ...game.script.characters.flatMap(c => c.reminderTokens.map(t => [t.id, {...t, characterId: c.id}] as const)),
-            ...game.script.characters.map(c => [blankReminderTokenId(c.id), {...blankReminderToken(c.id), characterId: c.id}] as const)
+        script ? Object.fromEntries([
+            ...script.characters.flatMap(c => c.reminderTokens.map(t => [t.id, {...t, characterId: c.id}] as const)),
+            ...script.characters.map(c => [blankReminderTokenId(c.id), {...blankReminderToken(c.id), characterId: c.id}] as const)
         ]) : {}
     )
     const availableCharacters = $derived<Record<string, ScriptCharacter>>(
-        game ? Object.fromEntries(game.script.characters.map(c => [c.id, c])) : {}
+        script ? Object.fromEntries(script.characters.map(c => [c.id, c])) : {}
     );
 
     // STATE SELECTION
@@ -187,68 +268,23 @@
         }
     });
 
-    type ClockClientManagerConfig = {
-        connectedClock: ClocktowerModel|null;
-        showClock: boolean;
-    }
-
-    class ClockClientManager {
-        config: ClockClientManagerConfig = $state({ connectedClock: null, showClock: true });
-        client: Clocktower|null = $state(null);
-        readonly gameId: string;
-        constructor(gameId: string){
-            this.gameId = gameId;
-        }
-
-        closeClient(){
-            if(this.client){
-                console.log("Closing existing clock client connection");
-                this.client.close();
-            }
-            this.client = null;
-        }
-
-        initializeClient(){
-            try{
-                this.closeClient();
-                const clockInstance = this.config.connectedClock;
-                if(clockInstance){
-                    this.client = new Clocktower(clockInstance);
-                }
-            } catch(er){
-                console.error("Error initializing Clocktower client:", er);
-                alert("Failed to initialize clock client: " + er);
-            }
-        }
-
-        setConnectedClock(clockInfo: ClocktowerModel | null) {
-            console.log("Setting connected clock to", clockInfo);
-            this.config.connectedClock = clockInfo;
-            this.initializeClient();
-        }
-
-        setVisible(visible: boolean) {
-            this.config.showClock = visible;
-        }
-    }
-
-    const clockClientManager = $derived(browser && game !== null ? new ClockClientManager(game.id) : null);
-    const clockClientManagerConfig = $derived(clockClientManager ? clockClientManager.config : null);
-    const clockClientManagerClient = $derived(clockClientManager ? clockClientManager.client : null);
+    // CLOCK CONNECTION - always the clock this grim lives under, no manual picker
+    let clockClient = $state<Clocktower | null>(null);
+    let showClock = $state(true);
     let showTimerOptions = $state(false);
 
     // NIGHT ORDER LOGIC
-    const nightOrderFunction = $derived((clockClientManagerClient?.day || 0) > 0 ? (c: ScriptCharacter) => c.otherNightOrder : (c: ScriptCharacter) => c.firstNightOrder);
+    const nightOrderFunction = $derived((clockClient?.day || 0) > 0 ? (c: ScriptCharacter) => c.otherNightOrder : (c: ScriptCharacter) => c.firstNightOrder);
     const nightOrderByCharacterId = $derived((placedTokens.filter((c, i, a)=>a.indexOf(c) === i)
         .filter(c=>!c.isDead)
-        .map(c=>game?.script.characters.find(ch => ch.id === c.characterId))
+        .map(c=>script?.characters.find(ch => ch.id === c.characterId))
         .filter(c => c !== undefined)
         .map(c=>{return [c.id, nightOrderFunction(c)]})
         .filter(([_, order])=>order !== null) as [string, number][]).sort((a, b) => a[1] - b[1])
         .map(([id, _])=>id) ?? []);
 
     let showFooter = $state(false);
-    let tokensLocked = $derived((browser && game) ? localStorage.getItem(`grimoire-locked-${game.id}`) === 'true' : false);
+    let tokensLocked = $derived(browser ? localStorage.getItem(`grimoire-locked-${data.clockid}`) === 'true' : false);
     let editing = $state(false);
 
 
@@ -288,52 +324,58 @@
         return () => document.removeEventListener('pointerdown', handler, true);
     });
 
+    // Close the token tray when tapping anywhere outside of it (or its opening button).
+    $effect(() => {
+        if (!showFooter) return;
+        const handler = (e: PointerEvent) => {
+            const target = e.target as HTMLElement | null;
+            if (!target) return;
+            if (target.closest('.grimoire-footer, .open-tray-btn')) return;
+            showFooter = false;
+        };
+        document.addEventListener('pointerdown', handler, true);
+        return () => document.removeEventListener('pointerdown', handler, true);
+    });
+
+    type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'error';
+    let saveStatus = $state<SaveStatus>('saved');
+
     async function saveGrimoire(){
-        if(!game || !workingGameSnapshot){
-            console.error("Cannot save grimoire: game or working snapshot not available");
-            return;
-        }
         if(saveGrimoireTimeout){
             clearTimeout(saveGrimoireTimeout);
+            saveGrimoireTimeout = null;
         }
 
         gameState.present.timestamp = Date.now();
+        saveStatus = 'saving';
 
         if(browser){
             // Also save to localStorage immediately so that if the user reloads before the debounced save, they won't lose more than a few seconds of changes
-            localStorage.setItem(`grimoire-state-${game.id}`, JSON.stringify(gameState));
+            localStorage.setItem(`grimoire-state-${data.clockid}`, JSON.stringify(gameState));
         }
 
         try {
-            const response = await fetch(`grimoire/state`, {
+            const response = await fetch(`grim/state`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(gameState),
             });
             if (!response.ok) {
                 console.error("Failed to save grimoire state:", response.statusText);
+                saveStatus = 'error';
             } else {
                 console.log("Grimoire state saved successfully");
+                saveStatus = 'saved';
             }
         } catch (er) {
             console.error(`Failed to save grimoire state: ${er}`);
-        }
-    }
-
-    function getLocallyStoredGrimoireState(): GrimoireStateHistory | null {
-        if (!browser || !data.game) return null;
-        const key = `grimoire-state-${data.game.id}`;
-        try {
-            const saved = localStorage.getItem(key);
-            if (!saved) return null;
-            return JSON.parse(saved) as GrimoireStateHistory;
-        } catch {
-            return null;
+            saveStatus = 'error';
         }
     }
 
     let saveGrimoireTimeout: NodeJS.Timeout | null = null;
     async function rescheduleSaveGrimoire(){
+        saveStatus = 'unsaved';
         if(saveGrimoireTimeout){
             clearTimeout(saveGrimoireTimeout);
         }
@@ -374,8 +416,8 @@
         if(tokensLocked){
             showFooter = false;
         }
-        if (browser && data.game) {
-            localStorage.setItem(`grimoire-locked-${data.game.id}`, String(val));
+        if (browser) {
+            localStorage.setItem(`grimoire-locked-${data.clockid}`, String(val));
         }
     }
 
@@ -387,57 +429,12 @@
         }
     }
 
-    // function loadTokens(): PlacedToken[] {
-    //     if (!browser || !data.game) return [];
-    //     const key = `grimoire-${data.game.id}`;
-    //     try {
-    //         const saved = localStorage.getItem(key);
-    //         if (!saved) return [];
-    //         const parsed: SavedToken[] = JSON.parse(saved);
-    //         return parsed
-    //             .map((s) => {
-    //                 const character = data.game!.script.characters.find((c: ScriptCharacter) => c.id === s.characterId);
-    //                 return character ? { character, x: s.x, y: s.y } : null;
-    //             })
-    //             .filter((t): t is PlacedToken => t !== null);
-    //     } catch {
-    //         return [];
-    //     }
-    // }
-
-    // async function loadReminders(): Promise<PlacedReminder[]> {
-    //     if (!browser || !data.game) return [];
-    //     const key = `grimoire-reminders-${data.game.id}`;
-    //     try {
-    //         const saved = localStorage.getItem(key);
-    //         if (!saved) return [];
-    //         const parsed: SavedReminder[] = JSON.parse(saved);
- 
-    //         return await Promise.all(parsed.map((s) =>
-    //             fetch(`/api/reminder_tokens/${s.tokenId}`).then(res => res.json() as Promise<ReminderToken>).then(token => {
-    //                 if (!token) {
-    //                     throw new Error(`Failed to load reminder token with id ${s.tokenId}`);
-    //                 }
-    //                 return {
-    //                     token,
-    //                     x: s.x,
-    //                     y: s.y
-    //                 } as PlacedReminder;
-    //             })
-    //         ));
-    //     } catch {
-    //         return [];
-    //     }
-    // }
-
     async function loadRemindersForCharacter(characterId: string): Promise<ReminderToken[]> {
         if (reminderCache[characterId]) return reminderCache[characterId];
         const tokens = await fetchReminderTokensForCharacter(characterId);
         reminderCache[characterId] = [blankReminderToken(characterId), ...tokens];
         return reminderCache[characterId];
     }
-
-    const trayTokens = $derived(data.game ? data.game.script.characters : []);
 
     const placedCharIds = $derived(new Set(placedTokens.map(t => t.characterId)));
 
@@ -485,7 +482,7 @@
         if (tokensLocked) return;
         if(!boardEl) return;
 
-        const character = game?.script.characters.find(c => c.id === token.characterId);
+        const character = script?.characters.find(c => c.id === token.characterId);
         if (!character) {
             console.error("Character not found for token:", token);
             return;
@@ -666,16 +663,13 @@
     }
 
     onMount(()=>{
-        if(!game || !workingGameSnapshot){
-            alert("Game data failed to load. Please try refreshing the page.");
-            return;
-        }
-        clockClientManager?.initializeClient();
+        if(!browser) return;
+        clockClient = new Clocktower(data.model);
         return () => {
             if(saveGrimoireTimeout){
                 clearTimeout(saveGrimoireTimeout);
             }
-            clockClientManager?.closeClient();
+            clockClient?.close();
         }
     });
 
@@ -749,6 +743,14 @@
         padding: 0.5em;
         height: fit-content;
         box-sizing: border-box;
+    }
+
+    .token-tray-header {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.5em;
+        padding-bottom: 0.5em;
     }
 
     .token-tray {
@@ -968,14 +970,131 @@
         fill: currentColor;
     }
 
+    .save-status {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.6);
+        color: white;
+        pointer-events: none;
+    }
+
+    .save-status svg {
+        width: 18px;
+        height: 18px;
+        fill: currentColor;
+    }
+
+    .save-status.saved svg {
+        fill: #4ade80;
+    }
+
+    .save-status.unsaved svg {
+        fill: #f1c40f;
+    }
+
+    .save-status.error svg {
+        fill: #e74c3c;
+    }
+
+    .save-status.saving svg {
+        animation: save-status-spin 0.9s linear infinite;
+    }
+
+    @keyframes save-status-spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .open-tray-tab {
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60px;
+        height: 38px;
+        border: none;
+        border-radius: 8px 8px 0 0;
+        background: var(--theme-bg-secondary);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        touch-action: manipulation;
+        opacity: 0.85;
+    }
+
+    .open-tray-tab:hover {
+        opacity: 1;
+    }
+
+    .open-tray-tab svg {
+        width: 22px;
+        height: 22px;
+        fill: currentColor;
+    }
+
+    .script-picker-row {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .script-picker-row:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .script-picker-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .script-picker-name {
+        flex: 1;
+        text-align: left;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .script-picker-presets {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding-left: 1em;
+    }
+
 </style>
 
 
-{#if data.error || game === null}
-    <h1>Game Not Found</h1>
-    <p>The specified game could not be found.</p>
-    <p>{data.error}</p>
-{:else}
+    <div class="save-status {saveStatus}" style="z-index: {z_indecies.ui};" title={
+        saveStatus === 'saved' ? 'All changes saved'
+        : saveStatus === 'saving' ? 'Saving…'
+        : saveStatus === 'error' ? 'Failed to save changes'
+        : 'Unsaved changes'
+    }>
+        {#if saveStatus === 'saved'}
+            <svg viewBox="0 0 24 24"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        {:else if saveStatus === 'saving'}
+            <svg viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm-6.7 3.2-1.46-1.46A7.93 7.93 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8z"/></svg>
+        {:else if saveStatus === 'error'}
+            <svg viewBox="0 0 24 24"><path d="M12 2 1 21h22L12 2zm0 15a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5zm-1-7h2v5h-2v-5z"/></svg>
+        {:else}
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/></svg>
+        {/if}
+    </div>
+
     <div class="sidebar" style="z-index: {z_indecies.ui};">
         <!-- Canvas control -->
          <div style="position: relative">
@@ -1053,9 +1172,9 @@
             </div>
             {/if}
          </div>
-        
+
         <!-- Show/Hide token tray -->
-        <button class="sidebar-btn" class:active={showFooter} onclick={toggleTray} title="{showFooter ? 'Hide' : 'Show'} token tray">
+        <button class="sidebar-btn open-tray-btn" class:active={showFooter} onclick={toggleTray} title="{showFooter ? 'Hide' : 'Show'} token tray">
             <svg viewBox="0 0 24 24">
                 <circle cx="6" cy="6" r="5" fill="currentColor"/>
                 <circle cx="6" cy="18" r="5" fill="currentColor"/>
@@ -1093,7 +1212,7 @@
         {/if}
 
         <!-- Show/Hide clock -->
-        <button class="sidebar-btn" class:active={clockClientManagerConfig?.showClock} onclick={() => clockClientManager?.setVisible(!(clockClientManagerConfig?.showClock ?? false))} title="{clockClientManagerConfig?.showClock ? 'Hide' : 'Show'} clock">
+        <button class="sidebar-btn" class:active={showClock} onclick={() => showClock = !showClock} title="{showClock ? 'Hide' : 'Show'} clock">
             <svg viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"/>
                 <line x1="12" y1="12" x2="12" y2="7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -1107,19 +1226,19 @@
                 <path d="M12 5V2L8 6l4 4V7c3.31 0 6 2.69 6 6 0 1.3-.42 2.5-1.13 3.47l1.46 1.46C19.07 16.07 20 14.15 20 12c0-4.42-3.58-8-8-8zm-6.87 3.53L3.67 7.07C2.93 7.93 2 9.85 2 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3c-3.31 0-6-2.69-6-6 0-1.3.42-2.5 1.13-3.47z"/>
             </svg>
         </button>
-        
+
         <!-- Go back -->
-        <button class="sidebar-btn" onclick={() => {saveGrimoire().then(()=>goto(`/admin/games`))} } title="Back to game">
+        <button class="sidebar-btn" onclick={() => {saveGrimoire().then(()=>goto(`/admin/${data.clockid}`))} } title="Back to clock">
             <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
         </button>
 
     </div>
 
     <AnotatableViewV2 tool={editing ? activeTool : null} onchange={rescheduleSaveGrimoire} layers={canvasLayers} activeLayerIndex={activeCanvasLayerIndex} canvasStyle="z-index: {z_indecies.canvas};">
-    
+
     <div class="grimoire-board" bind:this={boardEl}>
         {#each placedTokens as token, i (token.characterId + '-' + i)}
-            {@const character = data.game?.script.characters.find(c => c.id === token.characterId)}
+            {@const character = script?.characters.find(c => c.id === token.characterId)}
             {#if character}
             <div
                 class="board-token"
@@ -1151,24 +1270,24 @@
 
     </div>
 
-    {#if clockClientManagerConfig?.showClock}
+    {#if showClock}
         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 2em; text-shadow: 0 0 10px rgba(0,0,0,0.7); z-index: {z_indecies.clock};">
-            {#if clockClientManagerClient}
+            {#if clockClient}
             <button class="no-button-style" style="position: relative; width: {tokenSize * 1.5 + 50}px; height: {tokenSize * 1.5 + 50}px; margin: 0 auto;" onclick={()=>showTimerOptions = true}>
-                <FullDisplay model={clockClientManagerClient} size={tokenSize * 1.5} displayMode='original'/>
+                <FullDisplay model={clockClient} size={tokenSize * 1.5} displayMode='original'/>
             </button>
             {/if}
         </div>
     {/if}
-    
-        
+
+
     </AnotatableViewV2>
 
 
         {#if activeReminderCharId !== null && activeReminderPos && reminderCache[activeReminderCharId]}
             <div bind:this={reminderPopupEl} class="reminder-popup" class:above={activeReminderAbove} style="font-size: {tokenSize * 0.12}px; left: {activeReminderPos.x}px; top: {activeReminderPos.y}px; z-index: {z_indecies.ui};">
                 {#if activeToken}
-                    {@const activeChar = data.game?.script.characters.find(c => c.id === activeReminderCharId)}
+                    {@const activeChar = script?.characters.find(c => c.id === activeReminderCharId)}
                     <div class="popup-meta">
                         <div class="popup-toggles">
                             <button type="button" class="popup-toggle" class:dead={activeToken.isDead} onclick={toggleAlive}>
@@ -1198,16 +1317,28 @@
             </div>
         {/if}
 
+    {#if !showFooter}
+        <button class="open-tray-btn open-tray-tab" onclick={toggleTray} title="Show token tray" style="z-index: {z_indecies.ui};">
+            <svg viewBox="0 0 24 24"><path d="M7 14l5-5 5 5z"/></svg>
+        </button>
+    {/if}
+
     <!-- FOOTER -->
     <div class="grimoire-footer" bind:this={footerEl} style="transform: translateY({showFooter && !dragging && !draggingReminder ? '0' : '100%'}); z-index: {z_indecies.ui};">
         <div class="token-tray-container">
+            <div class="token-tray-header">
+                <button class="button-style" onclick={() => showScriptPicker = true}>{script ? script.name : 'Select a script'}</button>
+            </div>
             <div class="token-tray">
-                {#if game.character_ids.length > 0}
+                {#if !script}
+                    <div style="text-align: center; opacity: 0.6; padding: 1em;">Select a script to begin.</div>
+                {:else if loadedPreset}
+                {#if loadedPreset.character_ids.length > 0}
                 <div>
                     <div style="text-align: center;">In-play</div>
                     <div class="sub-tray">
-                        {#each game.character_ids as character_id}
-                        {@const character = data.game?.script.characters.find(c => c.id === character_id)}
+                        {#each loadedPreset.character_ids as character_id}
+                        {@const character = script?.characters.find(c => c.id === character_id)}
                         {#if character}
                                 <div
                                     class="tray-token"
@@ -1222,12 +1353,12 @@
                     </div>
                 </div>
                 {/if}
-                {#if game.bluff_ids.length > 0}
+                {#if loadedPreset.bluff_ids.length > 0}
                 <div>
                     <div style="text-align: center;">Bluffs</div>
                     <div class="sub-tray">
-                        {#each game.bluff_ids as character_id}
-                        {@const character = data.game?.script.characters.find(c => c.id === character_id)}
+                        {#each loadedPreset.bluff_ids as character_id}
+                        {@const character = script?.characters.find(c => c.id === character_id)}
                         {#if character}
                                 <div
                                     class="tray-token"
@@ -1245,7 +1376,7 @@
                 <div>
                     <div style="text-align: center;">Other</div>
                     <div class="sub-tray">
-                        {#each game.script.characters.filter(c => !game?.character_ids.includes(c.id) && !game?.bluff_ids.includes(c.id)) as character (character.id)}
+                        {#each script.characters.filter(c => !loadedPreset?.character_ids.includes(c.id) && !loadedPreset?.bluff_ids.includes(c.id)) as character (character.id)}
                                 <div
                                     class="tray-token"
                                     class:dragging={dragging?.character.id === character.id}
@@ -1257,6 +1388,23 @@
                         {/each}
                     </div>
                 </div>
+                {:else}
+                <div>
+                    <div style="text-align: center;">All Characters</div>
+                    <div class="sub-tray">
+                        {#each sortedScriptCharacters as character (character.id)}
+                                <div
+                                    class="tray-token"
+                                    class:dragging={dragging?.character.id === character.id}
+                                    class:in-play={isInPlay(character.id)}
+                                    onpointerdown={(e) => startDragFromTray(e, character)}
+                                >
+                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} norules/>
+                                </div>
+                        {/each}
+                    </div>
+                </div>
+                {/if}
             </div>
         </div>
     </div>
@@ -1277,28 +1425,61 @@
         <div class="edge-delete-indicator" class:active={isNearEdge(ghostPos.x, ghostPos.y)}></div>
     {/if}
 
-    {#if showTimerOptions || (clockClientManagerConfig?.showClock && clockClientManagerClient === null)}
+    {#if showTimerOptions}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {z_indecies.ui};" onclick={() => {showTimerOptions = false; if (clockClientManagerConfig?.showClock && !clockClientManagerClient) clockClientManager?.setVisible(false);}} role="dialog" tabindex="0">
+        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {z_indecies.ui};" onclick={() => {showTimerOptions = false;}} role="dialog" tabindex="0">
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div style="background: var(--theme-bg-secondary); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px;" onclick={(e) => e.stopPropagation()} >
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em; gap: 2em;">
-                    <h2 style="margin: 0; padding: 0;">{clockClientManagerClient ? "Clock Controls" : "Connect to Clock"}</h2>
-                    <button class="button-style error" onclick={()=>{showTimerOptions = false; if(clockClientManagerClient === null) clockClientManager?.setVisible(false);}}>X</button>
+                    <h2 style="margin: 0; padding: 0;">Clock Controls</h2>
+                    <button class="button-style error" onclick={()=>{showTimerOptions = false;}}>X</button>
                 </div>
-                {#if clockClientManagerClient}
-                    <ClockSetter model={clockClientManagerClient} timerOptions={data.timerOptions} onstart={()=>{showTimerOptions = false}}/>
-                    <button class="button-style" onclick={() => clockClientManager?.setConnectedClock(null)}>Disconnect Clock</button>
+                {#if clockClient}
+                    <ClockSetter model={clockClient} timerOptions={data.timerOptions} onstart={()=>{showTimerOptions = false}}/>
                 {:else}
-                    <div style="display: flex; flex-direction: column; gap: 5px;">
-                        {#each availableClocks as clock(clock.clock.clockId)}
-                            <button class="button-style" onclick={() => {clockClientManager?.setConnectedClock(clock); showTimerOptions = false;}} style="width: 100%; text-align: center; border: 1px solid {typeof clock.config.theme.hue === 'number' ? `hsl(${clock.config.theme.hue} 70% 50%)` : 'currentColor'};">
-                                {clock.config.teamName || `${clock.clock.clockId}`}
-                            </button>
-                        {/each}
-                    </div>
+                    <div>Connecting to clock...</div>
                 {/if}
             </div>
         </div>
     {/if}
-{/if}
+
+    {#if showScriptPicker}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <div style="position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.8); z-index: {z_indecies.ui + 1};" onclick={closeScriptPicker} role="dialog" tabindex="0">
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div style="background: var(--theme-bg-secondary); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; max-height: 80vh; width: min(90vw, 420px); box-sizing: border-box;" onclick={(e) => e.stopPropagation()}>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em; gap: 2em;">
+                    <h2 style="margin: 0; padding: 0;">Select a Script</h2>
+                    <button class="button-style error" onclick={closeScriptPicker}>X</button>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 10px; overflow-y: auto;">
+                    {#each data.scripts as s (s.id)}
+                        <div class="script-picker-row" class:active={gameState.scriptId === s.id}>
+                            <div class="script-picker-header">
+                                <div class="script-picker-name">{s.name}</div>
+                                <button class="button-style" onclick={() => startNewGame(s.id)}>New game</button>
+                                <button class="button-style" class:active={expandedPresetScriptId === s.id} onclick={() => toggleScriptPresets(s.id)}>Load Preset</button>
+                            </div>
+                            {#if expandedPresetScriptId === s.id}
+                                <div class="script-picker-presets">
+                                    {#if loadingPresetsScriptId === s.id}
+                                        <div style="opacity: 0.6;">Loading…</div>
+                                    {:else if (scriptPresetsCache[s.id]?.length ?? 0) === 0}
+                                        <div style="opacity: 0.6;">No presets available.</div>
+                                    {:else}
+                                        {#each [...scriptPresetsCache[s.id]].sort((a, b) => a.character_ids.length - b.character_ids.length) as p (p.id)}
+                                            <button class="button-style" onclick={() => loadPresetForScript(s.id, p)} style="width: 100%; text-align: center;">
+                                                {p.name} <span style="opacity: 0.6;">({p.character_ids.length}p)</span>
+                                            </button>
+                                        {/each}
+                                    {/if}
+                                </div>
+                            {/if}
+                        </div>
+                    {:else}
+                        <div style="opacity: 0.6;">No scripts available.</div>
+                    {/each}
+                </div>
+            </div>
+        </div>
+    {/if}

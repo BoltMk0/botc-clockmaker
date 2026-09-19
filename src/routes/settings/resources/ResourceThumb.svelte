@@ -3,7 +3,7 @@
     import CustomOverlay from "$lib/components/CustomOverlay.svelte";
     import TokenBackground from "$lib/components/TokenBackground.svelte";
     import { prettifyResourceName } from "$lib/resources/common/util";
-    import { type GrimoireStateHistory } from "../../admin/games/[id]/grimoire/types";
+    import { type GrimoireStateHistory } from "$lib/resources/common/grimoireState";
 
     let {
         data,

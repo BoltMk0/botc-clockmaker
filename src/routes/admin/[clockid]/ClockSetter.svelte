@@ -170,6 +170,7 @@
             <img class="button-icon-img" src="{bell_and_waves}" alt="Ring Bell"/>
         </button>
     </div>
+    <a class="button-style" href="/admin/{model.id}/grim" style="width: 100%; box-sizing: border-box; text-align: center;">Grim</a>
 </div>
 
 <style>
