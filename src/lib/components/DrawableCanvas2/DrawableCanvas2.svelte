@@ -652,6 +652,12 @@
     }
 
     function onIdlePointerDown(event: PointerEvent) {
+        if (event.pointerType === 'touch') {
+            // A fresh touch owns its own click: the click trailing the previous gesture has already fired,
+            // so drop the suppression (and any stuck gesture flag if no fingers are actually down).
+            idleSuppressClickUntil = 0;
+            if (idleTouches.size === 0) idleGesturing = false;
+        }
         if (!idleActive() || event.pointerType !== 'touch') return;
         if (idleIgnore && (event.target as Element | null)?.closest?.(idleIgnore)) return;
         const pos = idlePos(event);
