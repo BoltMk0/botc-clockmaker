@@ -12,7 +12,8 @@
     import ClockSetter from "../ClockSetter.svelte";
     import type { CanvasToolType } from "$lib/components/DrawableCanvas2/types.js";
     import AnotatableViewV2 from "$lib/components/DrawableCanvas2/AnotatableViewV2.svelte";
-    import { layoutTokensAtDefaultPositions, newGrimoireStateHistory, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
+    import PlayerToken from "$lib/components/PlayerToken.svelte";
+    import { isPlayerToken, layoutTokensAtDefaultPositions, playerDisplayName, seatNumbers, newGrimoireStateHistory, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
     import { v7 } from "uuid";
     import type { PageData } from "./$types";
 
@@ -35,7 +36,7 @@
 
     let {data}: {data: PageData} = $props();
 
-    function defaultAlignmentForCharacterId(characterId: string): Alignment {
+    function defaultAlignmentForCharacterId(characterId: string | null): Alignment {
         const char = script?.characters.find(c => c.id === characterId);
         return char ? alignmentForCategory(char.category) : 'good';
     }
@@ -45,6 +46,7 @@
             ...snap,
             placedTokens: snap.placedTokens.map(t => ({
                 ...t,
+                id: t.id ?? v7(),
                 alignment: (t as any).alignment ?? defaultAlignmentForCharacterId(t.characterId),
             })),
         };
@@ -98,9 +100,22 @@
             return;
         }
         fetch(`/api/scripts/${id}`).then(r => r.ok ? r.json() : null).then(s => {
-            if (gameState.scriptId === id) script = s;
+            if (gameState.scriptId !== id) return;
+            script = s;
+            migrateSeatedTokensToPlayers();
         }).catch(() => { if (gameState.scriptId === id) script = null; });
     });
+
+    // Saves from before players existed have nameless tokens for seated characters; those are players now.
+    function migrateSeatedTokensToPlayers() {
+        if (!script) return;
+        const seated = new Set(script.characters.filter(c => c.player_count > 0).map(c => c.id));
+        if (!gameState.present.placedTokens.some(t => t.playerName === undefined && t.characterId !== null && seated.has(t.characterId))) return;
+        gameState.present.placedTokens = gameState.present.placedTokens.map(t =>
+            t.playerName === undefined && t.characterId !== null && seated.has(t.characterId) ? { ...t, playerName: '' } : t
+        );
+        rescheduleSaveGrimoire();
+    }
 
     const loadedPreset = $derived(gameState.loadedPreset);
 
@@ -156,20 +171,22 @@
 
     const placedTokens = $derived(gameState.present.placedTokens);
     const placedReminders = $derived(gameState.present.placedReminders);
+    const playerSeatNumbers = $derived(seatNumbers(placedTokens));
 
     // Cache of fetched reminder tokens per character
     let reminderCache = $state< Record<string, ReminderToken[]> >({});
 
     // Which board token's reminder tray is open
-    let activeReminderCharId = $state<string | null>(null);
+    let activeTokenId = $state<string | null>(null);
     let activeReminderPos = $state<{ x: number; y: number } | null>(null);
     let activeReminderAbove = $state(false);
     let reminderPopupEl = $state<HTMLDivElement | null>(null);
     const activeToken = $derived<PlacedToken | null>(
-        activeReminderCharId === null
+        activeTokenId === null
             ? null
-            : (gameState.present.placedTokens.find(t => t.characterId === activeReminderCharId) ?? null)
+            : (gameState.present.placedTokens.find(t => t.id === activeTokenId) ?? null)
     );
+    const activeCharacterId = $derived(activeToken?.characterId ?? null);
 
     const tools: CanvasToolType[] = [
         {
@@ -235,7 +252,7 @@
 
     // NIGHT ORDER LOGIC
     const nightOrderFunction = $derived((clockClient?.day || 0) > 0 ? (c: ScriptCharacter) => c.otherNightOrder : (c: ScriptCharacter) => c.firstNightOrder);
-    const nightOrderByCharacterId = $derived((placedTokens.filter((c, i, a)=>a.indexOf(c) === i)
+    const nightOrderByCharacterId = $derived((placedTokens
         .filter(c=>!c.isDead)
         .map(c=>script?.characters.find(ch => ch.id === c.characterId))
         .filter(c => c !== undefined)
@@ -253,9 +270,10 @@
 
     // Keep the popup on-screen horizontally by clamping its x after measuring its rendered width.
     $effect(() => {
-        if (activeReminderCharId === null || !activeReminderPos || !reminderPopupEl || !boardEl) return;
+        if (activeTokenId === null || !activeReminderPos || !reminderPopupEl || !boardEl) return;
         // Touch reactive content so the effect re-runs when the popup's contents (and thus width) change.
-        void reminderCache[activeReminderCharId];
+        void (activeCharacterId && reminderCache[activeCharacterId]);
+        void activeToken?.playerName;
         void activeToken?.isDead;
         void activeToken?.alignment;
         const popupRect = reminderPopupEl.getBoundingClientRect();
@@ -272,7 +290,7 @@
 
     // Close the reminder popup when tapping anywhere outside a board token, the popup itself, or a board reminder.
     $effect(() => {
-        if (activeReminderCharId === null) return;
+        if (activeTokenId === null) return;
         const handler = (e: PointerEvent) => {
             const target = e.target as HTMLElement | null;
             if (!target) return;
@@ -401,13 +419,13 @@
         return reminderCache[characterId];
     }
 
-    const placedCharIds = $derived(new Set(placedTokens.map(t => t.characterId)));
+    const placedCharIds = $derived(new Set(placedTokens.map(t => t.characterId).filter(id => id !== null)));
 
     function isInPlay(characterId: string): boolean {
         return placedCharIds.has(characterId);
     }
 
-    let dragging = $state<{ character: ScriptCharacter; source: 'tray' | 'board'; sourceToken?: PlacedToken } | null>(null);
+    let dragging = $state<{ character: ScriptCharacter | null; source: 'tray' | 'board'; sourceToken?: PlacedToken } | null>(null);
     let draggingReminder = $state<{ token: ReminderToken; characterId: string; source: 'popup' | 'board' } | null>(null);
     let ghostPos = $state<{ x: number; y: number } | null>(null);
     let dragOffset = $state<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -444,17 +462,34 @@
         viewTy = -scale * (minY + maxY) / 2;
     }
 
-    // Moves every token back to where the draw first put it (seats round the circle, non-seat characters in the row above).
+    // Moves every token back to where the draw first put it (seats round the circle, everything else in the row above).
     function resetTokenPositions() {
         if (placedTokens.length === 0) return;
-        if (!confirm("Move all tokens back to their starting positions?")) return;
+        if (!confirm("Move all tokens back to their starting positions and resize them to fit?")) return;
         closeReminderTray();
         gameState.present.placedTokens = layoutTokensAtDefaultPositions(
             placedTokens,
-            characterId => (availableCharacters[characterId]?.player_count ?? 1) > 0
+            isPlayerToken
         );
+        fitTokenSizeToSpacing();
         rescheduleSaveGrimoire();
         fitView();
+    }
+
+    // Sets the token size to the largest the slider allows that keeps every token clear of its nearest neighbour.
+    const TOKEN_SIZE_MIN = 80;
+    const TOKEN_SIZE_MAX = 240;
+    const TOKEN_GAP_FACTOR = 0.94;
+    function fitTokenSizeToSpacing() {
+        let minDist = Infinity;
+        const tokens = gameState.present.placedTokens;
+        for (let i = 0; i < tokens.length; i++) {
+            for (let j = i + 1; j < tokens.length; j++) {
+                minDist = Math.min(minDist, Math.hypot(tokens[i].x - tokens[j].x, tokens[i].y - tokens[j].y));
+            }
+        }
+        if (!isFinite(minDist)) return;
+        tokenSize = Math.max(TOKEN_SIZE_MIN, Math.min(TOKEN_SIZE_MAX, Math.floor(minDist * TOKEN_GAP_FACTOR)));
     }
 
     // A second finger landed: whatever tap/drag the first finger was starting is now part of a pinch instead.
@@ -464,18 +499,22 @@
     }
 
     // Character overview opened by tapping a token in the tray
+    let overlayOpen = $state(false);
     let overlayCharacter = $state<ScriptCharacter | null>(null);
     // True when the overlay was opened from a token on the board (adds the alive/good/name controls, drops the character token).
     let overlayFromBoard = $state(false);
 
-    function openCharacterOverlay(character: ScriptCharacter, fromBoard = false) {
+    function openCharacterOverlay(character: ScriptCharacter | null, fromBoard = false) {
+        overlayOpen = true;
         overlayCharacter = character;
         overlayFromBoard = fromBoard;
-        loadRemindersForCharacter(character.id).then(() => { reminderCache = reminderCache; });
+        if (character) loadRemindersForCharacter(character.id).then(() => { reminderCache = reminderCache; });
     }
 
     function closeOverlay() {
+        overlayOpen = false;
         overlayCharacter = null;
+        pickingCharacter = false;
         overlayFromBoard = false;
         closeReminderTray();
     }
@@ -485,6 +524,7 @@
         startDragFromTray(e, character);
         dragOffset = { x: 0, y: 0 };
         ghostPos = { x: e.clientX, y: e.clientY };
+        overlayOpen = false;
         overlayCharacter = null;
         showFooter = false;
     }
@@ -496,6 +536,7 @@
         dragOffset = { x: 0, y: 0 };
         draggingReminder = { token, characterId, source: 'popup' };
         ghostPos = { x: e.clientX, y: e.clientY };
+        overlayOpen = false;
         overlayCharacter = null;
         showFooter = false;
     }
@@ -540,8 +581,8 @@
         if (tokensLocked) return;
         if(!boardEl) return;
 
-        const character = script?.characters.find(c => c.id === token.characterId);
-        if (!character) {
+        const character = script?.characters.find(c => c.id === token.characterId) ?? null;
+        if (token.characterId !== null && !character) {
             console.error("Character not found for token:", token);
             return;
         }
@@ -559,10 +600,10 @@
     function startDragReminderFromPopup(e: PointerEvent, token: ReminderToken) {
         e.preventDefault();
         e.stopPropagation();
-        if (activeReminderCharId === null) return;
+        if (activeCharacterId === null) return;
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
         dragOffset = { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) };
-        draggingReminder = { token, characterId: activeReminderCharId, source: 'popup' };
+        draggingReminder = { token, characterId: activeCharacterId, source: 'popup' };
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
         closeReminderTray();
     }
@@ -586,20 +627,19 @@
     }
 
     async function toggleReminderTray(token: PlacedToken) {
+        const character = script?.characters.find(c => c.id === token.characterId) ?? null;
         if (isMobile) {
-            const character = script?.characters.find(c => c.id === token.characterId);
-            if (!character) return;
             // The alive/good/name handlers work off the active token, so mark it active without showing the popup.
-            activeReminderCharId = token.characterId;
+            activeTokenId = token.id;
             activeReminderPos = null;
             openCharacterOverlay(character, true);
             return;
         }
-        if (activeReminderCharId === token.characterId) {
+        if (activeTokenId === token.id) {
             closeReminderTray();
             return;
         }
-        activeReminderCharId = token.characterId;
+        activeTokenId = token.id;
         if(!boardEl) return;
         const centre = boardCentre();
         // Use the current token size for vertical offset, plus a small gap (10px)
@@ -612,8 +652,10 @@
                 ? centre.y + token.y * viewScale - halfToken - gap
                 : centre.y + token.y * viewScale + halfToken + gap,
         };
-        await loadRemindersForCharacter(token.characterId);
-        reminderCache = reminderCache; // trigger reactivity
+        if (token.characterId !== null) {
+            await loadRemindersForCharacter(token.characterId);
+            reminderCache = reminderCache; // trigger reactivity
+        }
     }
 
     function toggleAlive() {
@@ -643,8 +685,43 @@
         rescheduleSaveGrimoire();
     }
 
+    // Gives the active player a different character (or none), keeping their name, seat and life status.
+    let pickingCharacter = $state(false);
+
+    function setCharacter(characterId: string | null) {
+        if (!activeToken) return;
+        const target = activeToken;
+        gameState.present.placedTokens = gameState.present.placedTokens.map(t =>
+            t === target ? { ...t, characterId, alignment: defaultAlignmentForCharacterId(characterId) } : t
+        );
+        if (characterId) loadRemindersForCharacter(characterId).then(() => { reminderCache = reminderCache; });
+        closeOverlay();
+        closeReminderTray();
+        rescheduleSaveGrimoire();
+    }
+
+    // Adds a new player (no character yet) just below the town, to be dragged into a seat.
+    let newPlayerName = $state('');
+
+    function addPlayer() {
+        const name = newPlayerName.trim();
+        if (!name) return;
+        const offset = placedTokens.filter(isPlayerToken).length % 8;
+        gameState.present.placedTokens = [...placedTokens, {
+            id: v7(),
+            characterId: null,
+            isDead: false,
+            alignment: 'good',
+            x: (offset - 3.5) * tokenSize * 0.3,
+            y: tokenSize * 2,
+            playerName: name,
+        }];
+        newPlayerName = '';
+        rescheduleSaveGrimoire();
+    }
+
     function closeReminderTray() {
-        activeReminderCharId = null;
+        activeTokenId = null;
         activeReminderPos = null;
     }
 
@@ -723,13 +800,17 @@
                 const dropY = e.clientY - dragOffset.y;
                 const x = (dropX - centre.x) / viewScale;
                 const y = (dropY - centre.y) / viewScale;
-                const newPlacedToken: PlacedToken = {
-                    characterId: dragging.character.id,
-                    x, y,
-                    isDead: dragging.sourceToken?.isDead ?? false,
-                    alignment: dragging.sourceToken?.alignment ?? defaultAlignmentForCharacterId(dragging.character.id),
-                    playerName: dragging.sourceToken?.playerName,
-                };
+                const newPlacedToken: PlacedToken = dragging.sourceToken
+                    ? { ...dragging.sourceToken, x, y }
+                    : {
+                        id: v7(),
+                        characterId: dragging.character?.id ?? null,
+                        x, y,
+                        isDead: false,
+                        alignment: defaultAlignmentForCharacterId(dragging.character?.id ?? null),
+                        // Characters that take a seat are played by someone, so they start as a (nameless) player.
+                        playerName: (dragging.character?.player_count ?? 0) > 0 ? '' : undefined,
+                    };
                 gameState.present.placedTokens = [...gameState.present.placedTokens, newPlacedToken];
                 rescheduleSaveGrimoire();
             }
@@ -909,6 +990,24 @@
 
     .tray-close-btn {
         display: none;
+    }
+
+    .add-player-row {
+        display: flex;
+        justify-content: center;
+        gap: 0.5em;
+        padding-bottom: 0.5em;
+    }
+
+    .add-player-row input {
+        width: 14em;
+    }
+
+    .picker-grid {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.4em;
     }
 
     .show-bluffs-btn {
@@ -1479,7 +1578,7 @@
             </button>
             {#if showTokenSizeSlider}
                 <div style="position: absolute; left: 52px; top: 0; height: 180px; display: flex; align-items: center;">
-                    <input type="range" min="80" max="240" step="1" bind:value={tokenSize} aria-orientation="vertical" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; width: 32px; height: 180px; margin-left: 8px; background: transparent;" />
+                    <input type="range" min={TOKEN_SIZE_MIN} max={TOKEN_SIZE_MAX} step="1" bind:value={tokenSize} aria-orientation="vertical" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; width: 32px; height: 180px; margin-left: 8px; background: transparent;" />
                 </div>
             {/if}
         </div>
@@ -1487,7 +1586,7 @@
 
         {#if !tokensLocked}
         <!-- Put all tokens back in their starting positions -->
-        <button class="sidebar-btn" onclick={resetTokenPositions} title="Reset token positions">
+        <button class="sidebar-btn" onclick={resetTokenPositions} title="Reset token positions and size">
             <svg viewBox="0 0 24 24">
                 <circle cx="12" cy="3.5" r="2.2" fill="currentColor"/>
                 <circle cx="18" cy="6" r="2.2" fill="currentColor"/>
@@ -1531,17 +1630,21 @@
         {#each ALIGNMENT_RING_FACTORS as factor}
             <div class="alignment-ring" style="width: {tokenSize * factor * 2}px; height: {tokenSize * factor * 2}px; z-index: {z_indecies.canvas - 1};"></div>
         {/each}
-        {#each placedTokens as token, i (token.characterId + '-' + i)}
+        {#each placedTokens as token (token.id)}
             {@const character = script?.characters.find(c => c.id === token.characterId)}
-            {#if character}
+            {#if character || token.characterId === null}
             <div
                 class="board-token"
                 class:dead={token.isDead}
-                class:misaligned={defaultAlignmentForCharacterId(token.characterId) !== token.alignment}
+                class:misaligned={token.characterId !== null && defaultAlignmentForCharacterId(token.characterId) !== token.alignment}
                 style="left: calc(50% + {token.x}px); top: calc(50% + {token.y}px); z-index: {z_indecies.tokens};"
                 onpointerdown={(e) => startDragFromBoard(e, token)}
             >
-                <CharacterToken {character} nightOrder={nightOrderByCharacterId.indexOf(token.characterId)} style="position: relative;" size={tokenSize + 'px'} norules dead={token.isDead} playerName={character.player_count > 0 ? token.playerName : undefined}/>
+                {#if character}
+                    <CharacterToken {character} nightOrder={nightOrderByCharacterId.indexOf(character.id)} style="position: relative;" size={tokenSize + 'px'} norules dead={token.isDead} playerName={isPlayerToken(token) ? playerDisplayName(token, playerSeatNumbers) : undefined}/>
+                {:else}
+                    <PlayerToken playerName={playerDisplayName(token, playerSeatNumbers)} isDead={token.isDead} style="position: relative;" size={tokenSize + 'px'}/>
+                {/if}
             </div>
             {/if}
         {/each}
@@ -1577,10 +1680,10 @@
     </AnotatableViewV2>
 
 
-        {#if activeReminderCharId !== null && activeReminderPos && reminderCache[activeReminderCharId]}
+        {#if activeTokenId !== null && activeReminderPos && (activeCharacterId === null || reminderCache[activeCharacterId])}
             <div bind:this={reminderPopupEl} class="reminder-popup" class:above={activeReminderAbove} style="font-size: {tokenSize * 0.12}px; left: {activeReminderPos.x}px; top: {activeReminderPos.y}px; z-index: {z_indecies.ui};">
                 {#if activeToken}
-                    {@const activeChar = script?.characters.find(c => c.id === activeReminderCharId)}
+                    {@const activeChar = script?.characters.find(c => c.id === activeCharacterId)}
                     <div class="popup-meta">
                         <div class="popup-toggles">
                             <button type="button" class="popup-toggle" class:dead={activeToken.isDead} onclick={toggleAlive}>
@@ -1593,7 +1696,7 @@
                                 <button type="button" class="popup-toggle" onclick={() => viewCharacter(activeChar.id)}>Show</button>
                             {/if}
                         </div>
-                        {#if (activeChar?.player_count ?? 0) > 0}
+                        {#if isPlayerToken(activeToken)}
                             <input
                                 type="text"
                                 class="popup-player-name"
@@ -1603,6 +1706,9 @@
                                 onpointerdown={(e) => e.stopPropagation()}
                             />
                         {/if}
+                        <button type="button" class="popup-toggle" onclick={() => pickingCharacter = true}>
+                            {activeChar ? 'Change character' : 'Choose character'}
+                        </button>
                         {#if activeChar?.rules}
                             <div class="popup-rules">
                                 <div class="popup-rules-name">{activeChar.name}</div>
@@ -1612,13 +1718,15 @@
                     </div>
                     <div class="popup-divider"></div>
                 {/if}
-                {#each reminderCache[activeReminderCharId] as rToken (rToken.id)}
-                    <div class="reminder-popup-token" onpointerdown={(e) => startDragReminderFromPopup(e, rToken)}>
-                        <ReminderTokenView data={rToken} characterId={activeReminderCharId} size="{reminderTokenSize}px"/>
-                    </div>
-                {/each}
-                {#if reminderCache[activeReminderCharId].length === 0}
-                    <span style="color: #999; font-size: 0.8em; padding: 4px;">No reminders</span>
+                {#if activeCharacterId !== null}
+                    {#each reminderCache[activeCharacterId] ?? [] as rToken (rToken.id)}
+                        <div class="reminder-popup-token" onpointerdown={(e) => startDragReminderFromPopup(e, rToken)}>
+                            <ReminderTokenView data={rToken} characterId={activeCharacterId} size="{reminderTokenSize}px"/>
+                        </div>
+                    {/each}
+                    {#if (reminderCache[activeCharacterId] ?? []).length === 0}
+                        <span style="color: #999; font-size: 0.8em; padding: 4px;">No reminders</span>
+                    {/if}
                 {/if}
             </div>
         {/if}
@@ -1638,6 +1746,10 @@
                     <div style="opacity: 0.7;">{script.name}</div>
                 {/if}
             </div>
+            <form class="add-player-row" onsubmit={(e) => { e.preventDefault(); addPlayer(); }}>
+                <input type="text" class="popup-player-name" placeholder="New player name" bind:value={newPlayerName} />
+                <button type="submit" class="button-style" disabled={!newPlayerName.trim()}>Add player</button>
+            </form>
             <div class="token-tray">
                 {#if !script}
                     <div style="text-align: center; opacity: 0.6; padding: 1em;">Select a script to begin.</div>
@@ -1651,7 +1763,7 @@
                         {#if character}
                                 <div
                                     class="tray-token"
-                                    class:dragging={dragging?.character.id === character.id}
+                                    class:dragging={dragging?.character?.id === character.id}
                                     class:in-play={isInPlay(character.id)}
                                     onclick={() => openCharacterOverlay(character)}
                                 >
@@ -1684,7 +1796,7 @@
                         {#if character}
                                 <div
                                     class="tray-token"
-                                    class:dragging={dragging?.character.id === character_id}
+                                    class:dragging={dragging?.character?.id === character_id}
                                     class:in-play={isInPlay(character_id)}
                                     onclick={() => openCharacterOverlay(character)}
                                 >
@@ -1701,7 +1813,7 @@
                         {#each script.characters.filter(c => !loadedPreset?.character_ids.includes(c.id) && !loadedPreset?.bluff_ids.includes(c.id)) as character (character.id)}
                                 <div
                                     class="tray-token"
-                                    class:dragging={dragging?.character.id === character.id}
+                                    class:dragging={dragging?.character?.id === character.id}
                                     class:in-play={isInPlay(character.id)}
                                     onclick={() => openCharacterOverlay(character)}
                                 >
@@ -1717,7 +1829,7 @@
                         {#each sortedScriptCharacters as character (character.id)}
                                 <div
                                     class="tray-token"
-                                    class:dragging={dragging?.character.id === character.id}
+                                    class:dragging={dragging?.character?.id === character.id}
                                     class:in-play={isInPlay(character.id)}
                                     onclick={() => openCharacterOverlay(character)}
                                 >
@@ -1731,17 +1843,22 @@
         </div>
     </div>
 
-    {#if overlayCharacter}
+    {#if overlayOpen}
         {@const oc = overlayCharacter}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 10};" onclick={(e) => { if (!(e.target as Element).closest('input')) closeOverlay(); }}>
             <div class="overlay-panel">
                 <button class="overlay-close" onclick={closeOverlay} aria-label="Close">✕</button>
-                <img class="overlay-icon" src={`/api/characters/${oc.id}/img`} alt="" onerror={(e) => (e.currentTarget as HTMLImageElement).style.display = 'none'} />
-                <div class="overlay-name dumbledore-font">{oc.name}</div>
-                <div class="overlay-category">{oc.category}</div>
-                {#if oc.rules}
-                    <div class="overlay-rules">{oc.rules}</div>
+                {#if oc}
+                    <img class="overlay-icon" src={`/api/characters/${oc.id}/img`} alt="" onerror={(e) => (e.currentTarget as HTMLImageElement).style.display = 'none'} />
+                    <div class="overlay-name dumbledore-font">{oc.name}</div>
+                    <div class="overlay-category">{oc.category}</div>
+                    {#if oc.rules}
+                        <div class="overlay-rules">{oc.rules}</div>
+                    {/if}
+                {:else if activeToken}
+                    <div class="overlay-name dumbledore-font">{activeToken.playerName || 'Player'}</div>
+                    <div class="overlay-category">No character</div>
                 {/if}
                 {#if overlayFromBoard && activeToken}
                     <div class="overlay-toggles">
@@ -1751,9 +1868,11 @@
                         <button type="button" class="popup-toggle" class:evil={activeToken.alignment === 'evil'} onclick={() => { toggleAlignment(); closeOverlay(); }}>
                             {activeToken.alignment === 'evil' ? 'Evil' : 'Good'}
                         </button>
-                        <button type="button" class="button-style" onclick={() => viewCharacter(oc.id)}>Show</button>
+                        {#if oc}
+                            <button type="button" class="button-style" onclick={() => viewCharacter(oc.id)}>Show</button>
+                        {/if}
                     </div>
-                    {#if oc.player_count > 0}
+                    {#if isPlayerToken(activeToken)}
                         <input
                             type="text"
                             class="popup-player-name"
@@ -1762,30 +1881,60 @@
                             oninput={(e) => setPlayerName((e.target as HTMLInputElement).value)}
                         />
                     {/if}
+                    <button type="button" class="button-style" onclick={(e) => { e.stopPropagation(); pickingCharacter = true; }}>
+                        {oc ? 'Change character' : 'Choose character'}
+                    </button>
                 {/if}
-                {#if !overlayFromBoard}
-                    <button class="button-style" onclick={() => viewCharacter(oc.id)}>Show</button>
-                {/if}
-                <div class="overlay-drag-hint">{overlayFromBoard ? 'Drag a reminder onto the grim' : 'Drag onto the grim'}</div>
-                <div class="overlay-tokens">
+                {#if oc}
                     {#if !overlayFromBoard}
-                        <div class="overlay-drag-token" onpointerdown={(e) => startDragCharacterFromOverlay(e, oc)}>
-                            <CharacterToken character={oc} style="position: relative;" size="{OVERLAY_TOKEN_SIZE}px" norules/>
-                        </div>
+                        <button class="button-style" onclick={() => viewCharacter(oc.id)}>Show</button>
                     {/if}
-                    {#each reminderCache[oc.id] ?? [] as rToken (rToken.id)}
-                        <div class="overlay-drag-token" onpointerdown={(e) => startDragReminderFromOverlay(e, rToken, oc.id)}>
-                            <ReminderTokenView data={rToken} characterId={oc.id} size="{OVERLAY_TOKEN_SIZE * 0.7}px"/>
-                        </div>
+                    <div class="overlay-drag-hint">{overlayFromBoard ? 'Drag a reminder onto the grim' : 'Drag onto the grim'}</div>
+                    <div class="overlay-tokens">
+                        {#if !overlayFromBoard}
+                            <div class="overlay-drag-token" onpointerdown={(e) => startDragCharacterFromOverlay(e, oc)}>
+                                <CharacterToken character={oc} style="position: relative;" size="{OVERLAY_TOKEN_SIZE}px" norules/>
+                            </div>
+                        {/if}
+                        {#each reminderCache[oc.id] ?? [] as rToken (rToken.id)}
+                            <div class="overlay-drag-token" onpointerdown={(e) => startDragReminderFromOverlay(e, rToken, oc.id)}>
+                                <ReminderTokenView data={rToken} characterId={oc.id} size="{OVERLAY_TOKEN_SIZE * 0.7}px"/>
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
+            </div>
+        </div>
+    {/if}
+
+    {#if pickingCharacter && activeToken}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 20};" onclick={() => pickingCharacter = false}>
+            <div class="overlay-panel" style="width: min(94vw, 720px);">
+                <button class="overlay-close" onclick={() => pickingCharacter = false} aria-label="Close">✕</button>
+                <div class="overlay-name dumbledore-font">{activeToken.playerName || 'Player'}</div>
+                <div class="overlay-drag-hint">Choose a character</div>
+                <div class="picker-grid">
+                    {#each sortedScriptCharacters as character (character.id)}
+                        <button class="no-button-style tray-token" class:in-play={activeCharacterId !== character.id && isInPlay(character.id)} onclick={(e) => { e.stopPropagation(); setCharacter(character.id); }}>
+                            <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" norules/>
+                        </button>
                     {/each}
                 </div>
+                {#if activeToken.characterId !== null}
+                    <button class="button-style" onclick={(e) => { e.stopPropagation(); setCharacter(null); }}>No character</button>
+                {/if}
             </div>
         </div>
     {/if}
 
     {#if dragging && ghostPos}
         <div class="drag-ghost" style="left: {ghostPos.x}px; top: {ghostPos.y}px; z-index: {z_indecies.ui};">
-            <CharacterToken character={dragging.character} style="position: relative;" size={tokenSize * viewScale + 'px'} norules/>
+            {#if dragging.character}
+                <CharacterToken character={dragging.character} style="position: relative;" size={tokenSize * viewScale + 'px'} norules/>
+            {:else}
+                <PlayerToken playerName={dragging.sourceToken?.playerName ?? ''} style="position: relative;" size={tokenSize * viewScale + 'px'}/>
+            {/if}
         </div>
         {#if dragging.source === 'board'}
             <div class="edge-delete-indicator" class:active={isNearEdge(ghostPos.x, ghostPos.y)} style="z-index: {z_indecies.ui};"></div>

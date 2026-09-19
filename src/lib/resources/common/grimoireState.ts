@@ -3,14 +3,32 @@ import { v7 } from "uuid";
 
 export type Alignment = 'good' | 'evil';
 
+// A token on the board. A token with a playerName is a player (they take a seat); the character is just
+// what's currently assigned to them, and may be null until the storyteller picks one. A token with no
+// playerName is a free-standing character token (e.g. one that takes no seat).
 export type PlacedToken = {
-    characterId: string;
+    id: string;
+    characterId: string | null;
     isDead: boolean;
     alignment: Alignment;
     x: number;
     y: number;
     playerName?: string;
 };
+
+export function isPlayerToken(token: PlacedToken): boolean {
+    return token.playerName !== undefined;
+}
+
+// Older saves have no token ids; give each token one so it can be tracked independently of its character.
+export function ensureTokenIds<T extends { present: GrimoireStateSnapshot, saveslots: (GrimoireStateSnapshot | null)[] }>(history: T): T {
+    for (const snap of [history.present, ...history.saveslots]) {
+        for (const token of snap?.placedTokens ?? []) {
+            if (typeof token.id !== 'string') token.id = v7();
+        }
+    }
+    return history;
+}
 
 export type PlacedReminder = {
     tokenId: string;
@@ -46,7 +64,8 @@ function isPlacedToken(obj: any): obj is PlacedToken {
     const result = typeof obj === "object" &&
         typeof obj.x === "number" && isFinite(obj.x) &&
         typeof obj.y === "number" && isFinite(obj.y) &&
-        typeof obj.characterId === "string" &&
+        (obj.id === undefined || typeof obj.id === "string") &&
+        (obj.characterId === null || typeof obj.characterId === "string") &&
         typeof obj.isDead === "boolean" &&
         (obj.alignment === undefined || obj.alignment === "good" || obj.alignment === "evil") &&
         (obj.playerName === undefined || typeof obj.playerName === "string");
@@ -119,18 +138,41 @@ export function computeRowPositions(n: number, y: number, spacing: number = 170)
     return Array.from({ length: n }, (_, i) => ({ x: Math.round((i - (n - 1) / 2) * spacing), y }));
 }
 
-// Puts every token back at its default start position: tokens that take a seat go round the circle (in their
-// current order), the rest go in the row above it. Everything else about each token is left as it was.
+// Clockwise angle of a token around the board centre, from the top (0) round to just under a full turn.
+function clockwiseFromTop(t: { x: number, y: number }): number {
+    return (Math.atan2(t.y, t.x) + Math.PI / 2 + 2 * Math.PI) % (2 * Math.PI);
+}
+
+// Seat numbers (1-based) for the player tokens, counting clockwise round the table from the top.
+export function seatNumbers(tokens: PlacedToken[]): Map<string, number> {
+    return new Map(tokens.filter(isPlayerToken)
+        .sort((a, b) => clockwiseFromTop(a) - clockwiseFromTop(b))
+        .map((t, i) => [t.id, i + 1]));
+}
+
+// What to show on a player's token: their name, or their seat number if they haven't been given one.
+export function playerDisplayName(token: PlacedToken, numbers: Map<string, number>): string {
+    return token.playerName?.trim() || String(numbers.get(token.id) ?? '');
+}
+
+// Puts every token back at its default start position: tokens that take a seat go round the circle (in their angular order
+// around the centre), the rest go in the row above it. Everything else about each token is left as it was.
 export function layoutTokensAtDefaultPositions(
     tokens: PlacedToken[],
-    takesSeat: (characterId: string) => boolean
+    takesSeat: (token: PlacedToken) => boolean
 ): PlacedToken[] {
-    const seatCount = tokens.filter(t => takesSeat(t.characterId)).length;
-    const circle = computeCirclePositions(seatCount);
-    const row = computeRowPositions(tokens.length - seatCount, OFF_SEAT_ROW_Y);
-    let seatIndex = 0;
-    let rowIndex = 0;
-    return tokens.map(t => ({ ...t, ...(takesSeat(t.characterId) ? circle[seatIndex++] : row[rowIndex++]) }));
+    const seated = tokens.filter(takesSeat);
+    const offSeat = tokens.filter(t => !takesSeat(t));
+    // Seats keep their current order round the table: rank them by clockwise angle from the top, so a token
+    // dragged in between two others ends up between them. Off-seat tokens keep their left-to-right order.
+    const positionOf = new Map<PlacedToken, { x: number, y: number }>();
+    const circle = computeCirclePositions(seated.length);
+    [...seated].sort((a, b) => clockwiseFromTop(a) - clockwiseFromTop(b))
+        .forEach((t, i) => positionOf.set(t, circle[i]));
+    const row = computeRowPositions(offSeat.length, OFF_SEAT_ROW_Y);
+    [...offSeat].sort((a, b) => a.x - b.x)
+        .forEach((t, i) => positionOf.set(t, row[i]));
+    return tokens.map(t => ({ ...t, ...positionOf.get(t)! }));
 }
 
 export function newGrimoireStateFromDraw(
@@ -143,6 +185,7 @@ export function newGrimoireStateFromDraw(
     const history = newGrimoireStateHistory(clockId, scriptId);
     const positions = computeCirclePositions(seats.length);
     const seatTokens: PlacedToken[] = seats.map((seat, i) => ({
+        id: v7(),
         characterId: seat.characterId,
         isDead: false,
         alignment: seat.alignment,
@@ -153,6 +196,7 @@ export function newGrimoireStateFromDraw(
     // Characters that don't take a seat (player_count == 0) sit in a row above the town, apart from it.
     const rowPositions = computeRowPositions(offSeats.length, OFF_SEAT_ROW_Y);
     const offSeatTokens: PlacedToken[] = offSeats.map((off, i) => ({
+        id: v7(),
         characterId: off.characterId,
         isDead: false,
         alignment: off.alignment,

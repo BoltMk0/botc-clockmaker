@@ -1,6 +1,6 @@
 <script lang="ts">
     import PlayerToken from "./PlayerToken.svelte";
-    import type { GrimoireStateHistory } from "$lib/resources/common/grimoireState";
+    import { playerDisplayName, seatNumbers, type GrimoireStateHistory } from "$lib/resources/common/grimoireState";
     import type { ScriptWithCharacters } from "$lib/resources/common/gameData";
     import { computeSeatsLayout, filterSeatTokens } from "./playerSeatsLayout";
 
@@ -13,6 +13,7 @@
     } = $props();
 
     const seatTokens = $derived(filterSeatTokens(grimoireState, script));
+    const numbers = $derived(seatNumbers(seatTokens));
 
     const MIN_TOKEN_SIZE = 40;
     const MAX_TOKEN_SIZE = 320;
@@ -30,9 +31,9 @@
 </script>
 
 <div class="players-view" bind:clientWidth={containerWidth} bind:clientHeight={containerHeight}>
-    {#each layout.tokens as { token, x, y } (token.characterId)}
+    {#each layout.tokens as { token, x, y } (token.id)}
         <PlayerToken
-            playerName={token.playerName ?? ''}
+            playerName={playerDisplayName(token, numbers)}
             isDead={token.isDead}
             size="{layout.tokenSize}px"
             style="left: calc(50% + {x}px); top: calc(50% + {y}px); transform: translate(-50%, -50%);"

@@ -127,7 +127,7 @@
         if (!ctx) return;
         ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
 
-        const text = (playerName || "?").toUpperCase();
+        const text = (playerName.trim() || "?").toUpperCase();
         const boxSize = CANVAS_SIZE * (1 - CONTENT_MARGIN * 2);
         const centerX = CANVAS_SIZE / 2;
         const centerY = CANVAS_SIZE / 2;

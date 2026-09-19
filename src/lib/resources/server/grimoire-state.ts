@@ -1,5 +1,5 @@
 import { GRIM_STATE_MANAGER } from "./jsonResourceManager";
-import type { GrimoireStateHistory } from "../common/grimoireState";
+import { ensureTokenIds, type GrimoireStateHistory } from "../common/grimoireState";
 
 export function get_grimoire_state_history_resource_for_clock(clockid: string): GrimoireStateHistory | null {
     const history = GRIM_STATE_MANAGER.get(clockid);
@@ -8,7 +8,7 @@ export function get_grimoire_state_history_resource_for_clock(clockid: string): 
         return null;
     }
     console.debug("Grimoire state history resource found for clock", clockid);
-    return history;
+    return ensureTokenIds(history);
 }
 
 export function set_grimoire_state_history_resource_for_clock(clockid: string, history: GrimoireStateHistory) {

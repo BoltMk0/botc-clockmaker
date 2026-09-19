@@ -18,7 +18,7 @@
     <div style="position:relative; width: {size}; height: {size};">
         <TokenBackground {size}>
             <div class="player-token-content" class:dead={isDead} style="--token-size: {size};">
-                <div class="player-name dumbledore-font">{playerName || '?'}</div>
+                <div class="player-name dumbledore-font">{playerName.trim() || '?'}</div>
             </div>
         </TokenBackground>
         {#if isDead}

@@ -1,4 +1,4 @@
-import type { GrimoireStateHistory, PlacedToken } from "$lib/resources/common/grimoireState";
+import { isPlayerToken, type GrimoireStateHistory, type PlacedToken } from "$lib/resources/common/grimoireState";
 import type { ScriptWithCharacters } from "$lib/resources/common/gameData";
 
 // Which placed tokens actually represent a player seat (as opposed to a
@@ -8,12 +8,7 @@ export function filterSeatTokens(
     grimoireState: GrimoireStateHistory | null,
     script: ScriptWithCharacters | null
 ): PlacedToken[] {
-    const charById: Record<string, { player_count: number }> = Object.fromEntries(
-        (script?.characters ?? []).map(c => [c.id, c])
-    );
-    return (grimoireState?.present.placedTokens ?? []).filter(
-        t => (charById[t.characterId]?.player_count ?? 0) > 0
-    );
+    return (grimoireState?.present.placedTokens ?? []).filter(isPlayerToken);
 }
 
 export type SeatsLayoutToken = { token: PlacedToken; x: number; y: number };

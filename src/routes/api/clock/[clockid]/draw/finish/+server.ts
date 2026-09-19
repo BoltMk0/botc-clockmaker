@@ -17,7 +17,7 @@ export async function POST({ params }) {
     const charactersById = new Map(getCharactersForScript(session.scriptId).map(c => [c.id, c]));
     const seats = session.slots.map(slot => ({
         characterId: slot.characterId,
-        playerName: slot.playerName ?? String(slot.number),
+        playerName: slot.playerName ?? '',
         alignment: alignmentForCategory(charactersById.get(slot.characterId)?.category ?? 'townsfolk')
     }));
 
