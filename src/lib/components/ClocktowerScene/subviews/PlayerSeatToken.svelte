@@ -30,12 +30,16 @@
 
     // Dead tokens fade out almost entirely...
     const DEAD_OPACITY = 0.28;
-    // ...but keep a faint white skull glyph behind the name, hand-drawn
-    // (rather than a Unicode/emoji glyph, whose colour and even shape can't
-    // be relied on across platforms) so it reads clearly regardless of OS/
-    // browser.
-    const SKULL_COLOR = "rgba(255, 255, 255, 0.35)";
+    // ...but the name stays at full opacity throughout (see `opacity` below,
+    // only applied to the background/skull) with a drop shadow so it still
+    // reads clearly once the wood behind it has faded, and a faint skull
+    // glyph behind it, hand-drawn (rather than a Unicode/emoji glyph, whose
+    // colour and even shape can't be relied on across platforms).
+    const SKULL_COLOR = "rgba(255, 255, 255, 0.16)";
     const SKULL_SIZE_FRACTION = 0.62; // fraction of the token's own size
+    const TEXT_SHADOW_COLOR = "rgba(0, 0, 0, 0.75)";
+    const TEXT_SHADOW_BLUR_FRACTION = 0.1; // fraction of the fitted font size
+    const TEXT_SHADOW_OFFSET_FRACTION = 0.03;
 
     let {
         playerName,
@@ -145,6 +149,12 @@
         ctx.fillStyle = isDead ? DEAD_TEXT_COLOR : TEXT_COLOR;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
+        // A drop shadow so the name stays legible over both the wood grain
+        // and (when dead) the skull sitting behind it.
+        ctx.shadowColor = TEXT_SHADOW_COLOR;
+        ctx.shadowBlur = fontPx * TEXT_SHADOW_BLUR_FRACTION;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = fontPx * TEXT_SHADOW_OFFSET_FRACTION;
 
         const step = fontPx * lineHeight;
         let cursorY = centerY - ((lines.length - 1) * step) / 2;
@@ -153,6 +163,7 @@
             cursorY += step;
         }
 
+        ctx.shadowColor = "transparent";
         textTexture.needsUpdate = true;
     });
 
@@ -250,12 +261,13 @@
         </T.Mesh>
     {/if}
 
+    <!-- Always full opacity, even when dead - see TEXT_SHADOW_COLOR above,
+         which is what keeps the name readable once the token has faded. -->
     <T.Mesh position={[x, y, z + 0.01]}>
         <T.PlaneGeometry args={[planeWidth, planeHeight]} />
         <T.MeshStandardMaterial
             map={textTexture}
             transparent
-            {opacity}
             depthWrite={false}
             roughness={0.9}
             metalness={0}
