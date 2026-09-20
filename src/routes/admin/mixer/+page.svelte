@@ -51,5 +51,11 @@
 <style>
     .mixer-page {
         padding-top: 60px; /* clear the absolutely-positioned TopNavbar */
+        width: 100%;
+        box-sizing: border-box;
+        /* The mixer is wider than a phone. The root layout only allows vertical touch panning (pan-y), so this
+           container has to be its own horizontal scroller that allows it. */
+        overflow-x: auto;
+        touch-action: pan-x pan-y;
     }
 </style>

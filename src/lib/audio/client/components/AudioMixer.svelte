@@ -32,7 +32,10 @@
         display: flex;
         gap: 5px;
         height: fit-content;
-        justify-content: center;
+        /* Centred when it fits; left-aligned (so scrollable) when wider than the screen. justify-content: center
+           would instead push the overflow off the left edge, where it can't be scrolled to. */
+        width: max-content;
+        margin: 0 auto;
         align-items: stretch;
     }
 
