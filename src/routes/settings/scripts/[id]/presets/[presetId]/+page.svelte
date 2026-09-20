@@ -2,7 +2,7 @@
     import { goto } from "$app/navigation";
     import type { PresetFull } from "$lib/resources/common/gameData.js";
     import BuilderSteps from "$lib/components/setup/BuilderSteps.svelte";
-    import TokenGrid from "$lib/components/setup/TokenGrid.svelte";
+    import CharacterList from "$lib/components/CharacterList.svelte";
     import { PresetBuilder } from "$lib/components/setup/PresetBuilder.svelte.js";
 
     interface Props {
@@ -126,6 +126,11 @@
         box-sizing: border-box;
     }
 
+    .section.plain {
+        background: none;
+        padding: 0;
+    }
+
     .footer-actions {
         display: flex;
         justify-content: space-between;
@@ -162,16 +167,16 @@
                     {builder.bluffIds.length} bluff{builder.bluffIds.length === 1 ? '' : 's'}
                 </p>
             </div>
-            <div class="section">
+            <div class="section plain">
                 <h2 style="margin-top: 0;">Characters</h2>
-                <TokenGrid chars={builder.allCharacterIds.map(id => builder.charById.get(id)).filter(c => !!c)} />
+                <CharacterList characters={builder.allCharacterIds.map(id => builder.charById.get(id)).filter(c => !!c)} />
             </div>
-            <div class="section">
+            <div class="section plain">
                 <h2 style="margin-top: 0;">Bluffs</h2>
                 {#if builder.bluffIds.length === 0}
                     <div style="opacity: 0.6;">No bluffs chosen.</div>
                 {:else}
-                    <TokenGrid chars={builder.bluffIds.map(id => builder.charById.get(id)).filter(c => !!c)} />
+                    <CharacterList characters={builder.bluffIds.map(id => builder.charById.get(id)).filter(c => !!c)} />
                 {/if}
             </div>
             <div class="footer-actions">

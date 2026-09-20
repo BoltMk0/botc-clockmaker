@@ -1,6 +1,6 @@
 <script lang="ts">
     import CharacterToken from "$lib/components/CharacterToken.svelte";
-    import TokenGrid from "./TokenGrid.svelte";
+    import CharacterList from "$lib/components/CharacterList.svelte";
     import type { PresetBuilder } from "./PresetBuilder.svelte.js";
 
     interface Props {
@@ -40,6 +40,11 @@
         padding: 1em;
         border-radius: 1em;
         box-sizing: border-box;
+    }
+
+    .section.plain {
+        background: none;
+        padding: 0;
     }
 
     .picker {
@@ -139,9 +144,9 @@
             <div class="warning">⚠ {warning}</div>
         {/each}
     </div>
-    <div class="section">
-        <TokenGrid
-            chars={builder.script.characters}
+    <div class="section plain">
+        <CharacterList
+            characters={builder.script.characters}
             headingSuffix={category => !(category in COUNT_KEYS) ? '' : `(${builder.currentCounts[COUNT_KEYS[category as keyof typeof COUNT_KEYS]]}/${builder.expectedCounts[COUNT_KEYS[category as keyof typeof COUNT_KEYS]]})`}
             isSelected={c => builder.chosenCharacterIds.includes(c.id)}
             onpick={c => builder.toggleCharacter(c.id)}
@@ -165,9 +170,9 @@
                 </div>
             </div>
         </div>
-        <div class="section">
-            <TokenGrid
-                chars={builder.script.characters.filter(c => c.player_count !== 0 && !builder.chosenCharacterIds.includes(c.id) && !builder.extraSeatCharacterIds.includes(c.id))}
+        <div class="section plain">
+            <CharacterList
+                characters={builder.script.characters.filter(c => c.player_count !== 0 && !builder.chosenCharacterIds.includes(c.id) && !builder.extraSeatCharacterIds.includes(c.id))}
                 onpick={c => chooseExtra(c.id)}
             />
         </div>
@@ -176,10 +181,10 @@
         <button class="button-style" onclick={backToTokens}>← Back</button>
     </div>
 {:else if step === 'bluffs' && builder.script}
-    <div class="section">
+    <div class="section plain">
         <h2 style="margin-top: 0;">Choose 3 bluffs ({builder.bluffIds.length}/3)</h2>
-        <TokenGrid
-            chars={builder.script.characters.filter(c => !builder.allCharacterIds.includes(c.id))}
+        <CharacterList
+            characters={builder.script.characters.filter(c => !builder.allCharacterIds.includes(c.id))}
             isSelected={c => builder.bluffIds.includes(c.id)}
             onpick={c => builder.toggleBluff(c.id)}
             isDisabled={() => builder.bluffIds.length >= 3}
