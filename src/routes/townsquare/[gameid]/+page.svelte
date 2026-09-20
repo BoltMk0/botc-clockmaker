@@ -8,6 +8,7 @@
     import SiteQRCode from '$lib/components/SiteQRCode.svelte';
     import { appSettings } from '$lib/model/client/appSettings.svelte.js';
     import type { QrCode } from '$lib/resources/server/qrCodes';
+    import { QR_POSITIONS } from '$lib/resources/common/qrCodes';
 
     let { data }: { data: PageData } = $props();
 
@@ -34,33 +35,61 @@
 <Navbar townSquare/>
 
 {#if appSettings.showQRCodes && qrCodes.length > 0}
-<div class="qr-codes-panel left">
-    {#each qrCodes.filter((_, i) => i % 2 === 0) as code}
-        <SiteQRCode path={code.url} title={code.title}/>
-    {/each}
-</div>
-<div class="qr-codes-panel right">
-    {#each qrCodes.filter((_, i) => i % 2 === 1) as code}
-        <SiteQRCode path={code.url} title={code.title}/>
-    {/each}
-</div>
+{#each QR_POSITIONS as pos}
+    {@const group = qrCodes.filter(c => c.position === pos)}
+    {#if group.length > 0}
+    <div class="qr-codes-panel {pos}">
+        {#each group as code}
+            <SiteQRCode path={code.url} title={code.title}/>
+        {/each}
+    </div>
+    {/if}
+{/each}
 {/if}
 
 <style>
     .qr-codes-panel {
         position: absolute;
-        bottom: 1rem;
         z-index: 10;
         display: flex;
-        flex-direction: column;
+        flex-direction: row;
         gap: 0.75rem;
     }
 
-    .qr-codes-panel.left {
+    .qr-codes-panel.left,
+    .qr-codes-panel.right {
+        flex-direction: column;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+    .qr-codes-panel.top,
+    .qr-codes-panel.bottom {
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .qr-codes-panel.top-left,
+    .qr-codes-panel.top,
+    .qr-codes-panel.top-right {
+        top: 1rem;
+    }
+
+    .qr-codes-panel.bottom-left,
+    .qr-codes-panel.bottom,
+    .qr-codes-panel.bottom-right {
+        bottom: 1rem;
+    }
+
+    .qr-codes-panel.top-left,
+    .qr-codes-panel.left,
+    .qr-codes-panel.bottom-left {
         left: 1rem;
     }
 
-    .qr-codes-panel.right {
+    .qr-codes-panel.top-right,
+    .qr-codes-panel.right,
+    .qr-codes-panel.bottom-right {
         right: 1rem;
     }
 </style>
