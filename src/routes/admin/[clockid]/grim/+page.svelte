@@ -1694,7 +1694,7 @@
 
         <!-- Dim the audio everywhere (on all clients) -->
         <button class="sidebar-btn" class:active={audioDim?.dimmed} onclick={() => audioDim?.toggle()} title={audioDim?.dimmed ? 'Restore audio volume' : `Dim audio (-${audioDim?.amountDb ?? 12} dB)`}>
-            <svg viewBox="0 0 24 24"><path d="M18.5 12A4.5 4.5 0 0 0 16 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/></svg>
+            <svg viewBox="0 0 24 24" style="overflow: visible;"><g transform="translate(0 {audioDim?.dimmed ? -2 : 0})"><path d="M18.5 12A4.5 4.5 0 0 0 16 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/>{#if !audioDim?.dimmed}<path d="M16.5 3.23v2.06c2.6.86 4.5 3.54 4.5 6.71s-1.9 5.85-4.5 6.71v2.06c3.6-.91 6.5-4.49 6.5-8.77s-2.9-7.86-6.5-8.77z"/>{/if}</g>{#if audioDim?.dimmed}<text x="12" y="27.5" text-anchor="middle" font-size="8" font-weight="bold" fill="currentColor">DIM</text>{/if}</svg>
         </button>
 
         <!-- Communications: things to show a player -->
