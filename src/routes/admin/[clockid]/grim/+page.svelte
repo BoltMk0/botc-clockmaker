@@ -1695,6 +1695,16 @@
             </svg>
         </button>
 
+        <!-- Open the mixer, with a way back to this page -->
+        <button class="sidebar-btn" onclick={() => {saveGrimoire().then(()=>goto(`/admin/mixer?back_uri=${encodeURIComponent(location.pathname + location.search)}`))} } title="Open mixer">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M4 5h2v14H4zM11 5h2v14h-2zM18 5h2v14h-2z"/>
+                <rect x="2" y="13" width="6" height="3" rx="1"/>
+                <rect x="9" y="7" width="6" height="3" rx="1"/>
+                <rect x="16" y="11" width="6" height="3" rx="1"/>
+            </svg>
+        </button>
+
         <!-- Go back -->
         <button class="sidebar-btn" onclick={() => {saveGrimoire().then(()=>goto(`/admin/${data.clockid}/storytell`, { replaceState: true }))} } title="Back to storytell">
             <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
