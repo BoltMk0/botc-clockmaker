@@ -2205,6 +2205,9 @@
                         {bluffSets.length === 0 ? 'Bluffs (create a bluff set)' : 'Bluffs'}
                     </button>
                     <button class="button-style" onclick={() => showMessage('Speak to me tomorrow')}>Speak to me tomorrow</button>
+                    {#each data.customMessages as message}
+                        <button class="button-style" onclick={() => showMessage(message.title, message.subtitle, message.characterId, message.subtitleCharacterId)}>{message.title}</button>
+                    {/each}
                     <button class="button-style" onclick={() => commsView = 'custom'}>Custom message...</button>
                 {:else if commsView === 'customCharacter'}
                     <div class="overlay-name dumbledore-font">Choose a character</div>
