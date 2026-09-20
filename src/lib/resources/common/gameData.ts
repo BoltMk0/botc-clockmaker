@@ -1,5 +1,15 @@
 export type CharacterCategory = 'townsfolk' | 'outsider' | 'minion' | 'demon' | 'traveler' | 'loric' | 'fabled';
 
+export const CHARACTER_CATEGORY_COLORS: Record<CharacterCategory, string> = {
+    townsfolk: '#2563eb',
+    outsider: '#16a34a',
+    minion: '#dc2626',
+    demon: '#7c3aed',
+    traveler: '#ca8a04',
+    loric: '#0d9488',
+    fabled: '#db2777',
+};
+
 export const CHARACTER_CATEGORIES: CharacterCategory[] = ['townsfolk', 'outsider', 'minion', 'demon'];
 
 // Every category a character can have. CHARACTER_CATEGORIES is just the four that make up a

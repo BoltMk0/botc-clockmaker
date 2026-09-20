@@ -1,12 +1,25 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
     import { invalidateAll } from "$app/navigation";
-    import { CHARACTER_CATEGORIES, presetDisplayName } from "$lib/resources/common/gameData.js";
-    import CharacterThumb from "$lib/components/CharacterThumb.svelte";
+    import { presetDisplayName, type Preset } from "$lib/resources/common/gameData.js";
+    import CharacterList from "$lib/components/CharacterList.svelte";
     import PresetSummary from "$lib/components/setup/PresetSummary.svelte";
     import type { PageData } from "./$types";
 
     let { data }: { data: PageData } = $props();
+
+    // Grouped by player count (number of chosen characters), ascending. `index` is the
+    // preset's position in the unsorted list so default names stay stable.
+    const presetGroups = $derived.by(() => {
+        const groups = new Map<number, { preset: Preset; index: number }[]>();
+        data.presets.forEach((preset: Preset, index: number) => {
+            const count = preset.character_ids.length;
+            groups.set(count, [...(groups.get(count) ?? []), { preset, index }]);
+        });
+        return [...groups.entries()]
+            .sort(([a], [b]) => a - b)
+            .map(([playerCount, presets]) => ({ playerCount, presets }));
+    });
 
     async function createPreset() {
         try {
@@ -53,26 +66,10 @@
     }
 
     .panel {
-        background-color: var(--theme-bg-secondary);
         padding: 1em;
         border-radius: 1em;
         box-sizing: border-box;
         overflow-y: auto;
-    }
-
-    .character-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.3em;
-    }
-
-    .character-row {
-        display: flex;
-        align-items: center;
-        gap: 0.6em;
-        padding: 0.3em 0.5em;
-        background-color: var(--theme-bg);
-        border-radius: 0.5em;
     }
 
     .preset-row {
@@ -104,20 +101,7 @@
     <div class="overview-columns padded">
         <div class="panel">
             <h3 style="margin-top: 0;">Characters ({data.script.characters.length})</h3>
-            <div class="character-list">
-                {#each CHARACTER_CATEGORIES as category}
-                    {@const inCat = data.script.characters.filter(c => c.category === category)}
-                    {#if inCat.length > 0}
-                        <div style="opacity: 0.6;">{category[0].toUpperCase() + category.slice(1)} ({inCat.length})</div>
-                        {#each inCat as character}
-                            <div class="character-row">
-                                <CharacterThumb {character} />
-                                <div>{character.name}</div>
-                            </div>
-                        {/each}
-                    {/if}
-                {/each}
-            </div>
+            <CharacterList characters={data.script.characters}/>
         </div>
         <div class="panel">
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -125,14 +109,17 @@
                 <button class="button-style" onclick={createPreset}>+ New Preset</button>
             </div>
             <div class="preset-list">
-                {#each data.presets as preset, i (preset.id)}
-                    <div class="preset-row">
-                        <PresetSummary {preset} characters={data.script.characters} index={i} />
-                        <div style="display: flex; gap: 0.4em;">
-                            <a class="button-style" href="/settings/scripts/{data.script.id}/presets/{preset.id}">Edit</a>
-                            <button class="button-style error" onclick={() => deletePreset(preset.id, presetDisplayName(preset, i))}>Delete</button>
+                {#each presetGroups as group (group.playerCount)}
+                    <div style="opacity: 0.6; margin-top: 0.4em;">{group.playerCount} players ({group.presets.length})</div>
+                    {#each group.presets as { preset, index } (preset.id)}
+                        <div class="preset-row">
+                            <PresetSummary {preset} characters={data.script.characters} {index} />
+                            <div style="display: flex; gap: 0.4em;">
+                                <a class="button-style" href="/settings/scripts/{data.script.id}/presets/{preset.id}">Edit</a>
+                                <button class="button-style error" onclick={() => deletePreset(preset.id, presetDisplayName(preset, index))}>Delete</button>
+                            </div>
                         </div>
-                    </div>
+                    {/each}
                 {:else}
                     <div style="opacity: 0.6;">No presets yet.</div>
                 {/each}

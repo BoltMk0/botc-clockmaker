@@ -1,21 +1,11 @@
 <script lang="ts">
-    import type { Character } from "$lib/resources/common/gameData";
+    import { CHARACTER_CATEGORY_COLORS, type Character } from "$lib/resources/common/gameData";
 
     let { character, size = '2.5em' }: { character: Character; size?: string } = $props();
 
     let imageFailed = $state(false);
 
-    const categoryColors: Record<string, string> = {
-        townsfolk: '#2563eb',
-        outsider: '#16a34a',
-        minion: '#dc2626',
-        demon: '#7c3aed',
-        traveler: '#ca8a04',
-        loric: '#0d9488',
-        fabled: '#db2777',
-    };
-
-    const color = $derived(categoryColors[character.category] ?? '#666');
+    const color = $derived(CHARACTER_CATEGORY_COLORS[character.category] ?? '#666');
     const initials = $derived(character.name.split(' ').map(w => w[0]?.toUpperCase() ?? '').join(''));
 </script>
 

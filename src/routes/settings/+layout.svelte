@@ -63,5 +63,6 @@
     height: 100%;
     overflow: hidden;
     box-sizing: border-box;
+    padding-top: 60px; /* clear the absolutely-positioned TopNavbar */
 }
 </style>
