@@ -2,6 +2,8 @@ export type SpotifyPlaybackModel = {
     playing: boolean;
     title: string;
     artist: string;
+    /** URI of the album/playlist being played from, if any. */
+    contextUri: string | null;
 };
 
 /** Server-wide Spotify state, shared by every mixer client. */

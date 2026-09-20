@@ -4,7 +4,7 @@
     import PlayIcon from "../PlayIcon.svelte";
     import PauseIcon from "../PauseIcon.svelte";
     import type { SpotifyPlayer } from "../../SpotifyPlayer.svelte";
-    import type { SpotifyPreset } from "$lib/audio/common/spotifyPreset";
+    import { isSameSpotifyContext, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
 
     let {
         spotify,
@@ -20,6 +20,8 @@
     const active = $derived(model !== null && model.hostClientId !== null);
     let menuOpen = $state(false);
     /** Centres a transport button's glyph both ways (an inline SVG otherwise sits on the text baseline). */
+    /** Highlights the preset that's currently loaded. */
+    const CURRENT_PRESET = "background-color: #fff; color: #222;";
     const CENTER = "display: flex; justify-content: center; align-items: center; height: 30px;";
 </script>
 
@@ -60,7 +62,8 @@
     {#if presets.length > 0}
     <div class="presets">
         {#each presets as preset (preset.id)}
-            <AudioMixerText onclick={()=>spotify.playContext(preset.uri)} title="Play {preset.name}">{preset.name}</AudioMixerText>
+            {@const current = isSameSpotifyContext(spotify.playback?.contextUri, preset.uri)}
+            <AudioMixerText onclick={()=>spotify.playContext(preset.uri)} style={current ? CURRENT_PRESET : undefined} title={current ? `${preset.name} (playing)` : `Play ${preset.name}`}>{preset.name}</AudioMixerText>
         {/each}
     </div>
     {/if}

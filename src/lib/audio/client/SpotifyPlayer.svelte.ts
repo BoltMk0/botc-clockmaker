@@ -8,7 +8,7 @@ const PLAYER_NAME = 'Clocktower Mixer';
 
 // Just the parts of the Spotify Web Playback SDK we use.
 type SpotifySDKTrack = { name: string, artists: { name: string }[] };
-type SpotifySDKState = { paused: boolean, track_window: { current_track: SpotifySDKTrack } };
+type SpotifySDKState = { paused: boolean, context?: { uri: string | null }, track_window: { current_track: SpotifySDKTrack } };
 type SpotifySDKPlayer = {
     connect(): Promise<boolean>;
     disconnect(): void;
@@ -160,7 +160,8 @@ export class SpotifyPlayer {
         return {
             playing: !state.paused,
             title: track?.name ?? '',
-            artist: track?.artists?.map(a => a.name).join(', ') ?? ''
+            artist: track?.artists?.map(a => a.name).join(', ') ?? '',
+            contextUri: state.context?.uri ?? null
         };
     }
 

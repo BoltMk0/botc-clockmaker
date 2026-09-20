@@ -18,6 +18,13 @@ export function isSpotifyPreset(value: unknown): value is SpotifyPreset {
         isSpotifyContextUri((value as SpotifyPreset).uri);
 }
 
+/** Whether two context URIs are the same album/playlist (tolerates the old spotify:user:NAME:playlist:ID form). */
+export function isSameSpotifyContext(a: string | null | undefined, b: string | null | undefined): boolean {
+    if (!a || !b) return false;
+    const key = (uri: string) => uri.split(':').slice(-2).join(':');
+    return key(a) === key(b);
+}
+
 /**
  * Accepts a Spotify album/playlist URI (spotify:playlist:ID) or share link
  * (https://open.spotify.com/playlist/ID?si=..., including /intl-xx/ links) and returns the URI, or null if it isn't one.

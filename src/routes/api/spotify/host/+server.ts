@@ -32,7 +32,8 @@ export async function PUT({ request }) {
         if (playback !== undefined && playback !== null && (typeof playback !== 'object'
             || typeof (playback as any).playing !== 'boolean'
             || typeof (playback as any).title !== 'string'
-            || typeof (playback as any).artist !== 'string')) {
+            || typeof (playback as any).artist !== 'string'
+            || ((playback as any).contextUri !== null && typeof (playback as any).contextUri !== 'string'))) {
             return error(400, { message: 'Invalid playback' });
         }
         spotify.hostReport(body.clientId, { playback: playback as any });

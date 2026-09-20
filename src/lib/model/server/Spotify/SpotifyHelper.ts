@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import { env } from "$env/dynamic/private";
 import type { SpotifyControlAction, SpotifyModel, SpotifyPlaybackModel } from "$lib/audio/common/model/spotifyModel";
-import { isSpotifyContextUri } from "$lib/audio/common/spotifyPreset";
+import { isSameSpotifyContext, isSpotifyContextUri } from "$lib/audio/common/spotifyPreset";
 import { JSONSingletonResourceManager } from "$lib/resources/server/jsonResourceManager";
 
 type SpotifyAuth = { refreshToken: string };
@@ -15,6 +15,11 @@ const AUTH_MANAGER = new JSONSingletonResourceManager<SpotifyAuth>('spotify_auth
 const SCOPES = ['streaming', 'user-read-email', 'user-read-private', 'user-modify-playback-state', 'user-read-playback-state'];
 /** The host reports in every few seconds; if it goes quiet for this long its claim lapses and another client may take over. */
 const HOST_TIMEOUT_MS = 15000;
+/** Fade-out time when switching playlists. */
+const FADE_MS = 1200;
+/** How long to wait for the player to report the new playlist before giving up and restoring volume anyway. */
+const SWITCH_TIMEOUT_MS = 4000;
+const FADE_STEP_MS = 100;
 const HOST_CHECK_INTERVAL_MS = 5000;
 
 export class SpotifyHelper extends EventEmitter {
@@ -24,6 +29,7 @@ export class SpotifyHelper extends EventEmitter {
     #hostCheckTimer: ReturnType<typeof setInterval> | null = null;
     #playback: SpotifyPlaybackModel | null = null;
     #volume = 50;
+    #fadeToken = 0;
 
     #accessToken: string | null = null;
     #accessTokenExpiresAt = 0;
@@ -202,9 +208,7 @@ export class SpotifyHelper extends EventEmitter {
                 break;
             case 'playContext':
                 if (!isSpotifyContextUri(command.uri)) throw new Error('Invalid album/playlist');
-                // Shuffle first, so playback of the new context starts on a random track
-                await this.api('PUT', `/me/player/shuffle?state=true&${device}`);
-                await this.api('PUT', `/me/player/play?${device}`, { context_uri: command.uri });
+                await this.playContext(command.uri, device);
                 break;
             case 'next':
                 await this.api('POST', `/me/player/next?${device}`);
@@ -223,6 +227,71 @@ export class SpotifyHelper extends EventEmitter {
             default:
                 throw new Error('Unknown action');
         }
+    }
+
+    /**
+     * Switches to a new album/playlist: fades the old one out, then starts the new one at full volume.
+     * Spotify only has one active stream, so the two can't overlap.
+     */
+    private async playContext(uri: string, device: string) {
+        const token = ++this.#fadeToken; // A newer request supersedes this one, including mid-fade
+        const target = this.#volume;
+        const wasPlaying = this.#playback?.playing === true;
+        const before = this.#playback;
+        try {
+            if (wasPlaying && !await this.fadeOut(device, target, token)) return;
+            // Shuffle first, so playback of the new context starts on a random track
+            await this.api('PUT', `/me/player/shuffle?state=true&${device}`);
+            await this.api('PUT', `/me/player/play?${device}`, { context_uri: uri });
+            if (wasPlaying) {
+                // The play call returns before the player has actually switched, so restoring volume now would let the
+                // old track blast back in. Wait until the player reports the new playlist (and a new track).
+                await this.waitForSwitch(uri, before, token);
+                if (token === this.#fadeToken) await this.setDeviceVolume(device, target);
+            }
+        } catch (e) {
+            // Don't leave the player silent if we failed after fading out
+            if (token === this.#fadeToken) await this.setDeviceVolume(device, target).catch(() => { });
+            throw e;
+        }
+    }
+
+    /** Resolves once the host reports playback from `uri` on a different track than before, or after a timeout / when superseded. */
+    private waitForSwitch(uri: string, before: SpotifyPlaybackModel | null, token: number) {
+        const switched = () => {
+            const now = this.#playback;
+            if (!now || !isSameSpotifyContext(now.contextUri, uri)) return false;
+            // Re-selecting the playing playlist keeps the context, so the track has to have changed too
+            return !isSameSpotifyContext(before?.contextUri, uri) || now.title !== before?.title;
+        };
+        return new Promise<void>(resolve => {
+            if (switched()) return resolve();
+            const finish = () => {
+                clearTimeout(timer);
+                this.off('update', check);
+                resolve();
+            };
+            const check = () => { if (switched() || token !== this.#fadeToken) finish(); };
+            const timer = setTimeout(finish, SWITCH_TIMEOUT_MS);
+            this.on('update', check);
+        });
+    }
+
+    /** Equal-power fade of the device volume from target down to 0. Returns false if superseded by a newer request. */
+    private async fadeOut(device: string, target: number, token: number) {
+        const start = Date.now();
+        for (; ;) {
+            if (token !== this.#fadeToken) return false;
+            const t = Math.min(1, (Date.now() - start) / FADE_MS);
+            await this.setDeviceVolume(device, target * Math.cos(t * Math.PI / 2));
+            if (t >= 1) return true;
+            // Each API call takes a moment anyway; this just keeps us well inside Spotify's rate limits
+            await new Promise(resolve => setTimeout(resolve, FADE_STEP_MS));
+        }
+    }
+
+    private async setDeviceVolume(device: string, volume: number) {
+        await this.api('PUT', `/me/player/volume?volume_percent=${Math.round(Math.min(100, Math.max(0, volume)))}&${device}`);
     }
 
     private async api(method: string, path: string, body?: object) {
