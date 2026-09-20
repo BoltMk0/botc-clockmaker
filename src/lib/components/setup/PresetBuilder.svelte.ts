@@ -23,7 +23,14 @@ export class PresetBuilder {
     chosenCharacterIds = $state<string[]>([]);
     /** The chosen tokens that go straight on the grim instead of in the bag. */
     grimCharacterIds = $state<string[]>([]);
-    bluffIds = $state<string[]>([]);
+    /** Optional groups of 3 bluffs. */
+    bluffSets = $state<string[][]>([]);
+    /** Index of the bluff set being edited. */
+    activeBluffSet = $state(0);
+    /** Every character used as a bluff in any set. */
+    allBluffIds = $derived([...new Set(this.bluffSets.flat())]);
+    /** True when every bluff set is complete (no sets is fine). */
+    bluffsValid = $derived(this.bluffSets.every(s => s.length === 3));
 
     charById = $derived(new Map((this.script?.characters ?? []).map(c => [c.id, c])));
 
@@ -65,7 +72,8 @@ export class PresetBuilder {
     reset() {
         this.chosenCharacterIds = [];
         this.grimCharacterIds = [];
-        this.bluffIds = [];
+        this.bluffSets = [];
+        this.activeBluffSet = 0;
     }
 
     choosePlayerCount(n: number) {
@@ -77,12 +85,13 @@ export class PresetBuilder {
      * Loads a saved character list. Presets saved before the bag/grim split have no grim tokens
      * saved, so their zero-seat characters are the grim tokens.
      */
-    loadCharacters(characterIds: string[], bluffIds: string[], grimIds?: string[]) {
+    loadCharacters(characterIds: string[], bluffSets: string[][], grimIds?: string[]) {
         this.chosenCharacterIds = [...characterIds];
         this.grimCharacterIds = grimIds
             ? [...grimIds]
             : characterIds.filter(id => this.charById.get(id)?.player_count === 0);
-        this.bluffIds = [...bluffIds];
+        this.bluffSets = bluffSets.map(s => [...s]);
+        this.activeBluffSet = 0;
     }
 
     countOf(characterId: string): number {
@@ -109,11 +118,24 @@ export class PresetBuilder {
         this.grimCharacterIds = subtractIds(this.grimCharacterIds, [characterId]);
     }
 
+    /** Adds an empty bluff set and makes it the one being edited. */
+    addBluffSet() {
+        this.bluffSets = [...this.bluffSets, []];
+        this.activeBluffSet = this.bluffSets.length - 1;
+    }
+
+    removeBluffSet(index: number) {
+        this.bluffSets = this.bluffSets.filter((_, i) => i !== index);
+        this.activeBluffSet = Math.min(this.activeBluffSet, Math.max(0, this.bluffSets.length - 1));
+    }
+
+    /** Toggles a character in the bluff set being edited; sets hold at most 3. */
     toggleBluff(characterId: string) {
-        if (this.bluffIds.includes(characterId)) {
-            this.bluffIds = this.bluffIds.filter(id => id !== characterId);
-        } else if (this.bluffIds.length < 3) {
-            this.bluffIds = [...this.bluffIds, characterId];
-        }
+        const set = this.bluffSets[this.activeBluffSet];
+        if (!set) return;
+        const updated = set.includes(characterId)
+            ? set.filter(id => id !== characterId)
+            : set.length < 3 ? [...set, characterId] : set;
+        this.bluffSets = this.bluffSets.map((s, i) => i === this.activeBluffSet ? updated : s);
     }
 }

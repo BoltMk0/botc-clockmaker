@@ -58,6 +58,19 @@
         font-size: 1.1em;
     }
 
+    .bluff-set-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5em;
+        margin-bottom: 1em;
+    }
+    .bluff-set-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1em;
+    }
+
     .footer-actions {
         display: flex;
         justify-content: space-between;
@@ -96,17 +109,31 @@
     </div>
 {:else if step === 'bluffs' && builder.script}
     <div class="section plain">
-        <h2 style="margin-top: 0;">Choose 3 bluffs ({builder.bluffIds.length}/3)</h2>
-        <CharacterList
-            characters={builder.script.characters.filter(c => !builder.chosenCharacterIds.includes(c.id))}
-            categoryOrder={['townsfolk', 'outsider', 'minion', 'demon']}
-            isSelected={c => builder.bluffIds.includes(c.id)}
-            onpick={c => builder.toggleBluff(c.id)}
-            isDisabled={() => builder.bluffIds.length >= 3}
-        />
+        <h2 style="margin-top: 0;">Bluffs <span style="opacity: 0.6; font-weight: normal; font-size: 0.7em;">(optional)</span></h2>
+        <div class="bluff-set-tabs">
+            {#each builder.bluffSets as set, i}
+                <button class="button-style" class:highlight={builder.activeBluffSet === i} onclick={() => builder.activeBluffSet = i}>Set {i + 1} ({set.length}/3)</button>
+            {/each}
+            <button class="button-style" onclick={() => builder.addBluffSet()}>+ Add bluff set</button>
+        </div>
+        {#if builder.bluffSets.length === 0}
+            <div style="opacity: 0.6; font-style: italic;">No bluff sets. Add one, or continue without bluffs.</div>
+        {:else}
+            <div class="bluff-set-header">
+                <h3 style="margin: 0;">Choose 3 bluffs for set {builder.activeBluffSet + 1}</h3>
+                <button class="button-style" onclick={() => builder.removeBluffSet(builder.activeBluffSet)}>Remove set</button>
+            </div>
+            <CharacterList
+                characters={builder.script.characters.filter(c => !builder.chosenCharacterIds.includes(c.id))}
+                categoryOrder={['townsfolk', 'outsider', 'minion', 'demon']}
+                isSelected={c => builder.bluffSets[builder.activeBluffSet]?.includes(c.id) ?? false}
+                onpick={c => builder.toggleBluff(c.id)}
+                isDisabled={() => (builder.bluffSets[builder.activeBluffSet]?.length ?? 0) >= 3}
+            />
+        {/if}
     </div>
     <div class="footer-actions">
         {#if !hideBack}<button class="button-style" onclick={() => navigate('tokens')}>← Back</button>{:else}<span></span>{/if}
-        <button class="button-style highlight" disabled={builder.bluffIds.length !== 3} onclick={() => navigate(afterBluffs)}>Next →</button>
+        <button class="button-style highlight" disabled={!builder.bluffsValid} onclick={() => navigate(afterBluffs)}>Next →</button>
     </div>
 {/if}

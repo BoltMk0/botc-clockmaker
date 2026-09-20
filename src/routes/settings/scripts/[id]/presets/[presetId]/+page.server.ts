@@ -8,7 +8,7 @@ export async function load({ params }) {
     if (params.presetId === 'new') {
         const script = getScriptWithCharacters(params.id);
         if (!script) return { preset: null, error: 'Script not found' };
-        const preset: PresetFull = { id: 'new', name: null, script_id: script.id, character_ids: [], bluff_ids: [], evil_victories: 0, good_victories: 0, script };
+        const preset: PresetFull = { id: 'new', name: null, script_id: script.id, character_ids: [], bluff_sets: [], evil_victories: 0, good_victories: 0, script };
         return { preset };
     }
     const preset = getFullPreset(params.presetId);
@@ -27,10 +27,9 @@ export const actions = {
             const name = body.get('name')?.toString().trim() || null;
             const characterIdsRaw = body.get('characterIds')?.toString() || '';
             const characterIds = characterIdsRaw === '' ? [] : characterIdsRaw.split(',').filter(s => s !== '');
-            const bluffIdsRaw = body.get('bluffIds')?.toString() || '';
-            const bluffIds = bluffIdsRaw === '' ? [] : bluffIdsRaw.split(',').filter(s => s !== '');
+            const bluffSets: string[][] = JSON.parse(body.get('bluffSets')?.toString() || '[]');
 
-            updatePreset(params.presetId, { name, character_ids: characterIds, bluff_ids: bluffIds });
+            updatePreset(params.presetId, { name, character_ids: characterIds, bluff_sets: bluffSets });
 
             return { success: true };
         } catch (e) {

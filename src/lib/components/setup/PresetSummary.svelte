@@ -2,6 +2,8 @@
     import { CHARACTER_CATEGORIES, presetDisplayName, presetGrimCharacterIds, type Preset, type ScriptCharacter } from "$lib/resources/common/gameData.js";
     import CharacterThumb from "$lib/components/CharacterThumb.svelte";
     import PresetStats from "./PresetStats.svelte";
+    import { onMount } from "svelte";
+    import { fetchAllCharacters, withSideCharacters } from "$lib/resources/client/scriptWithSideCharacters.js";
 
     interface Props {
         preset: Preset;
@@ -13,9 +15,16 @@
 
     let { preset, characters, index }: Props = $props();
 
+    // Travellers, loric and fabled aren't in a script's own list, so look them up separately.
+    let sideCharacters = $state<ScriptCharacter[]>([]);
+    onMount(async () => {
+        sideCharacters = withSideCharacters({ id: '', name: '', hue: '', characters: [] }, await fetchAllCharacters()).characters;
+    });
+    const allCharacters = $derived([...characters, ...sideCharacters]);
+
     // Demons first, townsfolk last.
     const toSortedCharacters = (ids: string[]) => ids
-        .map(id => characters.find(c => c.id === id))
+        .map(id => allCharacters.find(c => c.id === id))
         .filter(c => !!c)
         .sort((a, b) => CHARACTER_CATEGORIES.indexOf(b.category) - CHARACTER_CATEGORIES.indexOf(a.category));
 

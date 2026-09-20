@@ -1,7 +1,7 @@
 <script lang="ts">
     import type { PresetBuilder } from "./PresetBuilder.svelte.js";
 
-    let { builder }: { builder: PresetBuilder } = $props();
+    let { builder, reversed = false }: { builder: PresetBuilder; reversed?: boolean } = $props();
 
     const rows = $derived([
         ['Townsfolk', 'townsfolk'],
@@ -12,7 +12,7 @@
 </script>
 
 <div>
-    {#each rows as [label, key], i}
+    {#each (reversed ? rows.toReversed() : rows) as [label, key], i}
         {#if i > 0}, {/if}{builder.expectedCounts[key]} {label}
     {/each}
 </div>

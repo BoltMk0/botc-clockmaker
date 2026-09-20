@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { get_draw_session_for_clock, delete_draw_session_for_clock } from '$lib/resources/server/draw-sessions';
 import { set_grimoire_state_history_resource_for_clock } from '$lib/resources/server/grimoire-state';
+import { drawSessionBluffSets } from '$lib/resources/common/drawSession';
 import { newGrimoireStateFromDraw } from '$lib/resources/common/grimoireState';
 import { getCharactersForScript } from '$lib/resources/server/scripts';
 import { alignmentForCategory } from '$lib/resources/common/gameData';
@@ -28,7 +29,7 @@ export async function POST({ params }) {
         alignment: alignmentForCategory(charactersById.get(characterId)?.category ?? 'townsfolk')
     }));
 
-    const history = newGrimoireStateFromDraw(params.clockid, session.scriptId, seats, session.bluffIds, offSeats, session.presetId ?? null);
+    const history = newGrimoireStateFromDraw(params.clockid, session.scriptId, seats, drawSessionBluffSets(session), offSeats, session.presetId ?? null);
     set_grimoire_state_history_resource_for_clock(params.clockid, history);
 
     // Every drawn seat is a named player, except travellers (who don't count towards the player count).

@@ -74,10 +74,28 @@ export type Preset = {
     character_ids: string[];
     /** The subset of character_ids that go straight on the grim rather than in the bag. Absent on older presets. */
     grim_character_ids?: string[];
-    bluff_ids: string[];
+    /** Groups of bluffs to show the demon; may be empty. */
+    bluff_sets: string[][];
+    /** Legacy: a single bluff set, from before multiple sets were supported. Use bluffSetsOf. */
+    bluff_ids?: string[];
     evil_victories: number;
     good_victories: number;
 };
+
+/** The bluff sets of a preset (or loaded preset), upgrading the legacy single `bluff_ids` list. */
+export function bluffSetsOf(obj: { bluff_sets?: string[][]; bluff_ids?: string[] }): string[][] {
+    if (obj.bluff_sets) return obj.bluff_sets;
+    return obj.bluff_ids && obj.bluff_ids.length > 0 ? [obj.bluff_ids] : [];
+}
+
+const isIdList = (v: any) => Array.isArray(v) && v.every((id: any) => typeof id === "string");
+
+/** True if the object has valid bluff data in either the current or the legacy shape. */
+export function hasValidBluffs(obj: any): boolean {
+    return (obj.bluff_sets === undefined || (Array.isArray(obj.bluff_sets) && obj.bluff_sets.every(isIdList))) &&
+        (obj.bluff_ids === undefined || isIdList(obj.bluff_ids)) &&
+        (obj.bluff_sets !== undefined || obj.bluff_ids !== undefined);
+}
 
 /** The preset's grim-only tokens. Older presets have none saved, so zero-seat characters count as grim tokens. */
 export function presetGrimCharacterIds(preset: Pick<Preset, 'character_ids' | 'grim_character_ids'>, characters: Pick<Character, 'id' | 'player_count'>[]): string[] {
@@ -176,7 +194,7 @@ export function isPreset(obj: any): obj is Preset {
         typeof obj.script_id === "string" &&
         Array.isArray(obj.character_ids) && obj.character_ids.every((id: any) => typeof id === "string") &&
         (obj.grim_character_ids === undefined || (Array.isArray(obj.grim_character_ids) && obj.grim_character_ids.every((id: any) => typeof id === "string"))) &&
-        Array.isArray(obj.bluff_ids) && obj.bluff_ids.every((id: any) => typeof id === "string") &&
+        hasValidBluffs(obj) &&
         // Absent on presets saved before victories were tracked; presets.ts fills in 0.
         (obj.evil_victories === undefined || (typeof obj.evil_victories === "number" && isFinite(obj.evil_victories) && obj.evil_victories >= 0)) &&
         (obj.good_victories === undefined || (typeof obj.good_victories === "number" && isFinite(obj.good_victories) && obj.good_victories >= 0));

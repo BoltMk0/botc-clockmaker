@@ -12,15 +12,15 @@ export async function POST({ params, request }) {
     const body = await request.json().catch(() => null);
     if (!body) return json({ error: 'Invalid JSON body' }, { status: 400 });
 
-    const { scriptId, characterIds, bluffIds, offSeatIds = [], presetId = null } = body;
+    const { scriptId, characterIds, bluffSets = [], offSeatIds = [], presetId = null } = body;
     if (typeof scriptId !== 'string' || !scriptId) {
         return json({ error: 'scriptId is required' }, { status: 400 });
     }
     if (!Array.isArray(characterIds) || characterIds.length === 0 || !characterIds.every((id: any) => typeof id === 'string')) {
         return json({ error: 'characterIds must be a non-empty array of strings' }, { status: 400 });
     }
-    if (!Array.isArray(bluffIds) || !bluffIds.every((id: any) => typeof id === 'string')) {
-        return json({ error: 'bluffIds must be an array of strings' }, { status: 400 });
+    if (!Array.isArray(bluffSets) || !bluffSets.every((set: any) => Array.isArray(set) && set.every((id: any) => typeof id === 'string'))) {
+        return json({ error: 'bluffSets must be an array of arrays of strings' }, { status: 400 });
     }
 
     if (!Array.isArray(offSeatIds) || !offSeatIds.every((id: any) => typeof id === 'string')) {
@@ -31,7 +31,7 @@ export async function POST({ params, request }) {
         return json({ error: 'presetId must be a string' }, { status: 400 });
     }
 
-    const session = newDrawSession(params.clockid, scriptId, characterIds, bluffIds, offSeatIds, presetId);
+    const session = newDrawSession(params.clockid, scriptId, characterIds, bluffSets, offSeatIds, presetId);
     return json(redactDrawSession(session), { status: 201 });
 }
 

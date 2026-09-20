@@ -1,6 +1,6 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
-    import { presetGrimCharacterIds, presetPlayerCount, type Preset, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
+    import { bluffSetsOf, presetGrimCharacterIds, presetPlayerCount, type Preset, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import { newGrimoireStateHistory } from "$lib/resources/common/grimoireState.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import TokenSorter from "$lib/components/setup/TokenSorter.svelte";
@@ -48,9 +48,10 @@
     let saveAsPreset = $state(true);
 
     const sameIds = (a: string[], b: string[]) => a.length === b.length && [...a].sort().join() === [...b].sort().join();
+    const sameBluffSets = (a: string[][], b: string[][]) => a.length === b.length && sameIds(a.map(s => [...s].sort().join('+')), b.map(s => [...s].sort().join('+')));
     const matchesBuilder = (p: Preset) => sameIds(p.character_ids, builder.chosenCharacterIds)
         && sameIds(presetGrimCharacterIds(p, builder.script?.characters ?? []), builder.grimCharacterIds)
-        && sameIds(p.bluff_ids, builder.bluffIds);
+        && sameBluffSets(bluffSetsOf(p), builder.bluffSets);
 
     // Only credit the chosen preset if the game still matches it (the characters may have been edited since).
     const activePresetId = $derived(presets.find(p => p.id === chosenPresetId && matchesBuilder(p))?.id ?? null);
@@ -74,7 +75,7 @@
             const saved = await fetch(`/api/presets/${preset.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ character_ids: builder.chosenCharacterIds, grim_character_ids: builder.grimCharacterIds, bluff_ids: builder.bluffIds })
+                body: JSON.stringify({ character_ids: builder.chosenCharacterIds, grim_character_ids: builder.grimCharacterIds, bluff_sets: builder.bluffSets })
             });
             if (!saved.ok) throw new Error(`${saved.status}`);
             const updated: Preset = await saved.json();
@@ -107,7 +108,7 @@
     }
 
     function applyPreset(preset: Preset) {
-        builder.loadCharacters(preset.character_ids, preset.bluff_ids, presetGrimCharacterIds(preset, builder.script?.characters ?? []));
+        builder.loadCharacters(preset.character_ids, bluffSetsOf(preset), presetGrimCharacterIds(preset, builder.script?.characters ?? []));
         chosenPresetId = preset.id;
         step = 'summary';
     }
@@ -130,7 +131,7 @@
             const res = await fetch(`/api/clock/${data.clockid}/draw`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ scriptId: builder.script.id, characterIds: builder.bagCharacterIds, bluffIds: builder.bluffIds, offSeatIds: builder.grimCharacterIds, presetId })
+                body: JSON.stringify({ scriptId: builder.script.id, characterIds: builder.bagCharacterIds, bluffSets: builder.bluffSets, offSeatIds: builder.grimCharacterIds, presetId })
             });
             if (!res.ok) {
                 const body = await res.json().catch(() => null);
@@ -148,7 +149,7 @@
         submitting = true;
         try {
             const history = newGrimoireStateHistory(data.clockid, builder.script.id);
-            history.loadedPreset = { character_ids: builder.chosenCharacterIds, bluff_ids: builder.bluffIds, preset_id: await resolvePresetId() };
+            history.loadedPreset = { character_ids: builder.chosenCharacterIds, bluff_sets: builder.bluffSets, preset_id: await resolvePresetId() };
             const res = await fetch(`/admin/${data.clockid}/grim/state`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -409,7 +410,7 @@
 
     {#if step === 'tokens'}
         <div class="setup-counts">
-            <CharacterCounts {builder} />
+            <CharacterCounts {builder} reversed />
         </div>
     {/if}
 

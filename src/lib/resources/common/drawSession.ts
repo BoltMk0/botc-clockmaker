@@ -10,7 +10,9 @@ export type DrawSlot = {
 export type DrawSession = {
     id: string; // clockid
     scriptId: string;
-    bluffIds: string[];
+    bluffSets?: string[][];
+    /** Legacy: a single bluff set, from before multiple sets were supported. */
+    bluffIds?: string[];
     // Characters with player_count == 0: nobody draws these, but they still get a token on the grim.
     offSeatIds?: string[];
     // The saved preset this draw was started from, if any.
@@ -29,14 +31,19 @@ export type RedactedDrawSlot = {
 
 export type RedactedDrawSession = {
     scriptId: string;
-    bluffIds: string[];
+    bluffSets: string[][];
     slots: RedactedDrawSlot[];
 };
+
+export function drawSessionBluffSets(session: Pick<DrawSession, 'bluffSets' | 'bluffIds'>): string[][] {
+    if (session.bluffSets) return session.bluffSets;
+    return session.bluffIds && session.bluffIds.length > 0 ? [session.bluffIds] : [];
+}
 
 export function redactDrawSession(session: DrawSession): RedactedDrawSession {
     return {
         scriptId: session.scriptId,
-        bluffIds: session.bluffIds,
+        bluffSets: drawSessionBluffSets(session),
         slots: session.slots.map(s => ({ number: s.number, claimed: s.claimed, playerName: s.playerName }))
     };
 }
@@ -54,7 +61,9 @@ export function isDrawSession(obj: any): obj is DrawSession {
     const result = typeof obj === "object" &&
         typeof obj.id === "string" &&
         typeof obj.scriptId === "string" &&
-        Array.isArray(obj.bluffIds) && obj.bluffIds.every((id: any) => typeof id === "string") &&
+        (obj.bluffSets !== undefined || obj.bluffIds !== undefined) &&
+        (obj.bluffSets === undefined || (Array.isArray(obj.bluffSets) && obj.bluffSets.every((s: any) => Array.isArray(s) && s.every((id: any) => typeof id === "string")))) &&
+        (obj.bluffIds === undefined || (Array.isArray(obj.bluffIds) && obj.bluffIds.every((id: any) => typeof id === "string"))) &&
         (obj.offSeatIds === undefined || (Array.isArray(obj.offSeatIds) && obj.offSeatIds.every((id: any) => typeof id === "string"))) &&
         (obj.presetId === undefined || obj.presetId === null || typeof obj.presetId === "string") &&
         Array.isArray(obj.slots) && obj.slots.every(isDrawSlot);

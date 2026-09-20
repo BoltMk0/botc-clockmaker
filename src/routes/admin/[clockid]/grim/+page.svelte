@@ -1,6 +1,6 @@
 <script lang="ts">
     import { fetchScriptWithSideCharacters } from "$lib/resources/client/scriptWithSideCharacters";
-    import { alignmentForCategory, ALL_CHARACTER_CATEGORIES, type Character, type CharacterCategory, type ReminderToken, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
+    import { alignmentForCategory, bluffSetsOf, ALL_CHARACTER_CATEGORIES, type Character, type CharacterCategory, type ReminderToken, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import ReminderTokenView from "$lib/components/ReminderTokenView.svelte";
     import { fetchReminderTokensForCharacter } from "$lib/resources/client/reminderTokens.js";
@@ -112,6 +112,29 @@
     });
 
     const loadedPreset = $derived(gameState.loadedPreset);
+    const bluffSets = $derived(loadedPreset ? bluffSetsOf(loadedPreset) : []);
+
+    // The bluffs picked so far while adding a new bluff set; null when the picker is closed.
+    let newBluffSet = $state<string[] | null>(null);
+
+    function toggleNewBluff(characterId: string) {
+        if (!newBluffSet) return;
+        if (newBluffSet.includes(characterId)) newBluffSet = newBluffSet.filter(id => id !== characterId);
+        else if (newBluffSet.length < 3) newBluffSet = [...newBluffSet, characterId];
+    }
+
+    async function deleteBluffSet(index: number) {
+        if (!gameState.loadedPreset || !confirm('Delete this bluff set?')) return;
+        gameState.loadedPreset = { ...gameState.loadedPreset, bluff_sets: bluffSets.filter((_, i) => i !== index) };
+        await saveGrimoire();
+    }
+
+    async function addBluffSet() {
+        if (!gameState.loadedPreset || newBluffSet?.length !== 3) return;
+        gameState.loadedPreset = { ...gameState.loadedPreset, bluff_sets: [...bluffSets, newBluffSet] };
+        newBluffSet = null;
+        await saveGrimoire();
+    }
 
     const sortedScriptCharacters = $derived(
         [...(script?.characters ?? [])].sort((a, b) => {
@@ -559,9 +582,68 @@
         showFooter = false;
     }
 
-    async function showBluffs() {
+    async function showBluffs(setIndex: number) {
         await saveGrimoire();
-        goto(`/admin/${data.clockid}/grim/bluffs`);
+        goto(`/admin/${data.clockid}/grim/bluffs?set=${setIndex}`);
+    }
+
+    // Communications overlay: null when closed; 'menu' shows the options, 'bluffs' picks between several bluff sets.
+    let commsView = $state<'menu' | 'bluffs' | 'selected' | 'suffix' | 'custom' | 'customCharacter' | 'customCharacter2' | 'secondCharacter' | null>(null);
+
+    // Picking this suffix asks for a second character to show under the subtitle.
+    const MAD_YOU_ARE_SUFFIX = '...to be mad that you are this character...';
+
+    // Character-based messages: pick an in-play character, then an optional suffix.
+    const characterMessages = {
+        selected: {
+            title: 'This character has selected you',
+            prompt: 'Who was selected?',
+            suffixes: ['...to be mad that this player is evil...', '...and is this player...', MAD_YOU_ARE_SUFFIX]
+        },
+        youAre: {
+            title: 'You are',
+            prompt: 'Which character are they?',
+            suffixes: ['...and you are on the EVIL team', '...and you are on the GOOD team']
+        }
+    };
+    let characterMessageKind = $state<keyof typeof characterMessages>('selected');
+    const characterMessage = $derived(characterMessages[characterMessageKind]);
+
+    // Free-text message typed by the storyteller.
+    let customTitle = $state('');
+    let customSubtitle = $state('');
+    let customCharacterId = $state('');
+    let customCharacter2Id = $state('');
+
+    // The character picked, awaiting an optional suffix.
+    let selectedCharacterId = $state('');
+
+    function showSelected(suffix = '', subtitleCharacterId = '') {
+        commsView = null;
+        showMessage(characterMessage.title, suffix, selectedCharacterId, subtitleCharacterId);
+    }
+
+    const inPlayCharacters = $derived(sortedScriptCharacters.filter(c => seatedCharacterIds.includes(c.id)));
+
+    async function showMessage(title: string, subtitle = '', characterId = '', subtitleCharacterId = '') {
+        await saveGrimoire();
+        const params = new URLSearchParams({ title });
+        if (subtitle) params.set('subtitle', subtitle);
+        if (characterId) params.set('character', characterId);
+        if (subtitleCharacterId) params.set('subtitleCharacter', subtitleCharacterId);
+        goto(`/admin/${data.clockid}/grim/message?${params}`);
+    }
+
+    function chooseBluffs() {
+        if (bluffSets.length === 1) {
+            commsView = null;
+            showBluffs(0);
+        } else if (bluffSets.length > 1) {
+            commsView = 'bluffs';
+        } else if (script && loadedPreset) {
+            commsView = null;
+            newBluffSet = [];
+        }
     }
 
     async function viewCharacter(characterId: string) {
@@ -1002,6 +1084,12 @@
         opacity: 0.4;
     }
 
+    .tray-token.picked {
+        outline: 3px solid gold;
+        outline-offset: 2px;
+        border-radius: 50%;
+    }
+
     .tray-close-btn {
         display: none;
     }
@@ -1013,12 +1101,58 @@
         gap: 0.4em;
     }
 
+    .bluff-set {
+        border: 2px solid var(--theme-border, rgba(255, 255, 255, 0.35));
+        border-radius: 0.8em;
+        padding: 0.5em;
+    }
+
+    .bluff-set-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.5em;
+        margin-top: 0.3em;
+    }
+
+    .bluff-set-item {
+        position: relative;
+        width: 100%;
+    }
+
+    .delete-bluff-set-btn {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(0, 0, 0, 0.75);
+        color: white;
+        font-size: 0.8em;
+        line-height: 1;
+        cursor: pointer;
+        touch-action: manipulation;
+    }
+
+    .add-bluff-set-btn {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        justify-content: center;
+        min-height: 56px;
+        background: transparent;
+        border: 2px dashed currentColor;
+        opacity: 0.7;
+    }
+
     .show-bluffs-btn {
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 0.6em;
-        margin: 0 auto 0.3em;
+        width: 100%;
     }
 
     .show-bluffs-icon {
@@ -1097,6 +1231,30 @@
         align-items: center;
         gap: 0.7em;
         text-align: center;
+    }
+
+    .overlay-panel.comms-panel {
+        width: 100%;
+        height: 100%;
+        max-height: none;
+        margin: 0;
+        border-radius: 0;
+        padding-top: 3.5em;
+        justify-content: flex-start;
+        overflow-y: auto;
+    }
+
+    .overlay-panel.comms-panel > .comms-input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0.7em;
+        font-size: 1.1em;
+        flex-shrink: 0;
+    }
+
+    .overlay-panel.comms-panel > button.button-style {
+        width: 100%;
+        flex-shrink: 0;
     }
 
     .overlay-close {
@@ -1538,6 +1696,11 @@
         <button class="sidebar-btn" class:active={audioDim?.dimmed} onclick={() => audioDim?.toggle()} title={audioDim?.dimmed ? 'Restore audio volume' : `Dim audio (-${audioDim?.amountDb ?? 12} dB)`}>
             <svg viewBox="0 0 24 24"><path d="M18.5 12A4.5 4.5 0 0 0 16 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/></svg>
         </button>
+
+        <!-- Communications: things to show a player -->
+        <button class="sidebar-btn" class:active={commsView !== null} onclick={() => commsView = 'menu'} title="Communications">
+            <svg viewBox="0 0 24 24"><path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z"/></svg>
+        </button>
         </div>
 
         {#if sidebarOpen}
@@ -1857,39 +2020,30 @@
                     </div>
                 </div>
                 {/if}
-                {#if loadedPreset.bluff_ids.length > 0}
-                <div>
+                <div class="bluff-set">
                     <div style="text-align: center;">Bluffs</div>
-                    <button class="button-style show-bluffs-btn" onclick={showBluffs} title="Show bluffs">
+                    <div class="bluff-set-buttons">
+                    {#each bluffSets as bluffSet, setIndex}
+                    <div class="bluff-set-item">
+                    <button class="button-style show-bluffs-btn" onclick={() => showBluffs(setIndex)} title="Show bluffs">
                         <span class="show-bluffs-icon">
-                            {#each loadedPreset.bluff_ids.slice(0, 3) as bluffId (bluffId)}
+                            {#each bluffSet.slice(0, 3) as bluffId (bluffId)}
                                 {@const bluff = script?.characters.find(c => c.id === bluffId)}
                                 {#if bluff}
-                                    <div style="position: relative; width: 32px; height: 32px;">
-                                        <CharacterToken character={bluff} style="position: relative;" size="32px" norules/>
+                                    <div style="position: relative; width: 56px; height: 56px;">
+                                        <CharacterToken character={bluff} style="position: relative;" size="56px" norules/>
                                     </div>
                                 {/if}
                             {/each}
                         </span>
-                        Show bluffs
+                        {bluffSets.length > 1 ? `Show bluffs ${setIndex + 1}` : 'Show bluffs'}
                     </button>
-                    <div class="sub-tray">
-                        {#each loadedPreset.bluff_ids as character_id}
-                        {@const character = script?.characters.find(c => c.id === character_id)}
-                        {#if character}
-                                <div
-                                    class="tray-token"
-                                    class:dragging={dragging?.character?.id === character_id}
-                                    class:in-play={isInPlay(character_id)}
-                                    onclick={() => openCharacterOverlay(character)}
-                                >
-                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} norules/>
-                                </div>
-                        {/if}
-                        {/each}
+                    <button class="delete-bluff-set-btn" onclick={() => deleteBluffSet(setIndex)} title="Delete bluff set" aria-label="Delete bluff set">✕</button>
+                    </div>
+                    {/each}
+                    <button class="button-style add-bluff-set-btn" onclick={() => newBluffSet = []}>+ Add bluff set</button>
                     </div>
                 </div>
-                {/if}
                 <div>
                     <div style="text-align: center;">{script.name}</div>
                     <div class="sub-tray">
@@ -1906,7 +2060,7 @@
                     </div>
                 </div>
                 {#each SIDE_CATEGORIES as side (side.category)}
-                {@const sideCharacters = script.characters.filter(c => c.category === side.category && !loadedPreset?.character_ids.includes(c.id) && !loadedPreset?.bluff_ids.includes(c.id))}
+                {@const sideCharacters = script.characters.filter(c => c.category === side.category && !loadedPreset?.character_ids.includes(c.id) && !bluffSets.some(set => set.includes(c.id)))}
                 {#if sideCharacters.length > 0}
                 <div>
                     <div style="text-align: center;">{side.title}</div>
@@ -2031,6 +2185,123 @@
                         {/each}
                     </div>
                 {/if}
+            </div>
+        </div>
+    {/if}
+
+    {#if commsView === 'menu' || commsView === 'bluffs' || commsView === 'selected' || commsView === 'suffix' || commsView === 'custom' || commsView === 'customCharacter' || commsView === 'customCharacter2' || commsView === 'secondCharacter'}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 20};" onclick={() => commsView = null}>
+            <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+            <div class="overlay-panel comms-panel" onclick={(e) => e.stopPropagation()}>
+                <button class="overlay-close" onclick={() => commsView = null} aria-label="Close">✕</button>
+                {#if commsView === 'menu'}
+                    <div class="overlay-name dumbledore-font">Communications</div>
+                    <button class="button-style" onclick={() => showMessage('This is your demon')}>This is your demon</button>
+                    <button class="button-style" onclick={() => showMessage('These are your minions')}>These are your minions</button>
+                    <button class="button-style" disabled={inPlayCharacters.length === 0} onclick={() => { characterMessageKind = 'selected'; commsView = 'selected'; }}>This character has selected you...</button>
+                    <button class="button-style" disabled={inPlayCharacters.length === 0} onclick={() => { characterMessageKind = 'youAre'; commsView = 'selected'; }}>You are...</button>
+                    <button class="button-style" disabled={bluffSets.length === 0 && !(script && loadedPreset)} onclick={chooseBluffs}>
+                        {bluffSets.length === 0 ? 'Bluffs (create a bluff set)' : 'Bluffs'}
+                    </button>
+                    <button class="button-style" onclick={() => showMessage('Speak to me tomorrow')}>Speak to me tomorrow</button>
+                    <button class="button-style" onclick={() => commsView = 'custom'}>Custom message...</button>
+                {:else if commsView === 'customCharacter'}
+                    <div class="overlay-name dumbledore-font">Choose a character</div>
+                    <div class="picker-grid">
+                        {#each sortedScriptCharacters as character (character.id)}
+                            <button class="no-button-style tray-token" onclick={() => { customCharacterId = character.id; commsView = 'custom'; }}>
+                                <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" norules/>
+                            </button>
+                        {/each}
+                    </div>
+                    <button class="button-style" onclick={() => commsView = 'custom'}>Back</button>
+                {:else if commsView === 'customCharacter2'}
+                    <div class="overlay-name dumbledore-font">Choose a second character</div>
+                    <div class="picker-grid">
+                        {#each sortedScriptCharacters as character (character.id)}
+                            <button class="no-button-style tray-token" onclick={() => { customCharacter2Id = character.id; commsView = 'custom'; }}>
+                                <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" norules/>
+                            </button>
+                        {/each}
+                    </div>
+                    <button class="button-style" onclick={() => commsView = 'custom'}>Back</button>
+                {:else if commsView === 'secondCharacter'}
+                    <div class="overlay-name dumbledore-font">Which character do they think you are?</div>
+                    <div class="picker-grid">
+                        {#each sortedScriptCharacters as character (character.id)}
+                            <button class="no-button-style tray-token" onclick={() => showSelected(MAD_YOU_ARE_SUFFIX, character.id)}>
+                                <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" norules/>
+                            </button>
+                        {/each}
+                    </div>
+                    <button class="button-style" onclick={() => commsView = 'suffix'}>Back</button>
+                {:else if commsView === 'custom'}
+                    <div class="overlay-name dumbledore-font">Custom message</div>
+                    <input type="text" class="comms-input" placeholder="Title" bind:value={customTitle} />
+                    {#if customCharacterId}
+                        {@const customCharacter = sortedScriptCharacters.find(c => c.id === customCharacterId)}
+                        {#if customCharacter}
+                            <CharacterToken character={customCharacter} style="position: relative;" size="{trayTokenSize}px" norules/>
+                        {/if}
+                        <button class="button-style" onclick={() => customCharacterId = ''}>Remove character token</button>
+                    {/if}
+                    <button class="button-style" onclick={() => commsView = 'customCharacter'}>{customCharacterId ? 'Change character token' : 'Add character token'}</button>
+                    <input type="text" class="comms-input" placeholder="Subtitle (optional)" bind:value={customSubtitle} />
+                    {#if customCharacter2Id}
+                        {@const customCharacter2 = sortedScriptCharacters.find(c => c.id === customCharacter2Id)}
+                        {#if customCharacter2}
+                            <CharacterToken character={customCharacter2} style="position: relative;" size="{trayTokenSize}px" norules/>
+                        {/if}
+                        <button class="button-style" onclick={() => customCharacter2Id = ''}>Remove second character token</button>
+                    {/if}
+                    <button class="button-style" onclick={() => commsView = 'customCharacter2'}>{customCharacter2Id ? 'Change second character token' : 'Add second character token'}</button>
+                    <button class="button-style highlight" style="margin-top: 1.2em;" disabled={!customTitle.trim()} onclick={() => { commsView = null; showMessage(customTitle.trim(), customSubtitle.trim(), customCharacterId, customCharacter2Id); }}>Show message</button>
+                    <button class="button-style" onclick={() => commsView = 'menu'}>Back</button>
+                {:else if commsView === 'selected'}
+                    <div class="overlay-name dumbledore-font">{characterMessage.prompt}</div>
+                    <div class="picker-grid">
+                        {#each inPlayCharacters as character (character.id)}
+                            <button class="no-button-style tray-token" onclick={() => { selectedCharacterId = character.id; commsView = 'suffix'; }}>
+                                <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" norules/>
+                            </button>
+                        {/each}
+                    </div>
+                    <button class="button-style" onclick={() => commsView = 'menu'}>Back</button>
+                {:else if commsView === 'suffix'}
+                    <div class="overlay-name dumbledore-font">Add a suffix?</div>
+                    <button class="button-style" onclick={() => showSelected()}>None</button>
+                    {#each characterMessage.suffixes as suffix}
+                        <button class="button-style" onclick={() => suffix === MAD_YOU_ARE_SUFFIX ? commsView = 'secondCharacter' : showSelected(suffix)}>{suffix}</button>
+                    {/each}
+                    <button class="button-style" onclick={() => commsView = 'selected'}>Back</button>
+                {:else}
+                    <div class="overlay-name dumbledore-font">Which bluffs?</div>
+                    {#each bluffSets as _, setIndex}
+                        <button class="button-style" onclick={() => { commsView = null; showBluffs(setIndex); }}>Bluff set {setIndex + 1}</button>
+                    {/each}
+                    <button class="button-style" onclick={() => commsView = 'menu'}>Back</button>
+                {/if}
+            </div>
+        </div>
+    {/if}
+
+    {#if newBluffSet && script}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 20};" onclick={() => newBluffSet = null}>
+            <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+            <div class="overlay-panel" style="width: min(94vw, 720px);" onclick={(e) => e.stopPropagation()}>
+                <button class="overlay-close" onclick={() => newBluffSet = null} aria-label="Close">✕</button>
+                <div class="overlay-name dumbledore-font">New bluff set</div>
+                <div class="overlay-drag-hint">Choose 3 bluffs ({newBluffSet.length}/3)</div>
+                <div class="picker-grid">
+                    {#each sortedScriptCharacters.filter(c => !isSideCategory(c) && !loadedPreset?.character_ids.includes(c.id)) as character (character.id)}
+                        <button class="no-button-style tray-token" class:picked={newBluffSet.includes(character.id)} onclick={() => toggleNewBluff(character.id)}>
+                            <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" norules/>
+                        </button>
+                    {/each}
+                </div>
+                <button class="button-style highlight" disabled={newBluffSet.length !== 3} onclick={addBluffSet}>Add bluff set</button>
             </div>
         </div>
     {/if}

@@ -39,7 +39,7 @@
 
     if (initial) {
         builder.setScript(initial.script);
-        builder.loadCharacters(initial.character_ids, initial.bluff_ids, initial.grim_character_ids);
+        builder.loadCharacters(initial.character_ids, initial.bluff_sets, initial.grim_character_ids);
         const seats = builder.bagCharacterIds.length;
         if (seats >= 4 && seats <= 15) {
             builder.playerCount = seats;
@@ -68,7 +68,7 @@
                     name: name.trim() || null,
                     character_ids: builder.chosenCharacterIds,
                     grim_character_ids: builder.grimCharacterIds,
-                    bluff_ids: builder.bluffIds
+                    bluff_sets: builder.bluffSets
                 })
             });
             if (!response.ok) throw new Error(`${response.status}`);
@@ -184,7 +184,7 @@
                 <input type="text" bind:value={name} placeholder="Preset name (optional)" style="font-size: 1.2em;" class="input-style"/>
                 <p style="opacity: 0.7;">
                     {builder.playerCount} player{builder.playerCount === 1 ? '' : 's'},
-                    {builder.bluffIds.length} bluff{builder.bluffIds.length === 1 ? '' : 's'}
+                    {builder.bluffSets.length} bluff set{builder.bluffSets.length === 1 ? '' : 's'}
                 </p>
                 <PresetStats preset={initial} />
             </div>
@@ -200,10 +200,13 @@
             {/if}
             <div class="section plain">
                 <h2 style="margin-top: 0;">Bluffs</h2>
-                {#if builder.bluffIds.length === 0}
+                {#if builder.bluffSets.length === 0}
                     <div style="opacity: 0.6;">No bluffs chosen.</div>
                 {:else}
-                    <CharacterList characters={builder.bluffIds.map(id => builder.charById.get(id)).filter(c => !!c)} />
+                    {#each builder.bluffSets as set, i}
+                        <h3>Set {i + 1}</h3>
+                        <CharacterList characters={set.map(id => builder.charById.get(id)).filter(c => !!c)} />
+                    {/each}
                 {/if}
             </div>
             <div class="footer-actions">

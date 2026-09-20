@@ -1,13 +1,14 @@
 import { v7 } from "uuid";
 import { JSONMultiResourceManager } from "./jsonResourceManager";
 import { getScriptWithCharacters } from "./scripts";
-import { isPreset, type Preset, type PresetFull, type NewPreset } from "../common/gameData";
+import { isPreset, bluffSetsOf, type Preset, type PresetFull, type NewPreset } from "../common/gameData";
 
 export const PRESETS_MANAGER = new JSONMultiResourceManager<Preset>('presets', isPreset);
 
 // Presets saved before victories were tracked have no counts on disk.
 function withDefaults(preset: Preset): Preset {
-    return { ...preset, evil_victories: preset.evil_victories ?? 0, good_victories: preset.good_victories ?? 0 };
+    const { bluff_ids: _legacy, ...rest } = preset;
+    return { ...rest, bluff_sets: bluffSetsOf(preset), evil_victories: preset.evil_victories ?? 0, good_victories: preset.good_victories ?? 0 };
 }
 
 function hydrate(preset: Preset): PresetFull {
@@ -46,7 +47,7 @@ export function createPreset(preset: NewPreset): Preset {
         script_id: preset.script_id,
         character_ids: preset.character_ids ?? [],
         grim_character_ids: preset.grim_character_ids,
-        bluff_ids: preset.bluff_ids ?? [],
+        bluff_sets: preset.bluff_sets ?? [],
         evil_victories: 0,
         good_victories: 0
     };

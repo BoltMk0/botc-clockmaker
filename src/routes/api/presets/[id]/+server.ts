@@ -22,8 +22,8 @@ export async function PATCH({ params, request }) {
     const body = await request.json().catch(() => null);
     if (!body) return json({ error: 'Invalid JSON body' }, { status: 400 });
 
-    const { name, character_ids, grim_character_ids, bluff_ids } = body;
-    const preset = updatePreset(params.id, { name: typeof name === 'string' ? (name.trim() || null) : name, character_ids, grim_character_ids, bluff_ids });
+    const { name, character_ids, grim_character_ids, bluff_sets } = body;
+    const preset = updatePreset(params.id, { name: typeof name === 'string' ? (name.trim() || null) : name, character_ids, grim_character_ids, bluff_sets });
     if (!preset) return json({ error: 'Preset not found' }, { status: 404 });
     return json(preset);
 }

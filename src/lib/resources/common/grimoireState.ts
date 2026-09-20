@@ -1,5 +1,6 @@
 import { isCanvasLayer, type CanvasLayer } from "$lib/components/DrawableCanvas2/types";
 import { v7 } from "uuid";
+import { hasValidBluffs } from "./gameData";
 
 export type Alignment = 'good' | 'evil';
 
@@ -55,7 +56,9 @@ export type GrimoireStateSnapshot = {
 
 export type LoadedPreset = {
     character_ids: string[];
-    bluff_ids: string[];
+    bluff_sets?: string[][];
+    /** Legacy: a single bluff set, from before multiple sets were supported. */
+    bluff_ids?: string[];
     // The saved preset this game was set up from, if any; used to credit it with the game's result.
     preset_id?: string | null;
 };
@@ -99,7 +102,7 @@ function isPlacedReminder(obj: any): obj is PlacedReminder {
 function isLoadedPreset(obj: any): obj is LoadedPreset {
     return typeof obj === "object" &&
         Array.isArray(obj.character_ids) && obj.character_ids.every((id: any) => typeof id === "string") &&
-        Array.isArray(obj.bluff_ids) && obj.bluff_ids.every((id: any) => typeof id === "string") &&
+        hasValidBluffs(obj) &&
         (obj.preset_id === undefined || obj.preset_id === null || typeof obj.preset_id === "string");
 }
 
@@ -204,7 +207,7 @@ export function newGrimoireStateFromDraw(
     clockId: string,
     scriptId: string,
     seats: { characterId: string, playerName: string, alignment: Alignment }[],
-    bluffIds: string[],
+    bluffSets: string[][],
     offSeats: { characterId: string, alignment: Alignment }[] = [],
     presetId: string | null = null
 ): GrimoireStateHistory {
@@ -232,7 +235,7 @@ export function newGrimoireStateFromDraw(
     history.present.placedTokens = [...seatTokens, ...offSeatTokens];
     history.loadedPreset = {
         character_ids: [...seats.map(s => s.characterId), ...offSeats.map(o => o.characterId)],
-        bluff_ids: bluffIds,
+        bluff_sets: bluffSets,
         preset_id: presetId
     };
     return history;
