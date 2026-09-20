@@ -56,11 +56,6 @@
         font-size: 1.1em;
     }
 
-    .character-counts-table td, .character-counts-table th {
-        padding: 0.1em 0.4em;
-        text-align: center;
-    }
-
     .footer-actions {
         display: flex;
         justify-content: space-between;
@@ -84,31 +79,6 @@
         </div>
     </div>
 {:else if step === 'tokens' && builder.script}
-    <div class="section">
-        <table class="character-counts-table">
-            <thead>
-                <tr><th></th><th>Chosen</th><th>T</th><th>O</th><th>M</th><th>D</th></tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td style="opacity: 0.5;">Target</td>
-                    <td>{builder.playerCount}</td>
-                    <td>{builder.expectedCounts.townsfolk}</td>
-                    <td>{builder.expectedCounts.outsiders}</td>
-                    <td>{builder.expectedCounts.minions}</td>
-                    <td>{builder.expectedCounts.demons}</td>
-                </tr>
-                <tr>
-                    <td style="opacity: 0.5;">Current</td>
-                    <td>{builder.chosenCharacterIds.length}</td>
-                    <td>{builder.currentCounts.townsfolk}</td>
-                    <td>{builder.currentCounts.outsiders}</td>
-                    <td>{builder.currentCounts.minions}</td>
-                    <td>{builder.currentCounts.demons}</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
     <div class="section plain">
         <CharacterList
             characters={builder.script.characters}
@@ -127,6 +97,7 @@
         <h2 style="margin-top: 0;">Choose 3 bluffs ({builder.bluffIds.length}/3)</h2>
         <CharacterList
             characters={builder.script.characters.filter(c => !builder.chosenCharacterIds.includes(c.id))}
+            categoryOrder={['townsfolk', 'outsider', 'minion', 'demon']}
             isSelected={c => builder.bluffIds.includes(c.id)}
             onpick={c => builder.toggleBluff(c.id)}
             isDisabled={() => builder.bluffIds.length >= 3}

@@ -6,6 +6,7 @@
     import TokenSorter from "$lib/components/setup/TokenSorter.svelte";
     import PresetSummary from "$lib/components/setup/PresetSummary.svelte";
     import BuilderSteps from "$lib/components/setup/BuilderSteps.svelte";
+    import CharacterCounts from "$lib/components/setup/CharacterCounts.svelte";
     import { PresetBuilder } from "$lib/components/setup/PresetBuilder.svelte.js";
     import type { PageData } from "./$types";
 
@@ -21,6 +22,12 @@
     ] as const;
 
     let step = $state<string>('script');
+    let body = $state<HTMLElement>();
+
+    $effect(() => {
+        step;
+        body?.scrollTo({ top: 0 });
+    });
     const builder = new PresetBuilder();
     let presets = $state<Preset[]>([]);
     let loadingPresets = $state(false);
@@ -200,6 +207,10 @@
         font-weight: bold;
     }
 
+    .setup-counts {
+        flex-shrink: 0;
+    }
+
     .setup-body {
         flex: 1;
         overflow-y: auto;
@@ -304,7 +315,13 @@
         </div>
     </div>
 
-    <div class="setup-body">
+    {#if step === 'tokens'}
+        <div class="setup-counts">
+            <CharacterCounts {builder} />
+        </div>
+    {/if}
+
+    <div class="setup-body" bind:this={body}>
         {#if step === 'script'}
             <div class="script-picker">
             <div class="script-picker-header">

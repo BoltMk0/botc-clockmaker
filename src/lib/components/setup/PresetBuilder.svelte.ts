@@ -1,4 +1,6 @@
+import { browser } from "$app/environment";
 import { getPlayerCount } from "$lib/common/util.js";
+import { fetchAllCharacters, SIDE_CATEGORIES, withSideCharacters } from "$lib/resources/client/scriptWithSideCharacters.js";
 import type { ScriptCharacter, ScriptWithCharacters } from "$lib/resources/common/gameData.js";
 
 /** Removes one occurrence of each of `remove` from `ids`, keeping the order of the rest. */
@@ -34,10 +36,16 @@ export class PresetBuilder {
         demons: this.chosenCharacters.filter(c => c.category === 'demon').length
     });
 
+    /** Travellers, loric and fabled are never in the bag, so they always go straight on the grim. */
+    sideCharacterIds = $derived(this.chosenCharacterIds.filter(id => {
+        const category = this.charById.get(id)?.category;
+        return !!category && SIDE_CATEGORIES.includes(category);
+    }));
+
     bagCharacterIds = $derived(subtractIds(this.chosenCharacterIds, this.grimCharacterIds));
     /** Tokens beyond one per player, which have to be sorted into the bag and the grim. */
-    surplusCount = $derived(Math.max(0, this.chosenCharacterIds.length - (this.playerCount ?? 0)));
-    hasEnoughTokens = $derived(this.chosenCharacterIds.length >= (this.playerCount ?? 0));
+    surplusCount = $derived(Math.max(0, this.chosenCharacterIds.length - this.sideCharacterIds.length - (this.playerCount ?? 0)));
+    hasEnoughTokens = $derived(this.chosenCharacterIds.length - this.sideCharacterIds.length >= (this.playerCount ?? 0));
     /** True once the bag holds exactly one token per player. */
     isSorted = $derived(this.hasEnoughTokens && this.bagCharacterIds.length === this.playerCount);
 
@@ -45,6 +53,13 @@ export class PresetBuilder {
         this.script = script;
         this.playerCount = null;
         this.reset();
+        if (script && browser) this.addSideCharacters(script);
+    }
+
+    /** Travellers, loric and fabled aren't in a script's own list, but can be chosen in any game. */
+    private async addSideCharacters(script: ScriptWithCharacters) {
+        const all = await fetchAllCharacters();
+        if (this.script === script) this.script = withSideCharacters(script, all);
     }
 
     reset() {
@@ -76,13 +91,13 @@ export class PresetBuilder {
 
     addCharacter(characterId: string) {
         this.chosenCharacterIds = [...this.chosenCharacterIds, characterId];
-        this.grimCharacterIds = [];
+        this.grimCharacterIds = [...this.sideCharacterIds];
     }
 
     /** Removes one copy of the character. */
     removeCharacter(characterId: string) {
         this.chosenCharacterIds = subtractIds(this.chosenCharacterIds, [characterId]);
-        this.grimCharacterIds = [];
+        this.grimCharacterIds = [...this.sideCharacterIds];
     }
 
     moveToGrim(characterId: string) {

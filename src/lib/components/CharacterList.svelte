@@ -13,8 +13,11 @@
         headingSuffix,
         onadd,
         onremove,
-        countOf = c => (isSelected(c) ? 1 : 0)
+        countOf = c => (isSelected(c) ? 1 : 0),
+        categoryOrder = ['demon', 'minion', 'outsider', 'townsfolk', 'traveler', 'loric', 'fabled']
     }: {
+        /** The categories to show, in order. */
+        categoryOrder?: CharacterCategory[];
         characters: Character[];
         searchQuery?: string;
         /** Show category headers with zero characters (only while not searching). */
@@ -36,7 +39,7 @@
     } = $props();
 
     // Touch devices can't hover, so multi-pick mode works by tapping instead: a tap adds one, and tapping a
-    // picked character opens a popup to set how many.
+    // picked character removes it, and its "..." button opens a popup to set how many.
     let touchMode = $state(false);
     $effect(() => {
         const query = matchMedia('(hover: none)');
@@ -51,12 +54,17 @@
     let draftCount = $state(0);
 
     function tapCharacter(character: Character) {
-        if (countOf(character) > 0) {
-            editing = character;
-            draftCount = countOf(character);
+        const count = countOf(character);
+        if (count > 0) {
+            for (let i = 0; i < count; i++) onremove?.(character);
         } else {
             onadd?.(character);
         }
+    }
+
+    function editCount(character: Character) {
+        editing = character;
+        draftCount = countOf(character);
     }
 
     function applyDraft() {
@@ -67,12 +75,14 @@
         editing = null;
     }
 
-    let openCategories = $state(new Set<CharacterCategory>(ALL_CHARACTER_CATEGORIES));
+    const COLLAPSED_BY_DEFAULT: CharacterCategory[] = ['traveler', 'loric', 'fabled'];
+
+    let openCategories = $state(new Set<CharacterCategory>(ALL_CHARACTER_CATEGORIES.filter(c => !COLLAPSED_BY_DEFAULT.includes(c))));
 
     const charactersByCategory = $derived.by(() => {
         const query = searchQuery.trim().toLowerCase();
         const matches = characters.filter(c => c.name.toLowerCase().includes(query));
-        return ALL_CHARACTER_CATEGORIES.map(category => ({
+        return categoryOrder.map(category => ({
             category,
             characters: matches.filter(c => c.category === category)
         }));
@@ -90,7 +100,7 @@
         <div class="thumb-inner" class:dimmed={selected}>
             <CharacterThumb {character} size="2.8em"/>
         </div>
-        {#if count > 1}
+        {#if count > 1 && !tapMode}
             <span class="count-badge">×{count}</span>
         {:else if selected}
             <svg class="tick" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
@@ -112,8 +122,11 @@
             <button class="category-header no-button-style" onclick={() => toggleCategory(category)}>
                 <span class="chevron" class:open={openCategories.has(category)}>&rsaquo;</span>
                 <span class="category-name">{category}</span>
-                <span class="category-count">{inCategory.length}</span>
-                {#if headingSuffix}<span class="category-count">{headingSuffix(category)}</span>{/if}
+                {#if headingSuffix}
+                    <span class="category-count">{headingSuffix(category)}</span>
+                {:else}
+                    <span class="category-count">{inCategory.length}</span>
+                {/if}
             </button>
             {#if openCategories.has(category)}
                 <div class="character-grid">
@@ -125,6 +138,7 @@
                         <svelte:element
                             this={href ? 'a' : (onpick || tapMode) ? 'button' : 'div'}
                             class="character-card"
+                            class:tap={tapMode}
                             title={character.rules || undefined}
                             class:interactive={!!href || !!onpick || tapMode}
                             class:multi={!!onadd && !tapMode}
@@ -136,6 +150,16 @@
                             style="--category-color: {CHARACTER_CATEGORY_COLORS[category]};"
                         >
                             {@render cardBody(character, selected, count)}
+                            {#if tapMode && selected}
+                                <span
+                                    class="more-button"
+                                    role="button"
+                                    tabindex="0"
+                                    aria-label="Set number of {character.name}"
+                                    onclick={(e) => { e.stopPropagation(); editCount(character); }}
+                                    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); editCount(character); } }}
+                                >×{count}</span>
+                            {/if}
                             {#if onadd && !tapMode}
                                 {#if selected}
                                     <button class="overlay remove" onclick={() => onremove?.(character)} aria-label="Remove one {character.name}">✕</button>
@@ -233,6 +257,10 @@
         margin-bottom: 0.5em;
     }
     .category-header {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background-color: var(--theme-bg);
         display: flex;
         align-items: center;
         gap: 0.6em;
@@ -299,6 +327,27 @@
     .character-card.disabled {
         opacity: 0.4;
         cursor: not-allowed;
+    }
+    .character-card.tap {
+        position: relative;
+    }
+    .more-button {
+        position: absolute;
+        top: 0.3em;
+        right: 0.3em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 2.2em;
+        height: 1.6em;
+        padding: 0 0.6em;
+        box-sizing: border-box;
+        border-radius: 999px;
+        background-color: var(--theme-bg-tertiary);
+        color: var(--theme-on-bg-tertiary);
+        font-weight: bold;
+        font-size: 0.9em;
+        cursor: pointer;
     }
     .thumb-wrapper {
         position: relative;

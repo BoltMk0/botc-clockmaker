@@ -3,6 +3,7 @@
     import type { PresetFull } from "$lib/resources/common/gameData.js";
     import PresetStats from "$lib/components/setup/PresetStats.svelte";
     import BuilderSteps from "$lib/components/setup/BuilderSteps.svelte";
+    import CharacterCounts from "$lib/components/setup/CharacterCounts.svelte";
     import CharacterList from "$lib/components/CharacterList.svelte";
     import TokenSorter from "$lib/components/setup/TokenSorter.svelte";
     import { PresetBuilder } from "$lib/components/setup/PresetBuilder.svelte.js";
@@ -29,6 +30,12 @@
     let name = $state(initial?.name ?? '');
     let step = $state<string>('players');
     let saving = $state(false);
+    let body = $state<HTMLElement>();
+
+    $effect(() => {
+        step;
+        body?.scrollTo({ top: 0 });
+    });
 
     if (initial) {
         builder.setScript(initial.script);
@@ -114,6 +121,10 @@
         cursor: pointer;
     }
 
+    .editor-counts {
+        flex-shrink: 0;
+    }
+
     .editor-body {
         flex: 1;
         overflow-y: auto;
@@ -160,7 +171,13 @@
         </div>
     </div>
 
-    <div class="editor-body">
+    {#if step === 'tokens'}
+        <div class="editor-counts">
+            <CharacterCounts {builder} />
+        </div>
+    {/if}
+
+    <div class="editor-body" bind:this={body}>
         {#if step === 'summary'}
             <div class="section">
                 <h2 style="margin-top: 0;">Summary</h2>
