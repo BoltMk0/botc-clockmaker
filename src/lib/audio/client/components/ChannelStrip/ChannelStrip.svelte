@@ -31,7 +31,7 @@
         <ChannelStripPan bind:pan={audioTrack.pan} onchange={()=>audioTrack.pan = audioTrack.pan}/>
     </div>
     <div>
-        <ChannelStripGain bind:value={audioTrack.gain} analyserNode={audioTrack.analyser} onchange={()=>audioTrack.gain = audioTrack.gain}/>
+        <ChannelStripGain bind:value={audioTrack.gain} analyserNode={audioTrack.analyser} muted={audioTrack.muted} onmutetoggle={()=>audioTrack.muted = !audioTrack.muted} onchange={()=>audioTrack.gain = audioTrack.gain}/>
     </div>
 </div>
 

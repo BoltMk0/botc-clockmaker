@@ -6,6 +6,7 @@ import type { AudioTrackModel } from "../common/model/audioTrackModel.svelte";
 import { AudioClockTrack } from "./AudioClockTrack.svelte";
 import { type AudioTrackBase } from "./AudioTrack.svelte";
 
+const MUTE_STORAGE_KEY = 'mixer.mute.master';
 
 export class AudioEngine implements AudioTrackBase {
     #context: AudioContext;
@@ -33,6 +34,9 @@ export class AudioEngine implements AudioTrackBase {
         this.#timeOfDay = $derived(clocks.some(clock=>clock.timeOfDay === 'day') ? 'day' : 'night');
         this.#ambienceEngineModel = $state(ambienceEngineModel ?? null)
         this.#ambienceEngine = this.#ambienceEngineModel ? new AmbienceEngine(this.#ambienceEngineModel, this.#gainNode, ()=>this.#timeOfDay) : null;
+        try {
+            this.muted = localStorage.getItem(MUTE_STORAGE_KEY) === '1';
+        } catch { /* storage unavailable */ }
         this.#context.resume();
     }
 
@@ -50,6 +54,10 @@ export class AudioEngine implements AudioTrackBase {
     set muted(value: boolean){
         this.#muted = value;
         this.#gainNode.gain.value = value ? 0 : this.#model.gain;
+        try {
+            if(value) localStorage.setItem(MUTE_STORAGE_KEY, '1');
+            else localStorage.removeItem(MUTE_STORAGE_KEY);
+        } catch { /* storage unavailable; mute just won't persist */ }
     }
 
     get gain(){ return this.#model.gain; }

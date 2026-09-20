@@ -7,7 +7,9 @@ export interface AudioTrackBase {
 
     gain: number;
     pan: number;
-    
+    /** Silences the track without touching its gain. Local to this device. */
+    muted: boolean;
+
     close(): void;
 }
 
@@ -17,6 +19,8 @@ export class AudioTrack implements AudioTrackBase {
     readonly #analyser: AnalyserNode;
     readonly #disconnect: ()=>void;
     readonly #model: AudioTrackModel;
+    #muted = $state(false);
+    #muteStorageKey: string|null = null;
 
     constructor(
         model: AudioTrackModel,
@@ -35,7 +39,7 @@ export class AudioTrack implements AudioTrackBase {
         this.gainNode.connect(this.#analyser); // Side branch; the analyser has no output
         // Keep the audio nodes in step with the model when it's changed from elsewhere (e.g. a server update).
         const stopSync = $effect.root(()=>{
-            $effect(()=>{ this.gainNode.gain.value = model.gain; });
+            $effect(()=>{ this.gainNode.gain.value = this.#muted ? 0 : model.gain; });
             $effect(()=>{ this.panNode.pan.value = model.pan; });
         });
         this.#disconnect = ()=>{
@@ -53,7 +57,26 @@ export class AudioTrack implements AudioTrackBase {
     
     set gain(val: number) { 
         this.#model.gain = val; 
-        this.gainNode.gain.value = this.#model.gain;
+        this.gainNode.gain.value = this.#muted ? 0 : this.#model.gain;
+    }
+    get muted(): boolean { return this.#muted; }
+    set muted(value: boolean) {
+        this.#muted = value;
+        this.gainNode.gain.value = value ? 0 : this.#model.gain;
+        if(this.#muteStorageKey !== null){
+            try {
+                if(value) localStorage.setItem(this.#muteStorageKey, '1');
+                else localStorage.removeItem(this.#muteStorageKey);
+            } catch { /* storage unavailable; mute just won't persist */ }
+        }
+    }
+
+    /** Remember this track's mute state on this device under the given key, and restore it now. */
+    persistMute(key: string) {
+        this.#muteStorageKey = `mixer.mute.${key}`;
+        try {
+            this.muted = localStorage.getItem(this.#muteStorageKey) === '1';
+        } catch { /* storage unavailable */ }
     }
     set pan(val: number) {
         this.#model.pan = Math.min(1, Math.max(-1, val)); 

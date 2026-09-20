@@ -42,7 +42,9 @@ export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
         this.#model = model;
         this.#timeOfDay = timeOfDay;
 
+        this.persistMute('ambience.bus');
         this.tracks.forEach((track, index)=>{
+            track.persistMute(`ambience.track.${index}`);
             track.onLocalChange = (patch)=>this.queueTrackPatch(index, patch);
         });
 

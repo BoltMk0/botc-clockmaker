@@ -72,6 +72,7 @@ export class AudioClockTrack extends AudioTrack {
         this.#reminderBellAudioSource.connect(this.#reminderBellGainNode).connect(super.input);
         this.#finalBellAudioSource.connect(this.#finalBellGainNode).connect(super.input);
 
+        this.persistMute(`clock.${this.id}`);
         this.balance = model.balance; // Trigger update of final/reminder bell gains
         this.reminderBellResourceId = this.reminderBellResourceId;
         this.finalBellResourceId = this.finalBellResourceId;
