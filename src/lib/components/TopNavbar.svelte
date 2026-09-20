@@ -4,7 +4,8 @@
     const path = $derived(page.url.pathname);
     const links = [
         { label: "Home", href: "/" },
-        { label: "Play", href: "/play" }
+        { label: "Play", href: "/play" },
+        { label: "Settings", href: "/settings" }
     ];
 
     function isActive(href: string) {

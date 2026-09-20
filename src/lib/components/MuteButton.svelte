@@ -25,6 +25,7 @@
         position: fixed;
         right: 1em;
         top: 1em;
+        z-index: 1001; /* stay above the top navbar */
     }
 
     .mute-button-container:hover {

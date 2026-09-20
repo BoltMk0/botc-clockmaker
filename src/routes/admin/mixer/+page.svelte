@@ -2,7 +2,7 @@
     import { onDestroy, onMount } from 'svelte';
     import { browser } from '$app/environment';
     import AudioMixer from '$lib/audio/client/components/AudioMixer.svelte';
-    import Navbar from '$lib/components/Navbar.svelte';
+    import TopNavbar from '$lib/components/TopNavbar.svelte';
     import type { PageData } from './$types';
     import MuteButton from '$lib/components/MuteButton.svelte';
     import { Clocktower } from '$lib/model/client/Clocktower.svelte';
@@ -36,8 +36,16 @@
 </script>
 
 
-<Navbar/>
+<TopNavbar/>
 {#if clocks && audioEngine}
-<AudioMixer {audioEngine} ambienceResources={data.ambienceResources}/>
+<div class="mixer-page">
+    <AudioMixer {audioEngine} ambienceResources={data.ambienceResources}/>
+</div>
 <MuteButton {audioEngine}/>
 {/if}
+
+<style>
+    .mixer-page {
+        padding-top: 60px; /* clear the absolutely-positioned TopNavbar */
+    }
+</style>

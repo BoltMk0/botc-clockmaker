@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import FullDisplay from '$lib/components/FullDisplay/FullDisplay.svelte';
-    import Navbar from '$lib/components/Navbar.svelte';
+    import SideMenu from '$lib/components/SideMenu.svelte';
     import type { PageData } from './$types';
     import { browser } from '$app/environment';
     import { Clocktower } from '$lib/model/client/Clocktower.svelte';
@@ -32,7 +32,7 @@
 <FullDisplay model={model}/>
 {/if}
 
-<Navbar townSquare/>
+<SideMenu townSquare/>
 
 {#if appSettings.showQRCodes && qrCodes.length > 0}
 {#each QR_POSITIONS as pos}

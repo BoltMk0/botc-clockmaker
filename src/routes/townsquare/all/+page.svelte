@@ -2,7 +2,7 @@
     import { browser } from '$app/environment';
     import { onMount } from 'svelte';
     import FullDisplay from '$lib/components/FullDisplay/FullDisplay.svelte';
-    import Navbar from '$lib/components/Navbar.svelte';
+    import SideMenu from '$lib/components/SideMenu.svelte';
     import { Clocktower } from '$lib/model/client/Clocktower.svelte.js';
     import { AudioEngine } from '$lib/audio/client/AudioEngine.svelte.js';
     import SiteQRCode from '$lib/components/SiteQRCode.svelte';
@@ -51,7 +51,7 @@
     {/each}
 </div>
 
-<Navbar townSquare/>
+<SideMenu townSquare/>
 
 {#if appSettings.showQRCodes && qrCodes.length > 0}
 <div class="qr-codes-panel left">
