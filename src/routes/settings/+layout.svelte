@@ -8,7 +8,8 @@
         '/settings/characters',
         '/settings/clocks',
         '/settings/timerOptions',
-        '/settings/qrCodes'
+        '/settings/qrCodes',
+        '/settings/password'
     ]
 
     const currentPath = $derived(page.url.pathname);

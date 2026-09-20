@@ -161,6 +161,14 @@ export class JSONSingletonResourceManager<T> {
         this.#value = value;
         saveSingletonJSONResource(this.identifier, value);
     }
+
+    clear(): void {
+        this.#value = null;
+        const filepath = singletonFilepath(this.identifier);
+        if (existsSync(filepath)) {
+            unlinkSync(filepath);
+        }
+    }
 }
 
 
