@@ -20,27 +20,35 @@ export class AudioEngine implements AudioTrackBase {
     #ambienceEngineModel: AmbienceEngineModel|null;
     #ambienceEngine: AmbienceEngine|null;
     #timeOfDay: TimeOfDay;
+    readonly #silent: boolean;
 
-    constructor(clocks: Clocktower[], ambienceEngineModel?: AmbienceEngineModel){
+    /**
+     * @param options.silent Nothing ever plays on this client: the output isn't connected, ambience never starts and
+     *   bells never ring. The mixer controls still work, editing the shared state for other clients.
+     */
+    constructor(clocks: Clocktower[], ambienceEngineModel?: AmbienceEngineModel, options: {silent?: boolean} = {}){
+        this.#silent = options.silent ?? false;
         this.#context = new AudioContext();
         this.#gainNode = this.#context.createGain();
         this.#gainNode.gain.value = 1;
-        this.#gainNode.connect(this.#context.destination);
+        if(!this.#silent) this.#gainNode.connect(this.#context.destination);
         this.#analyser = this.#context.createAnalyser();
         this.#gainNode.connect(this.#analyser);
         console.log("Connection", clocks.length, "clocks")
         this.#clockAudioTracks = clocks.map(c=>c.connectAudio(this.#gainNode));
+        if(this.#silent) this.#clockAudioTracks.forEach(t=>t.silent = true);
         // With several games each in their own day/night phase, daytime wins: it's day if any game is in daytime.
         this.#timeOfDay = $derived(clocks.some(clock=>clock.timeOfDay === 'day') ? 'day' : 'night');
         this.#ambienceEngineModel = $state(ambienceEngineModel ?? null)
-        this.#ambienceEngine = this.#ambienceEngineModel ? new AmbienceEngine(this.#ambienceEngineModel, this.#gainNode, ()=>this.#timeOfDay) : null;
+        this.#ambienceEngine = this.#ambienceEngineModel ? new AmbienceEngine(this.#ambienceEngineModel, this.#gainNode, ()=>this.#timeOfDay, {silent: this.#silent}) : null;
         try {
             this.muted = localStorage.getItem(MUTE_STORAGE_KEY) === '1';
         } catch { /* storage unavailable */ }
-        this.#context.resume();
+        if(!this.#silent) this.#context.resume();
     }
 
     resume(){
+        if(this.#silent) return;
         this.#context.resume();
         // Media element playback may have been blocked by the autoplay policy until this gesture.
         this.#ambienceEngine?.retryPlayback();

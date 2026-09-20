@@ -17,6 +17,7 @@ export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
 
     readonly #model: AmbienceEngineModel;
     readonly #timeOfDay: ()=>TimeOfDay;
+    readonly #silent: boolean;
     readonly #sseConnection: SSEClient;
     readonly #stopEffects: ()=>void;
 
@@ -28,11 +29,13 @@ export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
     /**
      * @param model Must be a reactive ($state) model; the tracks hold references into it.
      * @param timeOfDay Reactive getter for the current time of day (across all games).
+     * @param options.silent Track the shared state (and let it be edited) but never actually play anything.
      */
     constructor(
         model: AmbienceEngineModel,
         outputNode: AudioNode,
-        timeOfDay: ()=>TimeOfDay
+        timeOfDay: ()=>TimeOfDay,
+        options: {silent?: boolean} = {}
     ) {
         super(
             model,
@@ -41,6 +44,7 @@ export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
         );
         this.#model = model;
         this.#timeOfDay = timeOfDay;
+        this.#silent = options.silent ?? false;
 
         this.persistMute('ambience.bus');
         this.tracks.forEach((track, index)=>{
@@ -54,7 +58,7 @@ export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
                 const playing = this.#model.playing;
                 const timeOfDay = this.#timeOfDay();
                 for(const t of this.tracks){
-                    t.setPlaying(playing && (timeOfDay === 'day' ? t.activeInDay : t.activeAtNight));
+                    t.setPlaying(!this.#silent && playing && (timeOfDay === 'day' ? t.activeInDay : t.activeAtNight));
                 }
             });
         });

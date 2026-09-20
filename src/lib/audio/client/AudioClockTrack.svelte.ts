@@ -7,6 +7,9 @@ function resourceToUrl(res: string|null){
 }
     
 export class AudioClockTrack extends AudioTrack {
+    /** When set, bells never ring (used by remote-only clients). */
+    silent = false;
+
     readonly #model: ClocktowerAudioTrackModel;
     readonly #finalBellAudioSource: MediaElementAudioSourceNode;
     readonly #reminderBellAudioSource: MediaElementAudioSourceNode;
@@ -107,13 +110,13 @@ export class AudioClockTrack extends AudioTrack {
 
     ringFinalBell(){
         console.log("Ringing final bell for clock track", this.id)
-        if(this.#finalBellAudio.src === '') return;
+        if(this.silent || this.#finalBellAudio.src === '') return;
         this.#finalBellAudio.currentTime = 0;
         this.#finalBellAudio.play();
     }
 
     ringReminderBell(){
-        if(this.#reminderBellAudio.src === '') return;
+        if(this.silent || this.#reminderBellAudio.src === '') return;
         this.#reminderBellAudio.currentTime = 0;
         this.#reminderBellAudio.play();
     }

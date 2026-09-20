@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onDestroy, onMount } from 'svelte';
     import { browser } from '$app/environment';
+    import { page } from '$app/state';
     import AudioMixer from '$lib/audio/client/components/AudioMixer.svelte';
     import TopNavbar from '$lib/components/TopNavbar.svelte';
     import type { PageData } from './$types';
@@ -14,13 +15,18 @@
     let clocks: Clocktower[]|null = $state(null);
     let audioEngine: AudioEngine|null = $state(null);
     let spotify: SpotifyPlayer|null = $state(null);
+    /** ?remote_only: this client only controls the shared mixer; nothing plays on it. */
+    let remoteOnly = $state(false);
 
     onMount(() => {
         if(browser){
             clocks = data.instances.map(model=>new Clocktower(model));
 
-            audioEngine = new AudioEngine(clocks, data.ambienceEngineModel);
-            spotify = new SpotifyPlayer();
+            const param = page.url.searchParams.get('remote_only');
+            remoteOnly = param !== null && param !== '0' && param !== 'false';
+
+            audioEngine = new AudioEngine(clocks, data.ambienceEngineModel, {silent: remoteOnly});
+            spotify = new SpotifyPlayer({remoteOnly});
 
             // Browsers only let an AudioContext run following a genuine user gesture,
             // so resume it on the first interaction with the page.
@@ -42,11 +48,21 @@
 <TopNavbar/>
 {#if clocks && audioEngine}
 <div class="mixer-page">
+    {#if remoteOnly}
+    <div class="remote-only-note">Remote only: no sound plays on this device.</div>
+    {/if}
     <AudioMixer {audioEngine} ambienceResources={data.ambienceResources} spotify={spotify ?? undefined} spotifyPresets={data.spotifyPresets}/>
 </div>
 {/if}
 
 <style>
+    .remote-only-note {
+        text-align: center;
+        font-size: 0.85em;
+        opacity: 0.6;
+        margin-bottom: 8px;
+    }
+
     .mixer-page {
         padding-top: 60px; /* clear the absolutely-positioned TopNavbar */
         width: 100%;

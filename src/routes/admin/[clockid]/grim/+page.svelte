@@ -1695,8 +1695,8 @@
             </svg>
         </button>
 
-        <!-- Open the mixer, with a way back to this page -->
-        <button class="sidebar-btn" onclick={() => {saveGrimoire().then(()=>goto(`/admin/mixer?back_uri=${encodeURIComponent(location.pathname + location.search)}`))} } title="Open mixer">
+        <!-- Open the mixer as a remote control only (no sound plays on this device), with a way back to this page -->
+        <button class="sidebar-btn" onclick={() => {saveGrimoire().then(()=>goto(`/admin/mixer?remote_only=1&back_uri=${encodeURIComponent(location.pathname + location.search)}`))} } title="Open mixer">
             <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M4 5h2v14H4zM11 5h2v14h-2zM18 5h2v14h-2z"/>
                 <rect x="2" y="13" width="6" height="3" rx="1"/>

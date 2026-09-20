@@ -49,6 +49,8 @@ function newClientId() {
  */
 export class SpotifyPlayer {
     readonly clientId = newClientId();
+    /** Whether this client may run the player (false for remote-only clients). */
+    readonly canHost: boolean;
 
     model = $state<SpotifyModel | null>(null);
     error = $state<string | null>(null);
@@ -64,7 +66,9 @@ export class SpotifyPlayer {
 
     readonly #releaseOnLeave = () => { this.sendRelease(); };
 
-    constructor() {
+    /** @param options.remoteOnly This client never runs the player itself; it can only control one running elsewhere. */
+    constructor(options: { remoteOnly?: boolean } = {}) {
+        this.canHost = !(options.remoteOnly ?? false);
         this.#sse = new SSEClient('/api/spotify/events', (msg) => {
             if (msg.type !== 'spotifyUpdate') return;
             const wasHost = this.isHost;
@@ -82,7 +86,7 @@ export class SpotifyPlayer {
 
     /** Becomes the player host. Call from a click handler: browsers only allow the player to start audio after a gesture. */
     async startHosting() {
-        if (this.starting || this.isHost) return;
+        if (!this.canHost || this.starting || this.isHost) return;
         this.starting = true;
         this.error = null;
         const generation = ++this.#generation;

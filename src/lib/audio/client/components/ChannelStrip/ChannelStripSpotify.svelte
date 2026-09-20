@@ -105,6 +105,8 @@
 <div class="channel-strip-main empty" style={style}>
     {#if !model.authorized}
         <a class="empty-action" href="/api/spotify/auth" data-sveltekit-reload>+<br/>Link<br/>Spotify</a>
+    {:else if !spotify.canHost}
+        <div class="empty-text">Spotify<br/>player not<br/>running</div>
     {:else}
         <button class="empty-action" onclick={()=>spotify.startHosting()} disabled={spotify.starting}>
             {#if spotify.starting}Starting…{:else}+<br/>Spotify<br/>player{/if}
@@ -230,6 +232,14 @@
         text-align: center;
         font-size: 0.7em;
         color: #999;
+    }
+
+    .empty-text {
+        text-align: center;
+        color: #999;
+        font-weight: bold;
+        font-size: 0.8em;
+        padding: 8px 0;
     }
 
     .empty-action {
