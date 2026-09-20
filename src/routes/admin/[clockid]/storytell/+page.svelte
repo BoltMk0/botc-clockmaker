@@ -33,18 +33,18 @@
 <TopNavbar/>
 
 <div class="storytell">
-    <div class="storytell-header">
-        <a class="storytell-back" href="/play">&larr; Back</a>
-        <div class="storytell-title dumbledore-font">{data.name}</div>
-        <div class="storytell-subtitle">Storytell</div>
-    </div>
+  <div class="card">
+    <header class="card-header">
+        <h1>Storytell - {data.name}</h1>
+    </header>
+    <p class="description">Storytelling tools for this game.</p>
 
     <div class="storytell-halves">
-    <div class="storytell-section">
-        <div class="storytell-section-title">Grim</div>
+    <section class="storytell-section">
+        <h2>Virtual Grimoire</h2>
         {#if grimExists}
-            <a class="button-style" href="/admin/{data.clockid}/grim"><BookIcon size={40}/><span>Open Grim</span></a>
-            <button class="button-style error delete-grim" onclick={() => deleteOverlayVisible = true}><TrashIcon size={22}/><span>Delete Grim</span></button>
+            <a class="button-style" href="/admin/{data.clockid}/grim"><BookIcon size={40}/><span>Open Grim</span><small>Open the virtual grimoire with tokens and annotations</small></a>
+            <button class="button-style error delete-grim" onclick={() => deleteOverlayVisible = true}><TrashIcon size={22}/><span>Delete Grim</span><small>Remove the virtual grimoire and record who won</small></button>
             <CustomOverlay title="Delete Grim" showButton={false} bind:visible={deleteOverlayVisible}>
                 <p style="margin-top: 0;">Who won this game? This cannot be undone.</p>
                 <div class="delete-choices">
@@ -54,15 +54,16 @@
                 </div>
             </CustomOverlay>
         {:else}
-            <a class="button-style setup-btn" href="/admin/{data.clockid}/grim/setup"><PlusIcon size={40}/><span>Setup new grim</span></a>
+            <a class="button-style setup-btn" href="/admin/{data.clockid}/grim/setup"><PlusIcon size={40}/><span>Setup new grim</span><small>Choose a script and characters to start a new virtual grimoire. The clock timer is controllable from within the grim.</small></a>
         {/if}
-    </div>
+    </section>
 
-    <div class="storytell-section">
-        <div class="storytell-section-title">Clock</div>
-        <a class="button-style fill" href="/admin/{data.clockid}"><ClockIcon size={40}/><span>Clock timer controls</span></a>
+    <section class="storytell-section">
+        <h2>Clock Only</h2>
+        <a class="button-style fill" href="/admin/{data.clockid}"><ClockIcon size={40}/><span>Clock timer controls</span><small>Start, stop and adjust the game timer and day. Intended for use with a physical grimoire</small></a>
+    </section>
     </div>
-    </div>
+  </div>
 </div>
 
 <style>
@@ -70,52 +71,43 @@
         width: 100%;
         height: 100%;
         box-sizing: border-box;
-        padding: 90px 2em 2em;
+        padding: 90px 1.5rem 1.5rem;
         overflow: auto;
         color: var(--theme-on-bg);
         display: flex;
-        flex-direction: column;
-        align-items: center;
+        justify-content: center;
+        align-items: flex-start;
     }
 
-    .storytell-header {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.4em;
-        margin-bottom: 1.5em;
+    .card {
         width: 100%;
-        max-width: 600px;
+        max-width: 42rem;
+        padding: 1.5rem;
+        box-sizing: border-box;
+        background-color: var(--theme-bg-secondary);
+        color: var(--theme-on-bg-secondary);
+        border: 1px solid var(--theme-bg-tertiary);
+        border-radius: 14px;
+        box-shadow: 0 6px 24px var(--theme-shadow);
     }
 
-    .storytell-back {
-        align-self: start;
+    h1 {
+        margin: 0;
+        font-size: 1.5rem;
         color: var(--theme-on-bg);
-        text-decoration: none;
+    }
+
+    .description {
+        margin: 0.25rem 0 1.25rem;
+        font-size: 0.9rem;
+        font-style: italic;
         opacity: 0.8;
-        font-size: large;
-    }
-
-    .storytell-back:hover {
-        opacity: 1;
-    }
-
-    .storytell-title {
-        font-size: 2em;
-        opacity: 0.9;
-        text-align: center;
-    }
-
-    .storytell-subtitle {
-        opacity: 0.6;
     }
 
     .storytell-halves {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 2em;
-        width: 100%;
-        max-width: 600px;
+        gap: 1rem;
     }
 
     .storytell-section {
@@ -123,11 +115,16 @@
         flex-direction: column;
         gap: 0.8em;
         min-width: 0;
+        padding: 1rem;
+        border: 1px solid var(--theme-bg-tertiary);
+        border-radius: 10px;
+        background-color: var(--theme-bg);
     }
 
-    .storytell-section-title {
-        font-size: large;
-        opacity: 0.6;
+    h2 {
+        margin: 0;
+        font-size: 1.05rem;
+        color: var(--theme-on-bg);
     }
 
     .storytell-section .button-style {
@@ -143,15 +140,20 @@
         min-height: 5em;
     }
 
+    .storytell-section small {
+        font-size: 0.75rem;
+        font-style: italic;
+        line-height: 1.3;
+        opacity: 0.7;
+    }
+
     .storytell-section .fill {
         flex: 1;
     }
 
     .storytell-section .delete-grim {
         flex: 0 0 auto;
-        flex-direction: row;
         min-height: 0;
-        font-size: large;
     }
 
     .delete-choices {
@@ -178,5 +180,11 @@
     .setup-btn {
         background: transparent;
         border: 2px dashed currentColor;
+    }
+
+    @media (max-width: 560px) {
+        .storytell-halves {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
