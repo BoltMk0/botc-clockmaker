@@ -1,7 +1,7 @@
 {
 	"name": "clockmaker",
 	"private": true,
-	"version": "0.2.19",
+	"version": "0.3.0",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
@@ -9,7 +9,9 @@
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"docker:build": "node scripts/docker-build.mjs",
+		"docker:push": "node scripts/build-and-push.mjs"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^7.0.0",
