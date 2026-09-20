@@ -132,7 +132,7 @@
     </div>
 
     <div class="panel">
-        <div style="display: grid; grid-template-columns: 1fr auto; align-items: center;">
+        <div class="panel-header">
             <h2>Sound Effects</h2>
             <a href="/settings/resources" class="button-style">Manage Resources</a>
         </div>
@@ -202,15 +202,93 @@
         </table>
     </div>
 
-    <div class="panel" style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 5px;">
-        <button class="button-style" onclick={onDelete} disabled={clock.clock.clockId === 'default'}>Delete</button>
-        <button class="button-style" onclick={onSave}>Save</button>
+    <div class="actions">
+        <button class="delete" onclick={onDelete} disabled={clock.clock.clockId === 'default'}>Delete</button>
+        <button class="save" onclick={onSave}>Save</button>
     </div>
 
 </div>
 
 <style>
+    .main {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin: auto;
+        padding: 1.5rem;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 56rem;
+        color: var(--theme-on-bg);
+    }
 
+    .panel {
+        background-color: var(--theme-bg-secondary);
+        padding: 1.25rem 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px var(--theme-shadow);
+    }
+
+    h2 {
+        margin: 0 0 1rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--theme-on-bg-secondary);
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    th {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--theme-on-bg-secondary);
+        text-align: left;
+        padding: 0 0.5rem 0.5rem;
+    }
+
+    td {
+        padding: 0.6rem 0.5rem;
+        text-align: left;
+        border-top: 1px solid var(--theme-bg-tertiary);
+    }
+
+    td > div:nth-child(2) {
+        font-size: 0.8rem;
+        color: var(--theme-on-bg-secondary);
+    }
+
+    input, select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0.5rem 0.6rem;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background-color: var(--theme-bg-tertiary);
+        color: var(--theme-on-bg-tertiary);
+        font: inherit;
+    }
+
+    input:focus, select:focus {
+        outline: none;
+        border-color: var(--theme-highlight);
+    }
+
+    .panel-header {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+    }
+
+    .panel-header h2 {
+        margin: 0 0 1rem;
+    }
 
     .audio-file-input-container {
         width: 100%;
@@ -220,59 +298,45 @@
         width: 100%;
     }
 
-
-    .audio-file-input-container > audio{
-        margin-top: 5px;
+    .audio-file-input-container > audio {
+        margin-top: 0.5rem;
+        height: 2.25rem;
     }
 
-    .panel {
-        background-color: #555;
-        padding: 15px 20px;
-        border-radius: 10px;
-        box-shadow: 0 0 10px rgba(0,0,0,0.5);
-    }
-
-    .main {
+    .actions {
         display: grid;
-        gap: 10px;
-        width: fit-content;
-        margin: auto;
-        padding: 2em;
-        box-sizing: border-box;
-        width: 100%;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
     }
 
-    table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    th, td {
-        border: 1px solid #333;
-        padding: 2px 4px;
-        text-align: center;
-    }
-
-    input {
-        width: 100%;
-        box-sizing: border-box;
-        padding: 5px;
-        border: 1px solid #333;
-        border-radius: 5px;
-        background-color: #777;
-        color: white;
-    }
-
-    table button {
-        padding: 3px 8px;
-        font-size: inherit;
-        border-radius: 5px;
+    .actions button {
+        padding: 0.7rem 1rem;
         border: none;
-        background-color: #777;
-        color: white;
+        border-radius: 8px;
+        font: inherit;
         cursor: pointer;
-        transition: background-color 0.3s;
+        background-color: var(--theme-bg-tertiary);
+        color: var(--theme-on-bg-tertiary);
+        transition: filter 0.15s;
     }
 
-</style>
+    .actions button:hover:not(:disabled) {
+        filter: brightness(1.15);
+    }
 
+    .actions button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .actions .save {
+        background-color: var(--theme-highlight);
+        color: var(--theme-on-highlight);
+    }
+
+    .actions .delete:hover:not(:disabled) {
+        background-color: var(--theme-error);
+        color: var(--theme-on-error);
+        filter: none;
+    }
+</style>
