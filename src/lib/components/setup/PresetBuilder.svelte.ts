@@ -105,6 +105,7 @@ export class PresetBuilder {
     }
 
     moveToBag(characterId: string) {
+        if (this.sideCharacterIds.includes(characterId)) return;
         this.grimCharacterIds = subtractIds(this.grimCharacterIds, [characterId]);
     }
 

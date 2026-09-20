@@ -2,7 +2,9 @@
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import type { PresetBuilder } from "./PresetBuilder.svelte.js";
 
-    let { builder }: { builder: PresetBuilder } = $props();
+    import type { Snippet } from "svelte";
+
+    let { builder, children }: { builder: PresetBuilder; children?: Snippet } = $props();
 </script>
 
 <style>
@@ -41,6 +43,9 @@
     .status.bad {
         color: #f59e0b;
     }
+    strong .bad {
+        color: #f59e0b;
+    }
     .empty {
         align-self: center;
         opacity: 0.5;
@@ -49,12 +54,13 @@
 </style>
 
 <div class="sorter">
-    <div>
+    <div style="font-style: italic;">
         There {builder.surplusCount === 1 ? 'is' : 'are'} {builder.surplusCount} more token{builder.surplusCount === 1 ? '' : 's'} than players.
         Click tokens to move them between the bag and the grim.
     </div>
+    {@render children?.()}
     <div class="sorter-group">
-        <strong>In the bag ({builder.bagCharacterIds.length}/{builder.playerCount})</strong>
+        <strong>In the bag (<span class:bad={!builder.isSorted}>{builder.bagCharacterIds.length}/{builder.playerCount}</span>)</strong>
         <div class="sorter-tokens">
             {#each builder.bagCharacterIds as id, i (id + i)}
                 {@const character = builder.charById.get(id)}
@@ -67,7 +73,7 @@
         </div>
     </div>
     <div class="sorter-group">
-        <strong>On the grim ({builder.grimCharacterIds.length}/{builder.surplusCount})</strong>
+        <strong>On the grim ({builder.grimCharacterIds.length})</strong>
         <div class="sorter-tokens">
             {#each builder.grimCharacterIds as id, i (id + i)}
                 {@const character = builder.charById.get(id)}

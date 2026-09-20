@@ -24,6 +24,18 @@
     let step = $state<string>('script');
     let body = $state<HTMLElement>();
 
+    /** Goes back exactly one step; the script step's back button links to the grim instead. */
+    function goBack() {
+        const previous: Record<string, string> = {
+            players: 'script',
+            preset: 'players',
+            tokens: matchingPresets.length === 0 ? 'players' : 'preset',
+            bluffs: 'tokens',
+            summary: 'bluffs'
+        };
+        if (previous[step]) step = previous[step];
+    }
+
     $effect(() => {
         step;
         body?.scrollTo({ top: 0 });
@@ -33,6 +45,7 @@
     let loadingPresets = $state(false);
     let submitting = $state(false);
     let chosenPresetId = $state<string | null>(null);
+    let saveAsPreset = $state(true);
 
     const sameIds = (a: string[], b: string[]) => a.length === b.length && [...a].sort().join() === [...b].sort().join();
     const matchesBuilder = (p: Preset) => sameIds(p.character_ids, builder.chosenCharacterIds)
@@ -49,6 +62,7 @@
         if (!builder.script) return null;
         const existing = presets.find(matchesBuilder);
         if (existing) return existing.id;
+        if (!saveAsPreset) return null;
         try {
             const created = await fetch('/api/presets', {
                 method: 'POST',
@@ -207,6 +221,75 @@
         font-weight: bold;
     }
 
+    .setup-steps .compact {
+        display: none;
+    }
+
+    .toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.7em;
+        cursor: pointer;
+    }
+
+    .toggle input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .toggle-track {
+        position: relative;
+        flex-shrink: 0;
+        width: 2.6em;
+        height: 1.5em;
+        border-radius: 999px;
+        background: var(--theme-bg-tertiary);
+        transition: background-color 0.2s ease;
+    }
+
+    .toggle-track::after {
+        content: '';
+        position: absolute;
+        top: 0.2em;
+        left: 0.2em;
+        width: 1.1em;
+        height: 1.1em;
+        border-radius: 50%;
+        background: #FFF;
+        transition: transform 0.2s ease;
+    }
+
+    .toggle input:checked + .toggle-track {
+        background: var(--theme-highlight);
+    }
+
+    .toggle input:checked + .toggle-track::after {
+        transform: translateX(1.1em);
+    }
+
+    .toggle input:focus-visible + .toggle-track {
+        outline: 2px solid var(--theme-highlight);
+        outline-offset: 2px;
+    }
+
+    @media (max-width: 768px) {
+        .setup-steps {
+            margin-left: auto;
+            opacity: 1;
+        }
+
+        .setup-steps .full {
+            display: none;
+        }
+
+        .setup-steps .compact {
+            display: inline;
+            font-weight: bold;
+        }
+    }
+
     .setup-counts {
         flex-shrink: 0;
     }
@@ -284,12 +367,6 @@
         box-sizing: border-box;
     }
 
-    .footer-actions {
-        display: flex;
-        justify-content: space-between;
-        gap: 1em;
-    }
-
     .finish-choices {
         display: flex;
         gap: 1em;
@@ -303,14 +380,29 @@
     }
 </style>
 
+{#snippet travellerNote()}
+    {#if builder.chosenCharacters.some(c => c.category === 'traveler')}
+        <div style="opacity: 0.7; font-size: 0.9em; font-style: italic;">
+            Travellers will need to be seated in the grim later. Once in the grim, set the player's name to assign a seat.
+        </div>
+    {/if}
+{/snippet}
+
 <div class="setup-main" ondragstart={(e) => e.preventDefault()} role="presentation">
     <div class="setup-header">
-        <a href="/admin/{data.clockid}/grim" class="button-style">← Back</a>
+        {#if step === 'script'}
+            <a href="/admin/{data.clockid}/grim" class="button-style">← Back</a>
+        {:else}
+            <button class="button-style" onclick={goBack}>← Back</button>
+        {/if}
         <h1 style="margin: 0; font-size: 1.2em;">Setup new game</h1>
         <div class="setup-steps">
             {#each STEPS as [key, label], i}
-                {#if i > 0}<span>›</span>{/if}
-                <span class:active={step === key}>{i + 1}. {label}</span>
+                {#if i > 0}<span class="full">›</span>{/if}
+                <span class="full" class:active={step === key}>{i + 1}. {label}</span>
+            {/each}
+            {#each STEPS as [key, label], i}
+                {#if step === key}<span class="compact">{i + 1} of {STEPS.length}: {label}</span>{/if}
             {/each}
         </div>
     </div>
@@ -359,21 +451,19 @@
                 {/if}
                 <button class="button-style highlight" onclick={startNewGame}>New Game</button>
             </div>
-            <div class="footer-actions">
-                <button class="button-style" onclick={() => step = 'players'}>← Back</button>
-            </div>
             </div>
         {:else if step === 'summary' && builder.script}
             <div class="script-picker">
-            <div class="section">
+            <div>
                 <h2 style="margin-top: 0;">Ready to seat {builder.playerCount} player{builder.playerCount === 1 ? '' : 's'}</h2>
-                <p>Choose how to assign characters to players.</p>
+                <p style="font-style: italic;">Choose how to assign characters to players.</p>
             </div>
             {#if builder.surplusCount > 0}
                 <div class="section">
-                    <TokenSorter {builder} />
+                    <TokenSorter {builder}>{@render travellerNote()}</TokenSorter>
                 </div>
             {:else}
+                {@render travellerNote()}
                 <div class="finish-tokens">
                     {#each builder.bagCharacterIds as id, i (id + i)}
                         {@const character = builder.charById.get(id)}
@@ -382,13 +472,30 @@
                         {/if}
                     {/each}
                 </div>
+                {#if builder.grimCharacterIds.length > 0}
+                    <div class="section">
+                        <strong>On the grim ({builder.grimCharacterIds.length})</strong>
+                        <div class="finish-tokens">
+                            {#each builder.grimCharacterIds as id, i (id + i)}
+                                {@const character = builder.charById.get(id)}
+                                {#if character}
+                                    <CharacterToken {character} size="80px" norules style="position: relative;" />
+                                {/if}
+                            {/each}
+                        </div>
+                    </div>
+                {/if}
+            {/if}
+            {#if !presets.some(matchesBuilder)}
+                <label class="toggle">
+                    <input type="checkbox" bind:checked={saveAsPreset} />
+                    <span class="toggle-track"></span>
+                    Save setup as new preset
+                </label>
             {/if}
             <div class="finish-choices">
                 <button class="button-style highlight" disabled={submitting || !builder.isSorted} onclick={drawTokens}>Draw tokens</button>
                 <button class="button-style" disabled={submitting || !builder.isSorted} onclick={goStraightToGrim}>Go straight to grim view</button>
-            </div>
-            <div class="footer-actions">
-                <button class="button-style" onclick={() => step = 'bluffs'}>← Back</button>
             </div>
             </div>
         {:else}
@@ -397,8 +504,7 @@
                 {step}
                 navigate={(s) => step = s}
                 afterPlayers="preset"
-                beforeTokens={matchingPresets.length === 0 ? 'players' : 'preset'}
-                onBackFromPlayers={() => step = 'script'}
+                hideBack
             />
         {/if}
     </div>

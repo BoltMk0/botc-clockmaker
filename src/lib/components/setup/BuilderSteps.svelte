@@ -12,9 +12,11 @@
         afterBluffs?: string;
         /** When provided, the players step shows a back button that calls this. */
         onBackFromPlayers?: () => void;
+        /** Hides the back buttons, for pages that provide their own. */
+        hideBack?: boolean;
     }
 
-    let { builder, step, navigate, afterPlayers = 'tokens', beforeTokens = 'players', afterBluffs = 'summary', onBackFromPlayers }: Props = $props();
+    let { builder, step, navigate, afterPlayers = 'tokens', beforeTokens = 'players', afterBluffs = 'summary', onBackFromPlayers, hideBack = false }: Props = $props();
 
 </script>
 
@@ -67,7 +69,7 @@
     <div class="picker">
         <div class="picker-header">
             <h2 style="margin: 0;">How Many Players?</h2>
-            {#if onBackFromPlayers}
+            {#if onBackFromPlayers && !hideBack}
                 <button class="button-style" onclick={onBackFromPlayers}>← Back</button>
             {/if}
         </div>
@@ -89,7 +91,7 @@
         />
     </div>
     <div class="footer-actions">
-        <button class="button-style" onclick={() => navigate(beforeTokens)}>← Back</button>
+        {#if !hideBack}<button class="button-style" onclick={() => navigate(beforeTokens)}>← Back</button>{:else}<span></span>{/if}
         <button class="button-style highlight" disabled={!builder.hasEnoughTokens} onclick={() => navigate('bluffs')}>Next →</button>
     </div>
 {:else if step === 'bluffs' && builder.script}
@@ -104,7 +106,7 @@
         />
     </div>
     <div class="footer-actions">
-        <button class="button-style" onclick={() => navigate('tokens')}>← Back</button>
+        {#if !hideBack}<button class="button-style" onclick={() => navigate('tokens')}>← Back</button>{:else}<span></span>{/if}
         <button class="button-style highlight" disabled={builder.bluffIds.length !== 3} onclick={() => navigate(afterBluffs)}>Next →</button>
     </div>
 {/if}
