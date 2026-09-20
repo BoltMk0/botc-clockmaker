@@ -46,6 +46,13 @@
 </script>
 
 <div class="center-content main">
+<div class="panel">
+<div class="panel-header">
+    <h2>Timer Options</h2>
+    <button class="save" disabled={!dirty} onclick={save}>Save changes</button>
+</div>
+<p class="description">Sets the timer options across all games.</p>
+<div class="table-container">
 <table>
     <tbody>
         <tr>
@@ -81,7 +88,8 @@
         </tr>
     </tbody>
 </table>
-<button class="save" disabled={!dirty} onclick={save}>Save changes</button>
+</div>
+</div>
 </div>
 
 <style>
@@ -94,7 +102,46 @@
         margin-top: 5em;
     }
 
+    .panel {
+        padding: 1.5rem;
+        box-sizing: border-box;
+        background-color: var(--theme-bg-secondary);
+        color: var(--theme-on-bg-secondary);
+        border: 1px solid var(--theme-bg-tertiary);
+        border-radius: 14px;
+        box-shadow: 0 6px 24px var(--theme-shadow);
+    }
+
+    .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.5rem;
+    }
+
+    .description {
+        margin: 0.25rem 0 1.25rem;
+        font-size: 0.9rem;
+        font-style: italic;
+        opacity: 0.8;
+    }
+
+    .panel-header h2 {
+        margin: 0;
+        font-size: 1.5rem;
+        color: var(--theme-on-bg);
+    }
+
+    .table-container {
+        padding: 1rem;
+        border: 1px solid var(--theme-bg-tertiary);
+        border-radius: 10px;
+        background-color: var(--theme-bg);
+        overflow-x: auto;
+    }
+
     table {
+        width: 100%;
         background-color: var(--theme-bg);
         color: var(--theme-on-bg);
         border-collapse: collapse;
@@ -156,8 +203,7 @@
     }
 
     button.save {
-        margin: 1.5em 0;
-        padding: 0.6em 1.5em;
+        padding: 0.5em 1.2em;
         background-color: var(--theme-highlight);
         color: var(--theme-on-highlight);
         border-color: var(--theme-highlight);
