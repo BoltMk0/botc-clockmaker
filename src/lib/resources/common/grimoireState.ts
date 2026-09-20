@@ -140,12 +140,12 @@ export function computeCirclePositions(n: number, radius: number = 440): { x: nu
     });
 }
 
-// Y of the row of off-seat tokens: above the top seat of the default circle (radius 440) with room to spare.
-const OFF_SEAT_ROW_Y = -700;
+// Top-left corner of the row of off-seat tokens: above the top seat of the default circle (radius 440) with room to spare.
+const OFF_SEAT_ROW_START = { x: -700, y: -700 };
 
-// Lays n points out in a horizontal row centred on x = 0.
-export function computeRowPositions(n: number, y: number, spacing: number = 170): { x: number, y: number }[] {
-    return Array.from({ length: n }, (_, i) => ({ x: Math.round((i - (n - 1) / 2) * spacing), y }));
+// Lays n points out in a horizontal row, the first at `start` and the rest to its right.
+export function computeRowPositions(n: number, start: { x: number, y: number }, spacing: number = 170): { x: number, y: number }[] {
+    return Array.from({ length: n }, (_, i) => ({ x: start.x + i * spacing, y: start.y }));
 }
 
 // Clockwise angle of a token around the board centre, from the top (0) round to just under a full turn.
@@ -219,8 +219,8 @@ export function newGrimoireStateFromDraw(
         y: positions[i].y,
         playerName: seat.playerName
     }));
-    // Characters that don't take a seat (player_count == 0) sit in a row above the town, apart from it.
-    const rowPositions = computeRowPositions(offSeats.length, OFF_SEAT_ROW_Y);
+    // Tokens sorted onto the grim rather than into the bag sit in a row at the top left, apart from the town.
+    const rowPositions = computeRowPositions(offSeats.length, OFF_SEAT_ROW_START);
     const offSeatTokens: PlacedToken[] = offSeats.map((off, i) => ({
         id: v7(),
         characterId: off.characterId,

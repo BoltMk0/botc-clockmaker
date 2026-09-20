@@ -10,7 +10,10 @@
         onpick,
         isSelected = () => false,
         isDisabled = () => false,
-        headingSuffix
+        headingSuffix,
+        onadd,
+        onremove,
+        countOf = c => (isSelected(c) ? 1 : 0)
     }: {
         characters: Character[];
         searchQuery?: string;
@@ -25,7 +28,44 @@
         isDisabled?: (character: Character) => boolean;
         /** Optional text appended to a category heading, e.g. a count. */
         headingSuffix?: (category: CharacterCategory) => string;
+        /** Multi-pick mode: hovering a card shows a "+1" overlay, and once picked also an "X" overlay to remove one. */
+        onadd?: (character: Character) => void;
+        onremove?: (character: Character) => void;
+        /** How many of a character are picked, in multi-pick mode. */
+        countOf?: (character: Character) => number;
     } = $props();
+
+    // Touch devices can't hover, so multi-pick mode works by tapping instead: a tap adds one, and tapping a
+    // picked character opens a popup to set how many.
+    let touchMode = $state(false);
+    $effect(() => {
+        const query = matchMedia('(hover: none)');
+        touchMode = query.matches;
+        const onChange = (e: MediaQueryListEvent) => touchMode = e.matches;
+        query.addEventListener('change', onChange);
+        return () => query.removeEventListener('change', onChange);
+    });
+    const tapMode = $derived(!!onadd && touchMode);
+
+    let editing = $state<Character | null>(null);
+    let draftCount = $state(0);
+
+    function tapCharacter(character: Character) {
+        if (countOf(character) > 0) {
+            editing = character;
+            draftCount = countOf(character);
+        } else {
+            onadd?.(character);
+        }
+    }
+
+    function applyDraft() {
+        if (!editing) return;
+        const current = countOf(editing);
+        for (let i = current; i < draftCount; i++) onadd?.(editing);
+        for (let i = current; i > draftCount; i--) onremove?.(editing);
+        editing = null;
+    }
 
     let openCategories = $state(new Set<CharacterCategory>(ALL_CHARACTER_CATEGORIES));
 
@@ -45,12 +85,14 @@
     }
 </script>
 
-{#snippet cardBody(character: Character, selected: boolean)}
+{#snippet cardBody(character: Character, selected: boolean, count: number)}
     <div class="thumb-wrapper">
         <div class="thumb-inner" class:dimmed={selected}>
             <CharacterThumb {character} size="2.8em"/>
         </div>
-        {#if selected}
+        {#if count > 1}
+            <span class="count-badge">×{count}</span>
+        {:else if selected}
             <svg class="tick" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="4,13 10,19 20,6"/>
             </svg>
@@ -76,22 +118,32 @@
             {#if openCategories.has(category)}
                 <div class="character-grid">
                     {#each inCategory as character (character.id)}
-                        {@const selected = isSelected(character)}
+                        {@const count = onadd ? countOf(character) : 0}
+                        {@const selected = onadd ? count > 0 : isSelected(character)}
                         {@const disabled = !selected && isDisabled(character)}
                         <!-- svelte-ignore a11y_no_static_element_interactions -->
                         <svelte:element
-                            this={href ? 'a' : onpick ? 'button' : 'div'}
+                            this={href ? 'a' : (onpick || tapMode) ? 'button' : 'div'}
                             class="character-card"
                             title={character.rules || undefined}
-                            class:interactive={!!href || !!onpick}
+                            class:interactive={!!href || !!onpick || tapMode}
+                            class:multi={!!onadd && !tapMode}
                             class:selected
                             class:disabled
                             href={href?.(character)}
                             disabled={onpick ? disabled : undefined}
-                            onclick={onpick ? () => onpick(character) : undefined}
+                            onclick={onpick ? () => onpick(character) : tapMode ? () => tapCharacter(character) : undefined}
                             style="--category-color: {CHARACTER_CATEGORY_COLORS[category]};"
                         >
-                            {@render cardBody(character, selected)}
+                            {@render cardBody(character, selected, count)}
+                            {#if onadd && !tapMode}
+                                {#if selected}
+                                    <button class="overlay remove" onclick={() => onremove?.(character)} aria-label="Remove one {character.name}">✕</button>
+                                    <button class="overlay add" onclick={() => onadd(character)} aria-label="Add another {character.name}">+1</button>
+                                {:else}
+                                    <button class="overlay add full" onclick={() => onadd(character)} aria-label="Add {character.name}">+1</button>
+                                {/if}
+                            {/if}
                         </svelte:element>
                     {/each}
                 </div>
@@ -100,7 +152,83 @@
     {/if}
 {/each}
 
+{#if editing}
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <div class="popup-backdrop" onclick={() => editing = null}>
+        <div class="popup" role="dialog" aria-label="Set number of {editing.name}" onclick={(e) => e.stopPropagation()}>
+            <div class="popup-title">
+                <CharacterThumb character={editing} size="2.8em"/>
+                <strong>{editing.name}</strong>
+            </div>
+            <div class="stepper">
+                <button class="button-style" onclick={() => draftCount = Math.max(0, draftCount - 1)} aria-label="One fewer">−</button>
+                <span class="stepper-value">{draftCount}</span>
+                <button class="button-style" onclick={() => draftCount++} aria-label="One more">+</button>
+            </div>
+            {#if draftCount === 0}
+                <div class="popup-note">Saving 0 removes this character.</div>
+            {/if}
+            <div class="popup-actions">
+                <button class="button-style" onclick={() => editing = null}>Cancel</button>
+                <button class="button-style highlight" onclick={applyDraft}>Save</button>
+            </div>
+        </div>
+    </div>
+{/if}
+
 <style>
+    .popup-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.6);
+    }
+    .popup {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1em;
+        padding: 1.2em 1.5em;
+        border-radius: 1em;
+        background: var(--theme-bg-secondary);
+        color: var(--theme-on-bg-secondary);
+        min-width: 16em;
+    }
+    .popup-title {
+        display: flex;
+        align-items: center;
+        gap: 0.8em;
+    }
+    .stepper {
+        display: flex;
+        align-items: center;
+        gap: 1em;
+    }
+    .stepper button {
+        width: 3em;
+        height: 3em;
+        font-size: 1.2em;
+    }
+    .stepper-value {
+        min-width: 2ch;
+        text-align: center;
+        font-size: 1.8em;
+        font-weight: bold;
+    }
+    .popup-note {
+        font-size: 0.85em;
+        opacity: 0.7;
+    }
+    .popup-actions {
+        display: flex;
+        gap: 1em;
+        align-self: stretch;
+        justify-content: space-between;
+    }
+
     .category-group {
         margin-bottom: 0.5em;
     }
@@ -176,6 +304,55 @@
         position: relative;
         flex-shrink: 0;
         display: flex;
+    }
+    .character-card.multi {
+        position: relative;
+        overflow: hidden;
+    }
+    .overlay {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        border: none;
+        padding: 0;
+        margin: 0;
+        font: inherit;
+        font-size: 1.3em;
+        font-weight: bold;
+        color: white;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.12s ease;
+    }
+    .character-card.multi:hover .overlay,
+    .character-card.multi:focus-within .overlay {
+        opacity: 1;
+    }
+    .overlay.add {
+        right: 0;
+        width: 25%;
+        background: rgba(22, 163, 74, 0.85);
+    }
+    .overlay.add.full {
+        left: 0;
+        width: 100%;
+    }
+    .overlay.remove {
+        left: 0;
+        width: 75%;
+        background: rgba(220, 38, 38, 0.8);
+    }
+    .count-badge {
+        position: absolute;
+        right: -0.3em;
+        bottom: -0.3em;
+        background: #16a34a;
+        color: white;
+        font-size: 0.75em;
+        font-weight: bold;
+        border-radius: 999px;
+        padding: 0 0.4em;
+        pointer-events: none;
     }
     .thumb-inner.dimmed {
         opacity: 0.4;

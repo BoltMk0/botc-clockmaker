@@ -70,11 +70,26 @@ export type Preset = {
     id: string;
     name: string | null;
     script_id: string;
+    /** Every token in the preset (repeats allowed): the bag plus the grim-only tokens. */
     character_ids: string[];
+    /** The subset of character_ids that go straight on the grim rather than in the bag. Absent on older presets. */
+    grim_character_ids?: string[];
     bluff_ids: string[];
     evil_victories: number;
     good_victories: number;
 };
+
+/** The preset's grim-only tokens. Older presets have none saved, so zero-seat characters count as grim tokens. */
+export function presetGrimCharacterIds(preset: Pick<Preset, 'character_ids' | 'grim_character_ids'>, characters: Pick<Character, 'id' | 'player_count'>[]): string[] {
+    if (preset.grim_character_ids) return preset.grim_character_ids;
+    const zeroSeat = new Set(characters.filter(c => c.player_count === 0).map(c => c.id));
+    return preset.character_ids.filter(id => zeroSeat.has(id));
+}
+
+/** How many players a preset seats: its tokens that go in the bag. */
+export function presetPlayerCount(preset: Pick<Preset, 'character_ids' | 'grim_character_ids'>, characters: Pick<Character, 'id' | 'player_count'>[]): number {
+    return preset.character_ids.length - presetGrimCharacterIds(preset, characters).length;
+}
 
 export type NewPreset = Omit<Preset, 'id' | 'evil_victories' | 'good_victories'>;
 
@@ -160,6 +175,7 @@ export function isPreset(obj: any): obj is Preset {
         (obj.name === null || typeof obj.name === "string") &&
         typeof obj.script_id === "string" &&
         Array.isArray(obj.character_ids) && obj.character_ids.every((id: any) => typeof id === "string") &&
+        (obj.grim_character_ids === undefined || (Array.isArray(obj.grim_character_ids) && obj.grim_character_ids.every((id: any) => typeof id === "string"))) &&
         Array.isArray(obj.bluff_ids) && obj.bluff_ids.every((id: any) => typeof id === "string") &&
         // Absent on presets saved before victories were tracked; presets.ts fills in 0.
         (obj.evil_victories === undefined || (typeof obj.evil_victories === "number" && isFinite(obj.evil_victories) && obj.evil_victories >= 0)) &&

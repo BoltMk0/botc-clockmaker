@@ -4,6 +4,7 @@
     import PresetStats from "$lib/components/setup/PresetStats.svelte";
     import BuilderSteps from "$lib/components/setup/BuilderSteps.svelte";
     import CharacterList from "$lib/components/CharacterList.svelte";
+    import TokenSorter from "$lib/components/setup/TokenSorter.svelte";
     import { PresetBuilder } from "$lib/components/setup/PresetBuilder.svelte.js";
 
     interface Props {
@@ -18,7 +19,6 @@
     const STEPS = [
         ['players', 'Players'],
         ['tokens', 'Characters'],
-        ['extras', 'Extras'],
         ['bluffs', 'Bluffs'],
         ['summary', 'Summary']
     ] as const;
@@ -32,9 +32,9 @@
 
     if (initial) {
         builder.setScript(initial.script);
-        builder.loadCharacters(initial.character_ids, initial.bluff_ids);
-        const seats = builder.chosenCharacters.length;
-        if (seats >= 5 && seats <= 15) {
+        builder.loadCharacters(initial.character_ids, initial.bluff_ids, initial.grim_character_ids);
+        const seats = builder.bagCharacterIds.length;
+        if (seats >= 4 && seats <= 15) {
             builder.playerCount = seats;
             step = 'summary';
         } else {
@@ -44,7 +44,6 @@
 
     function goBackToStep(target: string) {
         if (target === step) return;
-        if (target === 'extras') return;
         if (target !== 'players' && builder.playerCount === null) return;
         step = target;
     }
@@ -53,12 +52,15 @@
         if (!initial) return;
         saving = true;
         try {
-            const response = await fetch(`/api/presets/${initial.id}`, {
-                method: 'PATCH',
+            const isNew = initial.id === 'new';
+            const response = await fetch(isNew ? '/api/presets' : `/api/presets/${initial.id}`, {
+                method: isNew ? 'POST' : 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    ...(isNew ? { script_id: initial.script.id } : {}),
                     name: name.trim() || null,
-                    character_ids: builder.allCharacterIds,
+                    character_ids: builder.chosenCharacterIds,
+                    grim_character_ids: builder.grimCharacterIds,
                     bluff_ids: builder.bluffIds
                 })
             });
@@ -164,15 +166,21 @@
                 <h2 style="margin-top: 0;">Summary</h2>
                 <input type="text" bind:value={name} placeholder="Preset name (optional)" style="font-size: 1.2em;" class="input-style"/>
                 <p style="opacity: 0.7;">
-                    {builder.seatCharacterIds.length} player{builder.seatCharacterIds.length === 1 ? '' : 's'},
+                    {builder.playerCount} player{builder.playerCount === 1 ? '' : 's'},
                     {builder.bluffIds.length} bluff{builder.bluffIds.length === 1 ? '' : 's'}
                 </p>
                 <PresetStats preset={initial} />
             </div>
-            <div class="section plain">
-                <h2 style="margin-top: 0;">Characters</h2>
-                <CharacterList characters={builder.allCharacterIds.map(id => builder.charById.get(id)).filter(c => !!c)} />
-            </div>
+            {#if builder.surplusCount > 0}
+                <div class="section">
+                    <TokenSorter {builder} />
+                </div>
+            {:else}
+                <div class="section plain">
+                    <h2 style="margin-top: 0;">Characters</h2>
+                    <CharacterList characters={builder.chosenCharacters} />
+                </div>
+            {/if}
             <div class="section plain">
                 <h2 style="margin-top: 0;">Bluffs</h2>
                 {#if builder.bluffIds.length === 0}
@@ -183,7 +191,7 @@
             </div>
             <div class="footer-actions">
                 <button class="button-style" onclick={() => step = 'bluffs'}>← Back</button>
-                <button class="button-style highlight" disabled={saving || builder.playerCount === null} onclick={save}>Save</button>
+                <button class="button-style highlight" disabled={saving || builder.playerCount === null || !builder.isSorted} onclick={save}>Save</button>
             </div>
         {:else}
             <BuilderSteps

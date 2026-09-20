@@ -1,7 +1,7 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
     import { invalidateAll } from "$app/navigation";
-    import { presetDisplayName, type Preset } from "$lib/resources/common/gameData.js";
+    import { presetDisplayName, presetPlayerCount, type Preset } from "$lib/resources/common/gameData.js";
     import CharacterList from "$lib/components/CharacterList.svelte";
     import PresetSummary from "$lib/components/setup/PresetSummary.svelte";
     import type { PageData } from "./$types";
@@ -13,28 +13,13 @@
     const presetGroups = $derived.by(() => {
         const groups = new Map<number, { preset: Preset; index: number }[]>();
         data.presets.forEach((preset: Preset, index: number) => {
-            const count = preset.character_ids.length;
+            const count = presetPlayerCount(preset, data.script.characters);
             groups.set(count, [...(groups.get(count) ?? []), { preset, index }]);
         });
         return [...groups.entries()]
             .sort(([a], [b]) => a - b)
             .map(([playerCount, presets]) => ({ playerCount, presets }));
     });
-
-    async function createPreset() {
-        try {
-            const response = await fetch('/api/presets', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ script_id: data.script.id, name: null })
-            });
-            if (!response.ok) throw new Error(`${response.status}`);
-            const preset = await response.json();
-            goto(`/settings/scripts/${data.script.id}/presets/${preset.id}`);
-        } catch (er) {
-            alert(`Failed to create preset: ${er}`);
-        }
-    }
 
     async function deletePreset(presetId: string, name: string) {
         if (!confirm(`Delete preset "${name}"? This cannot be undone.`)) return;
@@ -114,7 +99,7 @@
         <div class="panel">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <h3 style="margin-top: 0;">Presets</h3>
-                <button class="button-style" onclick={createPreset}>+ New Preset</button>
+                <a class="button-style" href="/settings/scripts/{data.script.id}/presets/new">+ New Preset</a>
             </div>
             <div class="preset-list">
                 {#each presetGroups as group (group.playerCount)}

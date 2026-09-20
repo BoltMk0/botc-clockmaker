@@ -45,6 +45,7 @@ export function createPreset(preset: NewPreset): Preset {
         name: preset.name,
         script_id: preset.script_id,
         character_ids: preset.character_ids ?? [],
+        grim_character_ids: preset.grim_character_ids,
         bluff_ids: preset.bluff_ids ?? [],
         evil_victories: 0,
         good_victories: 0

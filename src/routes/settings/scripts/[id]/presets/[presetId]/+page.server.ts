@@ -1,7 +1,16 @@
 import { getFullPreset, updatePreset } from '$lib/resources/server/presets';
+import { getScriptWithCharacters } from '$lib/resources/server/scripts';
+import type { PresetFull } from '$lib/resources/common/gameData';
 import { fail } from '@sveltejs/kit';
 
 export async function load({ params }) {
+    // A new preset isn't created until it's saved from the editor's final step.
+    if (params.presetId === 'new') {
+        const script = getScriptWithCharacters(params.id);
+        if (!script) return { preset: null, error: 'Script not found' };
+        const preset: PresetFull = { id: 'new', name: null, script_id: script.id, character_ids: [], bluff_ids: [], evil_victories: 0, good_victories: 0, script };
+        return { preset };
+    }
     const preset = getFullPreset(params.presetId);
     if (!preset) {
         console.warn(`Preset with id "${params.presetId}" not found`);

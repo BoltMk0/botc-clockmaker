@@ -1,8 +1,9 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
-    import { type Preset, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
+    import { presetGrimCharacterIds, presetPlayerCount, type Preset, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import { newGrimoireStateHistory } from "$lib/resources/common/grimoireState.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
+    import TokenSorter from "$lib/components/setup/TokenSorter.svelte";
     import PresetSummary from "$lib/components/setup/PresetSummary.svelte";
     import BuilderSteps from "$lib/components/setup/BuilderSteps.svelte";
     import { PresetBuilder } from "$lib/components/setup/PresetBuilder.svelte.js";
@@ -15,7 +16,6 @@
         ['players', 'Players'],
         ['preset', 'Preset'],
         ['tokens', 'Characters'],
-        ['extras', 'Extras'],
         ['bluffs', 'Bluffs'],
         ['summary', 'Finish']
     ] as const;
@@ -28,7 +28,9 @@
     let chosenPresetId = $state<string | null>(null);
 
     const sameIds = (a: string[], b: string[]) => a.length === b.length && [...a].sort().join() === [...b].sort().join();
-    const matchesBuilder = (p: Preset) => sameIds(p.character_ids, builder.allCharacterIds) && sameIds(p.bluff_ids, builder.bluffIds);
+    const matchesBuilder = (p: Preset) => sameIds(p.character_ids, builder.chosenCharacterIds)
+        && sameIds(presetGrimCharacterIds(p, builder.script?.characters ?? []), builder.grimCharacterIds)
+        && sameIds(p.bluff_ids, builder.bluffIds);
 
     // Only credit the chosen preset if the game still matches it (the characters may have been edited since).
     const activePresetId = $derived(presets.find(p => p.id === chosenPresetId && matchesBuilder(p))?.id ?? null);
@@ -51,7 +53,7 @@
             const saved = await fetch(`/api/presets/${preset.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ character_ids: builder.allCharacterIds, bluff_ids: builder.bluffIds })
+                body: JSON.stringify({ character_ids: builder.chosenCharacterIds, grim_character_ids: builder.grimCharacterIds, bluff_ids: builder.bluffIds })
             });
             if (!saved.ok) throw new Error(`${saved.status}`);
             const updated: Preset = await saved.json();
@@ -64,7 +66,7 @@
     }
 
     const matchingPresets = $derived(presets.filter(p =>
-        p.character_ids.filter(id => (builder.charById.get(id)?.player_count ?? 1) > 0).length === builder.playerCount
+        presetPlayerCount(p, builder.script?.characters ?? []) === builder.playerCount
     ));
 
     async function chooseScript(script: ScriptWithCharacters) {
@@ -84,7 +86,7 @@
     }
 
     function applyPreset(preset: Preset) {
-        builder.loadCharacters(preset.character_ids, preset.bluff_ids);
+        builder.loadCharacters(preset.character_ids, preset.bluff_ids, presetGrimCharacterIds(preset, builder.script?.characters ?? []));
         chosenPresetId = preset.id;
         step = 'summary';
     }
@@ -107,7 +109,7 @@
             const res = await fetch(`/api/clock/${data.clockid}/draw`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ scriptId: builder.script.id, characterIds: builder.seatCharacterIds, bluffIds: builder.bluffIds, offSeatIds: builder.zeroCountChars.map(c => c.id), presetId })
+                body: JSON.stringify({ scriptId: builder.script.id, characterIds: builder.bagCharacterIds, bluffIds: builder.bluffIds, offSeatIds: builder.grimCharacterIds, presetId })
             });
             if (!res.ok) {
                 const body = await res.json().catch(() => null);
@@ -125,7 +127,7 @@
         submitting = true;
         try {
             const history = newGrimoireStateHistory(data.clockid, builder.script.id);
-            history.loadedPreset = { character_ids: builder.allCharacterIds, bluff_ids: builder.bluffIds, preset_id: await resolvePresetId() };
+            history.loadedPreset = { character_ids: builder.chosenCharacterIds, bluff_ids: builder.bluffIds, preset_id: await resolvePresetId() };
             const res = await fetch(`/admin/${data.clockid}/grim/state`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -347,20 +349,26 @@
         {:else if step === 'summary' && builder.script}
             <div class="script-picker">
             <div class="section">
-                <h2 style="margin-top: 0;">Ready to seat {builder.seatCharacterIds.length} player{builder.seatCharacterIds.length === 1 ? '' : 's'}</h2>
+                <h2 style="margin-top: 0;">Ready to seat {builder.playerCount} player{builder.playerCount === 1 ? '' : 's'}</h2>
                 <p>Choose how to assign characters to players.</p>
             </div>
-            <div class="finish-tokens">
-                {#each builder.seatCharacterIds as id, i (id + i)}
-                    {@const character = builder.charById.get(id)}
-                    {#if character}
-                        <CharacterToken {character} size="80px" norules style="position: relative;" />
-                    {/if}
-                {/each}
-            </div>
+            {#if builder.surplusCount > 0}
+                <div class="section">
+                    <TokenSorter {builder} />
+                </div>
+            {:else}
+                <div class="finish-tokens">
+                    {#each builder.bagCharacterIds as id, i (id + i)}
+                        {@const character = builder.charById.get(id)}
+                        {#if character}
+                            <CharacterToken {character} size="80px" norules style="position: relative;" />
+                        {/if}
+                    {/each}
+                </div>
+            {/if}
             <div class="finish-choices">
-                <button class="button-style highlight" disabled={submitting} onclick={drawTokens}>Draw tokens</button>
-                <button class="button-style" disabled={submitting} onclick={goStraightToGrim}>Go straight to grim view</button>
+                <button class="button-style highlight" disabled={submitting || !builder.isSorted} onclick={drawTokens}>Draw tokens</button>
+                <button class="button-style" disabled={submitting || !builder.isSorted} onclick={goStraightToGrim}>Go straight to grim view</button>
             </div>
             <div class="footer-actions">
                 <button class="button-style" onclick={() => step = 'bluffs'}>← Back</button>

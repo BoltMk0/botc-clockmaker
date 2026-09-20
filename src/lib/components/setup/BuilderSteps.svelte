@@ -1,5 +1,4 @@
 <script lang="ts">
-    import CharacterToken from "$lib/components/CharacterToken.svelte";
     import CharacterList from "$lib/components/CharacterList.svelte";
     import type { PresetBuilder } from "./PresetBuilder.svelte.js";
 
@@ -17,21 +16,6 @@
 
     let { builder, step, navigate, afterPlayers = 'tokens', beforeTokens = 'players', afterBluffs = 'summary', onBackFromPlayers }: Props = $props();
 
-    const COUNT_KEYS = { townsfolk: 'townsfolk', outsider: 'outsiders', minion: 'minions', demon: 'demons' } as const;
-
-    function backToTokens() {
-        builder.extraSeatFor = {};
-        navigate('tokens');
-    }
-
-    function finishCharacters() {
-        builder.extraSeatFor = {};
-        navigate(builder.zeroCountChars.length === 0 ? 'bluffs' : 'extras');
-    }
-
-    function chooseExtra(characterId: string) {
-        if (builder.chooseExtra(characterId)) navigate('bluffs');
-    }
 </script>
 
 <style>
@@ -77,22 +61,6 @@
         text-align: center;
     }
 
-    .over {
-        color: #f59e0b;
-        font-weight: bold;
-    }
-
-    .warning {
-        margin-top: 0.5em;
-        color: #f59e0b;
-    }
-
-    .zero-count-row {
-        display: flex;
-        align-items: center;
-        gap: 1em;
-    }
-
     .footer-actions {
         display: flex;
         justify-content: space-between;
@@ -110,8 +78,8 @@
         </div>
         <div style="font-style: italic; opacity: 0.6; margin-top: -0.5em;">Excluding travellers, these should be added after the grim setup</div>
         <div class="player-count-grid">
-            {#each { length: 11 } as _, i}
-                <button class="button-style" class:highlight={builder.playerCount === i + 5} onclick={() => { builder.choosePlayerCount(i + 5); navigate(afterPlayers); }}>{i + 5}</button>
+            {#each { length: 12 } as _, i}
+                <button class="button-style" class:highlight={builder.playerCount === i + 4} onclick={() => { builder.choosePlayerCount(i + 4); navigate(afterPlayers); }}>{i + 4}</button>
             {/each}
         </div>
     </div>
@@ -133,65 +101,39 @@
                 <tr>
                     <td style="opacity: 0.5;">Current</td>
                     <td>{builder.chosenCharacterIds.length}</td>
-                    <td class:over={builder.currentCounts.townsfolk > builder.expectedCounts.townsfolk}>{builder.currentCounts.townsfolk}</td>
-                    <td class:over={builder.currentCounts.outsiders > builder.expectedCounts.outsiders}>{builder.currentCounts.outsiders}</td>
-                    <td class:over={builder.currentCounts.minions > builder.expectedCounts.minions}>{builder.currentCounts.minions}</td>
-                    <td class:over={builder.currentCounts.demons > builder.expectedCounts.demons}>{builder.currentCounts.demons}</td>
+                    <td>{builder.currentCounts.townsfolk}</td>
+                    <td>{builder.currentCounts.outsiders}</td>
+                    <td>{builder.currentCounts.minions}</td>
+                    <td>{builder.currentCounts.demons}</td>
                 </tr>
             </tbody>
         </table>
-        {#each builder.categoryWarnings as warning}
-            <div class="warning">⚠ {warning}</div>
-        {/each}
     </div>
     <div class="section plain">
         <CharacterList
             characters={builder.script.characters}
-            headingSuffix={category => !(category in COUNT_KEYS) ? '' : `(${builder.currentCounts[COUNT_KEYS[category as keyof typeof COUNT_KEYS]]}/${builder.expectedCounts[COUNT_KEYS[category as keyof typeof COUNT_KEYS]]})`}
-            isSelected={c => builder.chosenCharacterIds.includes(c.id)}
-            onpick={c => builder.toggleCharacter(c.id)}
-            isDisabled={() => builder.chosenCharacterIds.length >= (builder.playerCount ?? 0)}
+            headingSuffix={category => `${builder.chosenCharacters.filter(c => c.category === category).length} selected`}
+            countOf={c => builder.countOf(c.id)}
+            onadd={c => builder.addCharacter(c.id)}
+            onremove={c => builder.removeCharacter(c.id)}
         />
     </div>
     <div class="footer-actions">
         <button class="button-style" onclick={() => navigate(beforeTokens)}>← Back</button>
-        <button class="button-style highlight" disabled={builder.chosenCharacterIds.length !== builder.playerCount} onclick={finishCharacters}>Next →</button>
-    </div>
-{:else if step === 'extras' && builder.script}
-    {#if builder.pendingZeroChar}
-        <div class="section">
-            <div class="zero-count-row">
-                <div style="width: 80px; height: 80px; position: relative;">
-                    <CharacterToken character={builder.pendingZeroChar} size="80px" norules />
-                </div>
-                <div>
-                    <strong>{builder.pendingZeroChar.name}</strong> doesn't take a seat. Choose an extra character to fill it
-                    ({builder.extraSeatCharacterIds.length + 1} of {builder.zeroCountChars.length}).
-                </div>
-            </div>
-        </div>
-        <div class="section plain">
-            <CharacterList
-                characters={builder.script.characters.filter(c => c.player_count !== 0 && !builder.chosenCharacterIds.includes(c.id) && !builder.extraSeatCharacterIds.includes(c.id))}
-                onpick={c => chooseExtra(c.id)}
-            />
-        </div>
-    {/if}
-    <div class="footer-actions">
-        <button class="button-style" onclick={backToTokens}>← Back</button>
+        <button class="button-style highlight" disabled={!builder.hasEnoughTokens} onclick={() => navigate('bluffs')}>Next →</button>
     </div>
 {:else if step === 'bluffs' && builder.script}
     <div class="section plain">
         <h2 style="margin-top: 0;">Choose 3 bluffs ({builder.bluffIds.length}/3)</h2>
         <CharacterList
-            characters={builder.script.characters.filter(c => !builder.allCharacterIds.includes(c.id))}
+            characters={builder.script.characters.filter(c => !builder.chosenCharacterIds.includes(c.id))}
             isSelected={c => builder.bluffIds.includes(c.id)}
             onpick={c => builder.toggleBluff(c.id)}
             isDisabled={() => builder.bluffIds.length >= 3}
         />
     </div>
     <div class="footer-actions">
-        <button class="button-style" onclick={backToTokens}>← Back</button>
+        <button class="button-style" onclick={() => navigate('tokens')}>← Back</button>
         <button class="button-style highlight" disabled={builder.bluffIds.length !== 3} onclick={() => navigate(afterBluffs)}>Next →</button>
     </div>
 {/if}

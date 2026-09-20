@@ -1,16 +1,27 @@
 import { getPlayerCount } from "$lib/common/util.js";
 import type { ScriptCharacter, ScriptWithCharacters } from "$lib/resources/common/gameData.js";
 
+/** Removes one occurrence of each of `remove` from `ids`, keeping the order of the rest. */
+function subtractIds(ids: string[], remove: string[]): string[] {
+    const remaining = [...ids];
+    for (const id of remove) {
+        const index = remaining.indexOf(id);
+        if (index >= 0) remaining.splice(index, 1);
+    }
+    return remaining;
+}
+
 /**
  * State and rules shared by the game setup flow and the preset editor:
- * player count > characters > extra characters (for zero-seat characters) > bluffs.
+ * player count > characters (repeats allowed) > bluffs, then sorting the tokens into the bag and the grim.
  */
 export class PresetBuilder {
     script = $state.raw<ScriptWithCharacters | null>(null);
     playerCount = $state<number | null>(null);
     chosenCharacterIds = $state<string[]>([]);
+    /** The chosen tokens that go straight on the grim instead of in the bag. */
+    grimCharacterIds = $state<string[]>([]);
     bluffIds = $state<string[]>([]);
-    extraSeatFor = $state<Record<string, string>>({});
 
     charById = $derived(new Map((this.script?.characters ?? []).map(c => [c.id, c])));
 
@@ -23,21 +34,12 @@ export class PresetBuilder {
         demons: this.chosenCharacters.filter(c => c.category === 'demon').length
     });
 
-    categoryWarnings = $derived(
-        (['townsfolk', 'outsiders', 'minions', 'demons'] as const)
-            .filter(key => this.currentCounts[key] > this.expectedCounts[key])
-            .map(key => `Too many ${key}: ${this.currentCounts[key]} selected, ${this.expectedCounts[key]} expected.`)
-    );
-
-    zeroCountChars = $derived(this.chosenCharacters.filter(c => c.player_count === 0));
-    pendingZeroChar = $derived(this.zeroCountChars.find(c => !this.extraSeatFor[c.id]));
-    extraSeatCharacterIds = $derived(this.zeroCountChars.map(c => this.extraSeatFor[c.id]).filter((id): id is string => !!id));
-
-    seatCharacterIds = $derived([
-        ...this.chosenCharacterIds.filter(id => (this.charById.get(id)?.player_count ?? 1) > 0),
-        ...this.extraSeatCharacterIds
-    ]);
-    allCharacterIds = $derived([...this.chosenCharacterIds, ...this.extraSeatCharacterIds]);
+    bagCharacterIds = $derived(subtractIds(this.chosenCharacterIds, this.grimCharacterIds));
+    /** Tokens beyond one per player, which have to be sorted into the bag and the grim. */
+    surplusCount = $derived(Math.max(0, this.chosenCharacterIds.length - (this.playerCount ?? 0)));
+    hasEnoughTokens = $derived(this.chosenCharacterIds.length >= (this.playerCount ?? 0));
+    /** True once the bag holds exactly one token per player. */
+    isSorted = $derived(this.hasEnoughTokens && this.bagCharacterIds.length === this.playerCount);
 
     setScript(script: ScriptWithCharacters | null) {
         this.script = script;
@@ -47,8 +49,8 @@ export class PresetBuilder {
 
     reset() {
         this.chosenCharacterIds = [];
+        this.grimCharacterIds = [];
         this.bluffIds = [];
-        this.extraSeatFor = {};
     }
 
     choosePlayerCount(n: number) {
@@ -57,38 +59,38 @@ export class PresetBuilder {
     }
 
     /**
-     * Loads a saved character list, which is the chosen characters followed by one extra
-     * per zero-seat character (see allCharacterIds). Falls back to treating every id as chosen.
+     * Loads a saved character list. Presets saved before the bag/grim split have no grim tokens
+     * saved, so their zero-seat characters are the grim tokens.
      */
-    loadCharacters(characterIds: string[], bluffIds: string[]) {
-        const isZero = (id: string) => this.charById.get(id)?.player_count === 0;
-        const zeroCount = characterIds.filter(isZero).length;
-        const split = characterIds.length - zeroCount;
-        const extras = characterIds.slice(split);
-        const chosen = characterIds.slice(0, split);
+    loadCharacters(characterIds: string[], bluffIds: string[], grimIds?: string[]) {
+        this.chosenCharacterIds = [...characterIds];
+        this.grimCharacterIds = grimIds
+            ? [...grimIds]
+            : characterIds.filter(id => this.charById.get(id)?.player_count === 0);
         this.bluffIds = [...bluffIds];
-        if (zeroCount > 0 && !extras.some(isZero) && chosen.filter(isZero).length === zeroCount) {
-            this.chosenCharacterIds = chosen;
-            this.extraSeatFor = Object.fromEntries(chosen.filter(isZero).map((id, i) => [id, extras[i]]));
-        } else {
-            this.chosenCharacterIds = [...characterIds];
-            this.extraSeatFor = {};
-        }
     }
 
-    toggleCharacter(characterId: string) {
-        if (this.chosenCharacterIds.includes(characterId)) {
-            this.chosenCharacterIds = this.chosenCharacterIds.filter(id => id !== characterId);
-        } else if (this.chosenCharacterIds.length < (this.playerCount ?? 0)) {
-            this.chosenCharacterIds = [...this.chosenCharacterIds, characterId];
-        }
+    countOf(characterId: string): number {
+        return this.chosenCharacterIds.filter(id => id === characterId).length;
     }
 
-    /** Returns true once no further extra characters are needed. */
-    chooseExtra(characterId: string): boolean {
-        if (!this.pendingZeroChar) return true;
-        this.extraSeatFor[this.pendingZeroChar.id] = characterId;
-        return !this.pendingZeroChar;
+    addCharacter(characterId: string) {
+        this.chosenCharacterIds = [...this.chosenCharacterIds, characterId];
+        this.grimCharacterIds = [];
+    }
+
+    /** Removes one copy of the character. */
+    removeCharacter(characterId: string) {
+        this.chosenCharacterIds = subtractIds(this.chosenCharacterIds, [characterId]);
+        this.grimCharacterIds = [];
+    }
+
+    moveToGrim(characterId: string) {
+        if (this.bagCharacterIds.includes(characterId)) this.grimCharacterIds = [...this.grimCharacterIds, characterId];
+    }
+
+    moveToBag(characterId: string) {
+        this.grimCharacterIds = subtractIds(this.grimCharacterIds, [characterId]);
     }
 
     toggleBluff(characterId: string) {
