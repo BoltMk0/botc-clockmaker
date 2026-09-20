@@ -1,6 +1,7 @@
 <script lang="ts">
     import { CHARACTER_CATEGORIES, presetDisplayName, type Preset, type ScriptCharacter } from "$lib/resources/common/gameData.js";
     import CharacterThumb from "$lib/components/CharacterThumb.svelte";
+    import PresetStats from "./PresetStats.svelte";
 
     interface Props {
         preset: Preset;
@@ -27,6 +28,14 @@
         flex-direction: column;
         gap: 0.3em;
         min-width: 0;
+        flex: 1 1 auto;
+    }
+
+    .preset-heading {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1em;
     }
 
     .preset-tokens {
@@ -37,7 +46,10 @@
 </style>
 
 <div class="preset-summary">
-    <span>{presetDisplayName(preset, index)}</span>
+    <div class="preset-heading">
+        <span>{presetDisplayName(preset, index)}</span>
+        <PresetStats {preset} />
+    </div>
     <div class="preset-tokens">
         {#each presetCharacters as character (character.id)}
             <CharacterThumb {character} size="1.8em" />

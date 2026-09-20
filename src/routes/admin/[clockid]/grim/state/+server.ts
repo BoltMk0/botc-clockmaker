@@ -3,6 +3,7 @@ import { json } from '@sveltejs/kit';
 import { isGrimoireStateHistory, isPlayerToken } from '$lib/resources/common/grimoireState';
 import { getBOTCTClockInstanceManager } from '$lib/model/server/model.js';
 import { getCharacterById } from '$lib/resources/server/characters';
+import { recordPresetVictory } from '$lib/resources/server/presets';
 
 export async function GET({params}){
     const data = get_grimoire_state_history_resource_for_clock(params.clockid);
@@ -37,8 +38,20 @@ export async function POST({params, request}){
     }
 }
 
-export async function DELETE({params}){
+// `?winner=good|evil` credits the game's result to the preset it was set up from (if any) before deleting.
+export async function DELETE({params, url}){
+    const winner = url.searchParams.get('winner');
+    if(winner !== null && winner !== 'good' && winner !== 'evil'){
+        return json({error: 'winner must be "good" or "evil"'}, {status: 400});
+    }
+
+    let presetRecorded = false;
+    if(winner){
+        const presetId = get_grimoire_state_history_resource_for_clock(params.clockid)?.loadedPreset?.preset_id;
+        if(presetId) presetRecorded = recordPresetVictory(presetId, winner) !== null;
+    }
+
     delete_grimoire_state_history_resource_for_clock(params.clockid);
     console.log("Deleted grimoire state history for clock", params.clockid);
-    return json({message: "Grimoire state history deleted successfully"});
+    return json({message: "Grimoire state history deleted successfully", presetRecorded});
 }

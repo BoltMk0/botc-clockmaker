@@ -4,6 +4,7 @@
     import PlusIcon from '$lib/components/PlusIcon.svelte';
     import TrashIcon from '$lib/components/TrashIcon.svelte';
     import TopNavbar from '$lib/components/TopNavbar.svelte';
+    import CustomOverlay from '$lib/components/CustomOverlay.svelte';
 
     let { data }: { data: { clockid: string, name: string, hasGrim: boolean } } = $props();
 
@@ -11,9 +12,13 @@
     // switch without a reload.
     let grimExists = $state(data.hasGrim);
 
-    function removeGrim(){
-        if(!confirm("Are you sure you want to delete the grim for this game? This action cannot be undone.")) return;
-        fetch(`/admin/${data.clockid}/grim/state`, { method: 'DELETE' }).then(response => {
+    let deleteOverlayVisible = $state(false);
+
+    // A winner credits the game to the preset it was set up from (if any) before the grim is deleted.
+    function removeGrim(winner?: 'good' | 'evil'){
+        deleteOverlayVisible = false;
+        const query = winner ? `?winner=${winner}` : '';
+        fetch(`/admin/${data.clockid}/grim/state${query}`, { method: 'DELETE' }).then(response => {
             if (!response.ok) {
                 alert("Failed to delete grim");
                 throw new Error('Failed to delete grim');
@@ -39,7 +44,15 @@
         <div class="storytell-section-title">Grim</div>
         {#if grimExists}
             <a class="button-style" href="/admin/{data.clockid}/grim"><BookIcon size={40}/><span>Open Grim</span></a>
-            <button class="button-style error delete-grim" onclick={removeGrim}><TrashIcon size={22}/><span>Delete Grim</span></button>
+            <button class="button-style error delete-grim" onclick={() => deleteOverlayVisible = true}><TrashIcon size={22}/><span>Delete Grim</span></button>
+            <CustomOverlay title="Delete Grim" showButton={false} bind:visible={deleteOverlayVisible}>
+                <p style="margin-top: 0;">Who won this game? This cannot be undone.</p>
+                <div class="delete-choices">
+                    <button class="button-style evil-victory" onclick={() => removeGrim('evil')}>Evil victory</button>
+                    <button class="button-style good-victory" onclick={() => removeGrim('good')}>Good victory</button>
+                    <button class="button-style" onclick={() => removeGrim()}>Just delete</button>
+                </div>
+            </CustomOverlay>
         {:else}
             <a class="button-style setup-btn" href="/admin/{data.clockid}/grim/setup"><PlusIcon size={40}/><span>Setup new grim</span></a>
         {/if}
@@ -139,6 +152,27 @@
         flex-direction: row;
         min-height: 0;
         font-size: large;
+    }
+
+    .delete-choices {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6em;
+    }
+
+    .delete-choices .button-style {
+        padding: 0.8em 1em;
+        text-align: center;
+    }
+
+    .evil-victory {
+        background-color: #b63737;
+        color: #fff;
+    }
+
+    .good-victory {
+        background-color: #2563eb;
+        color: #fff;
     }
 
     .setup-btn {

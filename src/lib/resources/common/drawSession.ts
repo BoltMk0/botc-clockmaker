@@ -13,6 +13,8 @@ export type DrawSession = {
     bluffIds: string[];
     // Characters with player_count == 0: nobody draws these, but they still get a token on the grim.
     offSeatIds?: string[];
+    // The saved preset this draw was started from, if any.
+    presetId?: string | null;
     slots: DrawSlot[];
 };
 
@@ -54,6 +56,7 @@ export function isDrawSession(obj: any): obj is DrawSession {
         typeof obj.scriptId === "string" &&
         Array.isArray(obj.bluffIds) && obj.bluffIds.every((id: any) => typeof id === "string") &&
         (obj.offSeatIds === undefined || (Array.isArray(obj.offSeatIds) && obj.offSeatIds.every((id: any) => typeof id === "string"))) &&
+        (obj.presetId === undefined || obj.presetId === null || typeof obj.presetId === "string") &&
         Array.isArray(obj.slots) && obj.slots.every(isDrawSlot);
     if (!result) {
         console.error("Invalid DrawSession object:", obj);

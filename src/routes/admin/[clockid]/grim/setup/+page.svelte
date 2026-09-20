@@ -25,6 +25,43 @@
     let presets = $state<Preset[]>([]);
     let loadingPresets = $state(false);
     let submitting = $state(false);
+    let chosenPresetId = $state<string | null>(null);
+
+    const sameIds = (a: string[], b: string[]) => a.length === b.length && [...a].sort().join() === [...b].sort().join();
+    const matchesBuilder = (p: Preset) => sameIds(p.character_ids, builder.allCharacterIds) && sameIds(p.bluff_ids, builder.bluffIds);
+
+    // Only credit the chosen preset if the game still matches it (the characters may have been edited since).
+    const activePresetId = $derived(presets.find(p => p.id === chosenPresetId && matchesBuilder(p))?.id ?? null);
+
+    // The preset to credit this game to. A game that doesn't use a saved preset is saved as a new one
+    // (or matched to an existing identical preset) so its results still get tracked.
+    async function resolvePresetId(): Promise<string | null> {
+        if (activePresetId) return activePresetId;
+        if (!builder.script) return null;
+        const existing = presets.find(matchesBuilder);
+        if (existing) return existing.id;
+        try {
+            const created = await fetch('/api/presets', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ script_id: builder.script.id, name: null })
+            });
+            if (!created.ok) throw new Error(`${created.status}`);
+            const preset: Preset = await created.json();
+            const saved = await fetch(`/api/presets/${preset.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ character_ids: builder.allCharacterIds, bluff_ids: builder.bluffIds })
+            });
+            if (!saved.ok) throw new Error(`${saved.status}`);
+            const updated: Preset = await saved.json();
+            presets = [...presets, updated];
+            return updated.id;
+        } catch (er) {
+            console.error('Failed to save the setup as a new preset:', er);
+            return null;
+        }
+    }
 
     const matchingPresets = $derived(presets.filter(p =>
         p.character_ids.filter(id => (builder.charById.get(id)?.player_count ?? 1) > 0).length === builder.playerCount
@@ -33,6 +70,7 @@
     async function chooseScript(script: ScriptWithCharacters) {
         builder.setScript(script);
         presets = [];
+        chosenPresetId = null;
         step = 'players';
         loadingPresets = true;
         try {
@@ -47,11 +85,13 @@
 
     function applyPreset(preset: Preset) {
         builder.loadCharacters(preset.character_ids, preset.bluff_ids);
+        chosenPresetId = preset.id;
         step = 'summary';
     }
 
     function startNewGame() {
         builder.reset();
+        chosenPresetId = null;
         step = 'tokens';
     }
 
@@ -63,10 +103,11 @@
         if (!builder.script) return;
         submitting = true;
         try {
+            const presetId = await resolvePresetId();
             const res = await fetch(`/api/clock/${data.clockid}/draw`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ scriptId: builder.script.id, characterIds: builder.seatCharacterIds, bluffIds: builder.bluffIds, offSeatIds: builder.zeroCountChars.map(c => c.id) })
+                body: JSON.stringify({ scriptId: builder.script.id, characterIds: builder.seatCharacterIds, bluffIds: builder.bluffIds, offSeatIds: builder.zeroCountChars.map(c => c.id), presetId })
             });
             if (!res.ok) {
                 const body = await res.json().catch(() => null);
@@ -84,7 +125,7 @@
         submitting = true;
         try {
             const history = newGrimoireStateHistory(data.clockid, builder.script.id);
-            history.loadedPreset = { character_ids: builder.allCharacterIds, bluff_ids: builder.bluffIds };
+            history.loadedPreset = { character_ids: builder.allCharacterIds, bluff_ids: builder.bluffIds, preset_id: await resolvePresetId() };
             const res = await fetch(`/admin/${data.clockid}/grim/state`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

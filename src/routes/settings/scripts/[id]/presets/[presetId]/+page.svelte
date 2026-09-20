@@ -1,6 +1,7 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
     import type { PresetFull } from "$lib/resources/common/gameData.js";
+    import PresetStats from "$lib/components/setup/PresetStats.svelte";
     import BuilderSteps from "$lib/components/setup/BuilderSteps.svelte";
     import CharacterList from "$lib/components/CharacterList.svelte";
     import { PresetBuilder } from "$lib/components/setup/PresetBuilder.svelte.js";
@@ -166,6 +167,7 @@
                     {builder.seatCharacterIds.length} player{builder.seatCharacterIds.length === 1 ? '' : 's'},
                     {builder.bluffIds.length} bluff{builder.bluffIds.length === 1 ? '' : 's'}
                 </p>
+                <PresetStats preset={initial} />
             </div>
             <div class="section plain">
                 <h2 style="margin-top: 0;">Characters</h2>

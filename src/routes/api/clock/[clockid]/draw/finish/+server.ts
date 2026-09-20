@@ -28,7 +28,7 @@ export async function POST({ params }) {
         alignment: alignmentForCategory(charactersById.get(characterId)?.category ?? 'townsfolk')
     }));
 
-    const history = newGrimoireStateFromDraw(params.clockid, session.scriptId, seats, session.bluffIds, offSeats);
+    const history = newGrimoireStateFromDraw(params.clockid, session.scriptId, seats, session.bluffIds, offSeats, session.presetId ?? null);
     set_grimoire_state_history_resource_for_clock(params.clockid, history);
 
     // Every drawn seat is a named player, except travellers (who don't count towards the player count).

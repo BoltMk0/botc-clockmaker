@@ -5,6 +5,11 @@ import { isPreset, type Preset, type PresetFull, type NewPreset } from "../commo
 
 export const PRESETS_MANAGER = new JSONMultiResourceManager<Preset>('presets', isPreset);
 
+// Presets saved before victories were tracked have no counts on disk.
+function withDefaults(preset: Preset): Preset {
+    return { ...preset, evil_victories: preset.evil_victories ?? 0, good_victories: preset.good_victories ?? 0 };
+}
+
 function hydrate(preset: Preset): PresetFull {
     const script = getScriptWithCharacters(preset.script_id);
     if (!script) throw new Error(`Failed to load script with id "${preset.script_id}" for preset with id "${preset.id}"`);
@@ -12,7 +17,8 @@ function hydrate(preset: Preset): PresetFull {
 }
 
 export function getPreset(id: string): Preset | null {
-    return PRESETS_MANAGER.get(id) ?? null;
+    const preset = PRESETS_MANAGER.get(id);
+    return preset ? withDefaults(preset) : null;
 }
 
 export function getFullPreset(id: string): PresetFull | null {
@@ -22,7 +28,7 @@ export function getFullPreset(id: string): PresetFull | null {
 }
 
 export function listPresets(): Preset[] {
-    return [...PRESETS_MANAGER.values];
+    return [...PRESETS_MANAGER.values].map(withDefaults);
 }
 
 export function listPresetsForScript(scriptId: string): Preset[] {
@@ -39,7 +45,9 @@ export function createPreset(preset: NewPreset): Preset {
         name: preset.name,
         script_id: preset.script_id,
         character_ids: preset.character_ids ?? [],
-        bluff_ids: preset.bluff_ids ?? []
+        bluff_ids: preset.bluff_ids ?? [],
+        evil_victories: 0,
+        good_victories: 0
     };
     const created = PRESETS_MANAGER.add(newPreset);
     console.log("Created preset with id", created.id);
@@ -54,6 +62,16 @@ export function updatePreset(id: string, fields: Partial<NewPreset>): Preset | n
     if (entries.length === 0) return existing;
 
     return PRESETS_MANAGER.add({ ...existing, ...Object.fromEntries(entries) });
+}
+
+export function recordPresetVictory(id: string, winner: 'good' | 'evil'): Preset | null {
+    const existing = getPreset(id);
+    if (!existing) return null;
+    return PRESETS_MANAGER.add({
+        ...existing,
+        good_victories: existing.good_victories + (winner === 'good' ? 1 : 0),
+        evil_victories: existing.evil_victories + (winner === 'evil' ? 1 : 0)
+    });
 }
 
 export function deletePreset(id: string): boolean {

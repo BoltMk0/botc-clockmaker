@@ -5,11 +5,14 @@
         title,
         buttonTitle = title,
         visible = $bindable(false),
+        showButton = true,
         children,
     }: {
         title: string;
         buttonTitle?: string;
         visible?: boolean;
+        /** Set to false to open the overlay only through `visible`, with no trigger button. */
+        showButton?: boolean;
         children?: Snippet;
     } = $props();
 </script>
@@ -55,9 +58,11 @@
     }
 </style>
 
-<button class="button-style" onclick={()=>{visible = true;}}>
-    {buttonTitle}
-</button>
+{#if showButton}
+    <button class="button-style" onclick={()=>{visible = true;}}>
+        {buttonTitle}
+    </button>
+{/if}
 {#if visible}
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div class="overlay-background" onclick={()=>{visible = false;}} role="dialog" tabindex="-1">

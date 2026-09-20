@@ -72,9 +72,11 @@ export type Preset = {
     script_id: string;
     character_ids: string[];
     bluff_ids: string[];
+    evil_victories: number;
+    good_victories: number;
 };
 
-export type NewPreset = Omit<Preset, 'id'>;
+export type NewPreset = Omit<Preset, 'id' | 'evil_victories' | 'good_victories'>;
 
 export type PresetFull = Preset & {
     script: ScriptWithCharacters;
@@ -158,7 +160,10 @@ export function isPreset(obj: any): obj is Preset {
         (obj.name === null || typeof obj.name === "string") &&
         typeof obj.script_id === "string" &&
         Array.isArray(obj.character_ids) && obj.character_ids.every((id: any) => typeof id === "string") &&
-        Array.isArray(obj.bluff_ids) && obj.bluff_ids.every((id: any) => typeof id === "string");
+        Array.isArray(obj.bluff_ids) && obj.bluff_ids.every((id: any) => typeof id === "string") &&
+        // Absent on presets saved before victories were tracked; presets.ts fills in 0.
+        (obj.evil_victories === undefined || (typeof obj.evil_victories === "number" && isFinite(obj.evil_victories) && obj.evil_victories >= 0)) &&
+        (obj.good_victories === undefined || (typeof obj.good_victories === "number" && isFinite(obj.good_victories) && obj.good_victories >= 0));
     if(!result){
         console.error("Invalid Preset object:", obj);
     }
