@@ -51,7 +51,7 @@
     {/each}
 </div>
 
-<SideMenu townSquare/>
+<SideMenu townSquare {audioEngine}/>
 
 {#if appSettings.showQRCodes && qrCodes.length > 0}
 <div class="qr-codes-panel left">

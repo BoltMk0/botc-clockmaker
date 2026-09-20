@@ -5,6 +5,7 @@
     import type { PageData } from './$types';
     import { browser } from '$app/environment';
     import { Clocktower } from '$lib/model/client/Clocktower.svelte';
+    import { AudioEngine } from '$lib/audio/client/AudioEngine.svelte';
     import SiteQRCode from '$lib/components/SiteQRCode.svelte';
     import { appSettings } from '$lib/model/client/appSettings.svelte.js';
     import type { QrCode } from '$lib/resources/server/qrCodes';
@@ -13,14 +14,24 @@
     let { data }: { data: PageData } = $props();
 
     let model: Clocktower|null = $state(null);
+    let audioEngine: AudioEngine|null = $state(null);
     let qrCodes: QrCode[] = $state([]);
     onMount(() => {
         if(!browser) return;
         model = new Clocktower(data.model);
+        audioEngine = new AudioEngine([model]);
+
+        // Browsers only let an AudioContext run following a genuine user gesture,
+        // so resume it on the first interaction with the page.
+        const resumeAudio = () => audioEngine?.resume();
+        document.addEventListener('pointerdown', resumeAudio);
+
         fetch('/api/qrCodes').then(r => r.ok ? r.json() : Promise.reject()).then(d => {
             qrCodes = d;
         }).catch(() => {});
         return ()=>{
+            document.removeEventListener('pointerdown', resumeAudio);
+            audioEngine?.close();
             model?.close();
         }
     });
@@ -32,7 +43,7 @@
 <FullDisplay model={model}/>
 {/if}
 
-<SideMenu townSquare/>
+<SideMenu townSquare {audioEngine}/>
 
 {#if appSettings.showQRCodes && qrCodes.length > 0}
 {#each QR_POSITIONS as pos}

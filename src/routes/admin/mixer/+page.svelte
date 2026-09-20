@@ -4,7 +4,6 @@
     import AudioMixer from '$lib/audio/client/components/AudioMixer.svelte';
     import TopNavbar from '$lib/components/TopNavbar.svelte';
     import type { PageData } from './$types';
-    import MuteButton from '$lib/components/MuteButton.svelte';
     import { Clocktower } from '$lib/model/client/Clocktower.svelte';
     import { AmbienceEngine } from '$lib/audio/client/AmbienceEngine.svelte';
     import { AudioEngine } from '$lib/audio/client/AudioEngine.svelte';
@@ -45,7 +44,6 @@
 <div class="mixer-page">
     <AudioMixer {audioEngine} ambienceResources={data.ambienceResources} spotify={spotify ?? undefined} spotifyPresets={data.spotifyPresets}/>
 </div>
-<MuteButton {audioEngine}/>
 {/if}
 
 <style>

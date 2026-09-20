@@ -5,9 +5,13 @@
     import type { ClocktowerModel } from "$lib/model/common/ClocktowerModel";
     import SiteQRCode from "./SiteQRCode.svelte";
     import { page } from "$app/state";
+    import type { AudioEngine } from "$lib/audio/client/AudioEngine.svelte";
+    import MutedIcon from "./MutedIcon.svelte";
+    import UnmutedIcon from "./UnmutedIcon.svelte";
 
     // In the town square the menu is just the display settings (cogwheel icon, no page links), with a back button to /play.
-    let { townSquare = false }: { townSquare?: boolean } = $props();
+    // Pass the page's audio engine to show a mute toggle for it.
+    let { townSquare = false, audioEngine = null }: { townSquare?: boolean, audioEngine?: AudioEngine | null } = $props();
 
     let visible = $state(false);
     let showQRPopup = $state(false);
@@ -180,7 +184,7 @@
             {#if !appSettings.autoSize}
             <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;">
                 <HSlider bind:value={appSettings.size} max={1400} min={400}/>
-                <button style="display: inline-block;" onclick={() => appSettings.reCalculateSize()}>Reset</button>
+                <button class="button-style" style="display: inline-block;" onclick={() => appSettings.reCalculateSize()}>Reset</button>
             </div>
             {/if}
         </div>
@@ -207,8 +211,19 @@
                 </div>
             </div>
         </div>
+        {#if audioEngine}
         <div class="navbar-settings-pane">
-            <button style="width: 100%; font-size: large;" onclick={() => { showQRPopup = true; visible = false;}}>
+            <button class="button-style" style="width: 100%; font-size: large; padding: 0.5em 1em; display: flex; gap: 0.5em; align-items: center; justify-content: center;" onclick={() => { audioEngine.muted = !audioEngine.muted; }}>
+                {#if audioEngine.muted}
+                    <MutedIcon color="red" size={24}/> Unmute
+                {:else}
+                    <UnmutedIcon color="white" size={24}/> Mute
+                {/if}
+            </button>
+        </div>
+        {/if}
+        <div class="navbar-settings-pane">
+            <button class="button-style" style="width: 100%; font-size: large; padding: 0.5em 1em;" onclick={() => { showQRPopup = true; visible = false;}}>
                 Share QR Code
             </button>
         </div>
