@@ -1,5 +1,6 @@
 import type { AmbienceEngineModel } from "$lib/audio/common/model/ambienceEngineModel";
 import type { AmbienceTrackModel } from "$lib/audio/common/model/ambienceTrackModel";
+import type { SpotifyModel } from "$lib/audio/common/model/spotifyModel";
 import type { ClocktowerAudioTrackModel } from "$lib/audio/common/model/clocktowerAudioTrackModel.svelte";
 import type { ClocktowerModel } from "$lib/model/common/ClocktowerModel";
 
@@ -39,11 +40,17 @@ export type AmbienceTrackUpdateMessage = WSMessageBase & {
     model: AmbienceTrackModel;
 };
 
-export type WSMessage = 
+export type SpotifyUpdateMessage = WSMessageBase & {
+    type: 'spotifyUpdate',
+    model: SpotifyModel
+};
+
+export type WSMessage =
     |ClockMessage
     |SyncMessage
     |BellRingRequestMessage
     |ClockAudioParamsMessage
     |AmbienceEngineUpdateMessage
     |AmbienceTrackUpdateMessage
+    |SpotifyUpdateMessage
     ;

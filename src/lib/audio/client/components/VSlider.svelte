@@ -62,7 +62,6 @@
 
 .vertical-slider::-webkit-slider-runnable-track {
     width: 4px;
-    margin-right: 14px; /* direction is rtl, so the right margin is the one that positions the track */
     background: var(--theme-slider-trim);
     border-radius: 2px;
 }

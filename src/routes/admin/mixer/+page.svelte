@@ -8,17 +8,20 @@
     import { Clocktower } from '$lib/model/client/Clocktower.svelte';
     import { AmbienceEngine } from '$lib/audio/client/AmbienceEngine.svelte';
     import { AudioEngine } from '$lib/audio/client/AudioEngine.svelte';
+    import { SpotifyPlayer } from '$lib/audio/client/SpotifyPlayer.svelte';
 
     let { data }: { data: PageData } = $props();
 
     let clocks: Clocktower[]|null = $state(null);
     let audioEngine: AudioEngine|null = $state(null);
-    
+    let spotify: SpotifyPlayer|null = $state(null);
+
     onMount(() => {
         if(browser){
             clocks = data.instances.map(model=>new Clocktower(model));
 
             audioEngine = new AudioEngine(clocks, data.ambienceEngineModel);
+            spotify = new SpotifyPlayer();
 
             // Browsers only let an AudioContext run following a genuine user gesture,
             // so resume it on the first interaction with the page.
@@ -29,6 +32,7 @@
                 document.removeEventListener('pointerdown', resumeAudio);
                 clocks?.forEach(c=>c.close());
                 audioEngine?.close();
+                spotify?.close();
             }
         }
     });
@@ -39,7 +43,7 @@
 <TopNavbar/>
 {#if clocks && audioEngine}
 <div class="mixer-page">
-    <AudioMixer {audioEngine} ambienceResources={data.ambienceResources}/>
+    <AudioMixer {audioEngine} ambienceResources={data.ambienceResources} spotify={spotify ?? undefined}/>
 </div>
 <MuteButton {audioEngine}/>
 {/if}

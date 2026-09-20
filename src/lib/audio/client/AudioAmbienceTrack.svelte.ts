@@ -4,6 +4,7 @@ import { AudioTrack } from "./AudioTrack.svelte";
 
 /** Duration of the fade when a track becomes active / inactive. */
 const FADE_MS = 3000;
+const FADE_CURVE_POINTS = 128;
 
 export class AudioAmbienceTrack extends AudioTrack {
     readonly audioSource: MediaElementAudioSourceNode;
@@ -122,13 +123,29 @@ export class AudioAmbienceTrack extends AudioTrack {
         }
     }
 
-    private fadeTo(target: number){
+    /**
+     * Equal-power fade: in follows sin(t·π/2) and out follows cos(t·π/2), so a fading-out and a fading-in track
+     * (e.g. at the day/night switch) sum to constant power rather than dipping in the middle like linear ramps.
+     */
+    private fadeTo(target: 0|1){
         const param = this.#fadeNode.gain;
         const now = this.#fadeNode.context.currentTime;
-        const current = param.value; // Reflects any fade in progress
+        const current = Math.min(1, Math.max(0, param.value)); // Reflects any fade in progress
         param.cancelScheduledValues(now);
-        param.setValueAtTime(current, now);
-        param.linearRampToValueAtTime(target, now + FADE_MS / 1000);
+
+        // Where on the curve the current gain sits, so a reversed fade continues smoothly from it
+        const start = target === 1 ? Math.asin(current) / (Math.PI / 2) : Math.acos(current) / (Math.PI / 2);
+        const remaining = 1 - start;
+        if(remaining < 0.001){
+            param.setValueAtTime(target, now);
+            return;
+        }
+        const curve = new Float32Array(FADE_CURVE_POINTS);
+        for(let i = 0; i < FADE_CURVE_POINTS; i++){
+            const angle = (start + remaining * i / (FADE_CURVE_POINTS - 1)) * Math.PI / 2;
+            curve[i] = target === 1 ? Math.sin(angle) : Math.cos(angle);
+        }
+        param.setValueCurveAtTime(curve, now, FADE_MS / 1000 * remaining);
     }
 
     /** Re-attempt playback, e.g. after the browser's autoplay policy is satisfied by a user gesture. */

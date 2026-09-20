@@ -9,13 +9,17 @@
     import NightIcon from "$lib/assets/nightIcon.svelte";
     import { AudioClockTrack } from "../AudioClockTrack.svelte";
     import type { AudioEngine } from "../AudioEngine.svelte";
+    import type { SpotifyPlayer } from "../SpotifyPlayer.svelte";
+    import ChannelStripSpotify from "./ChannelStrip/ChannelStripSpotify.svelte";
     
     let {
         audioEngine,
-        ambienceResources
+        ambienceResources,
+        spotify = undefined
     }: {
         audioEngine: AudioEngine
         ambienceResources: Resource[];
+        spotify?: SpotifyPlayer;
     } = $props();
 
 </script>
@@ -55,6 +59,10 @@
         <ChannelStripGroup model={audioEngine.clockAudioTracks} onChildTitleClick={(clock, index)=>{
             clock.ringFinalBell();
         }}/>
+        {#if spotify}
+        <!-- Spotify plays in the SDK's own iframe, so it can't be routed through the master bus. -->
+        <ChannelStripSpotify {spotify} style="--theme-slider-accent: #AFA;"/>
+        {/if}
         <ChannelStrip audioTrack={audioEngine} title="MASTER" style="--theme-slider-accent: #DCC"/>
         {/if}
 
