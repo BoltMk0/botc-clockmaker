@@ -111,7 +111,7 @@
     }
 </style>
 
-<div style="display: flex; justify-content: center; align-items: center; height: 100%; width: 100%; box-sizing: border-box; padding: 2em;">
+<div style="display: flex; justify-content: center; align-items: flex-start; height: 100%; width: 100%; box-sizing: border-box; padding: 1.5rem; overflow-y: auto;">
 
     
 <div class="scripts-main">

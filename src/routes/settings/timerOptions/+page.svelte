@@ -98,8 +98,11 @@
     }
 
     .main {
-        flex-direction: column;
-        margin-top: 5em;
+        height: 100%;
+        overflow-y: auto;
+        box-sizing: border-box;
+        padding: 1.5rem;
+        align-items: flex-start;
     }
 
     .panel {

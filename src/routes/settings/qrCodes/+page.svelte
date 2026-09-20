@@ -42,7 +42,9 @@
                 <button class="save" onclick={save}>Save</button>
             </div>
         </header>
+        <p class="description">Sets the QR codes shown on the town square across all games.</p>
 
+        <div class="list-container">
         {#if codes.length === 0}
             <p class="empty">No QR codes yet. Add one to show it on the town square.</p>
         {/if}
@@ -70,33 +72,55 @@
                 </li>
             {/each}
         </ul>
+        </div>
     </div>
 </div>
 
 <style>
     .main {
-        margin-top: 5em;
+        height: 100%;
+        overflow-y: auto;
+        box-sizing: border-box;
+        padding: 1.5rem;
+        align-items: flex-start;
     }
 
     .panel {
-        background-color: var(--theme-bg);
-        color: var(--theme-on-bg);
-        border-radius: 12px;
-        box-shadow: 0 4px 16px var(--theme-shadow);
-        padding: 1.25rem;
-        width: min(60rem, 92vw);
+        padding: 1.5rem;
+        box-sizing: border-box;
+        background-color: var(--theme-bg-secondary);
+        color: var(--theme-on-bg-secondary);
+        border: 1px solid var(--theme-bg-tertiary);
+        border-radius: 14px;
+        box-shadow: 0 6px 24px var(--theme-shadow);
+        width: min(60rem, 100%);
     }
 
     header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 1rem;
+        gap: 1.5rem;
     }
 
     h1 {
         margin: 0;
-        font-size: 1.4rem;
+        font-size: 1.5rem;
+        color: var(--theme-on-bg);
+    }
+
+    .description {
+        margin: 0.25rem 0 1.25rem;
+        font-size: 0.9rem;
+        font-style: italic;
+        opacity: 0.8;
+    }
+
+    .list-container {
+        padding: 1rem;
+        border: 1px solid var(--theme-bg-tertiary);
+        border-radius: 10px;
+        background-color: var(--theme-bg);
     }
 
     .actions {
@@ -183,6 +207,6 @@
     .empty {
         text-align: center;
         color: var(--theme-on-bg-secondary);
-        margin: 1.5rem 0;
+        margin: 0.5rem 0 1rem;
     }
 </style>
