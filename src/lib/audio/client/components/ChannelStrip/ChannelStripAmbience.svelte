@@ -34,14 +34,14 @@
 
 {#snippet timeOfDayActivitySelection()}
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 3px 5px; padding: 5px; box-sizing: border-box; width: 100%; overflow: hidden; justify-items: center;">
-        <button class="daynight-btn button-style" onclick={()=>{track.activeInDay = !track.activeInDay}} class:isEnabled={track.activeInDay} class:highlight={timeOfDay === 'day' && track.activeInDay}>
+        <button class="daynight-btn button-style" onclick={()=>{track.activeInDay = !track.activeInDay}} class:isEnabled={track.activeInDay}>
             <DayIcon color={track.activeInDay ? 'white' : '#FFF5'}/>
         </button>
-        <button class="daynight-btn button-style" onclick={()=>{track.activeAtNight = !track.activeAtNight}} class:isEnabled={track.activeAtNight} class:highlight={timeOfDay === 'night' && track.activeAtNight}>
+        <button class="daynight-btn button-style" onclick={()=>{track.activeAtNight = !track.activeAtNight}} class:isEnabled={track.activeAtNight}>
             <NightIcon color={track.activeAtNight ? 'white' : '#FFF5'}/>
         </button>
-        {@render timeOfDayActiveIndicator(true)}
-        {@render timeOfDayActiveIndicator(false)}
+        {@render timeOfDayActiveIndicator(timeOfDay === 'day')}
+        {@render timeOfDayActiveIndicator(timeOfDay === 'night')}
     </div>
 {/snippet}
 
@@ -94,9 +94,5 @@
 
     button.daynight-btn.isEnabled {
         border-color: var(--theme-highlight);
-    }
-
-    button.daynight-btn.highlight {
-        box-shadow: 0 0 5px black inset;
     }
 </style>

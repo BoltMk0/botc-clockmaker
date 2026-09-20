@@ -2,8 +2,7 @@
     import ChannelStripPan from './ChannelStripPan.svelte';
     import ChannelStripGain from './ChannelStripGain.svelte';
     import type { Snippet } from 'svelte';
-    import AudioMixerText from './AudioMixerText.svelte';
-    import type { AudioTrackBase } from '../../AudioTrack.svelte';
+    import AudioMixerText from './AudioMixerText.svelte';    import type { AudioTrackBase } from '../../AudioTrack.svelte';
 
     const {
         audioTrack, 
@@ -32,7 +31,7 @@
         <ChannelStripPan bind:pan={audioTrack.pan} onchange={()=>audioTrack.pan = audioTrack.pan}/>
     </div>
     <div>
-        <ChannelStripGain bind:value={audioTrack.gain} onchange={()=>audioTrack.gain = audioTrack.gain}/>
+        <ChannelStripGain bind:value={audioTrack.gain} analyserNode={audioTrack.analyser} onchange={()=>audioTrack.gain = audioTrack.gain}/>
     </div>
 </div>
 

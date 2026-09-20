@@ -7,7 +7,7 @@ export interface AudioResourceTrackModel extends AudioTrackModel{
 
 export function isAudioResourceTrackModel(data: any): data is AudioResourceTrackModel {
     if(typeof data !== 'object') return false;
-    if(typeof data.loadedResourceId === 'string' || data.loadedResourceId === null ) return false;
+    if(typeof data.loadedResourceId !== 'string' && data.loadedResourceId !== null) return false;
     if(!isAudioTrackModel(data)) return false;
     return true;
 }

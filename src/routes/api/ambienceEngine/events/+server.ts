@@ -45,7 +45,10 @@ export function POST({params}) {
         return produce(
             function start({emit}) {
                 console.log("Client connected.", id);
-                unregisterClient = mgr.addClient(emit);
+                // Send the current state straight away so a (re)connecting client resyncs
+                unregisterClient = mgr.setupClient(emit, (send)=>{
+                    send({type: 'ambienceEngineUpdate', model: mgr.ambienceEngine.model});
+                });
                 return ()=>{
                     unregisterClient();
                 }

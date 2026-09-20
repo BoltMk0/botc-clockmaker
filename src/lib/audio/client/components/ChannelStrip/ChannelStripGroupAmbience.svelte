@@ -44,7 +44,7 @@
     <div class="channel-strip-group-main">
         <div class="channel-strip-group-audio-tracks-container">
             {#each engine.tracks as audioTrack, i}
-                <ChannelStripAmbience {timeOfDay} track={audioTrack} title={`${audioTrack.loadedResourceId}`} resources={resources} onTitleClick={()=>{onChildTitleClick?.(i);}}/>
+                <ChannelStripAmbience {timeOfDay} track={audioTrack} title={resources.find(r=>r.id === audioTrack.loadedResourceId)?.name ?? '(empty)'} resources={resources} onTitleClick={()=>{onChildTitleClick?.(i);}}/>
             {/each}
         </div>
         <ChannelStrip audioTrack={engine} title="BUS" style="--theme-slider-accent: #DCC;"/>

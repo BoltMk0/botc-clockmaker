@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { AudioEngine } from "$lib/audio/client/AudioEngine";
+    import type { AudioEngine } from "$lib/audio/client/AudioEngine.svelte";
     import MutedIcon from "./MutedIcon.svelte";
     import UnmutedIcon from "./UnmutedIcon.svelte";
 

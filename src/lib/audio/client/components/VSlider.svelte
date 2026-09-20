@@ -53,7 +53,6 @@
     writing-mode: vertical-lr;
     direction: rtl;
     width: 32px;
-    height: 100%;
     accent-color: var(--theme-slider-accent);
     -webkit-appearance: none;
     appearance: none;
@@ -63,7 +62,7 @@
 
 .vertical-slider::-webkit-slider-runnable-track {
     width: 4px;
-    margin-left: 14px;
+    margin-right: 14px; /* direction is rtl, so the right margin is the one that positions the track */
     background: var(--theme-slider-trim);
     border-radius: 2px;
 }

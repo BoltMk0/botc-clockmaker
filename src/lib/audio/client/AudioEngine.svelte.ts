@@ -12,6 +12,8 @@ export class AudioEngine implements AudioTrackBase {
 
     #model: AudioTrackModel = $state({gain: 1.0, pan: 0.0})
     #gainNode: GainNode;
+    #muted = $state(false);
+    #analyser: AnalyserNode;
 
     #clockAudioTracks: AudioClockTrack[];
     #ambienceEngineModel: AmbienceEngineModel|null;
@@ -23,31 +25,41 @@ export class AudioEngine implements AudioTrackBase {
         this.#gainNode = this.#context.createGain();
         this.#gainNode.gain.value = 1;
         this.#gainNode.connect(this.#context.destination);
+        this.#analyser = this.#context.createAnalyser();
+        this.#gainNode.connect(this.#analyser);
         console.log("Connection", clocks.length, "clocks")
         this.#clockAudioTracks = clocks.map(c=>c.connectAudio(this.#gainNode));
-        this.#timeOfDay = $derived(clocks.reduce((tod, clock)=>{
-            if(clock.timeOfDay === 'day') return 'day'
-            return tod;
-        }, 'night' as TimeOfDay));
+        // With several games each in their own day/night phase, daytime wins: it's day if any game is in daytime.
+        this.#timeOfDay = $derived(clocks.some(clock=>clock.timeOfDay === 'day') ? 'day' : 'night');
         this.#ambienceEngineModel = $state(ambienceEngineModel ?? null)
-        this.#ambienceEngine = this.#ambienceEngineModel ? new AmbienceEngine(this.#ambienceEngineModel, this.#gainNode, this.#timeOfDay) : null;
-        this.#gainNode.connect(this.#context.destination);
+        this.#ambienceEngine = this.#ambienceEngineModel ? new AmbienceEngine(this.#ambienceEngineModel, this.#gainNode, ()=>this.#timeOfDay) : null;
         this.#context.resume();
     }
 
-    resume(){ this.#context.resume(); }
+    resume(){
+        this.#context.resume();
+        // Media element playback may have been blocked by the autoplay policy until this gesture.
+        this.#ambienceEngine?.retryPlayback();
+    }
 
     get clockAudioTracks(){ return this.#clockAudioTracks; }
     get ambienceEngine(){ return this.#ambienceEngine; }
     get timeOfDay(){ return this.#timeOfDay; }
 
+    get muted(){ return this.#muted; }
+    set muted(value: boolean){
+        this.#muted = value;
+        this.#gainNode.gain.value = value ? 0 : this.#model.gain;
+    }
+
     get gain(){ return this.#model.gain; }
-    set gain(value: number){ 
+    set gain(value: number){
         this.#model.gain = Math.max(0, value);
-        this.#gainNode.gain.value = this.#model.gain; 
+        this.#gainNode.gain.value = this.#muted ? 0 : this.#model.gain;
     }
 
     get input(){ return this.#gainNode; }
+    get analyser(){ return this.#analyser; }
 
     get pan(){ return 0; }
     set pan(value: number){ return; }
