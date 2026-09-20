@@ -30,31 +30,50 @@
 
 <style>
     .scripts-main {
+        padding: 1.5rem;
         box-sizing: border-box;
         background-color: var(--theme-bg-secondary);
-        border-radius: 1em;
+        color: var(--theme-on-bg-secondary);
+        border: 1px solid var(--theme-bg-tertiary);
+        border-radius: 14px;
+        box-shadow: 0 6px 24px var(--theme-shadow);
     }
 
     .scripts-main-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 0.3em 1em;
-        background-color: var(--theme-bg);
+        gap: 1.5rem;
+    }
+
+    .scripts-main-header h2 {
+        margin: 0;
+        font-size: 1.5rem;
+        color: var(--theme-on-bg);
+    }
+
+    .description {
+        margin: 0.25rem 0 1.25rem;
+        font-size: 0.9rem;
+        font-style: italic;
+        opacity: 0.8;
     }
 
     .scripts-contents {
-        padding: 1em;
+        padding: 1rem;
         display: flex;
         flex-direction: column;
         gap: 0.7em;
         min-width: 32em;
+        border: 1px solid var(--theme-bg-tertiary);
+        border-radius: 10px;
+        background-color: var(--theme-bg);
     }
 
     .script-card {
         border-radius: 10px;
-        background-color: var(--theme-bg);
-        color: var(--theme-on-bg);
+        background-color: var(--theme-bg-secondary);
+        color: var(--theme-on-bg-secondary);
         border-left: 4px solid var(--script-hue);
         overflow: hidden;
     }
@@ -62,7 +81,7 @@
         cursor: pointer;
     }
     .script-card.clickable:hover {
-        background-color: var(--theme-bg-secondary);
+        background-color: var(--theme-bg-tertiary);
     }
 
     .script-card-header {
@@ -97,7 +116,7 @@
     
 <div class="scripts-main">
     <div class="scripts-main-header">
-        <div style="font-size: large;">Scripts</div>
+        <h2>Scripts</h2>
         <div style="display: flex; gap: 0.5em;">
         <a class="button-style" href="scripts/scraper">Wiki Scraper</a>
         <CustomOverlay title="Create New Script" buttonTitle="+">
@@ -150,6 +169,7 @@
         </CustomOverlay>
         </div>
     </div>
+    <p class="description">Manage the scripts available across all games.</p>
     <div class="scripts-contents">
         {#each data.scripts as script(script.id)}
             <div class="script-card clickable" style="--script-hue: {script.hue};" onclick={()=>selectScript(script.id)} role="button" tabindex="0" onkeydown={(e)=>{ if(e.key === 'Enter' || e.key === ' ') selectScript(script.id); }}>
