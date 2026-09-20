@@ -1715,7 +1715,7 @@
                 onpointerdown={(e) => startDragFromBoard(e, token)}
             >
                 {#if character}
-                    <CharacterToken {character} style="position: relative;" size={tokenSize + 'px'} norules dead={token.isDead} hasDeadVote={hasDeadVote(token)} alignment={token.alignment} playerName={token.playerName?.trim() || undefined}/>
+                    <CharacterToken {character} style="position: relative;" size={tokenSize + 'px'} norules dead={token.isDead} hasDeadVote={hasDeadVote(token)} alignment={token.alignment} playerName={token.playerName?.trim() || undefined} outline={isPlayerToken(token)}/>
                 {:else}
                     <PlayerToken playerName={token.playerName ?? ''} isDead={token.isDead} hasDeadVote={hasDeadVote(token)} style="position: relative;" size={tokenSize + 'px'}/>
                 {/if}

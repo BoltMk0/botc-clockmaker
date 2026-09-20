@@ -14,7 +14,10 @@
         dead = false,
         hasDeadVote = false,
         alignment = undefined,
+        outline = true,
     }: {
+        // Draws the category-coloured ring round the token; when off the ring's space is kept but left clear.
+        outline?: boolean;
         // Shows the dead-vote marker on a dead player's token.
         hasDeadVote?: boolean;
         // When set, the icon image is recoloured to that alignment's colour, keeping whites (see ALIGNMENT_ICON_COLORS).
@@ -88,7 +91,7 @@
     {/if}
     <div style="position:relative; width: {size}; height: {size};">
         
-        <TokenBackground {size} style="border: calc({size} / 40) solid {color};">
+        <TokenBackground {size} style="border: calc({size} / 40) solid {outline ? color : 'transparent'};{outline ? '' : ' background-clip: padding-box;'}">
         
 
         {#if norules}
