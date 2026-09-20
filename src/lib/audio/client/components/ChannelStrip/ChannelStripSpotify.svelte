@@ -6,6 +6,8 @@
     import type { SpotifyPlayer } from "../../SpotifyPlayer.svelte";
     import { isSameSpotifyContext, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
 
+    const NOW_PLAYING_LINE_PX = 14; // Keep in step with .now-playing-text line-height
+
     let {
         spotify,
         presets = [],
@@ -19,9 +21,14 @@
     const model = $derived(spotify.model);
     const active = $derived(model !== null && model.hostClientId !== null);
     let menuOpen = $state(false);
+    let nowPlayingHeight = $state(0);
+    const nowPlayingLines = $derived(Math.max(1, Math.floor(nowPlayingHeight / NOW_PLAYING_LINE_PX)));
     /** Centres a transport button's glyph both ways (an inline SVG otherwise sits on the text baseline). */
     /** Highlights the preset that's currently loaded. */
     const CURRENT_PRESET = "background-color: #fff; color: #222;";
+    /** The preset being switched to (during the fade-out), distinct from the one currently loaded. */
+    const PENDING_PRESET = "background-color: #fc6; color: #222;";
+    const PRESET_ROW = "display: flex; align-items: center; gap: 4px; text-align: left;";
     const CENTER = "display: flex; justify-content: center; align-items: center; height: 30px;";
 </script>
 
@@ -50,28 +57,48 @@
         {/if}
     </div>
     {/if}
-    <div class="now-playing" title={spotify.playback ? `${spotify.playback.title} - ${spotify.playback.artist}` : ''}>
-        {#if !model.hostReady}
-            Starting…
-        {:else if spotify.playback}
-            <strong>{spotify.playback.title}</strong><br/>{spotify.playback.artist}
-        {:else}
-            Nothing playing.<br/>Pick "Clocktower Mixer" in Spotify.
+    {#if !model.hostReady}
+        <div class="starting">Starting…</div>
+    {:else}
+        <!-- Fills the space left by the rest of the strip; the text is clamped to however many lines fit. -->
+        <div class="now-playing" bind:clientHeight={nowPlayingHeight} title={spotify.playback ? `${spotify.playback.title} - ${spotify.playback.artist}` : ''}>
+            <div class="now-playing-text" style="-webkit-line-clamp: {nowPlayingLines};">
+            {#if spotify.playback}
+                <strong>{spotify.playback.title}</strong><br/>{spotify.playback.artist}
+            {:else}
+                Nothing playing. Pick "Clocktower Mixer" in Spotify.
+            {/if}
+            </div>
+        </div>
+        {#if presets.length > 0}
+        <div class="presets">
+            {#each presets as preset (preset.id)}
+                {@const current = isSameSpotifyContext(spotify.playback?.contextUri, preset.uri)}
+                {@const playing = current && spotify.playback?.playing === true}
+                {@const pending = isSameSpotifyContext(model.pendingContextUri, preset.uri)}
+                <!-- The loaded preset just toggles play/pause; any other starts playing from the beginning. -->
+                <AudioMixerText
+                    onclick={()=>current ? spotify.togglePlayPause() : spotify.playContext(preset.uri)}
+                    style="{PRESET_ROW} {pending ? PENDING_PRESET : current ? CURRENT_PRESET : ''}"
+                    title={pending ? `Loading ${preset.name}` : playing ? `Pause ${preset.name}` : current ? `Resume ${preset.name}` : `Play ${preset.name}`}>
+                    <span class="preset-icon">
+                        <!-- (Component names are the other way round: PlayIcon draws the pause bars, PauseIcon the triangle.) -->
+                        {#if playing}<PlayIcon size={10}/>{:else}<PauseIcon size={10}/>{/if}
+                    </span>
+                    <span class="preset-name">{preset.name}</span>
+                </AudioMixerText>
+            {/each}
+        </div>
         {/if}
-    </div>
-    {#if presets.length > 0}
-    <div class="presets">
-        {#each presets as preset (preset.id)}
-            {@const current = isSameSpotifyContext(spotify.playback?.contextUri, preset.uri)}
-            <AudioMixerText onclick={()=>spotify.playContext(preset.uri)} style={current ? CURRENT_PRESET : undefined} title={current ? `${preset.name} (playing)` : `Play ${preset.name}`}>{preset.name}</AudioMixerText>
-        {/each}
-    </div>
+        <div class="skip">
+            <AudioMixerText onclick={()=>spotify.previous()} style={CENTER} title="Previous track">&#9198;</AudioMixerText>
+            <AudioMixerText onclick={()=>spotify.next()} style={CENTER} title="Next track">&#9197;</AudioMixerText>
+        </div>
+        <AudioMixerText>Vol<br/>{Math.round(model.volume)}%</AudioMixerText>
+        <div class="volume">
+            <VSlider value={model.volume} min={0} max={100} step={1} onchange={(v)=>spotify.setVolume(v)}/>
+        </div>
     {/if}
-    <div class="channel-strip-padding"></div>
-    <AudioMixerText>Vol<br/>{Math.round(model.volume)}%</AudioMixerText>
-    <div class="volume">
-        <VSlider value={model.volume} min={0} max={100} step={1} onchange={(v)=>spotify.setVolume(v)}/>
-    </div>
     {#if spotify.error}<div class="error">{spotify.error}</div>{/if}
 </div>
 {:else}
@@ -90,7 +117,7 @@
 
 <style>
     .channel-strip-main {
-        width: 85px;
+        width: 110px;
         box-sizing: content-box;
         background-color: rgb(50, 50, 54);
         padding: 6px;
@@ -111,17 +138,31 @@
         align-items: stretch;
     }
 
-    .channel-strip-padding {
+    .starting {
         flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        font-size: 11px;
     }
 
     .now-playing {
-        font-size: 0.7em;
-        line-height: 1.2;
-        text-align: center;
+        flex: 1;
+        min-height: 42px; /* at least three lines */
         overflow: hidden;
+        margin-top: 2px;
+    }
+
+    .now-playing-text {
+        font-size: 11px;
+        line-height: 14px; /* keep in step with NOW_PLAYING_LINE_PX */
+        text-align: center;
         word-break: break-word;
-        max-height: 8em;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .spotify-strip {
@@ -148,9 +189,27 @@
         display: flex;
         flex-direction: column;
         gap: 3px;
-        margin-top: 6px;
+        margin: 6px 0;
         max-height: 130px;
         overflow-y: auto;
+    }
+
+    .preset-icon {
+        display: flex;
+        flex-shrink: 0;
+    }
+
+    .preset-name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .skip {
+        display: flex;
+        gap: 3px;
+        margin-bottom: 6px;
     }
 
     .transport {

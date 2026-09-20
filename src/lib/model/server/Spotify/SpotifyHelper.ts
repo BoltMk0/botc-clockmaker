@@ -30,6 +30,7 @@ export class SpotifyHelper extends EventEmitter {
     #playback: SpotifyPlaybackModel | null = null;
     #volume = 50;
     #fadeToken = 0;
+    #pendingContextUri: string | null = null;
 
     #accessToken: string | null = null;
     #accessTokenExpiresAt = 0;
@@ -49,7 +50,8 @@ export class SpotifyHelper extends EventEmitter {
             hostClientId: this.#hostClientId,
             hostReady: this.#hostClientId !== null && this.#hostDeviceId !== null,
             volume: this.#volume,
-            playback: this.#playback
+            playback: this.#playback,
+            pendingContextUri: this.#pendingContextUri
         };
     }
 
@@ -148,6 +150,7 @@ export class SpotifyHelper extends EventEmitter {
         this.#hostClientId = null;
         this.#hostDeviceId = null;
         this.#playback = null;
+        this.#pendingContextUri = null;
         if (this.#hostCheckTimer) {
             clearInterval(this.#hostCheckTimer);
             this.#hostCheckTimer = null;
@@ -238,6 +241,8 @@ export class SpotifyHelper extends EventEmitter {
         const target = this.#volume;
         const wasPlaying = this.#playback?.playing === true;
         const before = this.#playback;
+        this.#pendingContextUri = uri;
+        this.changed();
         try {
             if (wasPlaying && !await this.fadeOut(device, target, token)) return;
             // Shuffle first, so playback of the new context starts on a random track
@@ -253,6 +258,12 @@ export class SpotifyHelper extends EventEmitter {
             // Don't leave the player silent if we failed after fading out
             if (token === this.#fadeToken) await this.setDeviceVolume(device, target).catch(() => { });
             throw e;
+        } finally {
+            // A newer request has already set its own pending playlist, which is not ours to clear
+            if (token === this.#fadeToken) {
+                this.#pendingContextUri = null;
+                this.changed();
+            }
         }
     }
 

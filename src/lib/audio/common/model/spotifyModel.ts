@@ -19,6 +19,8 @@ export type SpotifyModel = {
     /** Volume 0..100. */
     volume: number;
     playback: SpotifyPlaybackModel | null;
+    /** The album/playlist being switched to, from the start of the fade-out until it's actually playing. */
+    pendingContextUri: string | null;
 };
 
 export type SpotifyControlAction =
