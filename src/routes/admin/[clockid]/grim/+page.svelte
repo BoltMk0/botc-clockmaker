@@ -7,6 +7,7 @@
     import { browser } from "$app/environment";
 
     import { goto } from '$app/navigation';
+    import { AudioDim } from '$lib/audio/client/AudioDim.svelte';
     import { Clocktower } from "$lib/model/client/Clocktower.svelte.js";
     import FullDisplay from "$lib/components/FullDisplay/FullDisplay.svelte";
     import { onMount } from "svelte";
@@ -162,6 +163,7 @@
     // Token size control
     let showTokenSizeSlider = $state(false);
     let sidebarOpen = $state(false);
+    let audioDim: AudioDim|null = $state(null); // Created on mount: it opens a connection to the server
     const TOKEN_SIZE_KEY = 'grimoire-token-size';
     let tokenSize = $state(browser ? Number(localStorage.getItem(TOKEN_SIZE_KEY)) || 150 : 150);
     const reminderTokenSize = $derived(Math.round(tokenSize * 0.5));
@@ -844,6 +846,7 @@
     onMount(()=>{
         if(!browser) return;
         clockClient = new Clocktower(data.model);
+        audioDim = new AudioDim();
         fitView();
 
         // Same breakpoint as the full-screen tray CSS.
@@ -858,6 +861,7 @@
                 clearTimeout(saveGrimoireTimeout);
             }
             clockClient?.close();
+            audioDim?.close();
         }
     });
 
@@ -1392,6 +1396,11 @@
         padding: 8px;
     }
 
+    .sidebar-top-row {
+        display: flex;
+        gap: 8px;
+    }
+
     .sidebar-btn {
         width: 44px;
         height: 44px;
@@ -1548,6 +1557,7 @@
     </div>
 
     <div class="sidebar" style="z-index: {z_indecies.ui};">
+        <div class="sidebar-top-row">
         <!-- Collapse / expand the sidebar -->
         <button class="sidebar-btn" class:active={sidebarOpen} onclick={() => sidebarOpen = !sidebarOpen} title="{sidebarOpen ? 'Hide' : 'Show'} menu">
             {#if sidebarOpen}
@@ -1556,6 +1566,12 @@
                 <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
             {/if}
         </button>
+
+        <!-- Dim the audio everywhere (on all clients) -->
+        <button class="sidebar-btn" class:active={audioDim?.dimmed} onclick={() => audioDim?.toggle()} title={audioDim?.dimmed ? 'Restore audio volume' : `Dim audio (-${audioDim?.amountDb ?? 12} dB)`}>
+            <svg viewBox="0 0 24 24"><path d="M18.5 12A4.5 4.5 0 0 0 16 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/></svg>
+        </button>
+        </div>
 
         {#if sidebarOpen}
         <!-- Canvas control -->

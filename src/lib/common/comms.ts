@@ -1,5 +1,6 @@
 import type { AmbienceEngineModel } from "$lib/audio/common/model/ambienceEngineModel";
 import type { AmbienceTrackModel } from "$lib/audio/common/model/ambienceTrackModel";
+import type { AudioDimModel } from "$lib/audio/common/model/audioDimModel";
 import type { SpotifyModel } from "$lib/audio/common/model/spotifyModel";
 import type { ClocktowerAudioTrackModel } from "$lib/audio/common/model/clocktowerAudioTrackModel.svelte";
 import type { ClocktowerModel } from "$lib/model/common/ClocktowerModel";
@@ -45,6 +46,11 @@ export type SpotifyUpdateMessage = WSMessageBase & {
     model: SpotifyModel
 };
 
+export type AudioDimUpdateMessage = WSMessageBase & {
+    type: 'audioDimUpdate',
+    model: AudioDimModel
+};
+
 export type WSMessage =
     |ClockMessage
     |SyncMessage
@@ -53,4 +59,5 @@ export type WSMessage =
     |AmbienceEngineUpdateMessage
     |AmbienceTrackUpdateMessage
     |SpotifyUpdateMessage
+    |AudioDimUpdateMessage
     ;

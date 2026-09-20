@@ -5,6 +5,10 @@ import type { AmbienceEngineModel } from "../common/model/ambienceEngineModel";
 import type { AudioTrackModel } from "../common/model/audioTrackModel.svelte";
 import { AudioClockTrack } from "./AudioClockTrack.svelte";
 import { type AudioTrackBase } from "./AudioTrack.svelte";
+import { AudioDim } from "./AudioDim.svelte";
+
+/** Time constant of the dim ramp: settles in roughly half a second, without clicks. */
+const DIM_TIME_CONSTANT_S = 0.12;
 
 const MUTE_STORAGE_KEY = 'mixer.mute.master';
 
@@ -13,6 +17,9 @@ export class AudioEngine implements AudioTrackBase {
 
     #model: AudioTrackModel = $state({gain: 1.0, pan: 0.0})
     #gainNode: GainNode;
+    #dimNode: GainNode; // After the master fader, so dimming never fights the user's gain
+    #dim: AudioDim|null = null;
+    #stopEffects: (()=>void)|null = null;
     #muted = $state(false);
     #analyser: AnalyserNode;
 
@@ -31,7 +38,9 @@ export class AudioEngine implements AudioTrackBase {
         this.#context = new AudioContext();
         this.#gainNode = this.#context.createGain();
         this.#gainNode.gain.value = 1;
-        if(!this.#silent) this.#gainNode.connect(this.#context.destination);
+        this.#dimNode = this.#context.createGain();
+        this.#gainNode.connect(this.#dimNode);
+        if(!this.#silent) this.#dimNode.connect(this.#context.destination);
         this.#analyser = this.#context.createAnalyser();
         this.#gainNode.connect(this.#analyser);
         console.log("Connection", clocks.length, "clocks")
@@ -44,7 +53,16 @@ export class AudioEngine implements AudioTrackBase {
         try {
             this.muted = localStorage.getItem(MUTE_STORAGE_KEY) === '1';
         } catch { /* storage unavailable */ }
-        if(!this.#silent) this.#context.resume();
+        if(!this.#silent){
+            // Follow the shared dim (a silent client plays nothing, so has nothing to dim)
+            const dim = this.#dim = new AudioDim();
+            this.#stopEffects = $effect.root(()=>{
+                $effect(()=>{
+                    this.#dimNode.gain.setTargetAtTime(dim.gain, this.#context.currentTime, DIM_TIME_CONSTANT_S);
+                });
+            });
+            this.#context.resume();
+        }
     }
 
     resume(){
@@ -84,6 +102,8 @@ export class AudioEngine implements AudioTrackBase {
         for(const clock of this.#clockAudioTracks){
             clock.close();
         }
+        this.#stopEffects?.();
+        this.#dim?.close();
         this.#ambienceEngine?.close();
         this.#context.close();
     }

@@ -1,6 +1,8 @@
 import { EventEmitter } from "node:events";
 import { env } from "$env/dynamic/private";
 import type { SpotifyControlAction, SpotifyModel, SpotifyPlaybackModel } from "$lib/audio/common/model/spotifyModel";
+import { dimGain } from "$lib/audio/common/model/audioDimModel";
+import { getAudioDimHelperInstance } from "../AudioDim/AudioDimHelper";
 import { isSameSpotifyContext, isSpotifyContextUri } from "$lib/audio/common/spotifyPreset";
 import { JSONSingletonResourceManager } from "$lib/resources/server/jsonResourceManager";
 
@@ -31,6 +33,23 @@ export class SpotifyHelper extends EventEmitter {
     #volume = 50;
     #fadeToken = 0;
     #pendingContextUri: string | null = null;
+    /** Linear multiplier from the shared audio dim, applied to every volume we send to Spotify. */
+    #dimFactor = 1;
+    /** True while a playlist switch is fading/starting, so a dim change doesn't fight the fade. */
+    #switching = false;
+
+    constructor() {
+        super();
+        const dim = getAudioDimHelperInstance();
+        this.#dimFactor = dimGain(dim.model);
+        dim.on('update', (model) => {
+            this.#dimFactor = dimGain(model);
+            const deviceId = this.#hostDeviceId;
+            if (deviceId === null || this.#switching) return;
+            this.setDeviceVolume(`device_id=${encodeURIComponent(deviceId)}`, this.#volume)
+                .catch((e) => console.error('Failed to apply audio dim to Spotify', e));
+        });
+    }
 
     #accessToken: string | null = null;
     #accessTokenExpiresAt = 0;
@@ -185,6 +204,8 @@ export class SpotifyHelper extends EventEmitter {
         this.#hostLastSeen = Date.now();
         this.#hostDeviceId = deviceId;
         await this.api('PUT', '/me/player', { device_ids: [deviceId], play: false });
+        // The SDK starts at the undimmed volume
+        if (this.#dimFactor !== 1) await this.setDeviceVolume(`device_id=${encodeURIComponent(deviceId)}`, this.#volume);
         this.changed();
     }
 
@@ -222,7 +243,7 @@ export class SpotifyHelper extends EventEmitter {
             case 'volume': {
                 if (typeof command.volume !== 'number' || isNaN(command.volume)) throw new Error('Invalid volume');
                 const volume = Math.round(Math.min(100, Math.max(0, command.volume)));
-                await this.api('PUT', `/me/player/volume?volume_percent=${volume}&${device}`);
+                await this.setDeviceVolume(device, volume);
                 this.#volume = volume;
                 this.changed();
                 break;
@@ -242,6 +263,7 @@ export class SpotifyHelper extends EventEmitter {
         const wasPlaying = this.#playback?.playing === true;
         const before = this.#playback;
         this.#pendingContextUri = uri;
+        this.#switching = true;
         this.changed();
         try {
             if (wasPlaying && !await this.fadeOut(device, target, token)) return;
@@ -261,6 +283,7 @@ export class SpotifyHelper extends EventEmitter {
         } finally {
             // A newer request has already set its own pending playlist, which is not ours to clear
             if (token === this.#fadeToken) {
+                this.#switching = false;
                 this.#pendingContextUri = null;
                 this.changed();
             }
@@ -302,7 +325,9 @@ export class SpotifyHelper extends EventEmitter {
     }
 
     private async setDeviceVolume(device: string, volume: number) {
-        await this.api('PUT', `/me/player/volume?volume_percent=${Math.round(Math.min(100, Math.max(0, volume)))}&${device}`);
+        // `volume` is the level the user chose; the dim, if any, is applied here so callers needn't think about it
+        const effective = volume * this.#dimFactor;
+        await this.api('PUT', `/me/player/volume?volume_percent=${Math.round(Math.min(100, Math.max(0, effective)))}&${device}`);
     }
 
     private async api(method: string, path: string, body?: object) {
