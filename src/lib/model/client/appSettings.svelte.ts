@@ -12,7 +12,7 @@ interface AppSettingsState {
 }
 
 const DEFAULT_STATE: AppSettingsState = {
-    displayMode: 'clocktower',
+    displayMode: 'clocktower3d',
     autoSize: true,
     size: 600,
     showClockNames: true,
