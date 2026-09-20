@@ -55,6 +55,16 @@
 
     const allDone = $derived(slots.every(s => s.claimed));
 
+    // Once the last character is drawn, keep Finish Setup disabled for 5s so the device gets handed back first
+    let finishEnabled = $state(false);
+
+    $effect(() => {
+        if (!allDone) return;
+        finishEnabled = false;
+        const timer = setTimeout(() => { finishEnabled = true; }, 5000);
+        return () => clearTimeout(timer);
+    });
+
     async function tapNumber(number: number) {
         const slot = slots.find(s => s.number === number);
         if (!slot || slot.claimed) return;
@@ -197,13 +207,50 @@
         opacity: 0.85;
     }
 
-    .name-input {
+    .name-row {
+        display: flex;
+        --name-row-height: 3em;
+        align-items: stretch;
+        height: var(--name-row-height);
         width: 100%;
+        margin-top: 0.5em;
+        border-radius: 0.5em;
+    }
+
+    .name-row:focus-within {
+        box-shadow: 0 0 0 2px #2f7de1;
+    }
+
+    .name-input:focus {
+        outline: none;
+    }
+
+    .name-input {
+        flex: 1;
+        min-width: 0;
         box-sizing: border-box;
         text-align: center;
         font-size: 1.1em;
         padding: 0.6em 0.8em;
-        margin-top: 0.5em;
+        border-radius: 0.5em 0 0 0.5em;
+    }
+
+    .tick-btn {
+        flex: none;
+        width: var(--name-row-height);
+        padding: 0;
+        border: 1px solid #2f7de1;
+        border-radius: 0 0.5em 0.5em 0;
+        background-color: #2f7de1;
+        color: white;
+        font-size: 1.1em;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .tick-btn:disabled {
+        opacity: 0.4;
+        cursor: default;
     }
 
     .modal-panel {
@@ -223,20 +270,23 @@
 <input bind:this={keyboardProxy} class="keyboard-proxy" type="text" aria-hidden="true" tabindex="-1" autocomplete="off"/>
 
 <div class="draw-main">
-    <h1>Draw your character</h1>
-    <p class="draw-instructions">Pass this phone around the table. Each player taps a number, secretly views their character, and enters their name. Then pass it to the next player.</p>
+    {#if !allDone}
+        <h1 class="dumbledore-font">Draw your character</h1>
+        <p class="draw-instructions">Pass this phone around the table. Each player taps a number, secretly views their character, and enters their name. Then pass it to the next player.</p>
 
-    <div class="number-grid">
-        {#each slots as slot (slot.number)}
-            <button class="number-btn" disabled={slot.claimed} onclick={() => tapNumber(slot.number)}>
-                {slot.claimed ? '✓' : slot.number}
-            </button>
-        {/each}
-    </div>
-
-    <button class="button-style highlight" disabled={!allDone || finishing} onclick={finishSetup}>
-        {finishing ? 'Finishing…' : 'Finish Setup'}
-    </button>
+        <div class="number-grid">
+            {#each slots as slot (slot.number)}
+                <button class="number-btn" disabled={slot.claimed} onclick={() => tapNumber(slot.number)}>
+                    {slot.claimed ? '✓' : slot.number}
+                </button>
+            {/each}
+        </div>
+    {:else}
+        <h1 class="dumbledore-font">Please return this device to the storyteller</h1>
+        <button class="button-style highlight" disabled={finishing || !finishEnabled} onclick={finishSetup}>
+            {finishing ? 'Finishing…' : 'Finish Setup'}
+        </button>
+    {/if}
 </div>
 
 {#if activeNumber !== null}
@@ -256,8 +306,10 @@
                 {:else}
                     <div>Unknown character</div>
                 {/if}
-                <input type="text" class="input-style name-input" placeholder="Your name" bind:value={nameInput} use:focusOnMount onkeydown={(e) => { if (e.key === 'Enter') confirmName(); }}/>
-                <button class="button-style highlight" onclick={confirmName} disabled={confirming || !nameInput.trim()}>Confirm</button>
+                <div class="name-row">
+                    <input type="text" class="input-style name-input" placeholder="Your name" bind:value={nameInput} use:focusOnMount onkeydown={(e) => { if (e.key === 'Enter') confirmName(); }}/>
+                    <button class="tick-btn" aria-label="Confirm" onclick={confirmName} disabled={confirming || !nameInput.trim()}>✓</button>
+                </div>
             {/if}
         </div>
     </div>
