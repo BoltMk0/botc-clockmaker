@@ -173,6 +173,8 @@ export class SpotifyPlayer {
 
     togglePlayPause() { this.control({ action: this.playback?.playing ? 'pause' : 'play' }); }
     next() { this.control({ action: 'next' }); }
+    /** Starts playing an album/playlist straight away. */
+    playContext(uri: string) { this.control({ action: 'playContext', uri }); }
     previous() { this.control({ action: 'previous' }); }
 
     /** @param volume 0..100. Rapid calls (a slider drag) are coalesced. */

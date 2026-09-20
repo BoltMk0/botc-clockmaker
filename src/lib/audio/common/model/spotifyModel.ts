@@ -24,4 +24,5 @@ export type SpotifyControlAction =
     | { action: 'pause' }
     | { action: 'next' }
     | { action: 'previous' }
+    | { action: 'playContext', uri: string }
     | { action: 'volume', volume: number };

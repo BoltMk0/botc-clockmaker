@@ -43,7 +43,7 @@
 <TopNavbar/>
 {#if clocks && audioEngine}
 <div class="mixer-page">
-    <AudioMixer {audioEngine} ambienceResources={data.ambienceResources} spotify={spotify ?? undefined}/>
+    <AudioMixer {audioEngine} ambienceResources={data.ambienceResources} spotify={spotify ?? undefined} spotifyPresets={data.spotifyPresets}/>
 </div>
 <MuteButton {audioEngine}/>
 {/if}

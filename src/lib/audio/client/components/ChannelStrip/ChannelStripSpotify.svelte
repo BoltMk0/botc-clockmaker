@@ -4,18 +4,23 @@
     import PlayIcon from "../PlayIcon.svelte";
     import PauseIcon from "../PauseIcon.svelte";
     import type { SpotifyPlayer } from "../../SpotifyPlayer.svelte";
+    import type { SpotifyPreset } from "$lib/audio/common/spotifyPreset";
 
     let {
         spotify,
+        presets = [],
         style = undefined
     }: {
         spotify: SpotifyPlayer;
+        presets?: SpotifyPreset[];
         style?: string;
     } = $props();
 
     const model = $derived(spotify.model);
     const active = $derived(model !== null && model.hostClientId !== null);
     let menuOpen = $state(false);
+    /** Centres a transport button's glyph both ways (an inline SVG otherwise sits on the text baseline). */
+    const CENTER = "display: flex; justify-content: center; align-items: center; height: 30px;";
 </script>
 
 <svelte:window
@@ -30,11 +35,11 @@
     {#if menuOpen}
     <div class="popup">
         <div class="transport">
-            <AudioMixerText onclick={()=>spotify.previous()} title="Previous track">&#9198;</AudioMixerText>
-            <AudioMixerText onclick={()=>spotify.togglePlayPause()} title={spotify.playback?.playing ? 'Pause' : 'Play'}>
-                {#if spotify.playback?.playing}<PauseIcon/>{:else}<PlayIcon/>{/if}
+            <AudioMixerText onclick={()=>spotify.previous()} style={CENTER} title="Previous track">&#9198;</AudioMixerText>
+            <AudioMixerText onclick={()=>spotify.togglePlayPause()} style={CENTER} title={spotify.playback?.playing ? 'Pause' : 'Play'}>
+                {#if spotify.playback?.playing}<PlayIcon/>{:else}<PauseIcon/>{/if}
             </AudioMixerText>
-            <AudioMixerText onclick={()=>spotify.next()} title="Next track">&#9197;</AudioMixerText>
+            <AudioMixerText onclick={()=>spotify.next()} style={CENTER} title="Next track">&#9197;</AudioMixerText>
         </div>
         {#if spotify.isHost}
         <AudioMixerText onclick={()=>{ menuOpen = false; spotify.stopHosting(); }} title="Stop the player on this device so another can take over">Stop player</AudioMixerText>
@@ -52,6 +57,13 @@
             Nothing playing.<br/>Pick "Clocktower Mixer" in Spotify.
         {/if}
     </div>
+    {#if presets.length > 0}
+    <div class="presets">
+        {#each presets as preset (preset.id)}
+            <AudioMixerText onclick={()=>spotify.playContext(preset.uri)} title="Play {preset.name}">{preset.name}</AudioMixerText>
+        {/each}
+    </div>
+    {/if}
     <div class="channel-strip-padding"></div>
     <AudioMixerText>Vol<br/>{Math.round(model.volume)}%</AudioMixerText>
     <div class="volume">
@@ -127,6 +139,15 @@
         border: 3px solid var(--theme-slider-trim);
         border-radius: 8px;
         box-shadow: 0 6px 14px #000b;
+    }
+
+    .presets {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        margin-top: 6px;
+        max-height: 130px;
+        overflow-y: auto;
     }
 
     .transport {

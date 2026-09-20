@@ -9,6 +9,7 @@
         '/settings/clocks',
         '/settings/timerOptions',
         '/settings/qrCodes',
+        '/settings/spotify',
         '/settings/password'
     ]
 

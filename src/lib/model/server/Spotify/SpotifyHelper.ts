@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 import { env } from "$env/dynamic/private";
 import type { SpotifyControlAction, SpotifyModel, SpotifyPlaybackModel } from "$lib/audio/common/model/spotifyModel";
+import { isSpotifyContextUri } from "$lib/audio/common/spotifyPreset";
 import { JSONSingletonResourceManager } from "$lib/resources/server/jsonResourceManager";
 
 type SpotifyAuth = { refreshToken: string };
@@ -198,6 +199,12 @@ export class SpotifyHelper extends EventEmitter {
                 break;
             case 'pause':
                 await this.api('PUT', `/me/player/pause?${device}`);
+                break;
+            case 'playContext':
+                if (!isSpotifyContextUri(command.uri)) throw new Error('Invalid album/playlist');
+                // Shuffle first, so playback of the new context starts on a random track
+                await this.api('PUT', `/me/player/shuffle?state=true&${device}`);
+                await this.api('PUT', `/me/player/play?${device}`, { context_uri: command.uri });
                 break;
             case 'next':
                 await this.api('POST', `/me/player/next?${device}`);
