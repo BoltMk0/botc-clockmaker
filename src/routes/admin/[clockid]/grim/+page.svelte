@@ -167,8 +167,6 @@
     const TOKEN_SIZE_KEY = 'grimoire-token-size';
     let tokenSize = $state(browser ? Number(localStorage.getItem(TOKEN_SIZE_KEY)) || 150 : 150);
     const reminderTokenSize = $derived(Math.round(tokenSize * 0.5));
-    // Corner bluffs box: tokens are 70% of the on-screen board token size (which includes the view zoom).
-    const bluffCornerTokenSize = $derived(Math.round(tokenSize * viewScale * 0.7));
     // Phone-width screen (set from a media query on mount); same breakpoint as the full-screen tray CSS.
     let isMobile = $state(false);
     // Slightly smaller in the full-screen phone tray so more tokens fit per row.
@@ -424,6 +422,11 @@
     }
 
     const placedCharIds = $derived(new Set(placedTokens.map(t => t.characterId).filter(id => id !== null)));
+
+    // Characters on seated (named) tokens, including travellers
+    const seatedCharacterIds = $derived([...new Set(
+        placedTokens.filter(t => isPlayerToken(t) && t.characterId !== null).map(t => t.characterId as string)
+    )]);
 
     function isInPlay(characterId: string): boolean {
         return placedCharIds.has(characterId);
@@ -723,26 +726,6 @@
         rescheduleSaveGrimoire();
     }
 
-    // Adds a new player (no character yet) just below the town, to be dragged into a seat.
-    let newPlayerName = $state('');
-
-    function addPlayer() {
-        const name = newPlayerName.trim();
-        if (!name) return;
-        const offset = placedTokens.filter(isPlayerToken).length % 8;
-        gameState.present.placedTokens = [...placedTokens, {
-            id: v7(),
-            characterId: null,
-            isDead: false,
-            alignment: 'good',
-            x: (offset - 3.5) * tokenSize * 0.3,
-            y: tokenSize * 2,
-            playerName: name,
-        }];
-        newPlayerName = '';
-        rescheduleSaveGrimoire();
-    }
-
     function closeReminderTray() {
         activeTokenId = null;
         activeReminderPos = null;
@@ -923,10 +906,14 @@
         left: 50%;
         transform: translate(-50%, -50%);
         border-radius: 50%;
-        border: 2px solid rgba(255, 255, 255, 0.12);
-        background: rgba(255, 255, 255, 0.015);
+        border: 2px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.01);
         box-sizing: border-box;
         pointer-events: none;
+    }
+
+    .alignment-ring.square {
+        border-radius: 0;
     }
 
     .board-token {
@@ -1020,47 +1007,11 @@
         display: none;
     }
 
-    .add-player-row {
-        display: flex;
-        justify-content: center;
-        gap: 0.5em;
-        padding-bottom: 0.5em;
-    }
-
-    .add-player-row input {
-        width: 14em;
-    }
-
     .picker-grid {
         display: flex;
         flex-wrap: wrap;
         justify-content: center;
         gap: 0.4em;
-    }
-
-    .bluffs-corner {
-        position: absolute;
-        right: 8px;
-        bottom: 8px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
-        padding: 6px 8px;
-        border: none;
-        border-radius: 8px;
-        background: rgba(0, 0, 0, 0.6);
-        color: white;
-        cursor: pointer;
-    }
-
-    .bluffs-corner-label {
-        opacity: 0.7;
-    }
-
-    .bluffs-corner-tokens {
-        display: flex;
-        gap: 4px;
     }
 
     .show-bluffs-btn {
@@ -1734,6 +1685,7 @@
     <div class="grimoire-board" bind:this={boardEl}>
         {#each ALIGNMENT_RING_FACTORS as factor}
             <div class="alignment-ring" style="width: {tokenSize * factor * 2}px; height: {tokenSize * factor * 2}px; z-index: {z_indecies.canvas - 1};"></div>
+            <div class="alignment-ring square" style="width: {tokenSize * factor * 2}px; height: {tokenSize * factor * 2}px; z-index: {z_indecies.canvas - 1};"></div>
         {/each}
         {#each placedTokens as token (token.id)}
             {@const character = script?.characters.find(c => c.id === token.characterId)}
@@ -1850,22 +1802,6 @@
             </div>
         {/if}
 
-    {#if loadedPreset && loadedPreset.bluff_ids.length > 0 && !showFooter}
-        <button type="button" class="bluffs-corner" onclick={showBluffs} title="Show bluffs" style="z-index: {z_indecies.ui};">
-            <span class="bluffs-corner-label" style="font-size: {Math.round(tokenSize * viewScale * 0.15)}px;">Bluffs</span>
-            <span class="bluffs-corner-tokens">
-                {#each loadedPreset.bluff_ids.slice(0, 3) as bluffId (bluffId)}
-                    {@const bluff = script?.characters.find(c => c.id === bluffId)}
-                    {#if bluff}
-                        <div style="position: relative; width: {bluffCornerTokenSize}px; height: {bluffCornerTokenSize}px;">
-                            <CharacterToken character={bluff} style="position: relative;" size="{bluffCornerTokenSize}px" norules/>
-                        </div>
-                    {/if}
-                {/each}
-            </span>
-        </button>
-    {/if}
-
     {#if !showFooter}
         <button class="open-tray-btn open-tray-tab" onclick={toggleTray} title="Show token tray" style="z-index: {z_indecies.ui};">
             <svg viewBox="0 0 24 24"><path d="M7 14l5-5 5 5z"/></svg>
@@ -1881,19 +1817,15 @@
                     <div style="opacity: 0.7;">{script.name}</div>
                 {/if}
             </div>
-            <form class="add-player-row" onsubmit={(e) => { e.preventDefault(); addPlayer(); }}>
-                <input type="text" class="popup-player-name" placeholder="New player name" bind:value={newPlayerName} />
-                <button type="submit" class="button-style" disabled={!newPlayerName.trim()}>Add player</button>
-            </form>
             <div class="token-tray">
                 {#if !script}
                     <div style="text-align: center; opacity: 0.6; padding: 1em;">Select a script to begin.</div>
                 {:else if loadedPreset}
-                {#if loadedPreset.character_ids.length > 0}
+                {#if seatedCharacterIds.length > 0}
                 <div>
                     <div style="text-align: center;">In-play</div>
                     <div class="sub-tray">
-                        {#each loadedPreset.character_ids as character_id}
+                        {#each seatedCharacterIds as character_id (character_id)}
                         {@const character = script?.characters.find(c => c.id === character_id)}
                         {#if character}
                                 <div
