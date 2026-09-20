@@ -434,13 +434,14 @@
 
     let dragging = $state<{ character: ScriptCharacter | null; source: 'tray' | 'board'; sourceToken?: PlacedToken } | null>(null);
     let draggingReminder = $state<{ token: ReminderToken; characterId: string; source: 'popup' | 'board' } | null>(null);
+    const isDraggingAnything = $derived(dragging !== null || draggingReminder !== null);
     let ghostPos = $state<{ x: number; y: number } | null>(null);
     let dragOffset = $state<{ x: number; y: number }>({ x: 0, y: 0 });
     let boardEl = $state<HTMLDivElement | null>(null);
     let footerEl = $state<HTMLDivElement | null>(null);
 
     // Edge threshold in px for deleting reminder tokens
-    const EDGE_THRESHOLD = 40;
+    const EDGE_THRESHOLD = 60;
 
     // Distinguish tap vs drag
     let pointerStartPos: { x: number; y: number } | null = null;
@@ -731,10 +732,8 @@
         activeReminderPos = null;
     }
 
-    function isNearEdge(x: number, y: number): boolean {
-        return x < EDGE_THRESHOLD || y < EDGE_THRESHOLD ||
-               x > window.innerWidth - EDGE_THRESHOLD ||
-               y > window.innerHeight - EDGE_THRESHOLD;
+    function isNearEdge(_x: number, y: number): boolean {
+        return y < EDGE_THRESHOLD || y > window.innerHeight - EDGE_THRESHOLD;
     }
 
     function onPointerMove(e: PointerEvent) {
@@ -1323,18 +1322,35 @@
         cursor: grabbing;
     }
 
-    .edge-delete-indicator {
-        position: fixed;
-        inset: 0;
+    /* Absolute, not fixed: mobile browsers tint their toolbars from fixed elements at the screen edge. */
+    /* Chrome that gets out of the way while a token or reminder is being dragged. */
+    .drag-hidden {
+        opacity: 0 !important;
         pointer-events: none;
-        border: 3px solid rgba(255, 60, 60, 0.6);
-        border-radius: 0;
-        opacity: 0;
-        transition: opacity 0.15s;
     }
 
-    .edge-delete-indicator.active {
-        opacity: 1;
+    .delete-zone {
+        position: absolute;
+        left: 0;
+        right: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        box-sizing: border-box;
+        border-radius: 12px;
+        background: rgba(255, 60, 60, 0.12);
+        border: 2px dashed rgba(255, 60, 60, 0.7);
+        color: rgba(255, 255, 255, 0.85);
+        transition: background 0.15s;
+    }
+
+    /* Kept a few px off the very top so the browser doesn't sample it for the status bar colour. */
+    .delete-zone.top { top: 6px; }
+    .delete-zone.bottom { bottom: 0; }
+
+    .delete-zone.active {
+        background: rgba(255, 60, 60, 0.35);
     }
 
     .sidebar {
@@ -1490,7 +1506,7 @@
 
 
     <div class="grim-root">
-    <div class="save-status {saveStatus}" style="z-index: {z_indecies.ui};" title={
+    <div class="save-status {saveStatus}" class:drag-hidden={isDraggingAnything} style="z-index: {z_indecies.ui};" title={
         saveStatus === 'saved' ? 'All changes saved'
         : saveStatus === 'saving' ? 'Saving…'
         : saveStatus === 'error' ? 'Failed to save changes'
@@ -1507,7 +1523,7 @@
         {/if}
     </div>
 
-    <div class="sidebar" style="z-index: {z_indecies.ui};">
+    <div class="sidebar" class:drag-hidden={isDraggingAnything} style="z-index: {z_indecies.ui};">
         <div class="sidebar-top-row">
         <!-- Collapse / expand the sidebar -->
         <button class="sidebar-btn" class:active={sidebarOpen} onclick={() => sidebarOpen = !sidebarOpen} title="{sidebarOpen ? 'Hide' : 'Show'} menu">
@@ -1803,7 +1819,7 @@
         {/if}
 
     {#if !showFooter}
-        <button class="open-tray-btn open-tray-tab" onclick={toggleTray} title="Show token tray" style="z-index: {z_indecies.ui};">
+        <button class="open-tray-btn open-tray-tab" class:drag-hidden={isDraggingAnything} onclick={toggleTray} title="Show token tray" style="z-index: {z_indecies.ui};">
             <svg viewBox="0 0 24 24"><path d="M7 14l5-5 5 5z"/></svg>
         </button>
     {/if}
@@ -2048,17 +2064,25 @@
                 <PlayerToken playerName={dragging.sourceToken?.playerName ?? ''} style="position: relative;" size={tokenSize * viewScale + 'px'}/>
             {/if}
         </div>
-        {#if dragging.source === 'board'}
-            <div class="edge-delete-indicator" class:active={isNearEdge(ghostPos.x, ghostPos.y)} style="z-index: {z_indecies.ui};"></div>
-        {/if}
+        {@render deleteZones()}
     {/if}
 
     {#if draggingReminder && ghostPos}
         <div class="drag-ghost" style="left: {ghostPos.x}px; top: {ghostPos.y}px;">
             <ReminderTokenView data={draggingReminder.token} characterId={draggingReminder.characterId} size="{reminderTokenSize * viewScale}px"/>
         </div>
-        <div class="edge-delete-indicator" class:active={isNearEdge(ghostPos.x, ghostPos.y)}></div>
+        {@render deleteZones()}
     {/if}
+
+    {#snippet deleteZones()}
+        {#each ['top', 'bottom'] as edge}
+            <div class="delete-zone {edge}" class:active={ghostPos !== null && isNearEdge(ghostPos.x, ghostPos.y) && (edge === 'top') === (ghostPos.y < EDGE_THRESHOLD)} style="height: {EDGE_THRESHOLD}px; z-index: {z_indecies.ui};">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 10v6M14 10v6"/>
+                </svg>
+            </div>
+        {/each}
+    {/snippet}
 
     {#if showTimerOptions}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
