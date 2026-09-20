@@ -32,10 +32,15 @@
 <TopNavbar/>
 
 <div class="play">
-    <div class="play-header">
-        <a class="play-home" href="/">&larr; Back</a>
-        <div class="play-title dumbledore-font">Play</div>
-    </div>
+  <div class="card">
+    <header class="card-header">
+        <h1>Play</h1>
+        <button class="new-game" onclick={createNewGame} disabled={creating}>
+            <PlusIcon size={20}/>
+            <span>New Game</span>
+        </button>
+    </header>
+    <p class="description">Open a game's town square or storytelling view.</p>
 
     <div class="game-list">
         {#each data.games as { instance, scriptName } (instance.clock.clockId)}
@@ -60,23 +65,28 @@
                     </div>
                 </div>
                 <div class="game-panel-actions">
-                    <a class="button-style" href="/townsquare/{id}"><TownSquareIcon size={36}/><span>Town Square</span></a>
-                    <a class="button-style" href="/admin/{id}/storytell"><BookIcon size={36}/><span>Storytell</span></a>
+                    <a class="button-style" href="/townsquare/{id}"><TownSquareIcon size={36}/><span>Town Square</span><small>The shared clock display for players</small></a>
+                    <a class="button-style" href="/admin/{id}/storytell"><BookIcon size={36}/><span>Storytell</span><small>Grimoire and clock controls for the storyteller</small></a>
                 </div>
             </div>
         {/each}
 
-        {#if data.games.length > 0}
-            <a class="button-style new-game-row" href="/townsquare/all">View All (Splitscreen)</a>
+        {#if data.games.length === 0}
+            <p class="empty">No games yet. Create one to get started.</p>
         {/if}
 
-        <button class="button-style new-game-row" onclick={createNewGame} disabled={creating}>
-            <PlusIcon size={28}/>
-            <span>New Game</span>
-        </button>
-
-        <a class="button-style new-game-row" href="/admin/mixer">Audio Mixer</a>
     </div>
+
+    <section class="tools">
+        <h2>Tools</h2>
+        <div class="extra-links">
+            {#if data.games.length > 0}
+                <a class="button-style" href="/townsquare/all">View All (Splitscreen)</a>
+            {/if}
+            <a class="button-style" href="/admin/mixer">Audio Mixer</a>
+        </div>
+    </section>
+  </div>
 </div>
 
 <style>
@@ -84,45 +94,77 @@
         width: 100%;
         height: 100%;
         box-sizing: border-box;
-        padding: 90px 2em 2em;
+        padding: 90px 1.5rem 1.5rem;
         overflow: auto;
-        color: var(--theme-on-bg);
-    }
-
-    .play-header {
         display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.75em;
-        width: 100%;
-        max-width: 480px;
-        margin: 0 auto 1.5em;
-    }
-
-    .play-home {
-        align-self: start;
+        justify-content: center;
+        align-items: flex-start;
         color: var(--theme-on-bg);
-        text-decoration: none;
+    }
+
+    .card {
+        width: 100%;
+        max-width: 42rem;
+        padding: 1.5rem;
+        box-sizing: border-box;
+        background-color: var(--theme-bg-secondary);
+        color: var(--theme-on-bg-secondary);
+        border: 1px solid var(--theme-bg-tertiary);
+        border-radius: 14px;
+        box-shadow: 0 6px 24px var(--theme-shadow);
+    }
+
+    .card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.5rem;
+    }
+
+    h1 {
+        margin: 0;
+        font-size: 1.5rem;
+        color: var(--theme-on-bg);
+    }
+
+    .description {
+        margin: 0.25rem 0 1.25rem;
+        font-size: 0.9rem;
+        font-style: italic;
         opacity: 0.8;
-        font-size: large;
     }
 
-    .play-home:hover {
-        opacity: 1;
+    .new-game {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4em;
+        padding: 0.5em 1.2em;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        background-color: var(--theme-highlight);
+        color: var(--theme-on-highlight);
+        border: 1px solid var(--theme-highlight);
+        border-radius: 999px;
     }
 
-    .play-title {
-        font-size: 2em;
-        opacity: 0.9;
+    .new-game:hover:not(:disabled) {
+        filter: brightness(1.12);
+    }
+
+    .new-game:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
 
     .game-list {
         display: flex;
         flex-direction: column;
         gap: 0.8em;
-        width: 100%;
-        max-width: 480px;
-        margin: 0 auto;
+        padding: 1rem;
+        border: 1px solid var(--theme-bg-tertiary);
+        border-radius: 10px;
+        background-color: var(--theme-bg);
     }
 
     .game-panel {
@@ -133,7 +175,9 @@
         padding: 1em 1.1em;
         box-sizing: border-box;
         background-color: var(--theme-bg-secondary);
-        border-radius: 0.5em;
+        color: var(--theme-on-bg-secondary);
+        border: 1px solid var(--theme-bg-tertiary);
+        border-radius: 10px;
     }
 
     .game-panel-name {
@@ -147,7 +191,7 @@
         top: 0.8em;
         right: 1em;
         display: flex;
-        color: var(--theme-on-bg);
+        color: var(--theme-on-bg-secondary);
         opacity: 0.6;
     }
 
@@ -180,9 +224,6 @@
     .game-panel-actions .button-style {
         box-sizing: border-box;
         text-align: center;
-    }
-
-    .game-panel-actions .button-style {
         padding: 1.1em 0.5em;
         font-size: large;
         display: flex;
@@ -192,19 +233,43 @@
         justify-content: center;
     }
 
-    .new-game-row {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5em;
-        width: 100%;
-        box-sizing: border-box;
-        padding: 0.9em 1.1em;
-        font-size: large;
-        background-color: var(--theme-bg-secondary);
+    .game-panel-actions small {
+        font-size: 0.75rem;
+        font-style: italic;
+        line-height: 1.3;
+        opacity: 0.7;
     }
 
-    .new-game-row:hover {
-        background-color: var(--theme-bg-tertiary);
+    .empty {
+        margin: 0.5rem 0;
+        text-align: center;
+        opacity: 0.7;
+    }
+
+    .tools {
+        margin-top: 1.25rem;
+        padding: 1rem;
+        border: 1px solid var(--theme-bg-tertiary);
+        border-radius: 10px;
+        background-color: var(--theme-bg);
+    }
+
+    .tools h2 {
+        margin: 0 0 0.75rem;
+        font-size: 1.05rem;
+        color: var(--theme-on-bg);
+    }
+
+    .extra-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5em;
+    }
+
+    .extra-links .button-style {
+        flex: 1;
+        box-sizing: border-box;
+        text-align: center;
+        padding: 0.7em 1.1em;
     }
 </style>
