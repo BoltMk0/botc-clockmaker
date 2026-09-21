@@ -120,3 +120,8 @@ export const MOON_GLOW_COLOR: Rgb = { r: 180, g: 70, b: 55 };
 // A soft, light pink the blood moon's disc (and the clockface echoing it)
 // are pulled toward so they read rosy rather than as a flat red filter.
 export const MOON_DISC_PINK: Rgb = { r: 255, g: 150, b: 165 };
+
+// The lanterns' warm amber glow - matches the lit glass panes in their own
+// art. Shared with anything else that wants to read as "lit by lantern
+// light" (e.g. the count banner's fill light) rather than a plain white.
+export const LANTERN_GLOW_COLOR: Rgb = { r: 255, g: 186, b: 107 };

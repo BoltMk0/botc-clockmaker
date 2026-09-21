@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { useThrelte } from "@threlte/core";
+    import { T, useThrelte } from "@threlte/core";
     import TextBanner from "./TextBanner.svelte";
     import PlayerCountBanner, { type PlayerCounts } from "./PlayerCountBanner.svelte";
     import Lantern from "./Lantern.svelte";
@@ -8,6 +8,7 @@
     import PlayerSeatToken from "./PlayerSeatToken.svelte";
     import SideRolesTitle from "./SideRolesTitle.svelte";
     import { sideRoleCharacters } from "$lib/components/playerSeatsLayout";
+    import { LANTERN_GLOW_COLOR } from "../sceneColors";
     import type { GrimoireStateHistory } from "$lib/resources/common/grimoireState";
     import type { ScriptWithCharacters } from "$lib/resources/common/gameData";
 
@@ -38,6 +39,15 @@
     // Only used when a grim exists (see `hasGrim` below) - otherwise the
     // count banner stacks directly under the day banner in the same panel.
     const COUNT_RIGHT_MARGIN_FRACTION = 0.02;
+
+    // With a grim, the count banner is pinned out to the real screen edge,
+    // well away from the tower the sun/moon lights are aimed at - it can end
+    // up noticeably dimmer than everything else in the shot. A small,
+    // always-on point light parked right in front of it keeps it readable
+    // regardless of time of day or how far off to the side it's sitting.
+    const COUNT_LIGHT_INTENSITY = 2;
+    const COUNT_LIGHT_DISTANCE_SCALE = 1; // relative to the banner's own width
+    const COUNT_LIGHT_Z_FORWARD = 0.9;
 
     // With a grim, the day/time banner floats at screen-centre height
     // instead of being centred above the count banner, so the player-seats
@@ -284,6 +294,19 @@
     z={rows.dayZ}
 />
 <PlayerCountBanner {counts} {visibleHeight} placement={rows.count} z={PANEL.z} />
+{#if hasGrim}
+    <!-- Only with a grim does the count banner get pinned out to the real
+         screen edge, away from the tower the sun/moon lights are aimed at
+         (see `rows` above) - without one it stacks under the day banner in
+         the main panel, already lit like the rest of it. -->
+    <T.PointLight
+        position={[rows.count.x, rows.count.y, PANEL.z + COUNT_LIGHT_Z_FORWARD]}
+        intensity={COUNT_LIGHT_INTENSITY}
+        distance={rows.count.width * COUNT_LIGHT_DISTANCE_SCALE}
+        color={`rgb(${LANTERN_GLOW_COLOR.r}, ${LANTERN_GLOW_COLOR.g}, ${LANTERN_GLOW_COLOR.b})`}
+        decay={1}
+    />
+{/if}
 {#each rows.ropes as rope, i (i)}
     <RopeChain {...rope} z={rows.lanternZ} />
 {/each}

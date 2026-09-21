@@ -5,7 +5,7 @@
     import { useTexture } from "@threlte/extras";
     import lanternTextureUrl from "$lib/assets/clocktower-scene/lantern.png";
     import lanternNormalMapUrl from "$lib/assets/clocktower-scene/lantern-normal.png";
-    import { getSceneSkyBrightness } from "../sceneColors";
+    import { getSceneSkyBrightness, LANTERN_GLOW_COLOR } from "../sceneColors";
 
     // ---------------------------------------------------------------------
     // Glow tuning - tweak these freely.
@@ -18,7 +18,7 @@
     // halos. A `T.PointLight` alongside them casts real light onto the
     // tower/banners' normal maps.
     // ---------------------------------------------------------------------
-    const GLOW_COLOR = { r: 255, g: 186, b: 107 }; // warm amber, matches the lit glass panes
+    const GLOW_COLOR = LANTERN_GLOW_COLOR;
 
     const CORE_GLOW_OPACITY = 1;
     const CORE_GLOW_Z_LIFT = 0.02; // just in front of the lantern art itself
