@@ -20,7 +20,7 @@
     // ---------------------------------------------------------------------
     const GLOW_COLOR = { r: 255, g: 186, b: 107 }; // warm amber, matches the lit glass panes
 
-    const CORE_GLOW_OPACITY = 0.2;
+    const CORE_GLOW_OPACITY = 1;
     const CORE_GLOW_Z_LIFT = 0.02; // just in front of the lantern art itself
     // Only pixels at least this bright (0-1 luminance) in the lantern's own
     // art get any glow - keeps the dark ironwork frame dark and confines the
@@ -32,13 +32,13 @@
     // clouds all sit at z values well below this) so it washes additively
     // over the whole frame near the lantern, reading as ambient light spill
     // rather than a bright halo sitting on top of the art.
-    const WASH_GLOW_SIZE_SCALE = 9;
-    const WASH_GLOW_OPACITY = 0.4;
+    const WASH_GLOW_SIZE_SCALE = 6;
+    const WASH_GLOW_OPACITY = 0.5;
     const WASH_Z = 8;
 
     const POINT_LIGHT_Z_FORWARD = 1.8; // pulls the real light source toward the camera/tower
-    const POINT_LIGHT_INTENSITY = 5;
-    const POINT_LIGHT_DISTANCE_SCALE = 55; // relative to lantern width
+    const POINT_LIGHT_INTENSITY = 20;
+    const POINT_LIGHT_DISTANCE_SCALE = 12; // relative to lantern width
 
     // A gentle candle-flicker: two out-of-phase sine waves rather than one,
     // so it doesn't read as a metronomic pulse.
