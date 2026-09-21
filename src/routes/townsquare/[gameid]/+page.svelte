@@ -45,7 +45,7 @@
 
 <SideMenu townSquare {audioEngine}/>
 
-{#if appSettings.showQRCodes && qrCodes.length > 0}
+{#if appSettings.showQRCodes && qrCodes.length > 0 && appSettings.displayMode !== 'clocktower3d'}
 {#each QR_POSITIONS as pos}
     {@const group = qrCodes.filter(c => c.position === pos)}
     {#if group.length > 0}

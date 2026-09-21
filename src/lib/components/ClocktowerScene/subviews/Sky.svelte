@@ -2,7 +2,7 @@
     import * as THREE from "three";
     import { T } from "@threlte/core";
     import { parseCssColor } from "$lib/common/util";
-    import { getSceneSkyColor, getSceneSkyBrightness, getSceneSunColor } from "../sceneColors";
+    import { getSceneSkyColor, getSceneAmbientColor, getSceneSkyBrightness, getSceneSunColor } from "../sceneColors";
 
     let {
         smoothProgress
@@ -61,7 +61,11 @@
     // dimly visible even with no direct light hitting them (real night scenes
     // are never fully unlit; starlight and sky glow alone provide some fill).
     const GI_FLOOR = 7;
-    const ambientColorRgb = $derived(parseCssColor(getSceneSkyColor(smoothProgress)));
+    // Its own color curve (see getSceneAmbientColor), not the sky gradient's
+    // - they agree by day but diverge toward night, where the sky can fade
+    // toward near-black but the ambient fill still needs to read as a
+    // plausible (paler, cooler) moonlit tone to keep shadowed detail visible.
+    const ambientColorRgb = $derived(getSceneAmbientColor(smoothProgress));
     // Same fade-in curve the moon itself uses, so the ambient fill brightens
     // in step with it rather than just sitting at a flat night-time floor -
     // boosted well beyond the daytime contribution so unlit/shadowed detail
@@ -69,7 +73,7 @@
     // clearly once the sun's gone down, rather than going nearly flat black.
     const moonAppearAmount = $derived(Math.pow(1 - skyBrightness, 1.4));
     // Overall multiplier on the whole ambient fill (floor, daytime and moonlit contributions alike).
-    const AMBIENT_SCALE = 2;
+    const AMBIENT_SCALE = 1.5;
     const ambientIntensity = $derived((GI_FLOOR + skyBrightness * 2.2 + moonAppearAmount * 7) * AMBIENT_SCALE);
     const GROUND_COLOR: [number, number, number] = [0.16, 0.14, 0.12];
 

@@ -1,19 +1,11 @@
 import { getMimeTypeForExtension } from "../common/util";
-import { DEFAULT_QR_POSITION, isQrPosition, type QrPosition } from "../common/qrCodes";
+import { DEFAULT_QR_POSITION, isQrCode, type QrCode } from "../common/qrCodes";
 import { encodeResourceId, findResourceById, getResourceData, saveResource } from "./resources";
 
-export type QrCode = {
-    url: string;
-    title: string;
-    position: QrPosition;
-};
-
-export function isQrCode(value: unknown): value is QrCode {
-    return typeof value === 'object' && value !== null &&
-        'url' in value && typeof (value as QrCode).url === 'string' &&
-        'title' in value && typeof (value as QrCode).title === 'string' &&
-        'position' in value && isQrPosition((value as QrCode).position);
-}
+// Re-exported for existing server-side imports; these are pure/common (no
+// `fs`), and also live in ../common/qrCodes so client code (which can't pull
+// in this file - see resources.ts's `fs` usage) can use them too.
+export { type QrCode, isQrCode } from "../common/qrCodes";
 
 const resId = encodeResourceId('appconfig', 'qr_codes', getMimeTypeForExtension('.json'));
 

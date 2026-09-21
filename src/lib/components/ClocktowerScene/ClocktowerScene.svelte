@@ -8,6 +8,8 @@
     import Scene from "./Scene.svelte";
     import { isGrimoireStateHistory, type GrimoireStateHistory } from "$lib/resources/common/grimoireState";
     import type { ScriptWithCharacters } from "$lib/resources/common/gameData";
+    import { isQrCode, type QrCode } from "$lib/resources/common/qrCodes";
+    import { appSettings } from "$lib/model/client/appSettings.svelte";
     import clocktowerColor from "$lib/assets/clocktower-scene/clocktower-color.png";
     import clocktowerNormal from "$lib/assets/clocktower-scene/clocktower-normal.png";
     import clockfaceColor from "$lib/assets/clocktower-scene/clockface-color.png";
@@ -133,6 +135,12 @@
         dayBannerNormalMapUrl
     ];
 
+    // Dev-only: lets whoever's tuning the scene's colors drag through the
+    // whole day/night cycle instantly instead of waiting on (or faking) a
+    // real countdown. Never shown in production - see the `{#if DEV}` below.
+    let debugProgressOverride = $state<number | null>(null);
+    const effectiveProgress = $derived(debugProgressOverride ?? progress);
+
     let assetsReady = $state(false);
 
     $effect(() => {
@@ -227,6 +235,22 @@
         };
     });
 
+    // The configured QR codes (global, not per-clock - see /api/qrCodes),
+    // rendered as scene objects behind the player seat tokens instead of the
+    // DOM overlay used by the other display modes - see SceneQrCodes.svelte.
+    // Fetched once; this list changes rarely enough that polling isn't worth it.
+    let qrCodes = $state<QrCode[]>([]);
+    onMount(() => {
+        if (!browser) return;
+        fetch('/api/qrCodes')
+            .then(r => r.ok ? r.json() : Promise.reject())
+            .then((d) => {
+                if (Array.isArray(d) && d.every(isQrCode)) qrCodes = d;
+            })
+            .catch(() => {});
+    });
+    const shownQrCodes = $derived(appSettings.showQRCodes ? qrCodes : []);
+
 </script>
 
 <div style="position: relative; width: 100%; height: 100%; {style}">
@@ -245,7 +269,7 @@
             toneMapping={THREE.NoToneMapping}
         >
             <Scene
-                {progress}
+                progress={effectiveProgress}
                 {totalTime}
                 {dayNumber}
                 {playerCount}
@@ -266,12 +290,32 @@
                 {hasGrim}
                 {grimoireState}
                 {script}
+                qrCodes={shownQrCodes}
             />
         </Canvas>
         {#if !assetsReady}
             <div class="loading-overlay" out:fade={{ duration: 400 }}>
                 <div class="spinner"></div>
                 <div class="loading-text dumbledore-font">Loading...</div>
+            </div>
+        {/if}
+        {#if import.meta.env.DEV}
+            <div class="debug-progress">
+                <span>day progress</span>
+                <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.001"
+                    value={effectiveProgress}
+                    oninput={(e) => (debugProgressOverride = parseFloat((e.target as HTMLInputElement).value))}
+                />
+                <span>{effectiveProgress.toFixed(3)}</span>
+                <button
+                    type="button"
+                    disabled={debugProgressOverride === null}
+                    onclick={() => (debugProgressOverride = null)}
+                >live</button>
             </div>
         {/if}
     {/if}
@@ -308,5 +352,43 @@
         to {
             transform: rotate(360deg);
         }
+    }
+
+    .debug-progress {
+        position: absolute;
+        left: 50%;
+        bottom: 0.75em;
+        transform: translateX(-50%);
+        z-index: 30;
+        display: flex;
+        align-items: center;
+        gap: 0.6em;
+        padding: 0.4em 0.8em;
+        border-radius: 999px;
+        background: #000a;
+        color: #c9c2a3;
+        font-family: monospace;
+        font-size: 0.85em;
+        white-space: nowrap;
+    }
+
+    .debug-progress input[type="range"] {
+        width: 40vw;
+        max-width: 24em;
+    }
+
+    .debug-progress button {
+        font: inherit;
+        color: inherit;
+        background: #ffffff20;
+        border: 1px solid #ffffff40;
+        border-radius: 999px;
+        padding: 0.15em 0.7em;
+        cursor: pointer;
+    }
+
+    .debug-progress button:disabled {
+        opacity: 0.4;
+        cursor: default;
     }
 </style>

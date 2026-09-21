@@ -22,3 +22,16 @@ export const QR_POSITION_LABELS: Record<QrPosition, string> = {
     'bottom': 'Bottom',
     'bottom-right': 'Bottom right',
 };
+
+export type QrCode = {
+    url: string;
+    title: string;
+    position: QrPosition;
+};
+
+export function isQrCode(value: unknown): value is QrCode {
+    return typeof value === 'object' && value !== null &&
+        'url' in value && typeof (value as QrCode).url === 'string' &&
+        'title' in value && typeof (value as QrCode).title === 'string' &&
+        'position' in value && isQrPosition((value as QrCode).position);
+}

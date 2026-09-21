@@ -12,9 +12,11 @@
     import ClockFace from "./subviews/ClockFace.svelte";
     import ClockHands from "./subviews/ClockHands.svelte";
     import OriginMarker from "./subviews/OriginMarker.svelte";
+    import SceneQrCodes from "./subviews/SceneQrCodes.svelte";
     import { getPlayerCount } from "$lib/common/util";
     import type { GrimoireStateHistory } from "$lib/resources/common/grimoireState";
     import type { ScriptWithCharacters } from "$lib/resources/common/gameData";
+    import type { QrCode } from "$lib/resources/server/qrCodes";
 
     let {
         progress,
@@ -37,7 +39,8 @@
         clockFaceNormalMapUrl,
         hasGrim = false,
         grimoireState = null,
-        script = null
+        script = null,
+        qrCodes = []
     }: {
         progress: number;
         totalTime: number;
@@ -60,6 +63,7 @@
         hasGrim?: boolean;
         grimoireState?: GrimoireStateHistory | null;
         script?: ScriptWithCharacters | null;
+        qrCodes?: QrCode[];
     } = $props();
 
     const counts = $derived(getPlayerCount(playerCount));
@@ -111,6 +115,14 @@
 <Clouds {smoothProgress} {visibleHeight} horizontalOffset={scaledHorizontalOffset} />
 <Sun {smoothProgress} arcRadius={sunArcRadius} height={sunHeight} forwardDistance={sunForwardDistance} />
 <Moon {smoothProgress} {visibleHeight} horizontalOffset={scaledHorizontalOffset} />
+{#if qrCodes.length > 0}
+    <!-- In front of the tower (z=0) so it reads clearly at the screen edges,
+         but behind the mist (z=0.1) and well behind the player seat tokens
+         (see PlayerSeats.svelte, z~0.3) - so a seated token drawn over a
+         corner occludes the code there instead of it always winning like
+         the DOM overlay it replaces in this display mode. -->
+    <SceneQrCodes {qrCodes} {visibleHeight} z={0.05} />
+{/if}
 <GameStatsPanel
     day={dayNumber}
     {progress}

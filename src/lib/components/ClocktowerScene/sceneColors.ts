@@ -2,7 +2,34 @@
 // from $lib/common/util's getSkyColor (used by the older SVG-based display)
 // so tuning one scene's look never bleeds into the other's.
 
-const sky_color_points = [
+type ColorPoint = { progress: number; r: number; g: number; b: number };
+
+// Shared by getSceneSkyColor and getSceneAmbientColor: finds the two
+// keyframes `progress` falls between in an ascending-`progress` list and
+// linearly interpolates each channel.
+function interpolateColorPoints(points: ColorPoint[], progress: number): Rgb {
+    let lowerPoint = points[0];
+    let upperPoint = points[points.length - 1];
+
+    for (let i = 0; i < points.length - 1; i++) {
+        if (progress >= points[i].progress && progress <= points[i + 1].progress) {
+            lowerPoint = points[i];
+            upperPoint = points[i + 1];
+            break;
+        }
+    }
+
+    const range = upperPoint.progress - lowerPoint.progress;
+    const factor = (progress - lowerPoint.progress) / range;
+
+    return {
+        r: Math.round(lowerPoint.r + factor * (upperPoint.r - lowerPoint.r)),
+        g: Math.round(lowerPoint.g + factor * (upperPoint.g - lowerPoint.g)),
+        b: Math.round(lowerPoint.b + factor * (upperPoint.b - lowerPoint.b))
+    };
+}
+
+const sky_color_points: ColorPoint[] = [
     { progress: 0, r: 140, g: 162, b: 183 },    // Dawn - pale, hazy blue (a touch darker)
     { progress: 0.4, r: 150, g: 195, b: 230 },  // Morning - clear pale blue
     { progress: 0.7, r: 100, g: 160, b: 220 },  // Midday - deeper, more saturated blue
@@ -13,26 +40,33 @@ const sky_color_points = [
 ];
 
 export function getSceneSkyColor(progress: number): string {
-    // Find the two points to interpolate between
-    let lowerPoint = sky_color_points[0];
-    let upperPoint = sky_color_points[sky_color_points.length - 1];
-
-    for (let i = 0; i < sky_color_points.length - 1; i++) {
-        if (progress >= sky_color_points[i].progress && progress <= sky_color_points[i + 1].progress) {
-            lowerPoint = sky_color_points[i];
-            upperPoint = sky_color_points[i + 1];
-            break;
-        }
-    }
-
-    const range = upperPoint.progress - lowerPoint.progress;
-    const factor = (progress - lowerPoint.progress) / range;
-
-    const r = Math.round(lowerPoint.r + factor * (upperPoint.r - lowerPoint.r));
-    const g = Math.round(lowerPoint.g + factor * (upperPoint.g - lowerPoint.g));
-    const b = Math.round(lowerPoint.b + factor * (upperPoint.b - lowerPoint.b));
-
+    const { r, g, b } = interpolateColorPoints(sky_color_points, progress);
     return `rgb(${r}, ${g}, ${b})`;
+}
+
+// Tuned separately from the sky's own gradient (see sky_color_points above):
+// during the day it's a much paler, less saturated version of the sky's own
+// blue - a fully-saturated sky-blue ambient fill washes the whole (already
+// lit by the warm sun) scene out toward blue/grey, whereas real daylight
+// ambient (bounced/scattered skylight) reads as closer to neutral white with
+// only a faint cool cast. It diverges further from dusk onward: the sky
+// gradient keeps fading toward a near-black navy (it's a background
+// painting, so it can go as dark as it likes); the ambient light is what
+// keeps the tower's unlit/shadowed relief readable overnight (see
+// Sky.svelte's `GI_FLOOR`/`moonAppearAmount` boost), so it settles on a
+// paler, cooler moonlit tone instead of tracking the sky down toward black.
+const ambient_color_points: ColorPoint[] = [
+    { progress: 0, r: 190, g: 198, b: 206 },    // Dawn - just a faint cool cast
+    { progress: 0.4, r: 205, g: 220, b: 232 },  // Morning - light and airy, not saturated blue
+    { progress: 0.7, r: 195, g: 212, b: 230 },  // Midday - brightest, but still fairly neutral
+    { progress: 0.85, r: 195, g: 200, b: 210 }, // Late afternoon - pale, near-neutral
+    { progress: 0.93, r: 210, g: 160, b: 140 }, // Sunset - warm, but less saturated than the sky's own orange
+    { progress: 0.97, r: 120, g: 110, b: 150 }, // Dusk - cool violet twilight
+    { progress: 1.0, r: 120, g: 105, b: 120 },   // Night - pale, cool moonlit slate-blue
+];
+
+export function getSceneAmbientColor(progress: number): Rgb {
+    return interpolateColorPoints(ambient_color_points, progress);
 }
 
 // The sun's disc color as it climbs from the horizon (progress 0) to its

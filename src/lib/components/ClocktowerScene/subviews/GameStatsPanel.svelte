@@ -67,8 +67,8 @@
     const DAY_WIDTH_SCALE = 0.75;
     const COUNT_WIDTH_SCALE = 0.8;
 
-    // How far in front of the seats view (PANEL.z) the day banner sits when
-    // it's floating over them at screen-centre.
+    // How far in front of the day banner the seats view sits when the banner
+    // is floating over it at screen-centre, so tokens always draw on top.
     const DAY_Z_LIFT = 0.1;
     // How far behind the day banner itself (but still in front of the
     // seats, at PANEL.z) the lanterns/ropes hanging off its pole sit.
@@ -85,6 +85,10 @@
     // aspect, needed to work out rendered height before the texture loads.
     const LANTERN_WIDTH_SCALE = 0.32 * 0.6 * 0.55 * 1.3;
     const LANTERN_ASPECT = 512 / 768; // lantern.png
+    // Shrinks the rendered lantern ~10% without moving its top edge (where
+    // the rope meets it) - see `lanternY` below, which re-derives the centre
+    // from the pre-shrink top edge using this smaller width/height.
+    const LANTERN_SIZE_SCALE = 0.9;
 
     // Where the pole sits, as a fraction of the day banner's own rendered
     // height below its top edge, and how far out its ends reach, as a
@@ -232,20 +236,25 @@
         const poleY = dayTop - dayH * POLE_Y_INSET_FRACTION;
         const poleEdgeX = (dayW / 2) * POLE_EDGE_X_FRACTION;
 
-        const lanternW = panelW * LANTERN_WIDTH_SCALE;
-        const lanternH = lanternW / LANTERN_ASPECT;
-        const ropeLength = lanternW * ROPE_LENGTH_SCALE;
-        const ropeThickness = lanternW * ROPE_THICKNESS_SCALE;
+        // Rope length/thickness and the top edge the lantern hangs from are
+        // all worked out at the pre-shrink width, so shrinking the lantern
+        // itself (LANTERN_SIZE_SCALE) doesn't also shorten the rope or move
+        // where it meets the lantern.
+        const lanternRefW = panelW * LANTERN_WIDTH_SCALE;
+        const ropeLength = lanternRefW * ROPE_LENGTH_SCALE;
+        const ropeThickness = lanternRefW * ROPE_THICKNESS_SCALE;
         const lanternTopY = poleY - ropeLength;
-        const lanternY = lanternTopY - lanternH / 2 + lanternW * LANTERN_ROPE_OVERLAP_SCALE;
+        const lanternTopEdgeY = lanternTopY + lanternRefW * LANTERN_ROPE_OVERLAP_SCALE;
 
-        // With a grim, the day banner now floats over the seats view rather
-        // than sitting in its own reserved strip above it, so it needs to
-        // render in front of the seat tokens instead of at the same depth.
-        const dayZ = hasGrim ? PANEL.z + DAY_Z_LIFT : PANEL.z;
+        const lanternW = lanternRefW * LANTERN_SIZE_SCALE;
+        const lanternH = lanternW / LANTERN_ASPECT;
+        const lanternY = lanternTopEdgeY - lanternH / 2;
+
+        // The day banner stays at the panel depth; with a grim the seats
+        // view is lifted in front of it (see DAY_Z_LIFT) so tokens overlap it.
+        const dayZ = PANEL.z;
         // The lanterns/ropes stay just behind the banner itself (rather than
-        // level with it) - still above the seats layer, but tucked behind
-        // the panel they hang off of instead of floating in front of it.
+        // level with it), tucked behind the panel they hang off of.
         const lanternZ = dayZ - LANTERN_Z_RECESS;
 
         return {
@@ -282,7 +291,7 @@
     <Lantern {visibleHeight} placement={lantern} {progress} z={rows.lanternZ} />
 {/each}
 {#if hasGrim && rows.seatsArea}
-    <PlayerSeats area={rows.seatsArea} {grimoireState} {script} {visibleHeight} z={PANEL.z} />
+    <PlayerSeats area={rows.seatsArea} {grimoireState} {script} {visibleHeight} z={rows.dayZ + DAY_Z_LIFT} />
 {/if}
 {#if hasGrim && sideRoles.length > 0}
     {@const margin = visibleHeight * SIDE_ROLES_MARGIN_FRACTION}
