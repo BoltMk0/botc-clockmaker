@@ -151,8 +151,8 @@
         const { r, g, b } = glowColorRgb;
         const center = HALO_TEXTURE_SIZE / 2;
         const gradient = ctx.createRadialGradient(center, center, 0, center, center, center);
-        gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.5)`);
-        gradient.addColorStop(0.35, `rgba(${r}, ${g}, ${b}, 0.22)`);
+        gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.65)`);
+        gradient.addColorStop(0.35, `rgba(${r}, ${g}, ${b}, 0.3)`);
         gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
         ctx.clearRect(0, 0, HALO_TEXTURE_SIZE, HALO_TEXTURE_SIZE);
         ctx.fillStyle = gradient;
@@ -182,8 +182,8 @@
         const { r, g, b } = moonGlowLightRgb;
         const center = HALO_TEXTURE_SIZE / 2;
         const gradient = ctx.createRadialGradient(center, center, 0, center, center, center);
-        gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.42)`);
-        gradient.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, 0.16)`);
+        gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.55)`);
+        gradient.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, 0.22)`);
         gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
         ctx.clearRect(0, 0, HALO_TEXTURE_SIZE, HALO_TEXTURE_SIZE);
         ctx.fillStyle = gradient;
@@ -193,7 +193,7 @@
 
     // In front of the clouds (z = -visibleHeight * 0.4), behind the tower.
     const diffusionZ = $derived(-visibleHeight * 0.25);
-    const diffusionSize = $derived(radius * 8);
+    const diffusionSize = $derived(radius * 9.5);
 
     // The moon's own light: positioned high above and only slightly in front
     // of the tower, near-overhead, rather than level with the disc's rise.
@@ -208,7 +208,7 @@
 
 <T.DirectionalLight
     position={[horizontalOffset, lightHeight, lightForwardDistance]}
-    intensity={appearAmount * 20}
+    intensity={appearAmount * 24}
     color={toThreeColor(coreColorRgb)}
 />
 
@@ -237,7 +237,7 @@
 </T.Mesh>
 
 <T.Mesh position={[x, y, z - 0.02]}>
-    <T.PlaneGeometry args={[radius * 7, radius * 7]} />
+    <T.PlaneGeometry args={[radius * 8.5, radius * 8.5]} />
     <T.MeshBasicMaterial
         map={haloTexture}
         transparent

@@ -84,9 +84,9 @@ export function getSceneSunColor(progress: number): string {
     // the last sliver of its arc).
     const eased = fromHorizon ** 1.3;
 
-    const hue = 52 - eased * 34; // 52° warm white-yellow -> 18° hot orange
-    const saturation = 15 + eased * 80; // 15% (near-white) -> 95% (richly saturated)
-    const lightness = 92 - eased * 22; // 92% (bright white) -> 70% (bright, warm, still glowing)
+    const hue = 48 - eased * 30; // 48° warm yellow -> 18° hot orange
+    const saturation = 30 + eased * 65; // 30% (warm white) -> 95% (richly saturated)
+    const lightness = 88 - eased * 18; // 88% (bright, warm white) -> 70% (bright, warm, still glowing)
 
     return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }

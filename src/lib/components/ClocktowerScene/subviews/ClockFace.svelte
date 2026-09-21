@@ -3,7 +3,6 @@
     import { untrack } from "svelte";
     import { T } from "@threlte/core";
     import { useTexture } from "@threlte/extras";
-    import { mixRgb, MOON_GLOW_COLOR, MOON_DISC_PINK } from "../sceneColors";
 
     // The tower art was authored at 4096px for its `planeHeight` world
     // units (see ClocktowerScene.svelte) - hardcoded here rather than read
@@ -16,7 +15,7 @@
     // 1) - a single knob scaling the emissive dial, the point light it casts
     // onto the tower, and the mist halo bleeding out from it, so the three
     // stay balanced with each other as this is tuned.
-    const GLOW_INTENSITY = 0.5;
+    const GLOW_INTENSITY = 1.4;
     let {
         imageUrl,
         normalMapUrl,
@@ -62,11 +61,11 @@
     }
     // The dial's diffuse surface isn't tinted at all - all of the night
     // color comes from the glow (emissive, point light and mist halo), so
-    // the dial reads as genuinely lit by the moon rather than repainted.
-    // The glow is pulled toward the same soft pink as the moon's disc,
-    // keeping the clockface in that desaturated rosy register rather than a
-    // hot, saturated red.
-    const NIGHT_GLOW_COLOR = mixRgb(MOON_GLOW_COLOR, MOON_DISC_PINK, 0.8);
+    // the dial reads as genuinely lit from within rather than repainted. A
+    // pale, menacing blood red - own color, not derived from the moon's -
+    // bright enough to read as pale rather than a deep, muddy maroon, but
+    // clearly red rather than sliding toward the moon's soft pink.
+    const NIGHT_GLOW_COLOR = { r: 235, g: 70, b: 62 };
     const glowColor = $derived(toThreeColor(NIGHT_GLOW_COLOR));
 
     const colorTexture = useTexture(untrack(() => imageUrl));
@@ -153,15 +152,16 @@
         color={glowColor}
         intensity={lightIntensity}
         distance={LIGHT_DISTANCE}
-        decay={1}
+        decay={2.5}
     />
 
+    
     <T.Mesh position={[planeX, planeY, forwardOffset - 0.01]}>
         <T.PlaneGeometry args={[haloSize, haloSize]} />
         <T.MeshBasicMaterial
             map={haloTexture}
             transparent
-            opacity={glowAmount * GLOW_INTENSITY * 0.5}
+            opacity={glowAmount * GLOW_INTENSITY * 0.4}
             blending={THREE.AdditiveBlending}
             depthWrite={false}
         />
