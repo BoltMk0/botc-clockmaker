@@ -64,7 +64,7 @@
     // MOON_CORE_COLOR on its own.
     const rawCoreColorRgb = $derived(mixRgb(MOON_RISING_CORE_COLOR, MOON_CORE_COLOR, windowT));
     const glowColorRgb = $derived(mixRgb(MOON_RISING_GLOW_COLOR, MOON_GLOW_COLOR, windowT));
-    const coreColorRgb = $derived(mixRgb(rawCoreColorRgb, glowColorRgb, 0.55));
+    const coreColorRgb = $derived(mixRgb(rawCoreColorRgb, glowColorRgb, 0.7));
 
     function toThreeColor(rgb: { r: number; g: number; b: number }) {
         return new THREE.Color().setRGB(rgb.r / 255, rgb.g / 255, rgb.b / 255, THREE.SRGBColorSpace);
@@ -203,12 +203,12 @@
     // so this reads as scattered highlights picking out relief rather than
     // lighting the whole facade the way the sun does.
     const lightHeight = $derived(visibleHeight * 1.3);
-    const lightForwardDistance = $derived(visibleHeight * 0.6);
+    const lightForwardDistance = $derived(visibleHeight * 0.2);
 </script>
 
 <T.DirectionalLight
     position={[horizontalOffset, lightHeight, lightForwardDistance]}
-    intensity={appearAmount * 17}
+    intensity={appearAmount * 20}
     color={toThreeColor(coreColorRgb)}
 />
 

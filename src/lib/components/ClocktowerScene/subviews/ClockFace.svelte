@@ -16,7 +16,7 @@
     // 1) - a single knob scaling the emissive dial, the point light it casts
     // onto the tower, and the mist halo bleeding out from it, so the three
     // stay balanced with each other as this is tuned.
-    const GLOW_INTENSITY = 1;
+    const GLOW_INTENSITY = 0.5;
     let {
         imageUrl,
         normalMapUrl,
