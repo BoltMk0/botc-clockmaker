@@ -161,10 +161,6 @@
         display: flex;
         flex-direction: column;
         gap: 0.8em;
-        padding: 1rem;
-        border: 1px solid var(--theme-bg-tertiary);
-        border-radius: 10px;
-        background-color: var(--theme-bg);
     }
 
     .game-panel {
@@ -172,10 +168,10 @@
         display: flex;
         flex-direction: column;
         gap: 0.8em;
-        padding: 1em 1.1em;
+        padding: 1rem;
         box-sizing: border-box;
-        background-color: var(--theme-bg-secondary);
-        color: var(--theme-on-bg-secondary);
+        background-color: var(--theme-bg);
+        color: var(--theme-on-bg);
         border: 1px solid var(--theme-bg-tertiary);
         border-radius: 10px;
     }
@@ -191,7 +187,7 @@
         top: 0.8em;
         right: 1em;
         display: flex;
-        color: var(--theme-on-bg-secondary);
+        color: var(--theme-on-bg);
         opacity: 0.6;
     }
 
