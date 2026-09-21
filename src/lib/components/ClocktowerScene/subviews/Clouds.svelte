@@ -9,6 +9,7 @@
         getSceneSkyBrightness,
         MOON_GLOW_COLOR
     } from "../sceneColors";
+    import { fillBlurredCircle } from "../canvasBlur";
 
     let {
         smoothProgress,
@@ -65,14 +66,9 @@
                 { x: 0.6, y: 0.4, r: 0.18 },
                 { x: 0.5, y: 0.52, r: 0.24 }
             ];
-            ctx.fillStyle = "#ffffff";
-            ctx.filter = `blur(${BLUR}px)`;
             for (const d of discs) {
-                ctx.beginPath();
-                ctx.arc(d.x * TEX_W, d.y * TEX_H, d.r * TEX_H, 0, Math.PI * 2);
-                ctx.fill();
+                fillBlurredCircle(ctx, d.x * TEX_W, d.y * TEX_H, d.r * TEX_H, BLUR, "#ffffff");
             }
-            ctx.filter = "none";
 
             // Bluish shade toward the underside, clipped to the cloud body
             // (source-atop) so only the billows pick it up, not the whole

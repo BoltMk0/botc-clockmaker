@@ -3,6 +3,7 @@
     import { T, useThrelte } from "@threlte/core";
     import { parseCssColor } from "$lib/common/util";
     import { mixRgb, getSceneSkyColor, MOON_GLOW_COLOR } from "../sceneColors";
+    import { fillBlurredCircle } from "../canvasBlur";
 
     // A soft fog bank drifting across the bottom half of the screen, mostly
     // to hide the seam where the tower art's cropped bottom edge would
@@ -83,14 +84,16 @@
                 { x: 0.74, y: 0.52, r: 0.22 },
                 { x: 0.9, y: 0.47, r: 0.19 }
             ];
-            ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-            ctx.filter = `blur(${TEX_H * 0.05}px)`;
             for (const b of banks) {
-                ctx.beginPath();
-                ctx.arc(b.x * TEX_W, b.y * TEX_H, b.r * TEX_H, 0, Math.PI * 2);
-                ctx.fill();
+                fillBlurredCircle(
+                    ctx,
+                    b.x * TEX_W,
+                    b.y * TEX_H,
+                    b.r * TEX_H,
+                    TEX_H * 0.05,
+                    "rgba(255, 255, 255, 0.4)"
+                );
             }
-            ctx.filter = "none";
 
             mistTexture.needsUpdate = true;
         }
