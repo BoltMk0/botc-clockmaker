@@ -85,11 +85,24 @@ export function computeSeatsLayout(
     // Unclamped, a token's radius after scaling is scale * minDist / (2 * gapFactor), and it must fit
     // between the outermost centre and the edge on each axis.
     const tokenRadiusPerScale = minDist / (2 * gapFactor);
-    const scale = Math.min(
+    let scale = Math.min(
         halfWidth / (maxAbsX + tokenRadiusPerScale),
         halfHeight / (maxAbsY + tokenRadiusPerScale)
     );
-    const tokenSize = Math.max(minTokenSize, Math.min(maxTokenSize, scale * minDist / gapFactor));
+    const naturalTokenSize = scale * minDist / gapFactor;
+    const tokenSize = Math.max(minTokenSize, Math.min(maxTokenSize, naturalTokenSize));
+
+    // If the size that falls out of the gap-based formula above had to be clamped, `scale` was
+    // solved for a token radius that isn't the one we're actually using, so the outermost token
+    // centres would land short of (or past) the edge instead of touching it. Re-solve scale for
+    // the real (clamped) radius so the layout actually fills the available space.
+    if (tokenSize !== naturalTokenSize) {
+        const radius = tokenSize / 2;
+        scale = Math.max(0, Math.min(
+            maxAbsX > 0 ? (halfWidth - radius) / maxAbsX : Infinity,
+            maxAbsY > 0 ? (halfHeight - radius) / maxAbsY : Infinity
+        ));
+    }
 
     return {
         tokens: condensed.map(c => ({ token: c.token, x: c.x * scale, y: c.y * scale })),
