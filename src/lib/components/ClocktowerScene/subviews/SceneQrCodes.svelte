@@ -11,12 +11,15 @@
     // DOM layer on top of everything - see SceneQrCode.svelte.
     const MARGIN_FRACTION = 0.018; // 0.03 - 40%
     const CODE_WIDTH_FRACTION = 0.12;
-    const GAP_FRACTION = 0.035;
+    const VERTICAL_GAP_FRACTION = 0.035;
+    // Smaller than the vertical gap - codes stacked side-by-side (the
+    // top/bottom rows) read fine closer together than a stacked column.
+    const HORIZONTAL_GAP_FRACTION = 0.015;
 
     let {
         qrCodes,
         visibleHeight,
-        z = 0.05
+        z = 0.25
     }: {
         qrCodes: QrCode[];
         visibleHeight: number;
@@ -31,15 +34,44 @@
 
     const margin = $derived(visibleHeight * MARGIN_FRACTION);
     const codeWidth = $derived(visibleHeight * CODE_WIDTH_FRACTION);
-    const gap = $derived(visibleHeight * GAP_FRACTION);
+    const verticalGap = $derived(visibleHeight * VERTICAL_GAP_FRACTION);
+    const horizontalGap = $derived(visibleHeight * HORIZONTAL_GAP_FRACTION);
 
-    const isVertical = (pos: QrPosition) => pos === "left" || pos === "right";
+    // "top"/"bottom" stack their group in a horizontal row (centred on the
+    // anchor); every other position - the pure "left"/"right" edges and all
+    // four corners - stacks its group in a vertical column instead.
+    const isRow = (pos: QrPosition) => pos === "top" || pos === "bottom";
+    // The bottom-row/bottom-corner positions align by their bottom edge
+    // rather than being vertically centred like every other position -
+    // their card heights vary with title length (see SceneQrCode's
+    // canvasAspect), so centering would leave their bottoms at uneven
+    // distances from the screen edge.
+    const isBottomAligned = (pos: QrPosition) =>
+        pos === "bottom-left" || pos === "bottom" || pos === "bottom-right";
+    // Corner columns pin to their top/bottom edge and grow inward (toward
+    // screen centre) - mirroring how the horizontal corner rows used to pin
+    // to their left/right edge. Only the pure "left"/"right" columns centre
+    // (DOM: `top: 50%` + translateY(-50%)) - see townsquare/[gameid]/
+    // +page.svelte's qr-codes-panel CSS.
+    const verticalEdge = (pos: QrPosition): "top" | "bottom" | "center" => {
+        switch (pos) {
+            case "top-left":
+            case "top-right":
+                return "top";
+            case "bottom-left":
+            case "bottom-right":
+                return "bottom";
+            default:
+                return "center";
+        }
+    };
 
     function anchorFor(pos: QrPosition): { x: number; y: number } {
         const left = -realHalfWidth + margin + codeWidth / 2;
         const right = realHalfWidth - margin - codeWidth / 2;
         const top = halfHeight - margin - codeWidth / 2;
-        const bottom = -halfHeight + margin + codeWidth / 2;
+        // Bottom edge target, not a centre - see isBottomAligned above.
+        const bottom = -halfHeight + margin;
         switch (pos) {
             case "top-left": return { x: left, y: top };
             case "top": return { x: 0, y: top };
@@ -53,24 +85,39 @@
     }
 
     // One entry per code, stacked along each position group's row (top/
-    // bottom groups, left-to-right) or column (left/right groups, top-to-
-    // bottom) around that position's anchor point - mirrors the DOM
-    // version's flex layout.
+    // bottom groups, left-to-right) or column (left/right groups and all
+    // four corners, top-to-bottom) around that position's anchor point.
     const placements = $derived.by(() => {
-        const result: { code: QrCode; x: number; y: number }[] = [];
+        const result: { code: QrCode; x: number; y: number; alignBottom: boolean }[] = [];
         for (const pos of QR_POSITIONS) {
             const group = qrCodes.filter((c) => c.position === pos);
             if (group.length === 0) continue;
             const anchor = anchorFor(pos);
-            const vertical = isVertical(pos);
+            const row = isRow(pos);
+            const alignBottom = isBottomAligned(pos);
+            const vEdge = verticalEdge(pos);
+            const gap = row ? horizontalGap : verticalGap;
             const stride = codeWidth + gap;
             const total = group.length * codeWidth + (group.length - 1) * gap;
             group.forEach((code, i) => {
-                const offset = -total / 2 + codeWidth / 2 + i * stride;
+                // Centred groups (top/bottom rows, left/right columns)
+                // spread evenly either side of the anchor. Corner columns
+                // instead keep the edge-most code fixed at the anchor and
+                // grow the rest inward, so the column never pushes past
+                // the top/bottom edge.
+                let offset: number;
+                if (vEdge === "top") {
+                    offset = i * stride;
+                } else if (vEdge === "bottom") {
+                    offset = -(group.length - 1 - i) * stride;
+                } else {
+                    offset = -total / 2 + codeWidth / 2 + i * stride;
+                }
                 result.push({
                     code,
-                    x: anchor.x + (vertical ? 0 : offset),
-                    y: anchor.y + (vertical ? -offset : 0)
+                    x: anchor.x + (row ? offset : 0),
+                    y: anchor.y + (row ? 0 : -offset),
+                    alignBottom
                 });
             });
         }
@@ -78,6 +125,12 @@
     });
 </script>
 
-{#each placements as { code, x, y } (code.position + code.url + code.title)}
-    <SceneQrCode path={code.url} title={code.title} placement={{ x, y, width: codeWidth }} {z} />
+{#each placements as { code, x, y, alignBottom } (code.position + code.url + code.title)}
+    <SceneQrCode
+        path={code.url}
+        title={code.title}
+        placement={{ x, y, width: codeWidth }}
+        {z}
+        {alignBottom}
+    />
 {/each}

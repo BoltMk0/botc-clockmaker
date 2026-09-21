@@ -36,12 +36,19 @@
         path,
         title,
         placement,
-        z = 0.05
+        z = 0.05,
+        alignBottom = false
     }: {
         path: string;
         title: string;
         placement: { x: number; y: number; width: number };
         z?: number;
+        // When true, `placement.y` is the card's bottom edge rather than its
+        // vertical centre - cards' heights vary with title length, so a
+        // shared bottom edge (see SceneQrCodes.svelte's isBottomAligned)
+        // requires shifting the mesh centre up by half its own height
+        // instead of just placing it at `placement.y`.
+        alignBottom?: boolean;
     } = $props();
 
     const url = $derived(new URL(path, page.url.origin).href);
@@ -136,10 +143,11 @@
 
     const planeWidth = $derived(placement.width);
     const planeHeight = $derived(planeWidth * canvasAspect);
+    const centerY = $derived(alignBottom ? placement.y + planeHeight / 2 : placement.y);
 </script>
 
 {#if ready}
-    <T.Mesh position={[placement.x, placement.y, z]}>
+    <T.Mesh position={[placement.x, centerY, z]}>
         <T.PlaneGeometry args={[planeWidth, planeHeight]} />
         <T.MeshBasicMaterial map={texture} transparent depthWrite={false} />
     </T.Mesh>
