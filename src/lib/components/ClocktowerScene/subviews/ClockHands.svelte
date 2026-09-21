@@ -10,7 +10,7 @@
     // Same asset-specific constants as ClockFace.svelte - kept in sync with
     // it so the numerals/hands land on the dial it draws rather than an
     // independently-guessed size. Update both if the clockface art changes.
-    const TOWER_IMAGE_PIXEL_HEIGHT = 4096;
+    const TOWER_IMAGE_PIXEL_HEIGHT = 3200;
     const CLOCKFACE_IMAGE_PIXEL_HEIGHT = 463;
 
     let {

@@ -47,10 +47,10 @@
         // centered on screen and is what the camera stays focused on as the
         // image is cropped/zoomed. Placeholder art estimate - retune once the
         // final asset is in.
-        origin = { x: 0.499, y: 0.506 },
+        origin = { x: 0.475, y: 0.415 },
         // How much of the image's vertical extent is visible on screen: a
         // fraction of `planeHeight`. Smaller = more cropped/zoomed in.
-        visibleHeight = 5,
+        visibleHeight = 5.5,
         // World-space height the full image is scaled to. Only matters
         // relative to visibleHeight/sun tuning; the default of 10 is arbitrary.
         planeHeight = 10,
@@ -76,7 +76,7 @@
         // Lifts the tower (clockface/hands riding along with it) off dead-
         // center vertically, same idea as `horizontalOffset` but on the Y
         // axis - a fraction of `visibleHeight`, +up.
-        verticalOffset = visibleHeight * 0.07,
+        verticalOffset = visibleHeight * 0.1,
         // How much of the screen's vertical extent the mist layer covers, as
         // a fraction of `visibleHeight` - see Mist.svelte's `heightFraction`.
         mistHeightFraction = 0.4,
@@ -134,12 +134,6 @@
         dayBannerTextureUrl,
         dayBannerNormalMapUrl
     ];
-
-    // Dev-only: lets whoever's tuning the scene's colors drag through the
-    // whole day/night cycle instantly instead of waiting on (or faking) a
-    // real countdown. Never shown in production - see the `{#if DEV}` below.
-    let debugProgressOverride = $state<number | null>(null);
-    const effectiveProgress = $derived(debugProgressOverride ?? progress);
 
     let assetsReady = $state(false);
 
@@ -269,7 +263,7 @@
             toneMapping={THREE.NoToneMapping}
         >
             <Scene
-                progress={effectiveProgress}
+                {progress}
                 {totalTime}
                 {dayNumber}
                 {playerCount}
@@ -297,25 +291,6 @@
             <div class="loading-overlay" out:fade={{ duration: 400 }}>
                 <div class="spinner"></div>
                 <div class="loading-text dumbledore-font">Loading...</div>
-            </div>
-        {/if}
-        {#if import.meta.env.DEV}
-            <div class="debug-progress">
-                <span>day progress</span>
-                <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.001"
-                    value={effectiveProgress}
-                    oninput={(e) => (debugProgressOverride = parseFloat((e.target as HTMLInputElement).value))}
-                />
-                <span>{effectiveProgress.toFixed(3)}</span>
-                <button
-                    type="button"
-                    disabled={debugProgressOverride === null}
-                    onclick={() => (debugProgressOverride = null)}
-                >live</button>
             </div>
         {/if}
     {/if}
@@ -354,41 +329,4 @@
         }
     }
 
-    .debug-progress {
-        position: absolute;
-        left: 50%;
-        bottom: 0.75em;
-        transform: translateX(-50%);
-        z-index: 30;
-        display: flex;
-        align-items: center;
-        gap: 0.6em;
-        padding: 0.4em 0.8em;
-        border-radius: 999px;
-        background: #000a;
-        color: #c9c2a3;
-        font-family: monospace;
-        font-size: 0.85em;
-        white-space: nowrap;
-    }
-
-    .debug-progress input[type="range"] {
-        width: 40vw;
-        max-width: 24em;
-    }
-
-    .debug-progress button {
-        font: inherit;
-        color: inherit;
-        background: #ffffff20;
-        border: 1px solid #ffffff40;
-        border-radius: 999px;
-        padding: 0.15em 0.7em;
-        cursor: pointer;
-    }
-
-    .debug-progress button:disabled {
-        opacity: 0.4;
-        cursor: default;
-    }
 </style>

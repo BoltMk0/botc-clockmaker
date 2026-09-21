@@ -9,7 +9,7 @@
     // off the tower's own loaded texture so this component doesn't need a
     // cross-component dependency just to size itself; update this if the
     // tower asset's resolution ever changes.
-    const TOWER_IMAGE_PIXEL_HEIGHT = 4096;
+    const TOWER_IMAGE_PIXEL_HEIGHT = 3200;
 
     // Overall strength of the dial's blood-red glow at full night (progress
     // 1) - a single knob scaling the emissive dial, the point light it casts
@@ -152,7 +152,7 @@
         color={glowColor}
         intensity={lightIntensity}
         distance={LIGHT_DISTANCE}
-        decay={2.5}
+        decay={2}
     />
 
     

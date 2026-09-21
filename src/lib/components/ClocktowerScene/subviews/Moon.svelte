@@ -38,7 +38,7 @@
     const appearAmount = $derived(Math.pow(windowT, 1.4));
 
     const z = $derived(-visibleHeight * 0.6);
-    const radius = $derived(visibleHeight * 0.15);
+    const radius = $derived(visibleHeight * 0.2);
 
     const END_X = -0.15;
     const END_Y = 0.4;
@@ -85,7 +85,20 @@
     const DARK_FLOOR = 96; // lowest value any pixel can reach after the remap
     const RANGE_GAMMA = 1.15;
     const rawMoonTexture = useTexture(untrack(() => moonTextureUrl));
+    // Fixed size, set once up front rather than resized to the source
+    // image's own dimensions once it loads: WebGL2 (as used by Safari's
+    // ANGLE/Metal-backed implementation) allocates immutable texture storage
+    // sized off the canvas at first upload, and later growing the same
+    // canvas - which is what re-sizing it to the (async-loaded) image's
+    // dimensions did here - overflows that storage on re-upload
+    // (`glTexSubImage2DRobustANGLE: Offset overflows texture dimensions`),
+    // silently failing the texture there. Drawing the source image scaled
+    // into a canvas whose size never changes avoids ever resizing the GPU
+    // texture after its first allocation.
+    const MOON_TEXTURE_SIZE = 512;
     const moonCanvas: HTMLCanvasElement = document.createElement("canvas");
+    moonCanvas.width = MOON_TEXTURE_SIZE;
+    moonCanvas.height = MOON_TEXTURE_SIZE;
     const moonTexture = new THREE.CanvasTexture(moonCanvas);
     moonTexture.colorSpace = THREE.SRGBColorSpace;
     moonTexture.generateMipmaps = false;
@@ -100,13 +113,12 @@
             | undefined;
         if (!img || !("width" in img) || !img.width) return;
 
-        moonCanvas.width = img.width;
-        moonCanvas.height = img.height;
         const ctx = moonCanvas.getContext("2d");
         if (!ctx) return;
 
-        ctx.drawImage(img as CanvasImageSource, 0, 0);
-        const data = ctx.getImageData(0, 0, img.width, img.height);
+        ctx.clearRect(0, 0, MOON_TEXTURE_SIZE, MOON_TEXTURE_SIZE);
+        ctx.drawImage(img as CanvasImageSource, 0, 0, MOON_TEXTURE_SIZE, MOON_TEXTURE_SIZE);
+        const data = ctx.getImageData(0, 0, MOON_TEXTURE_SIZE, MOON_TEXTURE_SIZE);
         const px = data.data;
         const span = 255 - DARK_FLOOR;
         for (let i = 0; i < px.length; i += 4) {
@@ -241,7 +253,7 @@
     <T.MeshBasicMaterial
         map={haloTexture}
         transparent
-        opacity={appearAmount * 1}
+        opacity={appearAmount * 0.8}
         blending={THREE.AdditiveBlending}
         depthWrite={false}
     />
