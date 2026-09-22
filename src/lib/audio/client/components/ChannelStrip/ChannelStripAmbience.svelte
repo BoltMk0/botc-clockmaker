@@ -5,6 +5,7 @@
     import NightIcon from "$lib/assets/nightIcon.svelte";
     import type { AudioAmbienceTrack } from "../../AudioAmbienceTrack.svelte";
     import type { TimeOfDay } from "$lib/model/client/types";
+    import CustomOverlay from "$lib/components/CustomOverlay.svelte";
 
     let {
         resources,
@@ -46,7 +47,7 @@
 {/snippet}
 
 <div style="position: relative;">
-    
+
     <ChannelStrip
         audioTrack={track}
         fxSnippet={timeOfDayActivitySelection}
@@ -59,26 +60,22 @@
         }}
     />
 
-    {#if showOverlay}
-    <div class="resource-select-overlay">
-        {#each resources as resource, i (resource.id)}
-            <button class="button-style" disabled={selectedResourceValue === i} onclick={()=>{track.loadedResourceId = resource.id; showOverlay = false;}}>{resource.name}</button>
-        {/each}
-    </div>
-    {/if}
+    <CustomOverlay title="Select track" showButton={false} bind:visible={showOverlay}>
+        <div class="resource-select-list">
+            <button class="button-style" disabled={selectedResourceValue === -1} onclick={()=>{track.loadedResourceId = null; showOverlay = false;}}>None</button>
+            {#each resources as resource, i (resource.id)}
+                <button class="button-style" disabled={selectedResourceValue === i} onclick={()=>{track.loadedResourceId = resource.id; showOverlay = false;}}>{resource.name}</button>
+            {/each}
+        </div>
+    </CustomOverlay>
 </div>
 
-<svelte:body onclick={()=>{showOverlay = false;}}/>
-
-
 <style>
-    .resource-select-overlay {
-        position: absolute;
-        top: 3em;
-
-        background-color: var(--theme-bg);
-        padding: 0.5em;
-        z-index: 999;
+    .resource-select-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3em;
+        min-width: 200px;
     }
 
     button.daynight-btn {
