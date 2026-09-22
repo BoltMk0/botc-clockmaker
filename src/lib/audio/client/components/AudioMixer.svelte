@@ -58,7 +58,7 @@
                 <NightIcon size={14}/>
                 {/if}
                 <span>Ambience Engine</span>
-                {#if audioEngine?.ambienceEngine?.playing}
+                {#if audioEngine?.ambienceEngine?.effectivelyPlaying}
                 <PlayIcon/>
                 {:else}
                 <PauseIcon/>

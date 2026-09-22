@@ -52,10 +52,11 @@ export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
             track.onLocalChange = (patch)=>this.queueTrackPatch(index, patch);
         });
 
-        // Drive playback from (shared playing flag) x (time of day) x (per-track day/night activity).
+        // Drive playback from (shared playing flag) x (bus mute) x (time of day) x (per-track day/night activity).
+        // Muting the bus is local to this device, so treat it the same as pausing rather than touching the shared `playing` flag.
         this.#stopEffects = $effect.root(()=>{
             $effect(()=>{
-                const playing = this.#model.playing;
+                const playing = this.#model.playing && !this.muted;
                 const timeOfDay = this.#timeOfDay();
                 for(const t of this.tracks){
                     t.setPlaying(!this.#silent && playing && (timeOfDay === 'day' ? t.activeInDay : t.activeAtNight));
@@ -80,6 +81,8 @@ export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
     get model() { return this.#model; }
     get timeOfDay(): TimeOfDay { return this.#timeOfDay(); }
     get playing() { return this.#model.playing; }
+    /** Whether the engine is actually audible right now: the shared `playing` flag, minus this device's local bus mute. */
+    get effectivelyPlaying() { return this.#model.playing && !this.muted; }
 
     set playing(playing: boolean){
         this.#model.playing = playing;
