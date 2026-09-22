@@ -7,7 +7,7 @@
     import PlayerSeats from "./PlayerSeats.svelte";
     import PlayerSeatToken from "./PlayerSeatToken.svelte";
     import SideRolesTitle from "./SideRolesTitle.svelte";
-    import { sideRoleCharacters } from "$lib/components/playerSeatsLayout";
+    import { filterSeatTokens, sideRoleCharacters } from "$lib/components/playerSeatsLayout";
     import { LANTERN_GLOW_COLOR } from "../sceneColors";
     import type { GrimoireStateHistory } from "$lib/resources/common/grimoireState";
     import type { ScriptWithCharacters } from "$lib/resources/common/gameData";
@@ -36,11 +36,12 @@
     // to the far right of the actual screen (not mirrored off the tower's
     // offset like the day banner/lanterns above). Margin is a fraction of
     // the real visible screen width, measured in from the right edge.
-    // Only used when a grim exists (see `hasGrim` below) - otherwise the
-    // count banner stacks directly under the day banner in the same panel.
+    // Only used when at least one player is seated (see `hasSeatTokens`
+    // below) - otherwise the count banner stacks directly under the day
+    // banner in the same panel.
     const COUNT_RIGHT_MARGIN_FRACTION = 0.02;
 
-    // With a grim, the count banner is pinned out to the real screen edge,
+    // With seated players, the count banner is pinned out to the real screen edge,
     // well away from the tower the sun/moon lights are aimed at - it can end
     // up noticeably dimmer than everything else in the shot. A small,
     // always-on point light parked right in front of it keeps it readable
@@ -49,7 +50,7 @@
     const COUNT_LIGHT_DISTANCE_SCALE = 1; // relative to the banner's own width
     const COUNT_LIGHT_Z_FORWARD = 0.9;
 
-    // With a grim, the day/time banner floats at screen-centre height
+    // With seated players, the day/time banner floats at screen-centre height
     // instead of being centred above the count banner, so the player-seats
     // view can use the panel's *entire* column (top edge to bottom edge)
     // rather than just the space left under the banner. The banner then
@@ -160,6 +161,13 @@
         script?: ScriptWithCharacters | null;
     } = $props();
 
+    // Whether at least one player is actually seated on the board (as
+    // opposed to `hasGrim`, which is true as soon as a grim exists at all,
+    // even one with nobody placed yet) - this, not `hasGrim`, decides
+    // whether the count banner moves out to the side (see `rows` below).
+    const seatTokens = $derived(filterSeatTokens(grimoireState, script));
+    const hasSeatTokens = $derived(seatTokens.length > 0);
+
     // Loric and fabled in the game: a vertical stack of tokens at the top-right rather than seated.
     const sideRoles = $derived(sideRoleCharacters(grimoireState, script));
     // Margin from the screen's top/right edges, as a fraction of visibleHeight.
@@ -198,14 +206,15 @@
     const { size } = useThrelte();
     const realHalfWidth = $derived(visibleHeight * ($size.width / $size.height) / 2);
 
-    // The panel spans the full screen height. Without a grim, the count
-    // banner's bottom edge sits flush with the bottom of the screen and the
-    // day banner is centred in whatever vertical space is left above it, up
-    // to the top edge of the screen - a single stacked panel. With a grim,
-    // the day banner instead floats at screen-centre height (count banner
-    // still pinned to the real right edge separately - see `countX` below)
-    // and the seats view takes the panel's whole column, top to bottom,
-    // underneath it. The camera is centred on world (0,0) and shows
+    // The panel spans the full screen height. Without any seated players,
+    // the count banner's bottom edge sits flush with the bottom of the
+    // screen and the day banner is centred in whatever vertical space is
+    // left above it, up to the top edge of the screen - a single stacked
+    // panel. With at least one seated player, the day banner instead floats
+    // at screen-centre height (count banner still pinned to the real right
+    // edge separately - see `countX` below) and the seats view takes the
+    // panel's whole column, top to bottom, underneath it. The camera is
+    // centred on world (0,0) and shows
     // `visibleHeight` world-units vertically, so the screen's top/bottom
     // edges sit at +/- visibleHeight / 2.
     const rows = $derived.by(() => {
@@ -222,7 +231,7 @@
         let countY: number;
         let seatsArea: { x: number; y: number; width: number; height: number } | null = null;
 
-        if (hasGrim) {
+        if (hasSeatTokens) {
             dayY = visibleHeight * DAY_CENTER_LIFT_FRACTION;
             countY = screenBottom + countH / 2 - (countH/6);
             countX = realHalfWidth - screenWidth * COUNT_RIGHT_MARGIN_FRACTION - countW / 2;
@@ -294,11 +303,11 @@
     z={rows.dayZ}
 />
 <PlayerCountBanner {counts} {visibleHeight} placement={rows.count} z={PANEL.z} />
-{#if hasGrim}
-    <!-- Only with a grim does the count banner get pinned out to the real
-         screen edge, away from the tower the sun/moon lights are aimed at
-         (see `rows` above) - without one it stacks under the day banner in
-         the main panel, already lit like the rest of it. -->
+{#if hasSeatTokens}
+    <!-- Only with at least one seated player does the count banner get
+         pinned out to the real screen edge, away from the tower the sun/moon
+         lights are aimed at (see `rows` above) - without one it stacks under
+         the day banner in the main panel, already lit like the rest of it. -->
     <T.PointLight
         position={[rows.count.x, rows.count.y, PANEL.z + COUNT_LIGHT_Z_FORWARD]}
         intensity={COUNT_LIGHT_INTENSITY}
@@ -313,7 +322,7 @@
 {#each rows.lanterns as lantern, i (i)}
     <Lantern {visibleHeight} placement={lantern} {progress} z={rows.lanternZ} />
 {/each}
-{#if hasGrim && rows.seatsArea}
+{#if rows.seatsArea}
     <PlayerSeats area={rows.seatsArea} {grimoireState} {script} {visibleHeight} z={rows.dayZ + DAY_Z_LIFT} />
 {/if}
 {#if hasGrim && sideRoles.length > 0}

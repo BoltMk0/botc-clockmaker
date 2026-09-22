@@ -62,9 +62,14 @@ export function computeSeatsLayout(
     const halfHeight = Math.max(0, height / 2 - edgePadding);
 
     if (tokens.length === 1) {
+        const tokenSize = Math.min(Math.min(halfWidth, halfHeight) * 1.6, maxTokenSize);
+        // Pinned to the top of the area (y grows down, so negative is up)
+        // rather than dead centre, with its top edge touching the padded
+        // boundary - same as the outermost token in the multi-token layout.
+        const y = -(halfHeight - tokenSize / 2);
         return {
-            tokens: [{ token: tokens[0], x: 0, y: 0 }],
-            tokenSize: Math.min(Math.min(halfWidth, halfHeight) * 1.6, maxTokenSize)
+            tokens: [{ token: tokens[0], x: 0, y }],
+            tokenSize
         };
     }
 
