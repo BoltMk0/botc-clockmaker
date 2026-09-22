@@ -1,5 +1,6 @@
 <script lang="ts">
     import { fetchScriptWithSideCharacters } from "$lib/resources/client/scriptWithSideCharacters";
+    import type { CustomMessage, MessageField } from "$lib/common/customMessage";
     import { alignmentForCategory, bluffSetsOf, ALL_CHARACTER_CATEGORIES, type Character, type CharacterCategory, type ReminderToken, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import ReminderTokenView from "$lib/components/ReminderTokenView.svelte";
@@ -588,7 +589,7 @@
     }
 
     // Communications overlay: null when closed; 'menu' shows the options, 'bluffs' picks between several bluff sets.
-    let commsView = $state<'menu' | 'bluffs' | 'selected' | 'suffix' | 'custom' | 'customCharacter' | 'customCharacter2' | 'secondCharacter' | null>(null);
+    let commsView = $state<'menu' | 'bluffs' | 'selected' | 'suffix' | 'custom' | 'customCharacter' | 'customCharacter2' | 'secondCharacter' | 'resolveBlank' | null>(null);
 
     // Picking this suffix asks for a second character to show under the subtitle.
     const MAD_YOU_ARE_SUFFIX = '...to be mad that you are this character...';
@@ -620,18 +621,74 @@
 
     function showSelected(suffix = '', subtitleCharacterId = '') {
         commsView = null;
-        showMessage(characterMessage.title, suffix, selectedCharacterId, subtitleCharacterId);
+        const fields: MessageField[] = [{ type: 'text', value: characterMessage.title }];
+        if (selectedCharacterId) fields.push({ type: 'character', value: [selectedCharacterId] });
+        if (suffix) fields.push({ type: 'text', value: suffix });
+        if (subtitleCharacterId) fields.push({ type: 'character', value: [subtitleCharacterId] });
+        showMessageFields(fields);
     }
 
     const inPlayCharacters = $derived(sortedScriptCharacters.filter(c => seatedCharacterIds.includes(c.id)));
 
-    async function showMessage(title: string, subtitle = '', characterId = '', subtitleCharacterId = '') {
+    // Every message the grim shows - the built-in ones below, the storyteller's own custom one,
+    // and the presets from settings/customMessages - goes through this single fields-based route,
+    // so they're all rendered by the one message page (see grim/message/+page.svelte).
+    async function showMessageFields(fields: MessageField[]) {
         await saveGrimoire();
-        const params = new URLSearchParams({ title });
-        if (subtitle) params.set('subtitle', subtitle);
-        if (characterId) params.set('character', characterId);
-        if (subtitleCharacterId) params.set('subtitleCharacter', subtitleCharacterId);
+        const params = new URLSearchParams({ fields: JSON.stringify(fields) });
         goto(`/admin/${data.clockid}/grim/message?${params}`);
+    }
+
+    function showTextMessage(text: string) {
+        showMessageFields([{ type: 'text', value: text }]);
+    }
+
+    // A predefined message's button label: its first text field (or a generic fallback for a
+    // message made only of character tokens), with an ellipsis appended whenever the message
+    // has more to it than just that title.
+    function messageLabel(message: CustomMessage): string {
+        const textField = message.fields.find((f): f is MessageField & { type: 'text' } => f.type === 'text');
+        const title = textField?.value.trim() || 'Message';
+        return message.fields.length > 1 ? `${title}…` : title;
+    }
+
+    // The predefined message currently having its blank character slots filled in, one at a time,
+    // before it's shown - see commsView === 'resolveBlank'.
+    let resolvingFields = $state<MessageField[] | null>(null);
+
+    function findNextBlank(fields: MessageField[]): { fieldIndex: number, valueIndex: number } | null {
+        for (let fieldIndex = 0; fieldIndex < fields.length; fieldIndex++) {
+            const field = fields[fieldIndex];
+            if (field.type !== 'character') continue;
+            const valueIndex = field.value.indexOf(null);
+            if (valueIndex >= 0) return { fieldIndex, valueIndex };
+        }
+        return null;
+    }
+
+    function useCustomMessage(message: CustomMessage) {
+        const nextBlank = findNextBlank(message.fields);
+        if (!nextBlank) {
+            commsView = null;
+            showMessageFields(message.fields);
+            return;
+        }
+        // Deep-copy so filling in blanks doesn't mutate the saved message.
+        resolvingFields = message.fields.map(f => f.type === 'character' ? { ...f, value: [...f.value] } : { ...f });
+        commsView = 'resolveBlank';
+    }
+
+    function fillNextBlank(characterId: string) {
+        if (!resolvingFields) return;
+        const nextBlank = findNextBlank(resolvingFields);
+        if (!nextBlank) return;
+        const field = resolvingFields[nextBlank.fieldIndex];
+        if (field.type === 'character') field.value[nextBlank.valueIndex] = characterId;
+        if (findNextBlank(resolvingFields)) return;
+        const fields = resolvingFields;
+        resolvingFields = null;
+        commsView = null;
+        showMessageFields(fields);
     }
 
     function chooseBluffs() {
@@ -2189,26 +2246,36 @@
         </div>
     {/if}
 
-    {#if commsView === 'menu' || commsView === 'bluffs' || commsView === 'selected' || commsView === 'suffix' || commsView === 'custom' || commsView === 'customCharacter' || commsView === 'customCharacter2' || commsView === 'secondCharacter'}
+    {#if commsView === 'menu' || commsView === 'bluffs' || commsView === 'selected' || commsView === 'suffix' || commsView === 'custom' || commsView === 'customCharacter' || commsView === 'customCharacter2' || commsView === 'secondCharacter' || commsView === 'resolveBlank'}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 20};" onclick={() => commsView = null}>
+        <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 20};" onclick={() => { commsView = null; resolvingFields = null; }}>
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <div class="overlay-panel comms-panel" onclick={(e) => e.stopPropagation()}>
-                <button class="overlay-close" onclick={() => commsView = null} aria-label="Close">✕</button>
+                <button class="overlay-close" onclick={() => { commsView = null; resolvingFields = null; }} aria-label="Close">✕</button>
                 {#if commsView === 'menu'}
                     <div class="overlay-name dumbledore-font">Communications</div>
-                    <button class="button-style" onclick={() => showMessage('This is your demon')}>This is your demon</button>
-                    <button class="button-style" onclick={() => showMessage('These are your minions')}>These are your minions</button>
+                    <button class="button-style" onclick={() => showTextMessage('This is your demon')}>This is your demon</button>
+                    <button class="button-style" onclick={() => showTextMessage('These are your minions')}>These are your minions</button>
                     <button class="button-style" disabled={inPlayCharacters.length === 0} onclick={() => { characterMessageKind = 'selected'; commsView = 'selected'; }}>This character has selected you...</button>
                     <button class="button-style" disabled={inPlayCharacters.length === 0} onclick={() => { characterMessageKind = 'youAre'; commsView = 'selected'; }}>You are...</button>
                     <button class="button-style" disabled={bluffSets.length === 0 && !(script && loadedPreset)} onclick={chooseBluffs}>
                         {bluffSets.length === 0 ? 'Bluffs (create a bluff set)' : 'Bluffs'}
                     </button>
-                    <button class="button-style" onclick={() => showMessage('Speak to me tomorrow')}>Speak to me tomorrow</button>
+                    <button class="button-style" onclick={() => showTextMessage('Speak to me tomorrow')}>Speak to me tomorrow</button>
                     {#each data.customMessages as message}
-                        <button class="button-style" onclick={() => showMessage(message.title, message.subtitle, message.characterId, message.subtitleCharacterId)}>{message.title}</button>
+                        <button class="button-style" onclick={() => useCustomMessage(message)}>{messageLabel(message)}</button>
                     {/each}
                     <button class="button-style" onclick={() => commsView = 'custom'}>Custom message...</button>
+                {:else if commsView === 'resolveBlank'}
+                    <div class="overlay-name dumbledore-font">Which character fills the blank?</div>
+                    <div class="picker-grid">
+                        {#each sortedScriptCharacters as character (character.id)}
+                            <button class="no-button-style tray-token" onclick={() => fillNextBlank(character.id)}>
+                                <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" norules/>
+                            </button>
+                        {/each}
+                    </div>
+                    <button class="button-style" onclick={() => { commsView = 'menu'; resolvingFields = null; }}>Cancel</button>
                 {:else if commsView === 'customCharacter'}
                     <div class="overlay-name dumbledore-font">Choose a character</div>
                     <div class="picker-grid">
@@ -2259,7 +2326,14 @@
                         <button class="button-style" onclick={() => customCharacter2Id = ''}>Remove second character token</button>
                     {/if}
                     <button class="button-style" onclick={() => commsView = 'customCharacter2'}>{customCharacter2Id ? 'Change second character token' : 'Add second character token'}</button>
-                    <button class="button-style highlight" style="margin-top: 1.2em;" disabled={!customTitle.trim()} onclick={() => { commsView = null; showMessage(customTitle.trim(), customSubtitle.trim(), customCharacterId, customCharacter2Id); }}>Show message</button>
+                    <button class="button-style highlight" style="margin-top: 1.2em;" disabled={!customTitle.trim()} onclick={() => {
+                        commsView = null;
+                        const fields: MessageField[] = [{ type: 'text', value: customTitle.trim() }];
+                        if (customCharacterId) fields.push({ type: 'character', value: [customCharacterId] });
+                        if (customSubtitle.trim()) fields.push({ type: 'text', value: customSubtitle.trim() });
+                        if (customCharacter2Id) fields.push({ type: 'character', value: [customCharacter2Id] });
+                        showMessageFields(fields);
+                    }}>Show message</button>
                     <button class="button-style" onclick={() => commsView = 'menu'}>Back</button>
                 {:else if commsView === 'selected'}
                     <div class="overlay-name dumbledore-font">{characterMessage.prompt}</div>
