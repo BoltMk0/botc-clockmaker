@@ -1,7 +1,7 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
-    import { bluffSetsOf, presetGrimCharacterIds, presetPlayerCount, type Preset, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
-    import { newGrimoireStateHistory } from "$lib/resources/common/grimoireState.js";
+    import { alignmentForCategory, bluffSetsOf, presetGrimCharacterIds, presetPlayerCount, type Preset, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
+    import { newGrimoireStateWithTokensAlongTop } from "$lib/resources/common/grimoireState.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import TokenSorter from "$lib/components/setup/TokenSorter.svelte";
     import PresetSummary from "$lib/components/setup/PresetSummary.svelte";
@@ -148,7 +148,11 @@
         if (!builder.script) return;
         submitting = true;
         try {
-            const history = newGrimoireStateHistory(data.clockid, builder.script.id);
+            const characters = builder.chosenCharacterIds.map(characterId => ({
+                characterId,
+                alignment: alignmentForCategory(builder.charById.get(characterId)!.category)
+            }));
+            const history = newGrimoireStateWithTokensAlongTop(data.clockid, builder.script.id, characters);
             history.loadedPreset = { character_ids: builder.chosenCharacterIds, bluff_sets: builder.bluffSets, preset_id: await resolvePresetId() };
             const res = await fetch(`/admin/${data.clockid}/grim/state`, {
                 method: 'POST',
