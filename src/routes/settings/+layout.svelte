@@ -11,6 +11,7 @@
         '/settings/customMessages',
         '/settings/qrCodes',
         '/settings/spotify',
+        '/settings/feedback',
         '/settings/password'
     ]
 

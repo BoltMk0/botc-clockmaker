@@ -1,6 +1,6 @@
 
-export type ResourceType = "sfx" | "music" | "grimoirestate" | "charactertokenimage" | 'ambience' | 'sting' | 'clockconfig' | 'appconfig' | 'rules-slide' | 'feedback';
-export const ALL_RESOURCE_TYPES: ResourceType[] = ['sfx', 'music', 'grimoirestate', 'charactertokenimage', 'ambience', 'sting', 'clockconfig', 'appconfig', 'rules-slide', 'feedback'] as const;
+export type ResourceType = "sfx" | "music" | "grimoirestate" | "charactertokenimage" | 'ambience' | 'sting' | 'clockconfig' | 'appconfig' | 'rules-slide';
+export const ALL_RESOURCE_TYPES: ResourceType[] = ['sfx', 'music', 'grimoirestate', 'charactertokenimage', 'ambience', 'sting', 'clockconfig', 'appconfig', 'rules-slide'] as const;
 
 export function isResourceType(value: any): value is ResourceType {
     if(typeof value !== 'string') return false;
@@ -44,8 +44,6 @@ export function getAcceptedMimeTypeForResourceType(resourceType: ResourceType): 
         case "charactertokenimage":
         case 'rules-slide':
             return "image/*";
-        case 'feedback':
-            return 'plain/text';
     }
 }
 
@@ -64,9 +62,7 @@ export function getAcceptedExtensionsForResourceType(resourceType: ResourceType)
             return [".png", ".jpg", ".jpeg", ".webp", ".gif"];
         case 'appconfig':
             return ['.json'];
-        case 'feedback':
-            return ['.txt'];
-    }   
+    }
 }
 
 export function isValidResourceType(type: string): type is ResourceType {

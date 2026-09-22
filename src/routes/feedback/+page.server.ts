@@ -2,10 +2,8 @@ import { fail } from "@sveltejs/kit";
 import type { Actions } from "./$types";
 import { sendEmail } from "$lib/resources/server/mailer";
 import { TURNSTILE_SECRET_KEY } from "$env/static/private";
-import { existsSync, mkdirSync, writeFileSync } from "fs";
-
-const FEEDBACK_DIR = process.env.FEEDBACK_DATA_DIR || "data/feedback";
-if (!existsSync(FEEDBACK_DIR)) mkdirSync(FEEDBACK_DIR, { recursive: true });
+import { writeFileSync } from "fs";
+import { FEEDBACK_DIR } from "$lib/resources/server/feedback";
 
 const MAX_LEN = 5000;
 const WINDOW_MS = 60_000;
