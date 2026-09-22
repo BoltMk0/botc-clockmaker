@@ -5,6 +5,7 @@
     import SideMenu from '$lib/components/SideMenu.svelte';
     import { Clocktower } from '$lib/model/client/Clocktower.svelte.js';
     import { AudioEngine } from '$lib/audio/client/AudioEngine.svelte.js';
+    import { SpotifyPlayer } from '$lib/audio/client/SpotifyPlayer.svelte.js';
     import SiteQRCode from '$lib/components/SiteQRCode.svelte';
     import { appSettings } from '$lib/model/client/appSettings.svelte.js';
     import type { QrCode } from '$lib/resources/server/qrCodes';
@@ -15,11 +16,13 @@
 
     const clocks = $derived(browser ? data.instances.map(i=>new Clocktower(i)): undefined);
     let audioEngine: AudioEngine|null = $state(null);
+    let spotify: SpotifyPlayer|null = $state(null);
     let qrCodes: QrCode[] = $state([]);
 
     onMount(() => {
         if(browser && clocks){
-            audioEngine = new AudioEngine(clocks)
+            audioEngine = new AudioEngine(clocks, data.ambienceEngineModel);
+            spotify = new SpotifyPlayer();
         }
 
         // Browsers only let an AudioContext run following a genuine user gesture,
@@ -35,6 +38,7 @@
             console.log("Closing...");
             document.removeEventListener('pointerdown', resumeAudio);
             audioEngine?.close();
+            spotify?.close();
             if(clocks){
                 for(const c of clocks){
                     c.close();
@@ -51,7 +55,7 @@
     {/each}
 </div>
 
-<SideMenu townSquare {audioEngine}/>
+<SideMenu townSquare {audioEngine} ambienceResources={data.ambienceResources} {spotify} spotifyPresets={data.spotifyPresets}/>
 
 {#if appSettings.showQRCodes && qrCodes.length > 0}
 <div class="qr-codes-panel left">

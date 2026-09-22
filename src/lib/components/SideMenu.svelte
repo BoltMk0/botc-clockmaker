@@ -6,15 +6,30 @@
     import SiteQRCode from "./SiteQRCode.svelte";
     import { page } from "$app/state";
     import type { AudioEngine } from "$lib/audio/client/AudioEngine.svelte";
-    import MutedIcon from "./MutedIcon.svelte";
-    import UnmutedIcon from "./UnmutedIcon.svelte";
+    import AudioMixer from "$lib/audio/client/components/AudioMixer.svelte";
+    import type { Resource } from "$lib/resources/common/types";
+    import type { SpotifyPlayer } from "$lib/audio/client/SpotifyPlayer.svelte";
+    import type { SpotifyPreset } from "$lib/audio/common/spotifyPreset";
 
     // In the town square the menu is just the display settings (cogwheel icon, no page links), with a back button to /play.
-    // Pass the page's audio engine to show a mute toggle for it.
-    let { townSquare = false, audioEngine = null }: { townSquare?: boolean, audioEngine?: AudioEngine | null } = $props();
+    // Pass the page's audio engine (and its ambience resources / spotify player) so the mixer button can show the full mixer for it.
+    let {
+        townSquare = false,
+        audioEngine = null,
+        ambienceResources = [],
+        spotify = null,
+        spotifyPresets = []
+    }: {
+        townSquare?: boolean;
+        audioEngine?: AudioEngine | null;
+        ambienceResources?: Resource[];
+        spotify?: SpotifyPlayer | null;
+        spotifyPresets?: SpotifyPreset[];
+    } = $props();
 
     let visible = $state(false);
     let showQRPopup = $state(false);
+    let showMixer = $state(false);
     let clients: ClocktowerModel[] | undefined = $state(undefined);
 
     const currentPath = $derived(page.url.pathname + page.url.search);
@@ -119,6 +134,27 @@
         position: static;
         box-shadow: none;
     }
+
+    .mixer-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        background-color: rgba(0, 0, 0, 0.85);
+    }
+
+    .mixer-overlay-scroll {
+        width: 100%;
+        overflow-x: auto;
+        touch-action: pan-x pan-y;
+        padding: 20px 0;
+        box-sizing: border-box;
+    }
+
+    .mixer-close-button {
+        position: fixed;
+    }
 </style>
 
 {#if townSquare}
@@ -141,6 +177,19 @@
         </svg>
     {/if}
 </button>
+
+{#if townSquare && audioEngine}
+<button aria-label="Audio Mixer" class="no-button-style hamburger" onclick={()=>{showMixer = true;}} style="position: absolute; top: 10px; left: 102px;">
+    <svg width={36} height={36} viewBox="0 0 24 24" style="fill: none; stroke: #FFF; stroke-width: 2; stroke-linecap: round; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));">
+        <line x1="5" y1="4" x2="5" y2="20"/>
+        <line x1="12" y1="4" x2="12" y2="20"/>
+        <line x1="19" y1="4" x2="19" y2="20"/>
+        <circle cx="5" cy="9" r="2" fill="#FFF"/>
+        <circle cx="12" cy="15" r="2" fill="#FFF"/>
+        <circle cx="19" cy="6" r="2" fill="#FFF"/>
+    </svg>
+</button>
+{/if}
 
 <div class="navbar-main" style="transform: translateX({visible ? "0" : "-100%"});">
     <button onclick={()=>{visible = false;}} class="close-button">
@@ -211,17 +260,6 @@
                 </div>
             </div>
         </div>
-        {#if audioEngine}
-        <div class="navbar-settings-pane">
-            <button class="button-style" style="width: 100%; font-size: large; padding: 0.5em 1em; display: flex; gap: 0.5em; align-items: center; justify-content: center;" onclick={() => { audioEngine.muted = !audioEngine.muted; }}>
-                {#if audioEngine.muted}
-                    <MutedIcon color="red" size={24}/> Unmute
-                {:else}
-                    <UnmutedIcon color="white" size={24}/> Mute
-                {/if}
-            </button>
-        </div>
-        {/if}
         <div class="navbar-settings-pane">
             <button class="button-style" style="width: 100%; font-size: large; padding: 0.5em 1em;" onclick={() => { showQRPopup = true; visible = false;}}>
                 Share QR Code
@@ -239,5 +277,14 @@
         onkeydown={() => { showQRPopup = false; }}
     >
         <SiteQRCode path={currentPath} title="Scan to open this page" />
+    </div>
+{/if}
+
+{#if showMixer && audioEngine}
+    <div class="mixer-overlay">
+        <button class="close-button mixer-close-button" onclick={() => { showMixer = false; }}>X</button>
+        <div class="mixer-overlay-scroll">
+            <AudioMixer {audioEngine} {ambienceResources} spotify={spotify ?? undefined} {spotifyPresets}/>
+        </div>
     </div>
 {/if}
