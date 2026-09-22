@@ -21,7 +21,7 @@
     onMount(() => {
         if(!browser) return;
         model = new Clocktower(data.model);
-        audioEngine = new AudioEngine([model], data.ambienceEngineModel);
+        audioEngine = new AudioEngine([model], data.ambienceEngineModel, data.stingEngineModel);
         spotify = new SpotifyPlayer();
 
         // Browsers only let an AudioContext run following a genuine user gesture,

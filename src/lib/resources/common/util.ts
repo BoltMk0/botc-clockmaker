@@ -46,6 +46,7 @@ export function prettifyResourceType(type: ResourceType): string {
         case "grimoirestate": return "Grimoire State";
         case "charactertokenimage": return "Character Token Image";
         case "ambience": return "Ambience";
+        case "sting": return "Audio Stings";
         case "clockconfig": return "Clock Config";
         case 'appconfig': return "App Config";
         case 'rules-slide': return "Rules Slides"

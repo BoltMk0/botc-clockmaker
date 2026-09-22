@@ -21,7 +21,7 @@
 
     onMount(() => {
         if(browser && clocks){
-            audioEngine = new AudioEngine(clocks, data.ambienceEngineModel);
+            audioEngine = new AudioEngine(clocks, data.ambienceEngineModel, data.stingEngineModel);
             spotify = new SpotifyPlayer();
         }
 

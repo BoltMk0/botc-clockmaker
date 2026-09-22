@@ -188,6 +188,22 @@
     let showTokenSizeSlider = $state(false);
     let sidebarOpen = $state(false);
     let audioDim: AudioDim|null = $state(null); // Created on mount: it opens a connection to the server
+    let showStingPopup = $state(false);
+    let stingTriggering = $state(false);
+
+    function triggerSting(){
+        stingTriggering = true;
+        fetch('/api/stingEngine/trigger', {method: 'POST'}).catch((e)=>{
+            console.error('Failed to trigger sting', e);
+        }).finally(()=>{
+            stingTriggering = false;
+        });
+    }
+
+    function closeStingPopup(){
+        showStingPopup = false;
+        if(audioDim) audioDim.dimmed = false;
+    }
     const TOKEN_SIZE_KEY = 'grimoire-token-size';
     let tokenSize = $state(browser ? Number(localStorage.getItem(TOKEN_SIZE_KEY)) || 150 : 150);
     const reminderTokenSize = $derived(Math.round(tokenSize * 0.5));
@@ -1278,6 +1294,53 @@
         }
     }
 
+    .sting-overlay {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 2em;
+        box-sizing: border-box;
+    }
+
+    .sting-close-btn {
+        position: absolute;
+        top: 1em;
+        right: 1em;
+        width: 2.5em;
+        height: 2.5em;
+        padding: 0.5em;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 50%;
+        border: none;
+        color: white;
+        cursor: pointer;
+    }
+
+    .sting-close-btn:hover {
+        background: rgba(255, 255, 255, 0.25);
+    }
+
+    .sting-close-btn svg {
+        width: 100%;
+        height: 100%;
+        fill: currentColor;
+    }
+
+    .sting-trigger-btn {
+        width: min(90vw, 700px);
+        height: min(70vh, 700px);
+        font-size: 2em;
+        font-weight: bold;
+        border-radius: 1.5em;
+    }
+
     .character-overlay {
         position: absolute;
         inset: 0;
@@ -1860,10 +1923,25 @@
             {/if}
         </button>
 
-        <!-- Dim the audio everywhere (on all clients) -->
-        <button class="sidebar-btn" class:active={audioDim?.dimmed} onclick={() => audioDim?.toggle()} title={audioDim?.dimmed ? 'Restore audio volume' : `Dim audio (-${audioDim?.amountDb ?? 12} dB)`}>
+        <!-- Dim the audio everywhere (on all clients), then offer a sting to punctuate the moment -->
+        <button class="sidebar-btn" class:active={audioDim?.dimmed} onclick={() => {
+            const wasDimmed = audioDim?.dimmed ?? false;
+            audioDim?.toggle();
+            if(!wasDimmed && data.hasStings) showStingPopup = true;
+        }} title={audioDim?.dimmed ? 'Restore audio volume' : `Dim audio (-${audioDim?.amountDb ?? 12} dB)`}>
             <svg viewBox="0 0 24 24" style="overflow: visible;"><g transform="translate(0 {audioDim?.dimmed ? -2 : 0})"><path d="M18.5 12A4.5 4.5 0 0 0 16 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/>{#if !audioDim?.dimmed}<path d="M16.5 3.23v2.06c2.6.86 4.5 3.54 4.5 6.71s-1.9 5.85-4.5 6.71v2.06c3.6-.91 6.5-4.49 6.5-8.77s-2.9-7.86-6.5-8.77z"/>{/if}</g>{#if audioDim?.dimmed}<text x="12" y="27.5" text-anchor="middle" font-size="8" font-weight="bold" fill="currentColor">DIM</text>{/if}</svg>
         </button>
+
+        {#if showStingPopup}
+        <div class="sting-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 30};">
+            <button class="sting-close-btn" onclick={closeStingPopup} title="Close (restores audio volume)" aria-label="Close">
+                <svg viewBox="0 0 24 24"><path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.42L10.59 13.4 4.3 19.71 2.88 18.3 9.17 12 2.88 5.71 4.3 4.29l6.29 6.3 6.29-6.3z"/></svg>
+            </button>
+            <button class="sting-trigger-btn button-style" disabled={stingTriggering} onclick={triggerSting}>
+                Trigger Sting
+            </button>
+        </div>
+        {/if}
 
         <!-- Communications: things to show a player -->
         <button class="sidebar-btn" class:active={commsView !== null} onclick={() => commsView = 'menu'} title="Communications">

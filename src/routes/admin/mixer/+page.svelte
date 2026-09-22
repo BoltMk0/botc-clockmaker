@@ -25,7 +25,7 @@
             const param = page.url.searchParams.get('remote_only');
             remoteOnly = param !== null && param !== '0' && param !== 'false';
 
-            audioEngine = new AudioEngine(clocks, data.ambienceEngineModel, {silent: remoteOnly});
+            audioEngine = new AudioEngine(clocks, data.ambienceEngineModel, data.stingEngineModel, {silent: remoteOnly});
             spotify = new SpotifyPlayer({remoteOnly});
 
             // Browsers only let an AudioContext run following a genuine user gesture,

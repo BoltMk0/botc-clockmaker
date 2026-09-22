@@ -6,6 +6,8 @@ import type { AudioTrackModel } from "../common/model/audioTrackModel.svelte";
 import { AudioClockTrack } from "./AudioClockTrack.svelte";
 import { type AudioTrackBase } from "./AudioTrack.svelte";
 import { AudioDim } from "./AudioDim.svelte";
+import { StingEngine } from "./StingEngine.svelte";
+import type { StingEngineModel } from "../common/model/stingEngineModel";
 
 /** Time constant of the dim ramp: settles in roughly half a second, without clicks. */
 const DIM_TIME_CONSTANT_S = 0.12;
@@ -26,6 +28,8 @@ export class AudioEngine implements AudioTrackBase {
     #clockAudioTracks: AudioClockTrack[];
     #ambienceEngineModel: AmbienceEngineModel|null;
     #ambienceEngine: AmbienceEngine|null;
+    #stingEngineModel: StingEngineModel|null;
+    #stingEngine: StingEngine|null;
     #timeOfDay: TimeOfDay;
     readonly #silent: boolean;
 
@@ -33,7 +37,7 @@ export class AudioEngine implements AudioTrackBase {
      * @param options.silent Nothing ever plays on this client: the output isn't connected, ambience never starts and
      *   bells never ring. The mixer controls still work, editing the shared state for other clients.
      */
-    constructor(clocks: Clocktower[], ambienceEngineModel?: AmbienceEngineModel, options: {silent?: boolean} = {}){
+    constructor(clocks: Clocktower[], ambienceEngineModel?: AmbienceEngineModel, stingEngineModel?: StingEngineModel, options: {silent?: boolean} = {}){
         this.#silent = options.silent ?? false;
         this.#context = new AudioContext();
         this.#gainNode = this.#context.createGain();
@@ -50,6 +54,8 @@ export class AudioEngine implements AudioTrackBase {
         this.#timeOfDay = $derived(clocks.some(clock=>clock.timeOfDay === 'day') ? 'day' : 'night');
         this.#ambienceEngineModel = $state(ambienceEngineModel ?? null)
         this.#ambienceEngine = this.#ambienceEngineModel ? new AmbienceEngine(this.#ambienceEngineModel, this.#gainNode, ()=>this.#timeOfDay, {silent: this.#silent}) : null;
+        this.#stingEngineModel = $state(stingEngineModel ?? null)
+        this.#stingEngine = this.#stingEngineModel ? new StingEngine(this.#stingEngineModel, this.#gainNode, {silent: this.#silent}) : null;
         try {
             this.muted = localStorage.getItem(MUTE_STORAGE_KEY) === '1';
         } catch { /* storage unavailable */ }
@@ -74,6 +80,7 @@ export class AudioEngine implements AudioTrackBase {
 
     get clockAudioTracks(){ return this.#clockAudioTracks; }
     get ambienceEngine(){ return this.#ambienceEngine; }
+    get stingEngine(){ return this.#stingEngine; }
     get timeOfDay(){ return this.#timeOfDay; }
 
     get muted(){ return this.#muted; }
@@ -105,6 +112,7 @@ export class AudioEngine implements AudioTrackBase {
         this.#stopEffects?.();
         this.#dim?.close();
         this.#ambienceEngine?.close();
+        this.#stingEngine?.close();
         this.#context.close();
     }
 }

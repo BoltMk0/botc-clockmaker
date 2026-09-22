@@ -13,7 +13,7 @@
     let {data}: {data:{ resources: Resource[] }} = $props();
 
     let selectedResourceType: ResourceType = $state('grimoirestate');
-    const RESOURCE_TYPES_TO_HIDE: ResourceType[] = ['grimoirestate', 'charactertokenimage', 'clockconfig', 'appconfig']
+    const RESOURCE_TYPES_TO_HIDE: ResourceType[] = ['grimoirestate', 'charactertokenimage', 'clockconfig', 'appconfig', 'music']
 
     let showUploadOverlay = $state(false);
 
@@ -224,7 +224,7 @@
                             <td>
                                 <select name="type" required bind:value={selectedResourceType}>
                                     <option value="" disabled selected>Select Resource Type</option>
-                                    {#each ALL_RESOURCE_TYPES as type}
+                                    {#each resourceTypes as type}
                                         <option value={type}>{prettifyResourceType(type)}</option>
                                     {/each}
                                 </select>
@@ -268,7 +268,7 @@
             ondrop={handleDrop}
         >
             {#each sortedResources.find(r => r.type === $visibleResourceType)?.resources ?? [] as resource}
-                {#if resource.type === 'sfx' || resource.type === 'music' }
+                {#if resource.type === 'sfx' || resource.type === 'music' || resource.type === 'sting' }
                      <AudioResourceThumb resource={resource} style="flex-grow: 1; max-width: 400px;" onDelete={deleteResource} />
                 {:else}
                      <ResourceThumb data={resource} onDelete={deleteResource} />

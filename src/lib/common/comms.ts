@@ -1,6 +1,8 @@
 import type { AmbienceEngineModel } from "$lib/audio/common/model/ambienceEngineModel";
 import type { AmbienceTrackModel } from "$lib/audio/common/model/ambienceTrackModel";
 import type { AudioDimModel } from "$lib/audio/common/model/audioDimModel";
+import type { AudioResourceTrackModel } from "$lib/audio/common/model/audioResourceTrackModel";
+import type { StingEngineModel } from "$lib/audio/common/model/stingEngineModel";
 import type { SpotifyModel } from "$lib/audio/common/model/spotifyModel";
 import type { ClocktowerAudioTrackModel } from "$lib/audio/common/model/clocktowerAudioTrackModel.svelte";
 import type { ClocktowerModel } from "$lib/model/common/ClocktowerModel";
@@ -51,6 +53,23 @@ export type AudioDimUpdateMessage = WSMessageBase & {
     model: AudioDimModel
 };
 
+export type StingEngineUpdateMessage = WSMessageBase & {
+    type: 'stingEngineUpdate',
+    model: StingEngineModel
+};
+
+export type StingTrackUpdateMessage = WSMessageBase & {
+    type: 'stingTrackUpdate',
+    index: number;
+    model: AudioResourceTrackModel;
+};
+
+/** Broadcast the instant a sting fires, so every client plays whatever it already has loaded in that slot. */
+export type StingTriggerMessage = WSMessageBase & {
+    type: 'stingTrigger',
+    slot: 0 | 1;
+};
+
 export type WSMessage =
     |ClockMessage
     |SyncMessage
@@ -60,4 +79,7 @@ export type WSMessage =
     |AmbienceTrackUpdateMessage
     |SpotifyUpdateMessage
     |AudioDimUpdateMessage
+    |StingEngineUpdateMessage
+    |StingTrackUpdateMessage
+    |StingTriggerMessage
     ;

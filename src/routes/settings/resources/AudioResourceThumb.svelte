@@ -48,7 +48,7 @@
 </script>
 
 <ResourceThumbView title={prettifyResourceName(resource.name)} tags={[resource.type]} onDelete={() => onDelete(resource.id)} style={style}>
-    {#if resource.type === 'sfx' || resource.type === 'music'}
+    {#if resource.type === 'sfx' || resource.type === 'music' || resource.type === 'sting'}
         <audio bind:this={audioElement}
         src={`/api/resources/${resource.id}`} 
         onloadeddata={onAudioLoad} ondurationchange={onDurationChange} onplaying={()=>{playing = true}}
