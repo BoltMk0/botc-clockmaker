@@ -610,11 +610,26 @@
     let characterMessageKind = $state<keyof typeof characterMessages>('selected');
     const characterMessage = $derived(characterMessages[characterMessageKind]);
 
-    // Free-text message typed by the storyteller.
-    let customTitle = $state('');
-    let customSubtitle = $state('');
-    let customCharacterId = $state('');
-    let customCharacter2Id = $state('');
+    // Message the storyteller builds live, in the same field-stack shape as the messages
+    // configured in settings/customMessages - see CustomMessage.
+    let customFields = $state<MessageField[]>([]);
+    // Shows the text/character choice in place of the "Add field" button.
+    let addingCustomField = $state(false);
+    // The character-row slot currently open in the 'customCharacter' picker.
+    let customFieldPicker = $state<{ fieldIndex: number, valueIndex: number } | null>(null);
+
+    function addCustomField(type: MessageField['type']) {
+        customFields.push(type === 'text' ? { type: 'text', value: '' } : { type: 'character', value: [] });
+        addingCustomField = false;
+    }
+
+    function pickCustomFieldCharacter(characterId: string | null) {
+        if (!customFieldPicker) return;
+        const field = customFields[customFieldPicker.fieldIndex];
+        if (field.type === 'character') field.value[customFieldPicker.valueIndex] = characterId;
+        customFieldPicker = null;
+        commsView = 'custom';
+    }
 
     // The character picked, awaiting an optional suffix.
     let selectedCharacterId = $state('');
@@ -1301,7 +1316,7 @@
         overflow-y: auto;
     }
 
-    .overlay-panel.comms-panel > .comms-input {
+    .overlay-panel.comms-panel .comms-input {
         width: 100%;
         box-sizing: border-box;
         padding: 0.7em;
@@ -1312,6 +1327,102 @@
     .overlay-panel.comms-panel > button.button-style {
         width: 100%;
         flex-shrink: 0;
+    }
+
+    .overlay-panel.comms-panel > .field-stack {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6em;
+    }
+
+    .field-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+    }
+
+    .field-row .comms-input {
+        flex: 1;
+        font-size: 1.3em;
+    }
+
+    .token-row {
+        flex: 1;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5em;
+    }
+
+    .token-chip {
+        flex-shrink: 0;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid var(--theme-slider-trim, rgba(255, 255, 255, 0.35));
+        background-color: var(--theme-bg);
+        overflow: hidden;
+    }
+
+    .token-chip-mark {
+        font-size: 1.4em;
+        font-weight: bold;
+        opacity: 0.85;
+    }
+
+    .token-chip.add-token {
+        border-style: dashed;
+        background-color: transparent;
+        opacity: 0.7;
+    }
+
+    .token-chip.add-token:hover {
+        opacity: 1;
+        border-color: var(--theme-highlight);
+    }
+
+    .blank-token-large {
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2em;
+        font-weight: bold;
+        border: 2px solid var(--theme-slider-trim, rgba(255, 255, 255, 0.35));
+        background-color: var(--theme-bg);
+    }
+
+    .remove-field {
+        flex-shrink: 0;
+        width: 1.8em;
+        height: 1.8em;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.35);
+        color: inherit;
+    }
+
+    button.add-field {
+        width: 100%;
+        background-color: transparent;
+        border: 2px dashed currentColor;
+        opacity: 0.7;
+    }
+
+    button.add-field:hover {
+        opacity: 1;
+    }
+
+    .add-field-choice {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 0.5em;
     }
 
     .overlay-close {
@@ -2279,23 +2390,16 @@
                 {:else if commsView === 'customCharacter'}
                     <div class="overlay-name dumbledore-font">Choose a character</div>
                     <div class="picker-grid">
+                        <button class="no-button-style tray-token" title="Empty" onclick={() => pickCustomFieldCharacter(null)}>
+                            <div class="blank-token-large" style="width: {trayTokenSize}px; height: {trayTokenSize}px;">?</div>
+                        </button>
                         {#each sortedScriptCharacters as character (character.id)}
-                            <button class="no-button-style tray-token" onclick={() => { customCharacterId = character.id; commsView = 'custom'; }}>
+                            <button class="no-button-style tray-token" onclick={() => pickCustomFieldCharacter(character.id)}>
                                 <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" norules/>
                             </button>
                         {/each}
                     </div>
-                    <button class="button-style" onclick={() => commsView = 'custom'}>Back</button>
-                {:else if commsView === 'customCharacter2'}
-                    <div class="overlay-name dumbledore-font">Choose a second character</div>
-                    <div class="picker-grid">
-                        {#each sortedScriptCharacters as character (character.id)}
-                            <button class="no-button-style tray-token" onclick={() => { customCharacter2Id = character.id; commsView = 'custom'; }}>
-                                <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" norules/>
-                            </button>
-                        {/each}
-                    </div>
-                    <button class="button-style" onclick={() => commsView = 'custom'}>Back</button>
+                    <button class="button-style" onclick={() => { customFieldPicker = null; commsView = 'custom'; }}>Back</button>
                 {:else if commsView === 'secondCharacter'}
                     <div class="overlay-name dumbledore-font">Which character do they think you are?</div>
                     <div class="picker-grid">
@@ -2308,32 +2412,50 @@
                     <button class="button-style" onclick={() => commsView = 'suffix'}>Back</button>
                 {:else if commsView === 'custom'}
                     <div class="overlay-name dumbledore-font">Custom message</div>
-                    <input type="text" class="comms-input" placeholder="Title" bind:value={customTitle} />
-                    {#if customCharacterId}
-                        {@const customCharacter = sortedScriptCharacters.find(c => c.id === customCharacterId)}
-                        {#if customCharacter}
-                            <CharacterToken character={customCharacter} style="position: relative;" size="{trayTokenSize}px" norules/>
+                    <div class="field-stack">
+                        {#each customFields as field, fieldIndex}
+                            <div class="field-row">
+                                {#if field.type === 'text'}
+                                    <input type="text" class="comms-input" placeholder="Text" bind:value={field.value} />
+                                {:else}
+                                    <div class="token-row">
+                                        {#each field.value as characterId, valueIndex}
+                                            {@const character = characterId ? sortedScriptCharacters.find(c => c.id === characterId) : undefined}
+                                            <button
+                                                class="no-button-style token-chip"
+                                                class:blank={!characterId}
+                                                style={characterId ? undefined : `width: ${trayTokenSize}px; height: ${trayTokenSize}px;`}
+                                                title={character?.name ?? 'Blank - fill in when shown'}
+                                                onclick={() => { customFieldPicker = { fieldIndex, valueIndex }; commsView = 'customCharacter'; }}
+                                            >
+                                                {#if character}
+                                                    <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" norules/>
+                                                {:else}
+                                                    <span class="token-chip-mark">?</span>
+                                                {/if}
+                                            </button>
+                                        {/each}
+                                        <button class="no-button-style token-chip add-token" title="Add a token" style="width: {trayTokenSize}px; height: {trayTokenSize}px;" onclick={() => field.value.push(null)}>
+                                            <span class="token-chip-mark">+</span>
+                                        </button>
+                                    </div>
+                                {/if}
+                                <button class="no-button-style remove-field" title="Remove field" onclick={() => customFields.splice(fieldIndex, 1)}>✕</button>
+                            </div>
+                        {/each}
+
+                        {#if addingCustomField}
+                            <div class="add-field-choice">
+                                <span>Add a…</span>
+                                <button class="button-style" onclick={() => addCustomField('text')}>Text</button>
+                                <button class="button-style" onclick={() => addCustomField('character')}>Character</button>
+                                <button class="button-style" onclick={() => addingCustomField = false}>Cancel</button>
+                            </div>
+                        {:else}
+                            <button class="button-style add-field" onclick={() => addingCustomField = true}>+ Add field</button>
                         {/if}
-                        <button class="button-style" onclick={() => customCharacterId = ''}>Remove character token</button>
-                    {/if}
-                    <button class="button-style" onclick={() => commsView = 'customCharacter'}>{customCharacterId ? 'Change character token' : 'Add character token'}</button>
-                    <input type="text" class="comms-input" placeholder="Subtitle (optional)" bind:value={customSubtitle} />
-                    {#if customCharacter2Id}
-                        {@const customCharacter2 = sortedScriptCharacters.find(c => c.id === customCharacter2Id)}
-                        {#if customCharacter2}
-                            <CharacterToken character={customCharacter2} style="position: relative;" size="{trayTokenSize}px" norules/>
-                        {/if}
-                        <button class="button-style" onclick={() => customCharacter2Id = ''}>Remove second character token</button>
-                    {/if}
-                    <button class="button-style" onclick={() => commsView = 'customCharacter2'}>{customCharacter2Id ? 'Change second character token' : 'Add second character token'}</button>
-                    <button class="button-style highlight" style="margin-top: 1.2em;" disabled={!customTitle.trim()} onclick={() => {
-                        commsView = null;
-                        const fields: MessageField[] = [{ type: 'text', value: customTitle.trim() }];
-                        if (customCharacterId) fields.push({ type: 'character', value: [customCharacterId] });
-                        if (customSubtitle.trim()) fields.push({ type: 'text', value: customSubtitle.trim() });
-                        if (customCharacter2Id) fields.push({ type: 'character', value: [customCharacter2Id] });
-                        showMessageFields(fields);
-                    }}>Show message</button>
+                    </div>
+                    <button class="button-style highlight" style="margin-top: 1.2em;" disabled={customFields.length === 0} onclick={() => { commsView = null; showMessageFields(customFields); }}>Show message</button>
                     <button class="button-style" onclick={() => commsView = 'menu'}>Back</button>
                 {:else if commsView === 'selected'}
                     <div class="overlay-name dumbledore-font">{characterMessage.prompt}</div>
