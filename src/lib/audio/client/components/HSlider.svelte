@@ -26,6 +26,13 @@
 		value = v;
 		onchangefinished(value);
 	}
+
+	// Double click/tap resets the slider to 0 (e.g. centred pan).
+	function resetToZero() {
+		value = 0;
+		onchange(value);
+		onchangefinished(value);
+	}
 </script>
 
 <style>
@@ -45,5 +52,6 @@
 	value={value}
 	oninput={handleInput}
 	onchange={handleChange}
+	ondblclick={resetToZero}
 	class="horizontal-slider"
 />

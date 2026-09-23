@@ -46,6 +46,15 @@
     function handleChange(e: Event) {
         onchangefinished(updateValueFromEvent(e));
     }
+
+    // Double click/tap resets the slider to its "0" mark - 0dB (unity gain) for a logarithmic slider,
+    // literal 0 otherwise (e.g. centred pan).
+    function resetToZero() {
+        sliderValue = 0;
+        value = logarithmic ? Math.pow(10, 0 / 20) : 0;
+        onchange(value);
+        onchangefinished(value);
+    }
 </script>
 
 <style>
@@ -130,6 +139,7 @@
     value={sliderValue}
     oninput={handleInput}
     onchange={handleChange}
+    ondblclick={resetToZero}
     style=""
     class="vertical-slider"
 />
