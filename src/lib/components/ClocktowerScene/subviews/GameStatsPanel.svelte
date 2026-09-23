@@ -180,11 +180,11 @@
     // Margin from the screen's top/right edges, as a fraction of visibleHeight.
     const SIDE_ROLES_MARGIN_FRACTION = 0.027;
     // List width (icon + name/rules text), as a fraction of visibleHeight.
-    const SIDE_ROLES_LIST_WIDTH_FRACTION = 0.42;
+    const SIDE_ROLES_LIST_WIDTH_FRACTION = 0.39;
     // Each row's height, as a fraction of visibleHeight - shrunk (down to
     // the min) so a longer list still fits the space below the title.
     const SIDE_ROLE_ROW_MAX_HEIGHT_FRACTION = 0.15;
-    const SIDE_ROLE_ROW_MIN_HEIGHT_FRACTION = 0.08;
+    const SIDE_ROLE_ROW_MIN_HEIGHT_FRACTION = 0.03;
     const SIDE_ROLE_ROW_GAP_FRACTION = 0.006;
     const SIDE_ROLES_TITLE_HEIGHT_FRACTION = 0.03;
     // Extra breathing room between the title and the first row, as a

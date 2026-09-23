@@ -29,17 +29,27 @@
 
     // Icon: a circle inset from the row's left/top/bottom edges by this
     // fraction of the row height.
-    const ICON_MARGIN_FRACTION = 0.025;
+    const ICON_MARGIN_FRACTION = 0;
     // Gap between the icon and the text column, as a fraction of row height.
     const ICON_TEXT_GAP_FRACTION = 0;
-    // Inset from the row's right edge, as a fraction of row height.
-    const RIGHT_MARGIN_FRACTION = 0.02;
+    // Inset from the row's right edge, and from its top/bottom edges around
+    // the text block, both as a fraction of row height.
+    const RIGHT_MARGIN_FRACTION = 0.1;
+    const TEXT_VERTICAL_PADDING_FRACTION = 0.1;
+    // Shrinks the icon's whole slot (including the padding around it) in
+    // toward the row's vertical centre - unlike ICON_MARGIN_FRACTION, this
+    // also pulls the text column in closer since it's positioned off the
+    // slot's own radius.
+    const ICON_SLOT_SCALE = 0.82;
+    // Further shrinks the drawn icon within its (already-shrunk) slot,
+    // without moving the slot itself.
+    const ICON_SIZE_SCALE = 0.85;
 
     const TITLE_MAX_FONT_FRACTION = 0.17; // of row height
     const TITLE_MIN_FONT_PX = 14;
     const RULES_MAX_FONT_FRACTION = 0.15; // of row height
     const RULES_MIN_FONT_PX = 10;
-    const RULES_LINE_HEIGHT = 1.02;
+    const RULES_LINE_HEIGHT = 0.95;
     // Gap between the title and the rules text, as a fraction of row height.
     const TITLE_RULES_GAP_FRACTION = 0.06;
 
@@ -129,10 +139,14 @@
         ctx.roundRect(0, 0, width, height, height * BACKGROUND_RADIUS_FRACTION);
         ctx.fill();
 
-        // Icon, clipped to a circle inset from the row's edges.
+        // Icon, clipped to a circle inset from the row's edges. Drawn at
+        // ICON_SIZE_SCALE within its slot so shrinking it doesn't also
+        // shift the text column over (which is positioned off the slot's
+        // own, unscaled radius).
         const iconMargin = height * ICON_MARGIN_FRACTION;
-        const iconR = height / 2 - iconMargin;
-        const iconCx = iconMargin + iconR;
+        const slotR = (height / 2 - iconMargin) * ICON_SLOT_SCALE;
+        const iconR = slotR * ICON_SIZE_SCALE;
+        const iconCx = iconMargin + slotR;
         const iconCy = height / 2;
         if (iconImage) {
             ctx.save();
@@ -149,9 +163,9 @@
             ctx.fill();
         }
 
-        // Text column: everything to the right of the icon, out to the
-        // row's own right margin.
-        const textX = iconCx + iconR + height * ICON_TEXT_GAP_FRACTION;
+        // Text column: everything to the right of the icon's slot, out to
+        // the row's own right margin.
+        const textX = iconCx + slotR + height * ICON_TEXT_GAP_FRACTION;
         const textRight = width - height * RIGHT_MARGIN_FRACTION;
         const textWidth = Math.max(0, textRight - textX);
 
@@ -162,6 +176,11 @@
         const hasRules = rulesText.length > 0;
         const gap = hasRules ? height * TITLE_RULES_GAP_FRACTION : 0;
 
+        // Available height for the title+rules block, inset from the row's
+        // top/bottom edges by TEXT_VERTICAL_PADDING_FRACTION on each side.
+        const vPad = height * TEXT_VERTICAL_PADDING_FRACTION;
+        const maxTextH = Math.max(0, height - vPad * 2);
+
         // Rules block first (bottom-up), so the title above it can claim
         // whatever height the rules didn't need - the title never shrinks
         // to make room for rules text, only the reverse.
@@ -170,7 +189,7 @@
         let rulesBlockH = 0;
         if (hasRules) {
             rulesFontPx = Math.max(RULES_MIN_FONT_PX, height * RULES_MAX_FONT_FRACTION);
-            const maxRulesH = height * 0.72;
+            const maxRulesH = maxTextH * 0.72;
             while (rulesFontPx >= RULES_MIN_FONT_PX) {
                 ctx.font = `${RULES_WEIGHT} ${rulesFontPx}px ${FONT_FAMILY}`;
                 rulesLines = wrapLines(ctx, rulesText, textWidth);
@@ -180,7 +199,7 @@
             }
         }
 
-        const titleMaxH = height - rulesBlockH - gap;
+        const titleMaxH = maxTextH - rulesBlockH - gap;
         let titleFontPx = Math.max(TITLE_MIN_FONT_PX, height * TITLE_MAX_FONT_FRACTION);
         while (titleFontPx >= TITLE_MIN_FONT_PX) {
             ctx.font = `${TITLE_WEIGHT} ${titleFontPx}px ${FONT_FAMILY}`;
@@ -189,7 +208,7 @@
         }
 
         const blockH = titleFontPx + gap + rulesBlockH;
-        let cursorY = (height - blockH) / 2;
+        let cursorY = vPad + (maxTextH - blockH) / 2;
 
         ctx.font = `${TITLE_WEIGHT} ${titleFontPx}px ${FONT_FAMILY}`;
         ctx.fillStyle = TEXT_COLOR;
