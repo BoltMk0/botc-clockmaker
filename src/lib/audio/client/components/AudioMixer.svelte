@@ -41,17 +41,47 @@
         margin: 0 auto;
     }
 
+    .mixer-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .mixer-group-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #999;
+        font-size: 0.75em;
+        font-weight: bold;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .mixer-group-title::before,
+    .mixer-group-title::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--theme-slider-trim);
+    }
+
     .mixer-channel-strips {
         display: flex;
         gap: 5px;
         align-items: stretch;
+        /* Fills the rest of the group's height below the title, so both groups' strip rows still line up
+           even though one group's title takes the same space as the other's. */
+        flex: 1;
     }
 </style>
 
 <div class="mixer-main">
     <div class="mixer-groups">
         {#if audioEngine}
-        <div class="mixer-channel-strips">
+        <div class="mixer-group">
+            <div class="mixer-group-title">Music &amp; Ambience</div>
+            <div class="mixer-channel-strips">
             {#if audioEngine.ambienceEngine !== null}
             {#snippet ambienceEngineTitle()}
                 <div style="display: flex; gap: 0.5em; justify-content: center; align-items: center;">
@@ -79,10 +109,13 @@
             <ChannelStripSpotify {spotify} presets={spotifyPresets} masterGain={audioEngine.gain} style="--theme-slider-accent: #AFA;"/>
             {/if}
             <ChannelStrip audioTrack={audioEngine} title="MASTER" style="--theme-slider-accent: #DCC"/>
+            </div>
         </div>
         <!-- Clocks (player bells) and the sting engine get their own mixer, with its own independent master
              fader (audioEngine.clocksMaster) rather than sharing the one above - see AudioEngine.svelte.ts. -->
-        <div class="mixer-channel-strips">
+        <div class="mixer-group">
+            <div class="mixer-group-title">SFX</div>
+            <div class="mixer-channel-strips">
             {#if audioEngine.stingEngine !== null}
             <ChannelStrip audioTrack={audioEngine.stingEngine} title="STING" onTitleClick={()=>{audioEngine?.stingEngine?.trigger()}} style="--theme-slider-accent: #FA5;"/>
             {/if}
@@ -90,6 +123,7 @@
                 clock.ringFinalBell();
             }}/>
             <ChannelStrip audioTrack={audioEngine.clocksMaster} title="MASTER" style="--theme-slider-accent: #DCC"/>
+            </div>
         </div>
         {/if}
     </div>
