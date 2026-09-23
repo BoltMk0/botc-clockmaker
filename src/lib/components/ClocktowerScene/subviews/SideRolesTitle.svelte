@@ -12,6 +12,10 @@
     const TEXT_SHADOW_COLOR = "rgba(0, 0, 0, 0.75)";
     const CANVAS_WIDTH = 1024;
     const CANVAS_HEIGHT = 128;
+    // Inset from the canvas edges the text must fit within, as a fraction of the canvas width.
+    const CONTENT_MARGIN_FRACTION = 0.04;
+    const MAX_FONT_PX = CANVAS_HEIGHT * 0.7;
+    const MIN_FONT_PX = CANVAS_HEIGHT * 0.25;
 
     let {
         text,
@@ -53,7 +57,16 @@
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
         ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-        const fontPx = CANVAS_HEIGHT * 0.7;
+
+        const upperText = text.toUpperCase();
+        const maxWidth = CANVAS_WIDTH * (1 - CONTENT_MARGIN_FRACTION * 2);
+        let fontPx = MAX_FONT_PX;
+        while (fontPx > MIN_FONT_PX) {
+            ctx.font = `${FONT_WEIGHT} ${fontPx}px ${FONT_FAMILY}`;
+            if (ctx.measureText(upperText).width <= maxWidth) break;
+            fontPx -= 2;
+        }
+
         ctx.font = `${FONT_WEIGHT} ${fontPx}px ${FONT_FAMILY}`;
         ctx.fillStyle = TEXT_COLOR;
         ctx.textAlign = "center";
@@ -61,7 +74,7 @@
         ctx.shadowColor = TEXT_SHADOW_COLOR;
         ctx.shadowBlur = fontPx * 0.1;
         ctx.shadowOffsetY = fontPx * 0.03;
-        ctx.fillText(text.toUpperCase(), CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+        ctx.fillText(upperText, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
         texture.needsUpdate = true;
     });
 </script>
