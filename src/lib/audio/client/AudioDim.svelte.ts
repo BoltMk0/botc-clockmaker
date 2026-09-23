@@ -1,14 +1,14 @@
 import { dimGain, DEFAULT_DIM_AMOUNT_DB, type AudioDimModel } from "$lib/audio/common/model/audioDimModel";
-import { SSEClient } from "../../model/client/util/sseClient.svelte";
+import { subscribeMixerEvents } from "./MixerEventsClient";
 
 /** Client side of the shared audio dim: follows the server's state, and can switch it for everyone. */
 export class AudioDim {
     model = $state<AudioDimModel>({ dimmed: false, amountDb: DEFAULT_DIM_AMOUNT_DB });
 
-    readonly #sse: SSEClient;
+    readonly #unsubscribeEvents: () => void;
 
     constructor() {
-        this.#sse = new SSEClient('/api/audioDim/events', (msg) => {
+        this.#unsubscribeEvents = subscribeMixerEvents((msg) => {
             if (msg.type === 'audioDimUpdate') this.model = msg.model;
         });
     }
@@ -33,5 +33,5 @@ export class AudioDim {
 
     toggle() { this.dimmed = !this.dimmed; }
 
-    close() { this.#sse.close(); }
+    close() { this.#unsubscribeEvents(); }
 }

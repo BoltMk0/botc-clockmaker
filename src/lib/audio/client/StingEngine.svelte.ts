@@ -2,7 +2,7 @@ import { AudioStingSlot } from "$lib/audio/client/AudioStingSlot.svelte";
 import { AudioTrackGroup } from "$lib/audio/client/AudioTrackGroup";
 import type { StingEngineModel, StingEnginePatch } from "$lib/audio/common/model/stingEngineModel";
 import type { AudioResourceTrackModel } from "$lib/audio/common/model/audioResourceTrackModel";
-import { SSEClient } from "../../model/client/util/sseClient.svelte";
+import { subscribeMixerEvents } from "./MixerEventsClient";
 
 /** Outgoing edits are batched for this long, so dragging a slider doesn't flood the server. */
 const SEND_DELAY_MS = 80;
@@ -14,7 +14,7 @@ export class StingEngine extends AudioTrackGroup<AudioStingSlot> {
 
     readonly #model: StingEngineModel;
     readonly #silent: boolean;
-    readonly #sseConnection: SSEClient;
+    readonly #unsubscribeEvents: () => void;
 
     #pendingEngine: StingEnginePatch = {};
     #sendTimer: ReturnType<typeof setTimeout> | null = null;
@@ -38,7 +38,7 @@ export class StingEngine extends AudioTrackGroup<AudioStingSlot> {
 
         this.persistMute('sting.bus');
 
-        this.#sseConnection = new SSEClient('/api/stingEngine/events', (msg) => {
+        this.#unsubscribeEvents = subscribeMixerEvents((msg) => {
             switch (msg.type) {
                 case 'stingEngineUpdate':
                     this.applyFields(this.#model, msg.model, ENGINE_KEYS);
@@ -134,7 +134,7 @@ export class StingEngine extends AudioTrackGroup<AudioStingSlot> {
             this.#sendTimer = null;
             this.flush();
         }
-        this.#sseConnection.close();
+        this.#unsubscribeEvents();
         for (const t of this.tracks) t.close();
         super.close();
     }

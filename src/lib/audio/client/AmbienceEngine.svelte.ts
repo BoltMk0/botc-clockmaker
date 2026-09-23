@@ -3,7 +3,7 @@ import { AudioTrackGroup } from "$lib/audio/client/AudioTrackGroup";
 import type { AmbienceEngineModel, AmbienceEnginePatch, AmbienceTrackPatch } from "$lib/audio/common/model/ambienceEngineModel";
 import type { AmbienceTrackModel } from "$lib/audio/common/model/ambienceTrackModel";
 import type { TimeOfDay } from "../../model/client/types";
-import { SSEClient } from "../../model/client/util/sseClient.svelte";
+import { subscribeMixerEvents } from "./MixerEventsClient";
 
 /** Outgoing edits are batched for this long, so dragging a slider doesn't flood the server. */
 const SEND_DELAY_MS = 80;
@@ -18,7 +18,7 @@ export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
     readonly #model: AmbienceEngineModel;
     readonly #timeOfDay: ()=>TimeOfDay;
     readonly #silent: boolean;
-    readonly #sseConnection: SSEClient;
+    readonly #unsubscribeEvents: () => void;
     readonly #stopEffects: ()=>void;
 
     #pendingEngine: AmbienceEnginePatch = {};
@@ -64,7 +64,7 @@ export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
             });
         });
 
-        this.#sseConnection = new SSEClient('/api/ambienceEngine/events', (msg)=>{
+        this.#unsubscribeEvents = subscribeMixerEvents((msg)=>{
             switch(msg.type){
                 case 'ambienceEngineUpdate':
                     this.applyRemoteEngine(msg.model);
@@ -191,7 +191,7 @@ export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
             this.#sendTimer = null;
             this.flush(); // Don't lose the last edit
         }
-        this.#sseConnection.close();
+        this.#unsubscribeEvents();
         for(const t of this.tracks) t.close();
         super.close();
     }

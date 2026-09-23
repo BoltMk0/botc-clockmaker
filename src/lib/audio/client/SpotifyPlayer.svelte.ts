@@ -1,5 +1,5 @@
 import type { SpotifyControlAction, SpotifyModel, SpotifyPlaybackModel } from "$lib/audio/common/model/spotifyModel";
-import { SSEClient } from "../../model/client/util/sseClient.svelte";
+import { subscribeMixerEvents } from "./MixerEventsClient";
 
 const SDK_URL = 'https://sdk.scdn.co/spotify-player.js';
 const HEARTBEAT_MS = 5000;
@@ -56,7 +56,7 @@ export class SpotifyPlayer {
     error = $state<string | null>(null);
     starting = $state(false);
 
-    #sse: SSEClient;
+    #unsubscribeEvents: () => void;
     #player: SpotifySDKPlayer | null = null;
     #heartbeat: ReturnType<typeof setInterval> | null = null;
     #volumeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -69,7 +69,7 @@ export class SpotifyPlayer {
     /** @param options.remoteOnly This client never runs the player itself; it can only control one running elsewhere. */
     constructor(options: { remoteOnly?: boolean } = {}) {
         this.canHost = !(options.remoteOnly ?? false);
-        this.#sse = new SSEClient('/api/spotify/events', (msg) => {
+        this.#unsubscribeEvents = subscribeMixerEvents((msg) => {
             if (msg.type !== 'spotifyUpdate') return;
             const wasHost = this.isHost;
             this.model = msg.model;
@@ -216,6 +216,6 @@ export class SpotifyPlayer {
     close() {
         if (this.isHost || this.#player) this.stopHosting();
         if (this.#volumeTimer !== null) clearTimeout(this.#volumeTimer);
-        this.#sse.close();
+        this.#unsubscribeEvents();
     }
 }
