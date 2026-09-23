@@ -125,6 +125,7 @@
     {hasGrim}
     {grimoireState}
     {script}
+    {qrCodes}
 />
 <Tower {imageUrl} {normalMapUrl} {origin} {planeHeight} horizontalOffset={scaledHorizontalOffset} {verticalOffset} />
 <ClockFace

@@ -8,7 +8,7 @@
 
     const FONT_FAMILY = '"Dumbledore", Georgia, "Times New Roman", serif';
     const FONT_WEIGHT = "700";
-    const TEXT_COLOR = "#c9c2a3";
+    const TEXT_COLOR = "#f0dfa8";
     const TEXT_SHADOW_COLOR = "rgba(0, 0, 0, 0.75)";
     const CANVAS_WIDTH = 1024;
     const CANVAS_HEIGHT = 128;
@@ -68,5 +68,5 @@
 
 <T.Mesh position={[anchor.x, anchor.y - height / 2, z]}>
     <T.PlaneGeometry args={[width, height]} />
-    <T.MeshBasicMaterial map={texture} transparent depthWrite={false} />
+    <T.MeshBasicMaterial map={texture} transparent opacity={1} depthWrite={false} />
 </T.Mesh>
