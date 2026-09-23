@@ -193,9 +193,13 @@
     // panel reads as touching (or overlapping) the title text.
     const SIDE_ROLES_TITLE_GAP_FRACTION = 0.025;
     const sideRolesTitle = $derived.by(() => {
-        const hasLoric = sideRoles.some(c => c.category === "loric");
-        const hasFabled = sideRoles.some(c => c.category === "fabled");
-        return hasLoric && hasFabled ? "Loric & Fabled" : hasFabled ? "Fabled" : "Loric";
+        const parts = [
+            sideRoles.some(c => c.category === "loric") && "Loric",
+            sideRoles.some(c => c.category === "fabled") && "Fabled",
+            sideRoles.some(c => c.category === "traveler") && "Travellers"
+        ].filter((p): p is string => !!p);
+        if (parts.length <= 1) return parts[0] ?? "";
+        return `${parts.slice(0, -1).join(", ")} & ${parts[parts.length - 1]}`;
     });
 
     // QR codes anchored at the top-right corner or the right edge sit in

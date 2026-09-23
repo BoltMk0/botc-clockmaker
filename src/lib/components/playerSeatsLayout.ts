@@ -15,15 +15,25 @@ export function filterSeatTokens(
     });
 }
 
-// The loric and fabled characters on the board (each listed once): loric first, then fabled, each by name.
+// Categories shown in the side rules list (see sideRoleCharacters below), in display order.
+// Travellers do take a seat (unlike loric/fabled) but their abilities are as varied as a
+// demon's, so they get the same full-rules treatment rather than just a plain seat token.
+const SIDE_ROLE_CATEGORIES = ['loric', 'fabled', 'traveler'] as const;
+
+// The loric/fabled/traveller characters on the board (each listed once), grouped by category
+// in SIDE_ROLE_CATEGORIES order and then by name within each group.
 export function sideRoleCharacters(
     grimoireState: GrimoireStateHistory | null,
     script: ScriptWithCharacters | null
 ): ScriptCharacter[] {
     const onBoard = new Set((grimoireState?.present.placedTokens ?? []).map(t => t.characterId));
     return (script?.characters ?? [])
-        .filter(c => (c.category === 'loric' || c.category === 'fabled') && onBoard.has(c.id))
-        .sort((a, b) => (a.category === b.category ? 0 : a.category === 'loric' ? -1 : 1) || a.name.localeCompare(b.name));
+        .filter(c => (SIDE_ROLE_CATEGORIES as readonly string[]).includes(c.category) && onBoard.has(c.id))
+        .sort((a, b) =>
+            SIDE_ROLE_CATEGORIES.indexOf(a.category as typeof SIDE_ROLE_CATEGORIES[number]) -
+            SIDE_ROLE_CATEGORIES.indexOf(b.category as typeof SIDE_ROLE_CATEGORIES[number]) ||
+            a.name.localeCompare(b.name)
+        );
 }
 
 export type SeatsLayoutToken = { token: PlacedToken; x: number; y: number };
