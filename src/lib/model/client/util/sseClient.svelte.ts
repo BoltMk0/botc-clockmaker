@@ -19,6 +19,7 @@ export class SSEClient {
     private sseReconnectTimer: ReturnType<typeof setTimeout> | null = null;
     private sse_data_store: Readable<WSMessage|null> | null = null;
     private sse_store_unsubscribe: (()=>void) | null = null;
+    #ping_unsubscribe: (()=>void) | null = null;
     private lastMessageTime: number = Date.now();
     private watchdogInterval: ReturnType<typeof setInterval> | null = null;
     private wakeListenersAttached = false;
@@ -68,6 +69,15 @@ export class SSEClient {
                 this.lastMessageTime = Date.now();
                 onMessage(value);
             }
+        });
+        // The server also sends a periodic `ping` (a plain keep-alive, not a WSMessage - see the
+        // `ping` option on the various `produce()` routes) on every SSE route, whereas an actual
+        // `sync`/app WSMessage only flows on the clock route (its 500ms tick) or when something
+        // genuinely changes elsewhere (ambience/sting/spotify/audioDim). Without also counting pings
+        // as a liveness signal, the watchdog below would wrongly declare those quieter connections
+        // stale and force-reconnect them every few seconds even while perfectly healthy.
+        this.#ping_unsubscribe = this.sse_connection.select('ping').subscribe(() => {
+            this.lastMessageTime = Date.now();
         });
 
         if(typeof window !== 'undefined'){
@@ -142,5 +152,6 @@ export class SSEClient {
         }
         this.sse_connection?.close();
         this.sse_store_unsubscribe?.();
+        this.#ping_unsubscribe?.();
     }
 }
