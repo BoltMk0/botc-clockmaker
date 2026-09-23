@@ -4,7 +4,7 @@ import { AmbienceEngine } from "../../audio/client/AmbienceEngine.svelte";
 import type { AmbienceEngineModel } from "../common/model/ambienceEngineModel";
 import type { AudioTrackModel } from "../common/model/audioTrackModel.svelte";
 import { AudioClockTrack } from "./AudioClockTrack.svelte";
-import { type AudioTrackBase } from "./AudioTrack.svelte";
+import { AudioTrack, type AudioTrackBase } from "./AudioTrack.svelte";
 import { AudioDim } from "./AudioDim.svelte";
 import { StingEngine } from "./StingEngine.svelte";
 import type { StingEngineModel } from "../common/model/stingEngineModel";
@@ -24,6 +24,12 @@ export class AudioEngine implements AudioTrackBase {
     #stopEffects: (()=>void)|null = null;
     #muted = $state(false);
     #analyser: AnalyserNode;
+
+    // Clocks (player bells) and the sting engine get their own independent master bus - a separate mixer
+    // in the UI, with its own fader - rather than sharing the main one with ambience/Spotify. Both buses
+    // still feed the same #dimNode, so the shared "dim" (grim dim button) still dims everything at once.
+    #clocksMasterModel: AudioTrackModel = $state({gain: 1.0, pan: 0.0})
+    #clocksMasterBus: AudioTrack;
 
     #clockAudioTracks: AudioClockTrack[];
     #ambienceEngineModel: AmbienceEngineModel|null;
@@ -47,18 +53,20 @@ export class AudioEngine implements AudioTrackBase {
         if(!this.#silent) this.#dimNode.connect(this.#context.destination);
         this.#analyser = this.#context.createAnalyser();
         this.#gainNode.connect(this.#analyser);
+        this.#clocksMasterBus = new AudioTrack(this.#clocksMasterModel, this.#dimNode, 'Clocks & Sting Master');
         console.log("Connection", clocks.length, "clocks")
-        this.#clockAudioTracks = clocks.map(c=>c.connectAudio(this.#gainNode));
+        this.#clockAudioTracks = clocks.map(c=>c.connectAudio(this.#clocksMasterBus.input));
         if(this.#silent) this.#clockAudioTracks.forEach(t=>t.silent = true);
         // With several games each in their own day/night phase, daytime wins: it's day if any game is in daytime.
         this.#timeOfDay = $derived(clocks.some(clock=>clock.timeOfDay === 'day') ? 'day' : 'night');
         this.#ambienceEngineModel = $state(ambienceEngineModel ?? null)
         this.#ambienceEngine = this.#ambienceEngineModel ? new AmbienceEngine(this.#ambienceEngineModel, this.#gainNode, ()=>this.#timeOfDay, {silent: this.#silent}) : null;
         this.#stingEngineModel = $state(stingEngineModel ?? null)
-        this.#stingEngine = this.#stingEngineModel ? new StingEngine(this.#stingEngineModel, this.#gainNode, {silent: this.#silent}) : null;
+        this.#stingEngine = this.#stingEngineModel ? new StingEngine(this.#stingEngineModel, this.#clocksMasterBus.input, {silent: this.#silent}) : null;
         try {
             this.muted = localStorage.getItem(MUTE_STORAGE_KEY) === '1';
         } catch { /* storage unavailable */ }
+        this.#clocksMasterBus.persistMute('master.clocks');
         if(!this.#silent){
             // Follow the shared dim (a silent client plays nothing, so has nothing to dim)
             const dim = this.#dim = new AudioDim();
@@ -82,6 +90,8 @@ export class AudioEngine implements AudioTrackBase {
     get ambienceEngine(){ return this.#ambienceEngine; }
     get stingEngine(){ return this.#stingEngine; }
     get timeOfDay(){ return this.#timeOfDay; }
+    /** Independent master bus for the clocks/sting mixer - its own fader, separate from this engine's own (ambience/Spotify). */
+    get clocksMaster(): AudioTrackBase { return this.#clocksMasterBus; }
 
     get muted(){ return this.#muted; }
     set muted(value: boolean){
@@ -113,6 +123,7 @@ export class AudioEngine implements AudioTrackBase {
         this.#dim?.close();
         this.#ambienceEngine?.close();
         this.#stingEngine?.close();
+        this.#clocksMasterBus.close();
         this.#context.close();
     }
 }
