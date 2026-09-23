@@ -126,19 +126,22 @@
     {/if}
     {#if spotify.error}<div class="error">{spotify.error}</div>{/if}
 </div>
-{:else}
+{:else if !model.authorized}
+<!-- The whole dashed area is the click target (not just the text), so it's easy to hit. -->
+<a class="channel-strip-main empty clickable" style={style} href="/api/spotify/auth" data-sveltekit-reload>
+    <div class="empty-text">+<br/>Link<br/>Spotify</div>
+    {#if spotify.error}<div class="error">{spotify.error}</div>{/if}
+</a>
+{:else if !spotify.canHost}
 <div class="channel-strip-main empty" style={style}>
-    {#if !model.authorized}
-        <a class="empty-action" href="/api/spotify/auth" data-sveltekit-reload>+<br/>Link<br/>Spotify</a>
-    {:else if !spotify.canHost}
-        <div class="empty-text">Spotify<br/>player not<br/>running</div>
-    {:else}
-        <button class="empty-action" onclick={()=>spotify.startHosting()} disabled={spotify.starting}>
-            {#if spotify.starting}Starting…{:else}+<br/>Spotify<br/>player{/if}
-        </button>
-    {/if}
+    <div class="empty-text">Spotify<br/>player not<br/>running</div>
     {#if spotify.error}<div class="error">{spotify.error}</div>{/if}
 </div>
+{:else}
+<button class="channel-strip-main empty clickable" style={style} onclick={()=>spotify.startHosting()} disabled={spotify.starting}>
+    <div class="empty-text">{#if spotify.starting}Starting…{:else}+<br/>Spotify<br/>player{/if}</div>
+    {#if spotify.error}<div class="error">{spotify.error}</div>{/if}
+</button>
 {/if}
 {/if}
 
@@ -163,6 +166,29 @@
         box-shadow: none;
         justify-content: center;
         align-items: stretch;
+        /* Resets when this is rendered as a <button>/<a> (the clickable cases) rather than a plain <div>. */
+        font: inherit;
+        text-align: inherit;
+        text-decoration: none;
+        color: inherit;
+        cursor: default;
+    }
+
+    .channel-strip-main.empty.clickable {
+        cursor: pointer;
+    }
+
+    .channel-strip-main.empty.clickable:hover:not(:disabled) {
+        border-color: #aaa;
+    }
+
+    .channel-strip-main.empty.clickable .empty-text {
+        color: #ccc;
+    }
+
+    .channel-strip-main.empty:disabled {
+        cursor: default;
+        opacity: 0.7;
     }
 
     .starting {
@@ -267,25 +293,6 @@
         padding: 8px 0;
     }
 
-    .empty-action {
-        text-align: center;
-        color: #999;
-        font-family: inherit;
-        font-weight: bold;
-    }
-
-    .empty-action {
-        background: none;
-        border: none;
-        cursor: pointer;
-        text-decoration: none;
-        font-size: 1em;
-        padding: 8px 0;
-    }
-
-    .empty-action:hover:not(:disabled) {
-        color: #fff;
-    }
 
     .error {
         margin-top: 6px;

@@ -38,16 +38,11 @@
         margin: 0 auto;
         align-items: stretch;
     }
-
-    .spotify-separate {
-        display: flex;
-        margin-left: 40px;
-    }
 </style>
 
 <div class="mixer-main">
     <div class="mixer-channel-strips">
-            
+
         {#if audioEngine}
         {#if audioEngine.ambienceEngine !== null}
         {#snippet ambienceEngineTitle()}
@@ -74,16 +69,13 @@
             clock.ringFinalBell();
         }}/>
         <ChannelStrip audioTrack={audioEngine} title="MASTER" style="--theme-slider-accent: #DCC"/>
-        {/if}
         {#if spotify}
         <!-- Spotify plays in the SDK's own iframe, so it can't be routed through the master bus: it gets the
              master gain applied to its own volume commands instead (see ChannelStripSpotify) so the master
-             fader still controls it, just via Spotify's own volume API rather than a Web Audio gain node. -->
-        <div class="spotify-separate">
-            <ChannelStripSpotify {spotify} presets={spotifyPresets} masterGain={audioEngine.gain} style="--theme-slider-accent: #AFA;"/>
-        </div>
+             fader still controls it, just via Spotify's own volume API rather than a Web Audio gain node -
+             it's still one of the mixer's own channels, not a separate thing, so it sits in the same row. -->
+        <ChannelStripSpotify {spotify} presets={spotifyPresets} masterGain={audioEngine.gain} style="--theme-slider-accent: #AFA;"/>
         {/if}
-
-        
+        {/if}
     </div>
 </div>
