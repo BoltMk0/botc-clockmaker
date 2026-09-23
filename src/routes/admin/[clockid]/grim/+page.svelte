@@ -230,6 +230,14 @@
     );
     const activeCharacterId = $derived(activeToken?.characterId ?? null);
 
+    // "Change character" only offers loric/fabled when swapping an existing loric/fabled token (never for a player
+    // token), since loric/fabled can never be a player character.
+    const pickableCharacters = $derived(
+        activeToken && isSideRoleToken(activeToken)
+            ? sortedScriptCharacters.filter(c => isSideRoleCategory(c.category))
+            : sortedScriptCharacters.filter(c => !isSideRoleCategory(c.category))
+    );
+
     const tools: CanvasToolType[] = [
         {
             type: 'pen',
@@ -488,10 +496,13 @@
     let pointerStartToken: PlacedToken | null = null;
     const TAP_THRESHOLD = 10;
 
-    // Loric and fabled tokens sit apart from the town, so they're ignored when spacing or framing it.
-    function isSideRoleToken(t: PlacedToken): boolean {
-        const category = script?.characters.find(c => c.id === t.characterId)?.category;
+    // Loric and fabled characters can never be player characters: no name/alignment/alive-dead state, no colour by
+    // alignment, and they sit apart from the town so they're ignored when spacing or framing it.
+    function isSideRoleCategory(category: CharacterCategory | null | undefined): boolean {
         return category === 'loric' || category === 'fabled';
+    }
+    function isSideRoleToken(t: PlacedToken): boolean {
+        return isSideRoleCategory(script?.characters.find(c => c.id === t.characterId)?.category);
     }
 
     // Zoom so the placed tokens fill the screen, edge to edge, with the town centred (rings, reminders, the clock, loric/fabled and unnamed tokens are ignored).
@@ -2114,17 +2125,23 @@
         {/each}
         {#each placedTokens as token (token.id)}
             {@const character = script?.characters.find(c => c.id === token.characterId)}
+            {@const sideRole = isSideRoleCategory(character?.category)}
             {#if character || token.characterId === null}
             <div
                 class="board-token"
-                class:dead={token.isDead}
+                class:dead={!sideRole && token.isDead}
                 class:unnamed={!isPlayerToken(token)}
-                class:misaligned={token.characterId !== null && defaultAlignmentForCharacterId(token.characterId) !== token.alignment}
+                class:misaligned={!sideRole && token.characterId !== null && defaultAlignmentForCharacterId(token.characterId) !== token.alignment}
                 style="left: calc(50% + {token.x}px); top: calc(50% + {token.y}px); z-index: {isPlayerToken(token) ? z_indecies.tokens : z_indecies.unnamedTokens};"
                 onpointerdown={(e) => startDragFromBoard(e, token)}
             >
                 {#if character}
-                    <CharacterToken {character} style="position: relative;" size={tokenSize + 'px'} norules dead={token.isDead} hasDeadVote={hasDeadVote(token)} alignment={token.alignment} playerName={token.playerName?.trim() || undefined} outline={isPlayerToken(token)}/>
+                    <CharacterToken {character} style="position: relative;" size={tokenSize + 'px'} norules
+                        dead={sideRole ? false : token.isDead}
+                        hasDeadVote={sideRole ? false : hasDeadVote(token)}
+                        alignment={sideRole ? undefined : token.alignment}
+                        playerName={sideRole ? undefined : (token.playerName?.trim() || undefined)}
+                        outline={isPlayerToken(token)}/>
                 {:else}
                     <PlayerToken playerName={token.playerName ?? ''} isDead={token.isDead} hasDeadVote={hasDeadVote(token)} style="position: relative;" size={tokenSize + 'px'}/>
                 {/if}
@@ -2177,7 +2194,9 @@
             <div bind:this={reminderPopupEl} class="reminder-popup" class:above={activeReminderAbove} style="font-size: {tokenSize * 0.12}px; left: {activeReminderPos.x}px; top: {activeReminderPos.y}px; z-index: {z_indecies.ui};">
                 {#if activeToken}
                     {@const activeChar = script?.characters.find(c => c.id === activeCharacterId)}
+                    {@const sideRole = isSideRoleCategory(activeChar?.category)}
                     <div class="popup-meta">
+                        {#if !sideRole}
                         <input
                             type="text"
                             class="popup-player-name"
@@ -2186,7 +2205,9 @@
                             oninput={(e) => setPlayerName((e.target as HTMLInputElement).value)}
                             onpointerdown={(e) => e.stopPropagation()}
                         />
+                        {/if}
                         <div class="popup-toggles">
+                            {#if !sideRole}
                             <button type="button" class="popup-toggle" class:dead={activeToken.isDead} onclick={toggleAlive}>
                                 {activeToken.isDead ? 'Dead' : 'Alive'}
                             </button>
@@ -2197,6 +2218,7 @@
                                 <button type="button" class="popup-toggle" onclick={toggleDeadVote}>
                                     {activeToken.deadVoteUsed ? 'Vote used' : 'Has vote'}
                                 </button>
+                            {/if}
                             {/if}
                             {#if activeChar}
                                 <button type="button" class="popup-toggle" onclick={() => viewCharacter(activeChar.id)}>Show</button>
@@ -2368,11 +2390,12 @@
 
     {#if overlayOpen}
         {@const oc = overlayCharacter}
+        {@const sideRole = isSideRoleCategory(oc?.category)}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 10};" onclick={(e) => { if (!(e.target as Element).closest('input')) closeOverlay(); }}>
             <div class="overlay-panel">
                 <button class="overlay-close" onclick={closeOverlay} aria-label="Close">✕</button>
-                {#if overlayFromBoard && activeToken}
+                {#if overlayFromBoard && activeToken && !sideRole}
                     <input
                         type="text"
                         class="popup-player-name overlay-player-name"
@@ -2394,6 +2417,7 @@
                 {/if}
                 {#if overlayFromBoard && activeToken}
                     <div class="overlay-toggles">
+                        {#if !sideRole}
                         <button type="button" class="popup-toggle" class:dead={activeToken.isDead} onclick={() => { toggleAlive(); closeOverlay(); }}>
                             {activeToken.isDead ? 'Dead' : 'Alive'}
                         </button>
@@ -2404,6 +2428,7 @@
                             <button type="button" class="popup-toggle" onclick={() => { toggleDeadVote(); closeOverlay(); }}>
                                 {activeToken.deadVoteUsed ? 'Vote used' : 'Has vote'}
                             </button>
+                        {/if}
                         {/if}
                         {#if oc}
                             <button type="button" class="button-style" onclick={() => viewCharacter(oc.id)}>Show</button>
@@ -2591,7 +2616,7 @@
                 <div class="overlay-name dumbledore-font">{activeToken.playerName || 'Player'}</div>
                 <div class="overlay-drag-hint">Choose a character</div>
                 <div class="picker-grid">
-                    {#each sortedScriptCharacters as character (character.id)}
+                    {#each pickableCharacters as character (character.id)}
                         <button class="no-button-style tray-token" class:in-play={activeCharacterId !== character.id && isInPlay(character.id)} onclick={(e) => { e.stopPropagation(); setCharacter(character.id); }}>
                             <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" norules/>
                         </button>
