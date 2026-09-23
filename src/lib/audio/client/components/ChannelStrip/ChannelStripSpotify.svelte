@@ -33,15 +33,18 @@
     // without needing to divide the combined value back out.
     let rawVolume = $state(untrack(() => model?.volume ?? 50));
     let appliedMasterGain = untrack(() => masterGain);
+    const active = $derived(model !== null && model.hostClientId !== null);
     $effect(() => {
         // Re-sends the current fader position at the new master gain whenever the fader moves this - not on
-        // mount, so simply opening the mixer doesn't stomp on whatever volume is already playing.
+        // mount, so simply opening the mixer doesn't stomp on whatever volume is already playing. Skipped
+        // entirely when there's no Spotify player actually running (nothing set up/not hosting yet) - the
+        // volume API call would just fail, so there's no point making it every time the master fader moves.
         const gain = masterGain;
         if (gain === appliedMasterGain) return;
         appliedMasterGain = gain;
+        if (!active) return;
         spotify.setVolume(Math.round(rawVolume * gain));
     });
-    const active = $derived(model !== null && model.hostClientId !== null);
     let menuOpen = $state(false);
     let nowPlayingHeight = $state(0);
     const nowPlayingLines = $derived(Math.max(1, Math.floor(nowPlayingHeight / NOW_PLAYING_LINE_PX)));
