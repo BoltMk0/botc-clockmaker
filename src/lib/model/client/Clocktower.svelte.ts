@@ -1,5 +1,6 @@
 import { AudioClockTrack } from "$lib/audio/client/AudioClockTrack.svelte";
 import type { ClocktowerModel as ClocktowerModel } from "../common/ClocktowerModel";
+import type { ClocktowerAudioTrackModel } from "$lib/audio/common/model/clocktowerAudioTrackModel.svelte";
 import { SSEClient } from "./util/sseClient.svelte";
 import type { TimeOfDay } from "./types";
 import { BOTCTimeTypeNow, type BOTCTimeType } from "./util/botcTime";
@@ -12,20 +13,28 @@ type ClocktowerEvents = {
     reminderRing: [];
 };
 
+/** Outgoing audio-param edits (gain/pan/balance, from the mixer's clock channel strip) are batched for
+ *  this long, so dragging a slider doesn't flood the server. */
+const AUDIO_SEND_DELAY_MS = 80;
+/** Incoming values for these fields are ignored for this long after editing them locally, so a stale echo
+ *  doesn't fight the user's slider mid-drag - same technique as AmbienceEngine/StingEngine use. */
+const AUDIO_LOCAL_EDIT_HOLD_MS = 500;
+const AUDIO_FIELD_KEYS = ['gain', 'pan', 'balance'] as const;
+
 export class Clocktower extends EventEmitter<ClocktowerEvents> {
     
     get id() { return this.#model.clock.clockId; }
 
     // Getters / setters
     get gain() { return this.#model.audio.gain; }
-    set gain(gain: number){ this.#model.audio.gain = gain; } // TOOD: send update to server 
+    set gain(gain: number){ this.#model.audio.gain = gain; this.scheduleAudioSend(); }
 
     get pan() { return this.#model.audio.pan; }
-    set pan(pan: number) { this.#model.audio.pan = pan; } // TODO: send update to server
+    set pan(pan: number) { this.#model.audio.pan = pan; this.scheduleAudioSend(); }
 
     get balance() { return this.#model.audio.balance; }
-    set balance(balance: number) { this.#model.audio.balance = balance; }
-    
+    set balance(balance: number) { this.#model.audio.balance = balance; this.scheduleAudioSend(); }
+
     get finalBellResourceId() { return this.#model.audio.resources.finalBell; }
     get reminderBellResourceId() { return this.#model.audio.resources.reminderBell; }
 
@@ -51,6 +60,8 @@ export class Clocktower extends EventEmitter<ClocktowerEvents> {
     #sseConnection: SSEClient;
     #serverDeltaTimeManager: ServerDeltaTimeManager;
     #tickTimeout: ReturnType<typeof setTimeout>|null = null;
+    #audioSendTimer: ReturnType<typeof setTimeout>|null = null;
+    #audioLocalEdits = new Map<string, number>();
 
 
     get audioTrack(){ return this.#audioTrack; }
@@ -75,10 +86,18 @@ export class Clocktower extends EventEmitter<ClocktowerEvents> {
                     break;
                 case 'clock':
                     if(msg.model.clock.clockId === this.id){
-                        this.#model = msg.model;
+                        // Deliberately doesn't touch this.#model.audio: the connected AudioClockTrack (see
+                        // connectAudio) is wired directly to that object, and audio params are kept in sync
+                        // separately (see 'clockAudioModel' below) - swapping it out here would silently
+                        // desync the actual playing track from this.#model.audio on every clock update.
+                        this.#model.clock = msg.model.clock;
+                        this.#model.config = msg.model.config;
                         this.#clockStartTime = msg.model.clock.time.serverStartTime !== null ? {time: msg.model.clock.time.serverStartTime, reference: 'server'} : null;
                         this.updateClock();
                     }
+                    break;
+                case 'clockAudioModel':
+                    this.applyRemoteAudio(msg.model);
                     break;
                 case 'bellRingRequest':
                     const bellRingFn = msg.bell === 'final' ? ()=>{
@@ -149,6 +168,8 @@ export class Clocktower extends EventEmitter<ClocktowerEvents> {
         this.#model.audio.resources.finalBell = this.#model.config.resourceMapping.finalBell.resource_id;
         this.#model.audio.resources.reminderBell = this.#model.config.resourceMapping.reminderBell.resource_id;
         this.#audioTrack = new AudioClockTrack(this.#model.clock.clockId, this.#model.audio, this.#model.config.teamName ?? "", outputNode);
+        // Syncs the mixer's clock channel strip (gain/pan/balance) to every other connected mixer.
+        this.#audioTrack.onLocalChange = ()=>this.scheduleAudioSend();
         return this.#audioTrack;
     }
 
@@ -157,8 +178,51 @@ export class Clocktower extends EventEmitter<ClocktowerEvents> {
         this.#audioTrack = null;
     }
 
+    // ---- Audio params (gain/pan/balance) -> server ----
+
+    private scheduleAudioSend(){
+        const now = Date.now();
+        for(const k of AUDIO_FIELD_KEYS) this.#audioLocalEdits.set(k, now);
+        if(this.#audioSendTimer !== null) return;
+        this.#audioSendTimer = setTimeout(()=>{
+            this.#audioSendTimer = null;
+            this.sendAudioParams();
+        }, AUDIO_SEND_DELAY_MS);
+    }
+
+    private sendAudioParams(){
+        fetch(`/api/clock/${this.id}/audioParams`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(this.#model.audio)
+        }).then((res)=>{
+            if(!res.ok) console.error(`Clocktower ${this.id} - audio params update rejected: ${res.status}`);
+        }).catch((e)=>{
+            console.error(`Clocktower ${this.id} - failed to send audio params update`, e);
+        });
+    }
+
+    // ---- Server -> local audio params ----
+
+    private applyRemoteAudio(model: ClocktowerAudioTrackModel){
+        const now = Date.now();
+        const audio = this.#model.audio;
+        for(const k of AUDIO_FIELD_KEYS){
+            const editedAt = this.#audioLocalEdits.get(k);
+            if(editedAt !== undefined && now - editedAt < AUDIO_LOCAL_EDIT_HOLD_MS) continue;
+            if(audio[k] !== model[k]) audio[k] = model[k];
+        }
+        if(audio.resources.finalBell !== model.resources.finalBell) audio.resources.finalBell = model.resources.finalBell;
+        if(audio.resources.reminderBell !== model.resources.reminderBell) audio.resources.reminderBell = model.resources.reminderBell;
+    }
+
     close(){
         this.disconnectAudio();
+        if(this.#audioSendTimer !== null){
+            clearTimeout(this.#audioSendTimer);
+            this.#audioSendTimer = null;
+            this.sendAudioParams(); // Don't lose the last edit
+        }
         this.#sseConnection.close();
     }
 

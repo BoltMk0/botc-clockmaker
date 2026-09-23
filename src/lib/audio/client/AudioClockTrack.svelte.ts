@@ -10,6 +10,10 @@ export class AudioClockTrack extends AudioTrack {
     /** When set, bells never ring (used by remote-only clients). */
     silent = false;
 
+    /** Called whenever the user edits this track's gain/pan/balance locally (e.g. via the mixer's clock
+     *  channel strip), so Clocktower can sync it to the server for every other connected mixer. */
+    onLocalChange: (()=>void)|null = null;
+
     readonly #model: ClocktowerAudioTrackModel;
     readonly #finalBellAudioSource: MediaElementAudioSourceNode;
     readonly #reminderBellAudioSource: MediaElementAudioSourceNode;
@@ -83,14 +87,27 @@ export class AudioClockTrack extends AudioTrack {
 
     get input(): AudioNode { return this.#finalBellAudioSource; }
 
+    get gain(): number { return super.gain; }
+    set gain(val: number) {
+        super.gain = val;
+        this.onLocalChange?.();
+    }
+
+    get pan(): number { return super.pan; }
+    set pan(val: number) {
+        super.pan = val;
+        this.onLocalChange?.();
+    }
+
     get balance() { return this.#model.balance; }
-    
+
     set balance(balance: number) {
         this.#model.balance = balance;
         const finalGain = this.#model.balance > 0 ?  1 : Math.sin(Math.PI/2 * (1 + this.#model.balance));
         const reminderGain = this.#model.balance < 0 ?  1 : Math.sin(Math.PI/2 * (1 - this.#model.balance));
         this.#finalBellGainNode.gain.value = finalGain;
         this.#reminderBellGainNode.gain.value = reminderGain;
+        this.onLocalChange?.();
     }
 
     get reminderBellResourceId(){ return this.#model.resources.reminderBell; }
