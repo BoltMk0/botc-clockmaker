@@ -26,10 +26,12 @@ export class AudioEngine implements AudioTrackBase {
     #analyser: AnalyserNode;
 
     // Clocks (player bells) and the sting engine get their own independent master bus - a separate mixer
-    // in the UI, with its own fader - rather than sharing the main one with ambience/Spotify. Both buses
-    // still feed the same #dimNode, so the shared "dim" (grim dim button) still dims everything at once.
+    // in the UI, with its own fader - rather than sharing the main one with ambience/Spotify. It feeds
+    // #sfxOutputNode straight to the destination instead of #dimNode, so the shared "dim" (grim dim
+    // button) only ever affects Music & Ambience, never SFX.
     #clocksMasterModel: AudioTrackModel = $state({gain: 1.0, pan: 0.0})
     #clocksMasterBus: AudioTrack;
+    #sfxOutputNode: GainNode;
 
     #clockAudioTracks: AudioClockTrack[];
     #ambienceEngineModel: AmbienceEngineModel|null;
@@ -50,10 +52,14 @@ export class AudioEngine implements AudioTrackBase {
         this.#gainNode.gain.value = 1;
         this.#dimNode = this.#context.createGain();
         this.#gainNode.connect(this.#dimNode);
-        if(!this.#silent) this.#dimNode.connect(this.#context.destination);
+        this.#sfxOutputNode = this.#context.createGain();
+        if(!this.#silent){
+            this.#dimNode.connect(this.#context.destination);
+            this.#sfxOutputNode.connect(this.#context.destination);
+        }
         this.#analyser = this.#context.createAnalyser();
         this.#gainNode.connect(this.#analyser);
-        this.#clocksMasterBus = new AudioTrack(this.#clocksMasterModel, this.#dimNode, 'Clocks & Sting Master');
+        this.#clocksMasterBus = new AudioTrack(this.#clocksMasterModel, this.#sfxOutputNode, 'Clocks & Sting Master');
         console.log("Connection", clocks.length, "clocks")
         this.#clockAudioTracks = clocks.map(c=>c.connectAudio(this.#clocksMasterBus.input));
         if(this.#silent) this.#clockAudioTracks.forEach(t=>t.silent = true);
