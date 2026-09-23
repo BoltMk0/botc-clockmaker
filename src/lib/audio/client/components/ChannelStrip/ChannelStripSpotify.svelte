@@ -15,7 +15,9 @@
         // Linear multiplier from the mixer's master gain fader. Spotify plays through its own device/SDK
         // rather than the Web Audio master bus, so it can't pick this up like every other channel does -
         // instead it's folded into the volume this strip sends Spotify (see setVolume/the masterGain effect
-        // below), so the master fader still ducks/mutes it in step with everything else.
+        // below), so the master fader still ducks/mutes it in step with everything else. This fader's own
+        // slider position (rawVolume) is deliberately kept independent of it, though - only the combined
+        // value sent to Spotify moves, never the slider itself.
         masterGain = 1,
         style = undefined
     }: {
@@ -114,9 +116,12 @@
             <AudioMixerText onclick={()=>spotify.previous()} style={CENTER} title="Previous track">&#9198;</AudioMixerText>
             <AudioMixerText onclick={()=>spotify.next()} style={CENTER} title="Next track">&#9197;</AudioMixerText>
         </div>
-        <AudioMixerText>Vol<br/>{Math.round(model.volume)}%</AudioMixerText>
+        <AudioMixerText>Vol<br/>{Math.round(rawVolume)}%</AudioMixerText>
         <div class="volume">
-            <VSlider value={model.volume} min={0} max={100} step={1} onchange={(v)=>{ rawVolume = v; spotify.setVolume(Math.round(v * masterGain)); }}/>
+            <!-- Bound to our own rawVolume, not model.volume: model.volume is the combined (post-master-gain)
+                 value actually sent to Spotify, so binding directly to it would make the fader visibly jump
+                 around whenever the master fader moves - this slider is meant to stay put, independent of it. -->
+            <VSlider value={rawVolume} min={0} max={100} step={1} onchange={(v)=>{ rawVolume = v; spotify.setVolume(Math.round(v * masterGain)); }}/>
         </div>
     {/if}
     {#if spotify.error}<div class="error">{spotify.error}</div>{/if}
