@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { untrack } from "svelte";
     import AudioMixerText from "./AudioMixerText.svelte";
     import VSlider from "../VSlider.svelte";
     import PlayIcon from "../PlayIcon.svelte";
@@ -11,14 +12,33 @@
     let {
         spotify,
         presets = [],
+        // Linear multiplier from the mixer's master gain fader. Spotify plays through its own device/SDK
+        // rather than the Web Audio master bus, so it can't pick this up like every other channel does -
+        // instead it's folded into the volume this strip sends Spotify (see setVolume/the masterGain effect
+        // below), so the master fader still ducks/mutes it in step with everything else.
+        masterGain = 1,
         style = undefined
     }: {
         spotify: SpotifyPlayer;
         presets?: SpotifyPreset[];
+        masterGain?: number;
         style?: string;
     } = $props();
 
     const model = $derived(spotify.model);
+    // The fader's own (pre-master-gain) position, independent of the combined value actually sent to
+    // Spotify (and reflected back in model.volume) - so a later master gain change can be reapplied to it
+    // without needing to divide the combined value back out.
+    let rawVolume = $state(untrack(() => model?.volume ?? 50));
+    let appliedMasterGain = untrack(() => masterGain);
+    $effect(() => {
+        // Re-sends the current fader position at the new master gain whenever the fader moves this - not on
+        // mount, so simply opening the mixer doesn't stomp on whatever volume is already playing.
+        const gain = masterGain;
+        if (gain === appliedMasterGain) return;
+        appliedMasterGain = gain;
+        spotify.setVolume(Math.round(rawVolume * gain));
+    });
     const active = $derived(model !== null && model.hostClientId !== null);
     let menuOpen = $state(false);
     let nowPlayingHeight = $state(0);
@@ -96,7 +116,7 @@
         </div>
         <AudioMixerText>Vol<br/>{Math.round(model.volume)}%</AudioMixerText>
         <div class="volume">
-            <VSlider value={model.volume} min={0} max={100} step={1} onchange={(v)=>spotify.setVolume(v)}/>
+            <VSlider value={model.volume} min={0} max={100} step={1} onchange={(v)=>{ rawVolume = v; spotify.setVolume(Math.round(v * masterGain)); }}/>
         </div>
     {/if}
     {#if spotify.error}<div class="error">{spotify.error}</div>{/if}

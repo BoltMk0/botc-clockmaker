@@ -76,9 +76,11 @@
         <ChannelStrip audioTrack={audioEngine} title="MASTER" style="--theme-slider-accent: #DCC"/>
         {/if}
         {#if spotify}
-        <!-- Spotify plays in the SDK's own iframe, so it can't be routed through the master bus: keep it apart from the mixer proper. -->
+        <!-- Spotify plays in the SDK's own iframe, so it can't be routed through the master bus: it gets the
+             master gain applied to its own volume commands instead (see ChannelStripSpotify) so the master
+             fader still controls it, just via Spotify's own volume API rather than a Web Audio gain node. -->
         <div class="spotify-separate">
-            <ChannelStripSpotify {spotify} presets={spotifyPresets} style="--theme-slider-accent: #AFA;"/>
+            <ChannelStripSpotify {spotify} presets={spotifyPresets} masterGain={audioEngine.gain} style="--theme-slider-accent: #AFA;"/>
         </div>
         {/if}
 
