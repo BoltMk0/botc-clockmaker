@@ -9,6 +9,8 @@
 
     import { goto } from '$app/navigation';
     import { AudioDim } from '$lib/audio/client/AudioDim.svelte';
+    import { DEFAULT_DIM_AMOUNT_DB } from '$lib/audio/common/model/audioDimModel';
+    import { SpotifyPlayer } from '$lib/audio/client/SpotifyPlayer.svelte';
     import { Clocktower } from "$lib/model/client/Clocktower.svelte.js";
     import FullDisplay from "$lib/components/FullDisplay/FullDisplay.svelte";
     import { onMount } from "svelte";
@@ -183,6 +185,12 @@
 
     let sidebarOpen = $state(false);
     let audioDim: AudioDim|null = $state(null); // Created on mount: it opens a connection to the server
+    let spotify: SpotifyPlayer|null = $state(null); // Remote-only: controls a player running on another device
+    // Only offer the Spotify controls while a player is running somewhere and can take commands
+    const spotifyActive = $derived.by(() => {
+        const model = spotify?.model;
+        return !!model?.hostClientId && model.hostReady;
+    });
     let audioMenuOpen = $state(false);
     let audioMenuEl: HTMLElement|undefined = $state();
     let showStingPopup = $state(false);
@@ -983,6 +991,7 @@
         if(!browser) return;
         clockClient = new Clocktower(data.model);
         audioDim = new AudioDim();
+        spotify = new SpotifyPlayer({ remoteOnly: true });
         fitView();
 
         // Refit the zoom when the screen space changes (rotation, window resize). Only the board's layout size is
@@ -1011,6 +1020,7 @@
             }
             clockClient?.close();
             audioDim?.close();
+            spotify?.close();
         }
     });
 
@@ -1946,7 +1956,7 @@
             {/if}
         </button>
 
-        <!-- Audio menu: dim, sting, mixer -->
+        <!-- Audio menu: dim, Spotify, sting, mixer -->
         <div class="audio-menu" bind:this={audioMenuEl}>
             <button class="sidebar-btn" class:active={audioMenuOpen} onclick={() => {
                 audioMenuOpen = !audioMenuOpen;
@@ -1964,12 +1974,26 @@
             {#if audioMenuOpen}
             <div class="audio-menu-options">
                 <!-- Dim the audio everywhere (on all clients) -->
-                <button class="sidebar-btn" class:active={audioDim?.dimmed} onclick={() => audioDim?.toggle()} title={audioDim?.dimmed ? 'Restore audio volume' : `Dim audio (-${audioDim?.amountDb ?? 12} dB)`}>
+                <button class="sidebar-btn" class:active={audioDim?.dimmed} onclick={() => audioDim?.toggle()} title={audioDim?.dimmed ? 'Restore audio volume' : `Dim audio (-${audioDim?.amountDb ?? DEFAULT_DIM_AMOUNT_DB} dB)`}>
                     <svg viewBox="0 0 24 24" style="overflow: visible;">
                         <text x="12" y="13" text-anchor="middle" font-size="8" fill="currentColor"><tspan font-size="14">{audioDim?.dimmed ? `-${audioDim.amountDb}` : 0}</tspan> dB</text>
                         <text x="12" y="27" text-anchor="middle" font-size="9" font-weight="bold" fill="currentColor" opacity={audioDim?.dimmed ? 1 : 0.5}>DIM</text>
                     </svg>
                 </button>
+
+                {#if spotify && spotifyActive}
+                <!-- Spotify transport, for the player running on whichever device hosts it -->
+                <button class="sidebar-btn" class:active={spotify.playback?.playing} onclick={() => spotify?.togglePlayPause()} title={spotify.playback?.playing ? 'Pause Spotify' : 'Play Spotify'}>
+                    {#if spotify.playback?.playing}
+                        <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                    {:else}
+                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    {/if}
+                </button>
+                <button class="sidebar-btn" onclick={() => spotify?.next()} title="Skip Spotify track">
+                    <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                </button>
+                {/if}
 
                 {#if data.hasStings}
                 <!-- Open the sting overlay, to punctuate the moment -->
