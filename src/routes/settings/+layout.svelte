@@ -10,7 +10,7 @@
         '/settings/timerOptions',
         '/settings/customMessages',
         '/settings/qrCodes',
-        '/settings/spotify',
+        '/settings/audio',
         '/settings/feedback',
         '/settings/password'
     ]

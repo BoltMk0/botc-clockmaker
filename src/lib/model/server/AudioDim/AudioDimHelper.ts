@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { DEFAULT_DIM_AMOUNT_DB, MAX_DIM_AMOUNT_DB, type AudioDimModel } from "$lib/audio/common/model/audioDimModel";
+import { clampDimAmount, DEFAULT_DIM_AMOUNT_DB, type AudioDimModel } from "$lib/audio/common/model/audioDimModel";
 import { JSONSingletonResourceManager } from "$lib/resources/server/jsonResourceManager";
 
 type AudioDimConfig = { amountDb: number };
@@ -12,7 +12,8 @@ const CONFIG_MANAGER = new JSONSingletonResourceManager<AudioDimConfig>('audio_d
 
 export class AudioDimHelper extends EventEmitter {
     // Whether we're dimmed isn't persisted: a restart should come back at full volume.
-    #model: AudioDimModel = { dimmed: false, amountDb: CONFIG_MANAGER.value?.amountDb ?? DEFAULT_DIM_AMOUNT_DB };
+    // A saved amount from before the range was narrowed is pulled back into it.
+    #model: AudioDimModel = { dimmed: false, amountDb: clampDimAmount(CONFIG_MANAGER.value?.amountDb ?? DEFAULT_DIM_AMOUNT_DB) };
 
     on(eventName: 'update', listener: (model: AudioDimModel) => void): this;
     on(eventName: string | symbol, listener: (...args: any[]) => void): this {
@@ -30,7 +31,7 @@ export class AudioDimHelper extends EventEmitter {
         }
         if (patch.amountDb !== undefined) {
             if (typeof patch.amountDb !== 'number' || isNaN(patch.amountDb)) throw new Error('Invalid amountDb');
-            const amountDb = Math.min(MAX_DIM_AMOUNT_DB, Math.max(0, patch.amountDb));
+            const amountDb = clampDimAmount(patch.amountDb);
             if (this.#model.amountDb !== amountDb) {
                 this.#model.amountDb = amountDb;
                 CONFIG_MANAGER.save({ amountDb });

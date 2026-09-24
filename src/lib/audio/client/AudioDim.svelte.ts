@@ -20,18 +20,27 @@ export class AudioDim {
 
     set dimmed(dimmed: boolean) {
         this.model.dimmed = dimmed; // Optimistic; the server's echo confirms it
+        this.#send({ dimmed });
+    }
+
+    set amountDb(amountDb: number) {
+        this.model.amountDb = amountDb;
+        this.#send({ amountDb });
+    }
+
+    toggle() { this.dimmed = !this.dimmed; }
+
+    #send(patch: Partial<AudioDimModel>) {
         fetch('/api/audioDim', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dimmed })
+            body: JSON.stringify(patch)
         }).then((res) => {
             if (!res.ok) console.error(`AudioDim - update rejected: ${res.status}`);
         }).catch((e) => {
             console.error('AudioDim - failed to send update', e);
         });
     }
-
-    toggle() { this.dimmed = !this.dimmed; }
 
     close() { this.#unsubscribeEvents(); }
 }

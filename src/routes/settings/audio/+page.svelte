@@ -3,6 +3,12 @@
     import DayIcon from "$lib/assets/dayIcon.svelte";
     import NightIcon from "$lib/assets/nightIcon.svelte";
     import { onMount } from "svelte";
+    import { AudioDim } from "$lib/audio/client/AudioDim.svelte";
+    import { DEFAULT_DIM_AMOUNT_DB, MAX_DIM_AMOUNT_DB, MIN_DIM_AMOUNT_DB } from "$lib/audio/common/model/audioDimModel";
+
+    let audioDim: AudioDim | null = $state(null); // Created on mount: it opens a connection to the server
+    /** The dim slider's position while it's being dragged, before it's sent. */
+    let draggingDimDb: number | null = $state(null);
 
     // The links are whatever the user typed/pasted; they become normalised URIs on save.
     // A `phase` row is a day/night preset, using dayLink/nightLink; otherwise just `link`.
@@ -27,6 +33,7 @@
     }
 
     onMount(() => {
+        audioDim = new AudioDim();
         fetch('/api/spotifyPresets').then(r => {
             if (r.ok) return r.json();
             throw new Error('Failed to fetch');
@@ -36,6 +43,7 @@
         }).catch(() => {
             alert('Failed to fetch Spotify presets!');
         });
+        return () => audioDim?.close();
     });
 
     function save() {
@@ -81,6 +89,24 @@
 </script>
 
 <div class="center-content main">
+<div class="panels">
+<div class="panel">
+<div class="panel-header">
+    <h2>Audio Options</h2>
+</div>
+<p class="description">Changes here apply straight away, on every device.</p>
+<label class="option">
+    <span class="option-name">Dim strength</span>
+    <!-- Shows the dragged value live, but only sends it on release: each change is saved to disk -->
+    <input class="dim-slider" type="range" min={MIN_DIM_AMOUNT_DB} max={MAX_DIM_AMOUNT_DB} step={1}
+        value={draggingDimDb ?? audioDim?.amountDb ?? DEFAULT_DIM_AMOUNT_DB}
+        disabled={!audioDim}
+        oninput={(e) => draggingDimDb = e.currentTarget.valueAsNumber}
+        onchange={(e) => { if (audioDim) audioDim.amountDb = e.currentTarget.valueAsNumber; draggingDimDb = null; }}/>
+    <span class="option-value">-{draggingDimDb ?? audioDim?.amountDb ?? DEFAULT_DIM_AMOUNT_DB} dB</span>
+</label>
+</div>
+
 <div class="panel">
 <div class="panel-header">
     <h2>Spotify Presets</h2>
@@ -126,6 +152,7 @@
 </div>
 </div>
 </div>
+</div>
 
 <style>
     input.link-input {
@@ -154,6 +181,36 @@
         box-sizing: border-box;
         padding: 1.5rem;
         align-items: flex-start;
+    }
+
+    .panels {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .option {
+        display: flex;
+        align-items: center;
+        gap: 1em;
+    }
+
+    .option-name {
+        font-weight: bold;
+    }
+
+    .dim-slider {
+        width: 16em;
+        max-width: 100%;
+        padding: 0;
+        border: none;
+        background: transparent;
+        accent-color: var(--theme-highlight);
+    }
+
+    .option-value {
+        min-width: 4em;
+        font-variant-numeric: tabular-nums;
     }
 
     .panel {
