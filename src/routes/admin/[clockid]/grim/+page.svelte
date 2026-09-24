@@ -1899,7 +1899,11 @@
     <div class="sidebar" class:drag-hidden={isDraggingAnything} style="z-index: {z_indecies.ui};">
         <div class="sidebar-top-row">
         <!-- Collapse / expand the sidebar -->
-        <button class="sidebar-btn" class:active={sidebarOpen} onclick={() => sidebarOpen = !sidebarOpen} title="{sidebarOpen ? 'Hide' : 'Show'} menu">
+        <button class="sidebar-btn" class:active={sidebarOpen} onclick={() => {
+            sidebarOpen = !sidebarOpen;
+            // The draw tools live in the sidebar, so closing it leaves draw mode.
+            if (!sidebarOpen) editing = false;
+        }} title="{sidebarOpen ? 'Hide' : 'Show'} menu">
             {#if sidebarOpen}
                 <svg viewBox="0 0 24 24"><path d="M7.41 15.41 12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
             {:else}
