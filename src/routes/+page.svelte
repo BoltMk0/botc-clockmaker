@@ -1,11 +1,13 @@
 <script lang="ts">
     import SkyBackdrop from '$lib/components/ClocktowerScene/SkyBackdrop.svelte';
 
-    const menuItems = [
+    let { data }: { data: { hasRulesSlides: boolean } } = $props();
+
+    const menuItems = $derived([
         { label: 'Play', href: '/play' },
-        { label: 'Rules', href: '/rules' },
+        ...(data.hasRulesSlides ? [{ label: 'Rules', href: '/rules' }] : []),
         { label: 'Settings', href: '/settings' }
-    ];
+    ]);
 </script>
 
 <SkyBackdrop />
