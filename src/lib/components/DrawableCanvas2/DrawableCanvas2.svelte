@@ -394,7 +394,6 @@
 
     function drawStrokeOnCtx(targetCtx: CanvasRenderingContext2D, stroke: CanvasStroke) {
         if (stroke.points.length === 0) return;
-        console.debug(`Drawing stroke with ${stroke.points.length} points, tool=${JSON.stringify(stroke.tool)}...`);
         targetCtx.save();
         applyStrokeStyle(targetCtx, stroke);
         if (stroke.points.length === 1) {
