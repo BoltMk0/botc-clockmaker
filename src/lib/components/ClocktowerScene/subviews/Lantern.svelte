@@ -46,6 +46,10 @@
     const FLICKER_SPEED_B = 11.7;
     const FLICKER_AMOUNT_A = 0.06;
     const FLICKER_AMOUNT_B = 0.03;
+    // Each lantern gets its own random phase and a slightly different speed
+    // per wave, so multiple lanterns flicker independently instead of in
+    // unison.
+    const FLICKER_SPEED_JITTER = 0.15; // +/- fraction of the base speed
 
     // The glow should barely show in bright daylight and be most visible
     // once night has properly settled in - `getSceneSkyBrightness` already
@@ -90,14 +94,21 @@
     const x = $derived(placement.x);
     const y = $derived(placement.y);
 
+    const jitterSpeed = (speed: number) =>
+        speed * (1 + (Math.random() * 2 - 1) * FLICKER_SPEED_JITTER);
+    const flickerSpeedA = jitterSpeed(FLICKER_SPEED_A);
+    const flickerSpeedB = jitterSpeed(FLICKER_SPEED_B);
+    const flickerPhaseA = Math.random() * Math.PI * 2;
+    const flickerPhaseB = Math.random() * Math.PI * 2;
+
     let flickerT = $state(0);
     useTask((delta) => {
         flickerT += delta;
     });
     const flicker = $derived(
         1 +
-            Math.sin(flickerT * FLICKER_SPEED_A) * FLICKER_AMOUNT_A +
-            Math.sin(flickerT * FLICKER_SPEED_B) * FLICKER_AMOUNT_B
+            Math.sin(flickerT * flickerSpeedA + flickerPhaseA) * FLICKER_AMOUNT_A +
+            Math.sin(flickerT * flickerSpeedB + flickerPhaseB) * FLICKER_AMOUNT_B
     );
 
     const darkness = $derived(
