@@ -1,5 +1,9 @@
 <script lang="ts">
     import { CHARACTER_CATEGORY_COLORS, type Character } from "$lib/resources/common/gameData";
+    import { characterImageUrl } from "$lib/resources/common/characterImages";
+
+    // Thumbnails are small, so the 128px copy is plenty (and a fraction of the full image's size).
+    const THUMB_IMAGE_SIZE = 128;
 
     let { character, size = '2.5em' }: { character: Character; size?: string } = $props();
 
@@ -11,7 +15,7 @@
 
 <div class="thumb" style="--thumb-size: {size}; --thumb-color: {color};">
     {#if !imageFailed}
-        <img src={`/api/characters/${character.id}/img`} alt={character.name} onerror={() => imageFailed = true}/>
+        <img src={characterImageUrl(character.id, THUMB_IMAGE_SIZE)} alt={character.name} onerror={() => imageFailed = true}/>
     {:else}
         <div class="fallback">{initials}</div>
     {/if}

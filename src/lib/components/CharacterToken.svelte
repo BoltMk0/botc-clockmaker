@@ -3,6 +3,7 @@
     import TokenBackground from "./TokenBackground.svelte";
     import DeadVoteIcon from "./DeadVoteIcon.svelte";
     import type { Alignment } from "$lib/resources/common/grimoireState";
+    import { characterImageUrl } from "$lib/resources/common/characterImages";
 
     let {
         character,
@@ -15,7 +16,11 @@
         hasDeadVote = false,
         alignment = undefined,
         outline = true,
+        imageSize = undefined,
     }: {
+        // Loads a scaled-down copy of the icon at least this many px wide, for tokens shown small (lists, trays);
+        // leave unset where the token can be shown large or zoomed, to get the full-size image.
+        imageSize?: number | undefined;
         // Draws the category-coloured ring round the token; when off the ring's space is kept but left clear.
         outline?: boolean;
         // Shows the dead-vote marker on a dead player's token.
@@ -98,7 +103,7 @@
             <div style="position: relative; width: 100%; height: 100%;">
                 <div style="position: absolute; width: 62%; height: 62%; top: {playerName ? '50%' : '45%'}; left: 50%; transform: translate(-50%, -50%);">
                     {#if !imageFailed}
-                        <img src={`/api/characters/${character.id}/img`} alt={character.name} class="category-icon-img" style:filter={iconFilter} onerror={() => imageFailed = true} />
+                        <img src={characterImageUrl(character.id, imageSize)} alt={character.name} class="category-icon-img" style:filter={iconFilter} onerror={() => imageFailed = true} />
                     {:else}
                         <div class="category-icon-default dumbledore-font">{character.name.split(' ').map(word => word[0].toUpperCase()).join('')}</div>
                     {/if}
@@ -124,7 +129,7 @@
         <div class="token-content" style="--token-size: {size}; --token-color: {color}; grid-template-rows: {norules ? '4fr 2fr' : '3fr 4fr'};">
             <div class="category-icon-container">
                 {#if !imageFailed}
-                    <img src={`/api/characters/${character.id}/img`} alt={character.name} class="category-icon-img" style:filter={iconFilter} onerror={() => imageFailed = true} />
+                    <img src={characterImageUrl(character.id, imageSize)} alt={character.name} class="category-icon-img" style:filter={iconFilter} onerror={() => imageFailed = true} />
                 {:else}
                     <div class="category-icon-default dumbledore-font">{character.name.split(' ').map(word => word[0].toUpperCase()).join('')}</div>
                 {/if}

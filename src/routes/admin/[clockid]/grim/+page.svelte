@@ -205,6 +205,8 @@
     // Phone-width screen (set from a media query on mount); same breakpoint as the full-screen tray CSS.
     let isMobile = $state(false);
     // Slightly smaller in the full-screen phone tray so more tokens fit per row.
+    // Tray and picker tokens are shown small, so they load the scaled-down 256px icon (see CharacterToken's imageSize).
+    const TRAY_IMAGE_SIZE = 256;
     const trayTokenSize = $derived(Math.max(40, Math.round(tokenSize * 0.53 * (isMobile ? 0.8 : 1))));
 
     const placedTokens = $derived(gameState.present.placedTokens);
@@ -2259,7 +2261,7 @@
                                     class:in-play={isInPlay(character.id)}
                                     onclick={() => openCharacterOverlay(character)}
                                 >
-                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} norules/>
+                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} imageSize={TRAY_IMAGE_SIZE} norules/>
                                 </div>
                         {/if}
                         {/each}
@@ -2277,7 +2279,7 @@
                                 {@const bluff = script?.characters.find(c => c.id === bluffId)}
                                 {#if bluff}
                                     <div style="position: relative; width: 56px; height: 56px;">
-                                        <CharacterToken character={bluff} style="position: relative;" size="56px" norules/>
+                                        <CharacterToken character={bluff} style="position: relative;" size="56px" imageSize={TRAY_IMAGE_SIZE} norules/>
                                     </div>
                                 {/if}
                             {/each}
@@ -2300,7 +2302,7 @@
                                     class:in-play={isInPlay(character.id)}
                                     onclick={() => openCharacterOverlay(character)}
                                 >
-                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} norules/>
+                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} imageSize={TRAY_IMAGE_SIZE} norules/>
                                 </div>
                         {/each}
                     </div>
@@ -2318,7 +2320,7 @@
                                     class:in-play={isInPlay(character.id)}
                                     onclick={() => openCharacterOverlay(character)}
                                 >
-                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} norules/>
+                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} imageSize={TRAY_IMAGE_SIZE} norules/>
                                 </div>
                         {/each}
                     </div>
@@ -2336,7 +2338,7 @@
                                     class:in-play={isInPlay(character.id)}
                                     onclick={() => openCharacterOverlay(character)}
                                 >
-                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} norules/>
+                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} imageSize={TRAY_IMAGE_SIZE} norules/>
                                 </div>
                         {/each}
                     </div>
@@ -2354,7 +2356,7 @@
                                     class:in-play={isInPlay(character.id)}
                                     onclick={() => openCharacterOverlay(character)}
                                 >
-                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} norules/>
+                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} imageSize={TRAY_IMAGE_SIZE} norules/>
                                 </div>
                         {/each}
                     </div>
@@ -2463,7 +2465,7 @@
                     <div class="picker-grid">
                         {#each sortedScriptCharacters as character (character.id)}
                             <button class="no-button-style tray-token" onclick={() => fillNextBlank(character.id)}>
-                                <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" norules/>
+                                <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" imageSize={TRAY_IMAGE_SIZE} norules/>
                             </button>
                         {/each}
                     </div>
@@ -2476,7 +2478,7 @@
                         </button>
                         {#each sortedScriptCharacters as character (character.id)}
                             <button class="no-button-style tray-token" onclick={() => pickCustomFieldCharacter(character.id)}>
-                                <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" norules/>
+                                <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" imageSize={TRAY_IMAGE_SIZE} norules/>
                             </button>
                         {/each}
                     </div>
@@ -2486,7 +2488,7 @@
                     <div class="picker-grid">
                         {#each sortedScriptCharacters as character (character.id)}
                             <button class="no-button-style tray-token" onclick={() => showSelected(MAD_YOU_ARE_SUFFIX, character.id)}>
-                                <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" norules/>
+                                <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" imageSize={TRAY_IMAGE_SIZE} norules/>
                             </button>
                         {/each}
                     </div>
@@ -2510,7 +2512,7 @@
                                                 onclick={() => { customFieldPicker = { fieldIndex, valueIndex }; commsView = 'customCharacter'; }}
                                             >
                                                 {#if character}
-                                                    <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" norules/>
+                                                    <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" imageSize={TRAY_IMAGE_SIZE} norules/>
                                                 {:else}
                                                     <span class="token-chip-mark">?</span>
                                                 {/if}
@@ -2543,7 +2545,7 @@
                     <div class="picker-grid">
                         {#each inPlayCharacters as character (character.id)}
                             <button class="no-button-style tray-token" onclick={() => { selectedCharacterId = character.id; commsView = 'suffix'; }}>
-                                <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" norules/>
+                                <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" imageSize={TRAY_IMAGE_SIZE} norules/>
                             </button>
                         {/each}
                     </div>
@@ -2577,7 +2579,7 @@
                 <div class="picker-grid">
                     {#each sortedScriptCharacters.filter(c => !isSideCategory(c)) as character (character.id)}
                         <button class="no-button-style tray-token" class:picked={newBluffSet.includes(character.id)} class:in-play={loadedPreset?.character_ids.includes(character.id)} onclick={() => toggleNewBluff(character.id)}>
-                            <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" norules/>
+                            <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" imageSize={TRAY_IMAGE_SIZE} norules/>
                         </button>
                     {/each}
                 </div>
@@ -2596,7 +2598,7 @@
                 <div class="picker-grid">
                     {#each pickableCharacters as character (character.id)}
                         <button class="no-button-style tray-token" class:in-play={activeCharacterId !== character.id && isInPlay(character.id)} onclick={(e) => { e.stopPropagation(); setCharacter(character.id); }}>
-                            <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" norules/>
+                            <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" imageSize={TRAY_IMAGE_SIZE} norules/>
                         </button>
                     {/each}
                 </div>

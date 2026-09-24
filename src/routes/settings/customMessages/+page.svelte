@@ -2,6 +2,7 @@
     import type { CustomMessage, MessageField } from "$lib/common/customMessage";
     import type { Character } from "$lib/resources/common/gameData";
     import { onMount } from "svelte";
+    import { characterImageUrl } from "$lib/resources/common/characterImages";
 
     let messages: CustomMessage[] = $state([]);
     let characters: Character[] = $state([]);
@@ -98,7 +99,7 @@
                                         onclick={() => picker = { mi, fi, ti }}
                                     >
                                         {#if characterId}
-                                            <img src="/api/characters/{characterId}/img" alt={character?.name ?? ''} />
+                                            <img src={characterImageUrl(characterId, 128)} alt={character?.name ?? ''} />
                                         {:else}
                                             <span class="mark">?</span>
                                         {/if}
@@ -148,7 +149,7 @@
                 </button>
                 {#each characters as character (character.id)}
                     <button class="token-chip large" title={character.name} onclick={() => pickCharacter(character.id)}>
-                        <img src="/api/characters/{character.id}/img" alt={character.name} />
+                        <img src={characterImageUrl(character.id, 128)} alt={character.name} />
                     </button>
                 {/each}
             </div>

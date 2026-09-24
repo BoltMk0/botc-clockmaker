@@ -66,7 +66,7 @@
                 {@const character = builder.charById.get(id)}
                 {#if character}
                     <button class="sorter-token" title="Move {character.name} to the grim" onclick={() => builder.moveToGrim(id)}>
-                        <CharacterToken {character} size="80px" norules style="position: relative;" />
+                        <CharacterToken {character} size="80px" imageSize={256} norules style="position: relative;" />
                     </button>
                 {/if}
             {/each}
@@ -79,7 +79,7 @@
                 {@const character = builder.charById.get(id)}
                 {#if character}
                     <button class="sorter-token" title="Move {character.name} to the bag" onclick={() => builder.moveToBag(id)}>
-                        <CharacterToken {character} size="80px" norules style="position: relative;" />
+                        <CharacterToken {character} size="80px" imageSize={256} norules style="position: relative;" />
                     </button>
                 {/if}
             {:else}

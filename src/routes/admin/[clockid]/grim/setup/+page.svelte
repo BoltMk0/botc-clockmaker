@@ -500,7 +500,7 @@
                     {#each builder.bagCharacterIds as id, i (id + i)}
                         {@const character = builder.charById.get(id)}
                         {#if character}
-                            <CharacterToken {character} size="80px" norules style="position: relative;" />
+                            <CharacterToken {character} size="80px" imageSize={256} norules style="position: relative;" />
                         {/if}
                     {/each}
                 </div>
@@ -511,7 +511,7 @@
                             {#each builder.grimCharacterIds as id, i (id + i)}
                                 {@const character = builder.charById.get(id)}
                                 {#if character}
-                                    <CharacterToken {character} size="80px" norules style="position: relative;" />
+                                    <CharacterToken {character} size="80px" imageSize={256} norules style="position: relative;" />
                                 {/if}
                             {/each}
                         </div>
@@ -529,7 +529,7 @@
                                     {#each bluffSet as id (id)}
                                         {@const character = builder.charById.get(id)}
                                         {#if character}
-                                            <CharacterToken {character} size="52px" norules style="position: relative;" />
+                                            <CharacterToken {character} size="52px" imageSize={256} norules style="position: relative;" />
                                         {/if}
                                     {/each}
                                 </div>

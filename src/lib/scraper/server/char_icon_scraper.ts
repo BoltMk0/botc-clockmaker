@@ -36,7 +36,7 @@ export async function scrapeIcon(character: Character): Promise<ScrapeResult> {
             const mimeType = iconResponse.headers.get('Content-Type') || 'application/octet-stream';
             const buf = Buffer.from(await iconResponse.arrayBuffer());
 
-            setCharacterImageResource(character.id, buf, mimeType);
+            await setCharacterImageResource(character.id, buf, mimeType);
 
             console.log(`Successfully uploaded scraped icon for character ${character.name} to server`);
             return { status: 'scraped' } as ScrapeResult;

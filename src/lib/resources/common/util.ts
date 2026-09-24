@@ -9,6 +9,7 @@ const mimeTypeMap: {[key: string]: string} = {
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
     '.gif': 'image/gif',
+    '.webp': 'image/webp',
     '.json': 'application/json',
     '.txt': 'text/plain'
 };
