@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { ALL_CHARACTER_CATEGORIES, type Character, type ScriptCharacter } from "$lib/resources/common/gameData.js";
+    import { ALL_CHARACTER_CATEGORIES, CHARACTER_CATEGORIES, type Character, type CharacterCategory, type ScriptCharacter } from "$lib/resources/common/gameData.js";
     import CharacterThumb from "$lib/components/CharacterThumb.svelte";
     import { goto } from "$app/navigation";
     import type { PageData } from "./$types";
@@ -7,11 +7,13 @@
 
     const characterMap = new Map<string, ScriptCharacter>(data.characters.map((c: any) => [c.id, c]));
 
-    const FILTER_OPTIONS = ['all', ...ALL_CHARACTER_CATEGORIES] as const;
-    type FilterOption = typeof FILTER_OPTIONS[number];
-
     let searchQuery = $state("");
-    let categoryFilter: FilterOption = $state('all');
+    // Travellers, Loric & Fabled are hidden by default - most scripts are built from the four core teams
+    let categoryFilter: CharacterCategory[] = $state([...CHARACTER_CATEGORIES]);
+
+    function resetCategoryFilter() {
+        categoryFilter = [...CHARACTER_CATEGORIES];
+    }
 
     type NightList = 'first' | 'other';
     // 'script' is the "In Script" column, where rows can only be reordered within their category
@@ -20,9 +22,17 @@
     let dropTargetId: string | null = $state(null);
     let dropPosition: 'before' | 'after' = $state('before');
 
+    // Empty string means no script filter
+    let scriptFilterId = $state("");
+    const scriptFilterCharacterIds = $derived.by(() => {
+        const script = data.filterScripts.find(s => s.id === scriptFilterId);
+        return script ? new Set(script.characterIds) : null;
+    });
+
     const inUseCharacterIds = $derived(new Set(data.script.characters.map((c: any) => c.id)));
     const filteredCharacters = $derived((data.characters as Character[])
-        .filter(c => categoryFilter === 'all' || c.category === categoryFilter)
+        .filter(c => categoryFilter.includes(c.category))
+        .filter(c => !scriptFilterCharacterIds || scriptFilterCharacterIds.has(c.id))
         .filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())));
 
     function orderSort(key: 'firstNightOrder' | 'otherNightOrder') {
@@ -371,13 +381,32 @@
             <div class="character-category-column-main">
                 <div class="character-category-column-header filter-bar">
                     <input type="text" placeholder="Search characters..." bind:value={searchQuery} class="button-style"/>
+                    <!-- The hidden placeholder option is what shows while no script is selected; picking
+                         "None" maps back to it so the closed dropdown reads "Filter by script..." -->
+                    <select
+                        value={scriptFilterId}
+                        onchange={(e) => {
+                            const value = e.currentTarget.value;
+                            scriptFilterId = value === 'none' ? '' : value;
+                            e.currentTarget.value = scriptFilterId;
+                        }}
+                        class="button-style"
+                        title="Only show characters from this script"
+                    >
+                        <option value="" hidden>Filter by script...</option>
+                        <option value="none">None</option>
+                        {#each data.filterScripts as script (script.id)}
+                            <option value={script.id}>{script.name}</option>
+                        {/each}
+                    </select>
                     <div class="radio-group">
-                        {#each FILTER_OPTIONS as opt}
+                        {#each ALL_CHARACTER_CATEGORIES as opt}
                             <label>
-                                <input type="radio" bind:group={categoryFilter} value={opt}/>
-                                {opt === 'all' ? 'All' : captialiseString(opt)}
+                                <input type="checkbox" bind:group={categoryFilter} value={opt}/>
+                                {captialiseString(opt)}
                             </label>
                         {/each}
+                        <button type="button" class="button-style reset-order-button" onclick={resetCategoryFilter}>Reset</button>
                     </div>
                 </div>
                 <div class="character-category-column-content">
