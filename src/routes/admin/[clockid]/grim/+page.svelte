@@ -16,7 +16,7 @@
     import type { CanvasToolType } from "$lib/components/DrawableCanvas2/types.js";
     import AnotatableViewV2 from "$lib/components/DrawableCanvas2/AnotatableViewV2.svelte";
     import PlayerToken from "$lib/components/PlayerToken.svelte";
-    import { hasDeadVote, isPlayerToken, layoutTokensAtDefaultPositions, newGrimoireStateHistory, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
+    import { ALIGNMENT_RING_FACTORS, BOARD_TOKEN_SIZE, hasDeadVote, isPlayerToken, layoutTokensAtDefaultPositions, newGrimoireStateHistory, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
     import { v7 } from "uuid";
     import type { PageData } from "./$types";
 
@@ -37,9 +37,6 @@
 
     // Size of the central clock, as a multiple of the token size
     const CLOCK_SCALE = 1.0;
-
-    // Ring radii as multiples of the token size, to help line tokens up
-    const ALIGNMENT_RING_FACTORS = [1.9, 2.6, 3.3];
 
     let {data}: {data: PageData} = $props();
 
@@ -184,8 +181,6 @@
     let viewTy = $state(0);
     let activeCanvasLayerIndex = $state<number>(0); // Set on mount by AnotatableView, source of truth for active layer index
 
-    // Token size control
-    let showTokenSizeSlider = $state(false);
     let sidebarOpen = $state(false);
     let audioDim: AudioDim|null = $state(null); // Created on mount: it opens a connection to the server
     let showStingPopup = $state(false);
@@ -204,8 +199,8 @@
         showStingPopup = false;
         if(audioDim) audioDim.dimmed = false;
     }
-    const TOKEN_SIZE_KEY = 'grimoire-token-size';
-    let tokenSize = $state(browser ? Number(localStorage.getItem(TOKEN_SIZE_KEY)) || 150 : 150);
+    // Board token size in board px; the zoom does the fitting to the screen.
+    const tokenSize = BOARD_TOKEN_SIZE;
     const reminderTokenSize = $derived(Math.round(tokenSize * 0.5));
     // Phone-width screen (set from a media query on mount); same breakpoint as the full-screen tray CSS.
     let isMobile = $state(false);
@@ -278,22 +273,6 @@
     let activeToolIndex = $state<number>(0);
     let activeTool = $derived(tools[activeToolIndex]);
 
-
-    // Persist token size to localStorage only after user finishes changing (debounced)
-    let tokenSizeSaveTimeout: ReturnType<typeof setTimeout> | null = null;
-    function saveTokenSizeDebounced(val: number) {
-        if (tokenSizeSaveTimeout) clearTimeout(tokenSizeSaveTimeout);
-        tokenSizeSaveTimeout = setTimeout(() => {
-            localStorage.setItem(TOKEN_SIZE_KEY, String(val));
-            tokenSizeSaveTimeout = null;
-        }, 400); // Save 400ms after last change
-    }
-
-    $effect(()=>{
-        if (browser) {
-            saveTokenSizeDebounced(tokenSize);
-        }
-    });
 
     // CLOCK CONNECTION - always the clock this grim lives under, no manual picker
     let clockClient = $state<Clocktower | null>(null);
@@ -530,35 +509,16 @@
         viewTy = 0;
     }
 
-    // Spaces the players evenly round the circle in their current order; unnamed tokens and reminders rotate with the nearest player.
+    // Spaces the players evenly round the middle guide ring in their current order; unnamed tokens and reminders rotate with the nearest player.
     function resetTokenPositions() {
         if (placedTokens.length === 0) return;
-        if (!confirm("Space the players evenly (other tokens follow their nearest player; loric and fabled stay put) and resize the tokens to fit?")) return;
+        if (!confirm("Space the players evenly round the circle (other tokens follow their nearest player; loric and fabled stay put)?")) return;
         closeReminderTray();
         const laidOut = layoutTokensAtDefaultPositions(placedTokens, placedReminders, isSideRoleToken);
         gameState.present.placedTokens = laidOut.tokens;
         gameState.present.placedReminders = laidOut.reminders;
-        fitTokenSizeToSpacing();
         rescheduleSaveGrimoire();
         fitView();
-    }
-
-    // Sets the token size to the largest the slider allows that keeps every player token clear of its nearest neighbour.
-    const TOKEN_SIZE_MIN = 80;
-    const TOKEN_SIZE_MAX = 240;
-    const TOKEN_GAP_FACTOR = 0.8;
-    // The auto-fit never goes above this (the slider still allows up to TOKEN_SIZE_MAX by hand).
-    const AUTO_TOKEN_SIZE_MAX = 200;
-    function fitTokenSizeToSpacing() {
-        let minDist = Infinity;
-        const tokens = gameState.present.placedTokens.filter(t => isPlayerToken(t) && !isSideRoleToken(t));
-        for (let i = 0; i < tokens.length; i++) {
-            for (let j = i + 1; j < tokens.length; j++) {
-                minDist = Math.min(minDist, Math.hypot(tokens[i].x - tokens[j].x, tokens[i].y - tokens[j].y));
-            }
-        }
-        if (!isFinite(minDist)) return;
-        tokenSize = Math.max(TOKEN_SIZE_MIN, Math.min(AUTO_TOKEN_SIZE_MAX, Math.floor(minDist * TOKEN_GAP_FACTOR)));
     }
 
     // A second finger landed: whatever tap/drag the first finger was starting is now part of a pinch instead.
@@ -1012,6 +972,18 @@
         audioDim = new AudioDim();
         fitView();
 
+        // Refit the zoom when the screen space changes (rotation, window resize). Only the board's layout size is
+        // observed, so pinch-zoom (a transform) doesn't trigger it; skip the observer's initial callback.
+        let lastBoardSize = boardEl ? `${boardEl.offsetWidth}x${boardEl.offsetHeight}` : '';
+        const boardResizeObserver = new ResizeObserver(() => {
+            if (!boardEl) return;
+            const size = `${boardEl.offsetWidth}x${boardEl.offsetHeight}`;
+            if (size === lastBoardSize) return;
+            lastBoardSize = size;
+            fitView();
+        });
+        if (boardEl) boardResizeObserver.observe(boardEl);
+
         // Same breakpoint as the full-screen tray CSS.
         const mobileQuery = window.matchMedia('(max-width: 768px)');
         isMobile = mobileQuery.matches;
@@ -1019,6 +991,7 @@
         mobileQuery.addEventListener('change', onMobileChange);
 
         return () => {
+            boardResizeObserver.disconnect();
             mobileQuery.removeEventListener('change', onMobileChange);
             if(saveGrimoireTimeout){
                 clearTimeout(saveGrimoireTimeout);
@@ -1965,7 +1938,6 @@
          <div style="position: relative">
             <button class="sidebar-btn" class:active={editing} onclick={() => {
                 editing = !editing;
-                showTokenSizeSlider = false;
                 if (editing) {
                     showFooter = false;
                 }
@@ -2049,26 +2021,8 @@
 
 
         {#if !tokensLocked}
-        <!-- Token size control -->
-        <div style="position: relative;">
-            <button class="sidebar-btn" class:active={showTokenSizeSlider} onclick={() => {showTokenSizeSlider = !showTokenSizeSlider; editing = false}} title="Adjust token size">
-                <svg viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <!-- Dual-ended arrow at 45 degrees, fits inside circle -->
-                    <path d="M7 17 L17 7 M15 7 L17 7 L17 9 M7 15 L7 17 L9 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/>
-                </svg>
-            </button>
-            {#if showTokenSizeSlider}
-                <div style="position: absolute; left: 52px; top: 0; height: 180px; display: flex; align-items: center;">
-                    <input type="range" min={TOKEN_SIZE_MIN} max={TOKEN_SIZE_MAX} step="1" bind:value={tokenSize} aria-orientation="vertical" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; width: 32px; height: 180px; margin-left: 8px; background: transparent;" />
-                </div>
-            {/if}
-        </div>
-        {/if}
-
-        {#if !tokensLocked}
         <!-- Put all tokens back in their starting positions -->
-        <button class="sidebar-btn" onclick={resetTokenPositions} title="Reset token positions and size">
+        <button class="sidebar-btn" onclick={resetTokenPositions} title="Reset token positions">
             <svg viewBox="0 0 24 24">
                 <circle cx="12" cy="3.5" r="2.2" fill="currentColor"/>
                 <circle cx="18" cy="6" r="2.2" fill="currentColor"/>

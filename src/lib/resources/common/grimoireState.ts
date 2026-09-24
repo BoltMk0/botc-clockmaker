@@ -134,16 +134,31 @@ export function isGrimoireStateHistory(obj: any): obj is GrimoireStateHistory {
         validateGrimoireState(obj.present);
 }
 
+// Diameter of a token on the grim board, in board px (the view zooms to fit the screen, so this never changes).
+export const BOARD_TOKEN_SIZE = 150;
+// Radii of the guide rings drawn on the board, as multiples of the token size.
+export const ALIGNMENT_RING_FACTORS = [1.9, 2.6, 3.3];
+
+// Radius the players are seated at: the middle guide ring, or the outer one when there are too many players for
+// neighbouring tokens to sit clear of each other on the middle one.
+export function seatCircleRadius(n: number): number {
+    for (const factor of ALIGNMENT_RING_FACTORS.slice(1)) {
+        const radius = BOARD_TOKEN_SIZE * factor;
+        if (n < 2 || 2 * radius * Math.sin(Math.PI / n) >= BOARD_TOKEN_SIZE) return radius;
+    }
+    return BOARD_TOKEN_SIZE * ALIGNMENT_RING_FACTORS[ALIGNMENT_RING_FACTORS.length - 1];
+}
+
 // Evenly distributes n points around a circle of the given radius (px, relative to board
 // center - see PlacedToken.x/y), starting at the top and going clockwise.
-export function computeCirclePositions(n: number, radius: number = 440): { x: number, y: number }[] {
+export function computeCirclePositions(n: number, radius: number = seatCircleRadius(n)): { x: number, y: number }[] {
     return Array.from({ length: n }, (_, i) => {
         const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
         return { x: Math.round(radius * Math.cos(angle)), y: Math.round(radius * Math.sin(angle)) };
     });
 }
 
-// Top-left corner of the row of off-seat tokens: above the top seat of the default circle (radius 440) with room to spare.
+// Top-left corner of the row of off-seat tokens: above the top seat of the seat circle (outer ring at most) with room to spare.
 const OFF_SEAT_ROW_START = { x: -700, y: -700 };
 
 // Lays n points out in a horizontal row, the first at `start` and the rest to its right.
