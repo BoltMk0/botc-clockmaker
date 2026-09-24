@@ -14,14 +14,17 @@
     const CLOCKFACE_IMAGE_PIXEL_HEIGHT = 463;
 
     let {
-        progress,
-        totalTime,
+        // How far round the dial each hand points, in whole turns from 12
+        // o'clock, clockwise (so 0.25 = 3 o'clock). Not wrapped to 0-1, so the
+        // caller can drive them continuously and the hands sweep round and round.
+        minuteHandProgress,
+        hourHandProgress,
         towerPlaneHeight,
         horizontalOffset,
         verticalOffset = 0
     }: {
-        progress: number;
-        totalTime: number;
+        minuteHandProgress: number;
+        hourHandProgress: number;
         towerPlaneHeight: number;
         horizontalOffset: number;
         verticalOffset?: number;
@@ -30,17 +33,6 @@
     const dialPlaneHeight = $derived(
         (CLOCKFACE_IMAGE_PIXEL_HEIGHT / TOWER_IMAGE_PIXEL_HEIGHT) * towerPlaneHeight
     );
-
-    // Same "current time" math as the 2D clocktower display's ClockFace.svelte:
-    // a continuously wrapping fraction rather than clamped 0-1, so the hands
-    // sweep round and round like a real clock instead of just tracking the
-    // whole game's start-to-end arc once.
-    // Not rounded to whole seconds - keeping it continuous lets the hands
-    // sweep smoothly instead of ticking once per second.
-    const timeRemaining = $derived(totalTime * (1 - progress));
-    const minutesRemaining = $derived(timeRemaining / 60);
-    const minuteHandProgress = $derived(minutesRemaining);
-    const hourHandProgress = $derived(minutesRemaining / 12);
 
     // A clock hand image points right at rotation 0, pivoting near its left
     // end (the same `transform-origin` convention as the 2D display) -

@@ -108,6 +108,14 @@
             handsProgress += (progress - handsProgress) * Math.min(1, delta * 10);
         }
     });
+
+    // Same "current time" math as the 2D clocktower display's ClockFace.svelte:
+    // the minutes left on the countdown, as a continuously wrapping fraction
+    // rather than clamped 0-1, so the hands sweep round and round like a real
+    // clock instead of just tracking the whole game's start-to-end arc once.
+    // Not rounded to whole seconds - keeping it continuous lets the hands
+    // sweep smoothly instead of ticking once per second.
+    const minutesRemaining = $derived((totalTime * (1 - handsProgress)) / 60);
 </script>
 
 <OrthoCamera {visibleHeight} />
@@ -138,8 +146,8 @@
 />
 
 <ClockHands
-    progress={handsProgress}
-    {totalTime}
+    minuteHandProgress={minutesRemaining}
+    hourHandProgress={minutesRemaining / 12}
     towerPlaneHeight={planeHeight}
     horizontalOffset={scaledHorizontalOffset}
     {verticalOffset}

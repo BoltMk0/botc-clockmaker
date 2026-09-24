@@ -1,7 +1,17 @@
 <script lang="ts">
+    import { onMount } from 'svelte';
     import SkyBackdrop from '$lib/components/ClocktowerScene/SkyBackdrop.svelte';
+    import ClockIcon from '$lib/components/ClocktowerScene/ClockIcon.svelte';
+    import { realTimeDayProgress } from '$lib/components/ClocktowerScene/realTime';
 
     let { data }: { data: { hasRulesSlides: boolean } } = $props();
+
+    // The real time of day drives both the sky and the clock icon's hands.
+    let now = $state(new Date());
+    onMount(() => {
+        const interval = setInterval(() => now = new Date(), 1000);
+        return () => clearInterval(interval);
+    });
 
     const menuItems = $derived([
         { label: 'Play', href: '/play' },
@@ -10,10 +20,12 @@
     ]);
 </script>
 
-<SkyBackdrop />
+<SkyBackdrop progress={realTimeDayProgress(now)} />
 
 <div class="home-menu">
-    <img class="home-icon" src="/icons/appicon_256x256.png" alt="" />
+    <div class="home-icon">
+        <ClockIcon {now} size={128} />
+    </div>
     <div class="home-title dumbledore-font">Clockmaker</div>
     <div class="home-version">v{__APP_VERSION__}</div>
     <div class="home-menu-buttons">
@@ -37,10 +49,8 @@
     }
 
     .home-icon {
-        width: 128px;
-        height: 128px;
-        border-radius: 50%;
-        box-shadow: 0 2px 8px #0004;
+        /* The dial's round and its canvas is transparent round it, so the shadow follows its outline. */
+        filter: drop-shadow(0 2px 8px #0006);
         margin-bottom: -1em;
     }
 
