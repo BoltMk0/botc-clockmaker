@@ -204,7 +204,12 @@ export function layoutTokensAtDefaultPositions(
 
     const newPositionOf = new Map<PlacedToken, { x: number, y: number }>();
     const circle = computeCirclePositions(players.length, radius ?? seatCircleRadius(players.length));
-    [...players].sort((a, b) => clockwiseFromTop(a) - clockwiseFromTop(b))
+    // The player closest to 12 o'clock (on either side) takes the top seat and the rest follow clockwise, so the
+    // ring turns whichever way is the shorter nudge rather than always anticlockwise.
+    const ordered = [...players].sort((a, b) => clockwiseFromTop(a) - clockwiseFromTop(b));
+    const fromTop = (t: PlacedToken) => Math.min(clockwiseFromTop(t), 2 * Math.PI - clockwiseFromTop(t));
+    const topIndex = ordered.reduce((best, t, i) => fromTop(t) < fromTop(ordered[best]) ? i : best, 0);
+    [...ordered.slice(topIndex), ...ordered.slice(0, topIndex)]
         .forEach((t, i) => newPositionOf.set(t, circle[i]));
 
     // The nearest player (by angle) to a point: the one a token at that point follows.
