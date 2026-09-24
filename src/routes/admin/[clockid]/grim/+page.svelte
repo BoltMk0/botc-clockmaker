@@ -1674,10 +1674,10 @@
     }
     .night-order-badge {
         position: absolute;
-        transform: translate(-50%, -30%);
+        transform: translate(-60%, -50%);
         border-style: solid;
         border-radius: 50%;
-        background-color: rgb(194, 120, 15);
+        background-color: rgb(150, 85, 5);
         border-color: white;
         box-shadow: 0 3px 4px #0008;
         color: white;
@@ -2127,7 +2127,7 @@
             {#if order >= 0 && script?.characters.some(c => c.id === token.characterId)}
             <div
                 class="night-order-badge"
-                style="left: calc(50% + {token.x + tokenSize * 0.35}px); top: calc(50% + {token.y - tokenSize * 0.5}px); font-size: {tokenSize / 8}px; border-width: {tokenSize / 80}px; z-index: {z_indecies.nightOrder};"
+                style="left: calc(50% + {token.x + tokenSize * 0.45}px); top: calc(50% + {token.y}px); font-size: {tokenSize / 6}px; border-width: {tokenSize / 70}px; z-index: {z_indecies.nightOrder};"
             >{order + 1}</div>
             {/if}
         {/each}
