@@ -74,8 +74,20 @@
     // Two-finger tap detection for undo.
     let twoFingerStart: number = 0;
     let twoFingerMoved: boolean = false;
+    // Where each finger was when the second one landed, so a slow pinch still counts as movement.
+    let twoFingerStartPos = new Map<number, CanvasPoint>();
     const TWO_FINGER_TAP_MAX_MS = 300;
-    const TWO_FINGER_TAP_MOVE_THRESHOLD = 15;
+    // How far (px) any one finger may stray from where it landed and still count as a tap.
+    const TWO_FINGER_TAP_MOVE_THRESHOLD = 8;
+
+    // True once any finger has strayed past the tap threshold from where it was when the gesture began.
+    function anyFingerMoved(starts: Map<number, CanvasPoint>, current: Map<number, CanvasPoint>): boolean {
+        for (const [id, pos] of current) {
+            const start = starts.get(id);
+            if (start && Math.hypot(pos.x - start.x, pos.y - start.y) > TWO_FINGER_TAP_MOVE_THRESHOLD) return true;
+        }
+        return false;
+    }
 
     // Internal canvas center offset — added to viewTx/viewTy for the actual screen translation.
     // Keeps exported viewTx/viewTy center-relative (0,0 = no pan).
@@ -438,6 +450,7 @@
                 pinchPrevDist = Math.max(1, Math.hypot(p2.x - p1.x, p2.y - p1.y));
                 twoFingerStart = Date.now();
                 twoFingerMoved = false;
+                twoFingerStartPos = new Map(touchScreenPos);
             }
             return;
         }
@@ -502,16 +515,7 @@
                 viewTy = newMid.y - actualF * (pinchPrevMid.y - screenTy) - canvasCenterY;
                 viewScale = newScale;
 
-                // Mark as moved if midpoint shifted enough.
-                if (!twoFingerMoved) {
-                    const dx = newMid.x - pinchPrevMid.x;
-                    const dy = newMid.y - pinchPrevMid.y;
-                    const distRatio = newDist / pinchPrevDist;
-                    if (dx * dx + dy * dy > TWO_FINGER_TAP_MOVE_THRESHOLD * TWO_FINGER_TAP_MOVE_THRESHOLD
-                        || distRatio < 0.9 || distRatio > 1.1) {
-                        twoFingerMoved = true;
-                    }
-                }
+                if (!twoFingerMoved && anyFingerMoved(twoFingerStartPos, touchScreenPos)) twoFingerMoved = true;
 
                 pinchPrevMid = newMid;
                 pinchPrevDist = newDist;
@@ -617,6 +621,7 @@
     let idlePrevDist = 1;
     let idleStart = 0;
     let idleMoved = false;
+    let idleStartPos = new Map<number, CanvasPoint>();
     // True from the moment a second finger joins until every finger is lifted (plus a short tail to swallow the trailing click).
     let idleGesturing = false;
     // Single-finger pan candidate (a touch that started on empty space); `active` once it has moved past the threshold.
@@ -639,6 +644,7 @@
         idlePrevDist = Math.max(1, Math.hypot(p2.x - p1.x, p2.y - p1.y));
         idleStart = Date.now();
         idleMoved = false;
+        idleStartPos = new Map(idleTouches);
         idleGesturing = true;
         idlePan = null; // a second finger turns any single-finger pan into a pinch
         ongesturestart?.();
@@ -707,12 +713,7 @@
         viewTy = newMid.y - actualF * (idlePrevMid.y - (viewTy + canvasCenterY)) - canvasCenterY;
         viewScale = newScale;
 
-        const dx = newMid.x - idlePrevMid.x;
-        const dy = newMid.y - idlePrevMid.y;
-        const distRatio = newDist / idlePrevDist;
-        if (dx * dx + dy * dy > TWO_FINGER_TAP_MOVE_THRESHOLD * TWO_FINGER_TAP_MOVE_THRESHOLD || distRatio < 0.9 || distRatio > 1.1) {
-            idleMoved = true;
-        }
+        if (!idleMoved && anyFingerMoved(idleStartPos, idleTouches)) idleMoved = true;
         idlePrevMid = newMid;
         idlePrevDist = newDist;
         event.preventDefault();
