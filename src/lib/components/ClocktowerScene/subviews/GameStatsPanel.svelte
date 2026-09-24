@@ -185,8 +185,14 @@
     // whether the count banner moves out to the side (see `rows` below).
     const seatTokens = $derived(filterSeatTokens(grimoireState, script));
     // Seats are never shown in portrait, so the portrait layout wins over
-    // the seated one below.
-    const hasSeatTokens = $derived(!portrait && seatTokens.length > 0);
+    // the seated one below. They also need a screen at least
+    // SEATS_MIN_ASPECT wide (width / height) to fit beside the tower -
+    // narrower screens fall back to the stacked no-seats panel.
+    const SEATS_MIN_ASPECT = 3 / 2;
+    const { size } = useThrelte();
+    const hasSeatTokens = $derived(
+        !portrait && $size.width / $size.height >= SEATS_MIN_ASPECT && seatTokens.length > 0
+    );
 
     // Loric and fabled in the game: a single vertical list at the top-right
     // rather than seated, each row showing the character's icon plus its
@@ -246,7 +252,6 @@
     // OrthoCamera.svelte: zoom = size.height / visibleHeight, and 1 world
     // unit = 1px at zoom 1, so half the real width in world units is
     // visibleHeight * (size.width / size.height) / 2.
-    const { size } = useThrelte();
     const realHalfWidth = $derived(visibleHeight * ($size.width / $size.height) / 2);
 
     const screenWidth = $derived(visibleHeight * SCREEN_WIDTH_FACTOR);
