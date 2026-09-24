@@ -36,6 +36,14 @@
     let rawVolume = $state(untrack(() => model?.volume ?? 50));
     let appliedMasterGain = untrack(() => masterGain);
     const active = $derived(model !== null && model.hostClientId !== null);
+    // When this strip last sent a volume. Echoes of earlier values from a drag's coalesced sends can arrive
+    // while it's still moving, so remote volume changes are ignored for a moment afterwards.
+    let lastLocalVolumeChange = 0;
+    const REMOTE_VOLUME_GRACE_MS = 1000;
+    function sendVolume(combined: number) {
+        lastLocalVolumeChange = Date.now();
+        spotify.setVolume(combined);
+    }
     $effect(() => {
         // Re-sends the current fader position at the new master gain whenever the fader moves this - not on
         // mount, so simply opening the mixer doesn't stomp on whatever volume is already playing. Skipped
@@ -45,7 +53,19 @@
         if (gain === appliedMasterGain) return;
         appliedMasterGain = gain;
         if (!active) return;
-        spotify.setVolume(Math.round(rawVolume * gain));
+        sendVolume(Math.round(untrack(() => rawVolume) * gain));
+    });
+    $effect(() => {
+        // Follows volume changes made elsewhere (another mixer, the grim), moving the fader to the position that
+        // gives that volume at this client's master gain. Only the incoming volume is tracked, so a master gain
+        // change doesn't get mistaken for one. Can't be worked back out while the master fader is at zero.
+        const volume = model?.volume;
+        if (volume === undefined) return;
+        untrack(() => {
+            if (masterGain <= 0 || Date.now() - lastLocalVolumeChange < REMOTE_VOLUME_GRACE_MS) return;
+            if (Math.round(rawVolume * masterGain) === volume) return; // Already there (give or take rounding)
+            rawVolume = Math.min(100, volume / masterGain);
+        });
     });
     /**
      * Whether `uri` is one of the preset's albums/playlists. A day/night preset only counts while it's the one selected;
@@ -158,7 +178,7 @@
             <!-- Bound to our own rawVolume, not model.volume: model.volume is the combined (post-master-gain)
                  value actually sent to Spotify, so binding directly to it would make the fader visibly jump
                  around whenever the master fader moves - this slider is meant to stay put, independent of it. -->
-            <VSlider value={rawVolume} min={0} max={100} step={1} onchange={(v)=>{ rawVolume = v; spotify.setVolume(Math.round(v * masterGain)); }}/>
+            <VSlider value={rawVolume} min={0} max={100} step={1} onchange={(v)=>{ rawVolume = v; sendVolume(Math.round(v * masterGain)); }}/>
         </div>
     {/if}
     {#if spotify.error}<div class="error">{spotify.error}</div>{/if}
