@@ -54,5 +54,6 @@
     towerPlaneHeight={TOWER_PLANE_HEIGHT}
     horizontalOffset={0}
     smoothProgress={progress}
+    halo={false}
 />
 <ClockHands {minuteHandProgress} {hourHandProgress} towerPlaneHeight={TOWER_PLANE_HEIGHT} horizontalOffset={0} />

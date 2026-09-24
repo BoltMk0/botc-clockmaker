@@ -35,7 +35,11 @@
         // Slightly in front of the tower plane (z=0) so it isn't coplanar
         // and z-fighting with it.
         forwardOffset = 0.05,
-        smoothProgress
+        smoothProgress,
+        // The mist halo spreads well past the dial, onto the tower around it.
+        // Off for the dial on its own (ClockIcon), where there's no tower and
+        // it would just fill the rest of the canvas.
+        halo = true
     }: {
         imageUrl: string;
         normalMapUrl: string;
@@ -45,6 +49,7 @@
         verticalOffset?: number;
         forwardOffset?: number;
         smoothProgress: number;
+        halo?: boolean;
     } = $props();
 
     // The dial glows blood red in sync with the moon - same appear window
@@ -155,7 +160,7 @@
         decay={2}
     />
 
-    
+    {#if halo}
     <T.Mesh position={[planeX, planeY, forwardOffset - 0.01]}>
         <T.PlaneGeometry args={[haloSize, haloSize]} />
         <T.MeshBasicMaterial
@@ -166,4 +171,5 @@
             depthWrite={false}
         />
     </T.Mesh>
+    {/if}
 {/if}

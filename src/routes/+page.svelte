@@ -52,6 +52,10 @@
         /* The dial's round and its canvas is transparent round it, so the shadow follows its outline. */
         filter: drop-shadow(0 2px 8px #0006);
         margin-bottom: -1em;
+        /* Flex so the box hugs the icon exactly (no inline line-height gap below it), keeping the clip a circle */
+        display: flex;
+        border-radius: 50%;
+        overflow: hidden;
     }
 
     .home-title {
