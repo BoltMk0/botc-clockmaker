@@ -121,7 +121,7 @@
     function toggleNewBluff(characterId: string) {
         if (!newBluffSet) return;
         if (newBluffSet.includes(characterId)) newBluffSet = newBluffSet.filter(id => id !== characterId);
-        else if (newBluffSet.length < 3) newBluffSet = [...newBluffSet, characterId];
+        else newBluffSet = [...newBluffSet, characterId];
     }
 
     async function deleteBluffSet(index: number) {
@@ -131,7 +131,7 @@
     }
 
     async function addBluffSet() {
-        if (!gameState.loadedPreset || newBluffSet?.length !== 3) return;
+        if (!gameState.loadedPreset || !newBluffSet || newBluffSet.length < 3) return;
         gameState.loadedPreset = { ...gameState.loadedPreset, bluff_sets: [...bluffSets, newBluffSet] };
         newBluffSet = null;
         await saveGrimoire();
@@ -2595,15 +2595,15 @@
             <div class="overlay-panel" style="width: min(94vw, 720px);" onclick={(e) => e.stopPropagation()}>
                 <button class="overlay-close" onclick={() => newBluffSet = null} aria-label="Close">✕</button>
                 <div class="overlay-name dumbledore-font">New bluff set</div>
-                <div class="overlay-drag-hint">Choose 3 bluffs ({newBluffSet.length}/3)</div>
+                <div class="overlay-drag-hint">Choose at least 3 bluffs ({newBluffSet.length} chosen). Faded characters are already in play.</div>
                 <div class="picker-grid">
-                    {#each sortedScriptCharacters.filter(c => !isSideCategory(c) && !loadedPreset?.character_ids.includes(c.id)) as character (character.id)}
-                        <button class="no-button-style tray-token" class:picked={newBluffSet.includes(character.id)} onclick={() => toggleNewBluff(character.id)}>
+                    {#each sortedScriptCharacters.filter(c => !isSideCategory(c)) as character (character.id)}
+                        <button class="no-button-style tray-token" class:picked={newBluffSet.includes(character.id)} class:in-play={loadedPreset?.character_ids.includes(character.id)} onclick={() => toggleNewBluff(character.id)}>
                             <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" norules/>
                         </button>
                     {/each}
                 </div>
-                <button class="button-style highlight" disabled={newBluffSet.length !== 3} onclick={addBluffSet}>Add bluff set</button>
+                <button class="button-style highlight" disabled={newBluffSet.length < 3} onclick={addBluffSet}>Add bluff set</button>
             </div>
         </div>
     {/if}

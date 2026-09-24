@@ -23,14 +23,14 @@ export class PresetBuilder {
     chosenCharacterIds = $state<string[]>([]);
     /** The chosen tokens that go straight on the grim instead of in the bag. */
     grimCharacterIds = $state<string[]>([]);
-    /** Optional groups of 3 bluffs. */
+    /** Optional groups of at least 3 bluffs. */
     bluffSets = $state<string[][]>([]);
     /** Index of the bluff set being edited. */
     activeBluffSet = $state(0);
     /** Every character used as a bluff in any set. */
     allBluffIds = $derived([...new Set(this.bluffSets.flat())]);
     /** True when every bluff set is complete (no sets is fine). */
-    bluffsValid = $derived(this.bluffSets.every(s => s.length === 3));
+    bluffsValid = $derived(this.bluffSets.every(s => s.length >= 3));
 
     charById = $derived(new Map((this.script?.characters ?? []).map(c => [c.id, c])));
 
@@ -129,13 +129,13 @@ export class PresetBuilder {
         this.activeBluffSet = Math.min(this.activeBluffSet, Math.max(0, this.bluffSets.length - 1));
     }
 
-    /** Toggles a character in the bluff set being edited; sets hold at most 3. */
+    /** Toggles a character in the bluff set being edited. */
     toggleBluff(characterId: string) {
         const set = this.bluffSets[this.activeBluffSet];
         if (!set) return;
         const updated = set.includes(characterId)
             ? set.filter(id => id !== characterId)
-            : set.length < 3 ? [...set, characterId] : set;
+            : [...set, characterId];
         this.bluffSets = this.bluffSets.map((s, i) => i === this.activeBluffSet ? updated : s);
     }
 }

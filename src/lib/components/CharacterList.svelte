@@ -10,6 +10,7 @@
         onpick,
         isSelected = () => false,
         isDisabled = () => false,
+        isFaded = () => false,
         headingSuffix,
         onadd,
         onremove,
@@ -29,6 +30,8 @@
         isSelected?: (character: Character) => boolean;
         /** Disabled cards can't be picked unless they are already selected. */
         isDisabled?: (character: Character) => boolean;
+        /** Faded cards are shown at lower opacity but can still be picked. */
+        isFaded?: (character: Character) => boolean;
         /** Optional text appended to a category heading, e.g. a count. */
         headingSuffix?: (category: CharacterCategory) => string;
         /** Multi-pick mode: hovering a card shows a "+1" overlay, and once picked also an "X" overlay to remove one. */
@@ -144,6 +147,7 @@
                             class:multi={!!onadd && !tapMode}
                             class:selected
                             class:disabled
+                            class:faded={isFaded(character)}
                             href={href?.(character)}
                             disabled={onpick ? disabled : undefined}
                             onclick={onpick ? () => onpick(character) : tapMode ? () => tapCharacter(character) : undefined}
@@ -327,6 +331,9 @@
     .character-card.disabled {
         opacity: 0.4;
         cursor: not-allowed;
+    }
+    .character-card.faded {
+        opacity: 0.4;
     }
     .character-card.tap {
         position: relative;

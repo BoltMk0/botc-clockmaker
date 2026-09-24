@@ -190,6 +190,30 @@
         gap: 0.4em;
     }
 
+    .bluff-sets {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.8em;
+        margin-top: 0.6em;
+    }
+
+    .bluff-set {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.4em;
+        padding: 0.6em 0.8em;
+        border-radius: 0.8em;
+        background: var(--theme-bg-tertiary);
+        color: var(--theme-on-bg-tertiary);
+    }
+
+    .bluff-set-title {
+        font-size: 0.9em;
+        font-weight: 600;
+    }
+
     .setup-main {
         display: flex;
         flex-direction: column;
@@ -490,6 +514,26 @@
                         </div>
                     </div>
                 {/if}
+            {/if}
+            {#if builder.bluffSets.length > 0}
+                <div class="section">
+                    <strong>Bluffs ({builder.bluffSets.length} set{builder.bluffSets.length === 1 ? '' : 's'})</strong>
+                    <div class="bluff-sets">
+                        {#each builder.bluffSets as bluffSet, setIndex}
+                            <div class="bluff-set">
+                                <div class="bluff-set-title">Bluffs {setIndex + 1}</div>
+                                <div class="finish-tokens">
+                                    {#each bluffSet as id (id)}
+                                        {@const character = builder.charById.get(id)}
+                                        {#if character}
+                                            <CharacterToken {character} size="52px" norules style="position: relative;" />
+                                        {/if}
+                                    {/each}
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+                </div>
             {/if}
             {#if !presets.some(matchesBuilder)}
                 <label class="toggle">

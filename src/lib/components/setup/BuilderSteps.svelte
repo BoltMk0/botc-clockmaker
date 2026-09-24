@@ -112,7 +112,7 @@
         <h2 style="margin-top: 0;">Bluffs <span style="opacity: 0.6; font-weight: normal; font-size: 0.7em;">(optional)</span></h2>
         <div class="bluff-set-tabs">
             {#each builder.bluffSets as set, i}
-                <button class="button-style" class:highlight={builder.activeBluffSet === i} onclick={() => builder.activeBluffSet = i}>Set {i + 1} ({set.length}/3)</button>
+                <button class="button-style" class:highlight={builder.activeBluffSet === i} onclick={() => builder.activeBluffSet = i}>Set {i + 1} ({set.length} chosen)</button>
             {/each}
             <button class="button-style" onclick={() => builder.addBluffSet()}>+ Add bluff set</button>
         </div>
@@ -120,15 +120,16 @@
             <div style="opacity: 0.6; font-style: italic;">No bluff sets. Add one, or continue without bluffs.</div>
         {:else}
             <div class="bluff-set-header">
-                <h3 style="margin: 0;">Choose 3 bluffs for set {builder.activeBluffSet + 1}</h3>
+                <h3 style="margin: 0;">Choose at least 3 bluffs for set {builder.activeBluffSet + 1}</h3>
                 <button class="button-style" onclick={() => builder.removeBluffSet(builder.activeBluffSet)}>Remove set</button>
             </div>
+            <div style="opacity: 0.6; font-style: italic; margin-bottom: 0.5em;">Faded characters are already in play.</div>
             <CharacterList
-                characters={builder.script.characters.filter(c => !builder.chosenCharacterIds.includes(c.id))}
+                characters={builder.script.characters}
                 categoryOrder={['townsfolk', 'outsider', 'minion', 'demon']}
                 isSelected={c => builder.bluffSets[builder.activeBluffSet]?.includes(c.id) ?? false}
                 onpick={c => builder.toggleBluff(c.id)}
-                isDisabled={() => (builder.bluffSets[builder.activeBluffSet]?.length ?? 0) >= 3}
+                isFaded={c => builder.chosenCharacterIds.includes(c.id)}
             />
         {/if}
     </div>
