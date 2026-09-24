@@ -1,5 +1,11 @@
 <script lang="ts">
     import { page } from "$app/state";
+    import type { Snippet } from "svelte";
+
+    let {
+        /** Optional content (e.g. a menu button) that replaces the app icon on mobile. */
+        mobileBrand
+    }: { mobileBrand?: Snippet } = $props();
 
     const path = $derived(page.url.pathname);
     const links = [
@@ -26,9 +32,12 @@
 </a>
 {:else}
 <nav class="top-navbar">
-    <a class="brand" href="/" aria-label="Home">
+    <a class="brand" class:has-mobile-brand={!!mobileBrand} href="/" aria-label="Home">
         <img src="/icons/appicon_128x128.png" alt="" />
     </a>
+    {#if mobileBrand}
+        <div class="mobile-brand">{@render mobileBrand()}</div>
+    {/if}
     {#each links as link}
         <a class="nav-link" class:active={isActive(link.href)} href={link.href}>{link.label}</a>
     {/each}
@@ -82,6 +91,21 @@
         width: 40px;
         height: 40px;
         border-radius: 22%;
+    }
+
+    .mobile-brand {
+        display: none;
+        margin-right: 8px;
+    }
+
+    @media (max-width: 768px) {
+        .brand.has-mobile-brand {
+            display: none;
+        }
+
+        .mobile-brand {
+            display: flex;
+        }
     }
 
     .nav-link {
