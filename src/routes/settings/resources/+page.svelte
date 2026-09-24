@@ -129,7 +129,8 @@
         height: 100%;
         box-sizing: border-box;
         display: grid;
-        grid-template-rows: auto 1fr;
+        grid-template-rows: auto minmax(0, 1fr);
+        overflow: hidden;
     }
     .resource-explorer-main {
         display: grid;
@@ -139,7 +140,9 @@
         color: var(--theme-on-bg);
         width: 100%;
         height: 100%;
+        min-height: 0;
         box-sizing: border-box;
+        overflow: hidden;
     }
 
     .resource-explorer-list {
@@ -152,6 +155,8 @@
         justify-content: flex-start;
         align-items: flex-start;
         align-content: flex-start;
+        min-height: 0;
+        overflow-y: auto;
     }
 
     .resource-explorer-list.drop-active {
@@ -164,6 +169,8 @@
         display: flex;
         flex-direction: column;
         padding: 10px;
+        min-height: 0;
+        overflow-y: auto;
     }
 
     .resource-type-item {
