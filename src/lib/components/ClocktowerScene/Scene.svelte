@@ -81,7 +81,17 @@
     const DESIGN_ASPECT = 2;
     const { size } = useThrelte();
     const layoutScale = $derived(Math.min(1, $size.width / $size.height / DESIGN_ASPECT));
-    const scaledHorizontalOffset = $derived(horizontalOffset * layoutScale);
+    // On portrait screens there's no room for the side-by-side layout at
+    // all, so the tower (and everything anchored to it) is centred outright
+    // and GameStatsPanel switches to its stacked portrait layout.
+    const portrait = $derived($size.height > $size.width);
+    const scaledHorizontalOffset = $derived(portrait ? 0 : horizontalOffset * layoutScale);
+    // The tower is also shrunk a little in portrait, to leave more room for
+    // the time/count banners stacked above and below it. The tower, clock
+    // face and hands are all sized off `planeHeight` and anchored on the
+    // clock's centre, so this scales them together around that point.
+    const PORTRAIT_TOWER_SCALE = 0.85;
+    const towerPlaneHeight = $derived(portrait ? planeHeight * PORTRAIT_TOWER_SCALE : planeHeight);
 
     // Smooth the day-progress value over time instead of snapping the sun
     // (and everything timed off it) straight to a new position whenever
@@ -130,16 +140,17 @@
     {counts}
     {visibleHeight}
     horizontalOffset={scaledHorizontalOffset}
+    {portrait}
     {hasGrim}
     {grimoireState}
     {script}
     {qrCodes}
 />
-<Tower {imageUrl} {normalMapUrl} {origin} {planeHeight} horizontalOffset={scaledHorizontalOffset} {verticalOffset} />
+<Tower {imageUrl} {normalMapUrl} {origin} planeHeight={towerPlaneHeight} horizontalOffset={scaledHorizontalOffset} {verticalOffset} />
 <ClockFace
     imageUrl={clockFaceImageUrl}
     normalMapUrl={clockFaceNormalMapUrl}
-    towerPlaneHeight={planeHeight}
+    {towerPlaneHeight}
     horizontalOffset={scaledHorizontalOffset}
     {verticalOffset}
     {smoothProgress}
@@ -148,13 +159,13 @@
 <ClockHands
     minuteHandProgress={minutesRemaining}
     hourHandProgress={minutesRemaining / 12}
-    towerPlaneHeight={planeHeight}
+    {towerPlaneHeight}
     horizontalOffset={scaledHorizontalOffset}
     {verticalOffset}
 />
 
 {#if showOriginMarker}
-    <OriginMarker size={planeHeight} horizontalOffset={scaledHorizontalOffset} {verticalOffset} />
+    <OriginMarker size={towerPlaneHeight} horizontalOffset={scaledHorizontalOffset} {verticalOffset} />
 {/if}
 
 <!-- Sits in front of the tower/clock face/hands but behind the day/count

@@ -127,6 +127,16 @@
     // was tuned against - it does not depend on the real visible width.
     const SCREEN_WIDTH_FACTOR = 2;
 
+    // Portrait layout (screen taller than wide): the seats view and the
+    // loric/fabled/travellers list are dropped, and the day/time banner and
+    // count banner are centred horizontally - the day banner pinned to the
+    // top of the screen (margin as a fraction of visibleHeight), the count
+    // banner staying at the bottom. Neither banner is allowed wider than
+    // this fraction of the real screen width, so they still fit on narrow
+    // phones.
+    const PORTRAIT_DAY_TOP_MARGIN_FRACTION = 0.03;
+    const PORTRAIT_MAX_WIDTH_FRACTION = 0.9;
+
     let {
         day,
         progress,
@@ -139,6 +149,8 @@
         // Scene.svelte) - it only repositions the panel toward centre
         // (overlapping the tower if needed), it never resizes it.
         horizontalOffset = visibleHeight * 0.4,
+        // Screen is taller than it is wide - see the PORTRAIT_* notes above.
+        portrait = false,
         // Whether this game has a virtual grimoire set up - some tables run
         // without one. Without a grim there's no player-seats view to show,
         // so the count banner stacks under the day banner in one panel
@@ -158,6 +170,7 @@
         counts: PlayerCounts;
         visibleHeight: number;
         horizontalOffset?: number;
+        portrait?: boolean;
         hasGrim?: boolean;
         grimoireState?: GrimoireStateHistory | null;
         script?: ScriptWithCharacters | null;
@@ -171,7 +184,9 @@
     // even one with nobody placed yet) - this, not `hasGrim`, decides
     // whether the count banner moves out to the side (see `rows` below).
     const seatTokens = $derived(filterSeatTokens(grimoireState, script));
-    const hasSeatTokens = $derived(seatTokens.length > 0);
+    // Seats are never shown in portrait, so the portrait layout wins over
+    // the seated one below.
+    const hasSeatTokens = $derived(!portrait && seatTokens.length > 0);
 
     // Loric and fabled in the game: a single vertical list at the top-right
     // rather than seated, each row showing the character's icon plus its
@@ -224,12 +239,8 @@
         return `${m}:${String(s).padStart(2, "0")}`;
     });
 
-    const screenWidth = $derived(visibleHeight * SCREEN_WIDTH_FACTOR);
-    const panelW = $derived(screenWidth * PANEL.widthFraction);
-    const panelX = $derived(-horizontalOffset * PANEL.mirror + screenWidth * PANEL.nudgeX);
-
     // The real visible half-width, in the same world units as everything
-    // else here - unlike `screenWidth` above (a fixed design reference used
+    // else here - unlike `screenWidth` below (a fixed design reference used
     // for tuning fractions), this tracks the actual canvas aspect so the
     // count banner can be pinned to the real right edge of the screen. See
     // OrthoCamera.svelte: zoom = size.height / visibleHeight, and 1 world
@@ -237,6 +248,15 @@
     // visibleHeight * (size.width / size.height) / 2.
     const { size } = useThrelte();
     const realHalfWidth = $derived(visibleHeight * ($size.width / $size.height) / 2);
+
+    const screenWidth = $derived(visibleHeight * SCREEN_WIDTH_FACTOR);
+    const panelW = $derived.by(() => {
+        const designW = screenWidth * PANEL.widthFraction;
+        if (!portrait) return designW;
+        const maxRowW = realHalfWidth * 2 * PORTRAIT_MAX_WIDTH_FRACTION;
+        return Math.min(designW, maxRowW / Math.max(DAY_WIDTH_SCALE, COUNT_WIDTH_SCALE));
+    });
+    const panelX = $derived(portrait ? 0 : -horizontalOffset * PANEL.mirror + screenWidth * PANEL.nudgeX);
 
     // The panel spans the full screen height. Without any seated players,
     // the count banner's bottom edge sits flush with the bottom of the
@@ -263,7 +283,11 @@
         let countY: number;
         let seatsArea: { x: number; y: number; width: number; height: number } | null = null;
 
-        if (hasSeatTokens) {
+        if (portrait) {
+            dayY = screenTop - visibleHeight * PORTRAIT_DAY_TOP_MARGIN_FRACTION - dayH / 2;
+            countY = screenBottom + countH / 2 - (countH/6);
+            countX = panelX;
+        } else if (hasSeatTokens) {
             dayY = visibleHeight * DAY_CENTER_LIFT_FRACTION;
             countY = screenBottom + countH / 2 - (countH/6);
             countX = realHalfWidth - screenWidth * COUNT_RIGHT_MARGIN_FRACTION - countW / 2;
@@ -357,7 +381,7 @@
 {#if rows.seatsArea}
     <PlayerSeats area={rows.seatsArea} {grimoireState} {script} {visibleHeight} z={rows.dayZ + DAY_Z_LIFT} />
 {/if}
-{#if hasGrim && sideRoles.length > 0}
+{#if !portrait && hasGrim && sideRoles.length > 0}
     {@const listWidth = visibleHeight * SIDE_ROLES_LIST_WIDTH_FRACTION}
     {@const titleH = visibleHeight * SIDE_ROLES_TITLE_HEIGHT_FRACTION}
     {@const titleGap = visibleHeight * SIDE_ROLES_TITLE_GAP_FRACTION}
