@@ -1836,8 +1836,8 @@
     }
 
     .open-tray-tab svg {
-        width: 22px;
-        height: 22px;
+        width: 28px;
+        height: 28px;
         fill: currentColor;
     }
 
@@ -2205,7 +2205,14 @@
 
     {#if !showFooter}
         <button class="open-tray-btn open-tray-tab" class:drag-hidden={isDraggingAnything} onclick={toggleTray} title="Show token tray" style="z-index: {z_indecies.ui};">
-            <svg viewBox="0 0 24 24"><path d="M7 14l5-5 5 5z"/></svg>
+            <!-- Up arrow over a tray holding three tokens -->
+            <svg viewBox="0 0 24 24">
+                <path d="M8.5 6L12 2.5L15.5 6z"/>
+                <circle cx="7" cy="14.5" r="2.4"/>
+                <circle cx="12" cy="14.5" r="2.4"/>
+                <circle cx="17" cy="14.5" r="2.4"/>
+                <path d="M2.5 12v6.5a1.5 1.5 0 0 0 1.5 1.5h16a1.5 1.5 0 0 0 1.5-1.5V12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
         </button>
     {/if}
 
