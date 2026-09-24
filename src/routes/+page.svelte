@@ -39,8 +39,8 @@
     .home-icon {
         width: 128px;
         height: 128px;
-        border-radius: 22%;
-        box-shadow: 0 4px 12px #0008;
+        border-radius: 50%;
+        box-shadow: 0 2px 8px #0004;
         margin-bottom: -1em;
     }
 
