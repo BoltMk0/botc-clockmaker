@@ -140,6 +140,6 @@
 
     .body {
         overflow-y: auto;
-        padding: 1em 2em 2em 2em;
+        padding: 0 2em 2em 2em;
     }
 </style>
