@@ -128,7 +128,7 @@
                 alert(`Failed to finish setup: ${body?.error ?? 'Unknown error'}`);
                 return;
             }
-            localStorage.setItem(`grimoire-locked-${data.clockid}`, 'true');
+            localStorage.setItem(`grimoire-locked-${data.clockid}`, 'false');
             goto(`/admin/${data.clockid}/grim`);
         } finally {
             finishing = false;

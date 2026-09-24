@@ -311,7 +311,7 @@
         .map(([id, _])=>id) ?? []);
 
     let showFooter = $state(false);
-    let tokensLocked = $derived(browser ? localStorage.getItem(`grimoire-locked-${data.clockid}`) !== 'false' : true);
+    let tokensLocked = $derived(browser ? localStorage.getItem(`grimoire-locked-${data.clockid}`) === 'true' : false);
     let editing = $state(false);
 
 

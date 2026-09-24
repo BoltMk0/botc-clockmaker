@@ -151,10 +151,14 @@ export function computeRowPositions(n: number, start: { x: number, y: number }, 
     return Array.from({ length: n }, (_, i) => ({ x: start.x + i * spacing, y: start.y }));
 }
 
-// Lays n points out in a horizontal row centred on x=0, at the given y.
-export function computeCenteredRowPositions(n: number, y: number, spacing: number = 170): { x: number, y: number }[] {
-    const totalWidth = (n - 1) * spacing;
-    return Array.from({ length: n }, (_, i) => ({ x: -totalWidth / 2 + i * spacing, y }));
+// Lays n points out in rows of at most `perRow`, each row centred on x=0, the first at the given y and the rest below it.
+export function computeCenteredRowPositions(n: number, y: number, perRow: number = 5, spacing: number = 170): { x: number, y: number }[] {
+    return Array.from({ length: n }, (_, i) => {
+        const row = Math.floor(i / perRow);
+        const inRow = Math.min(perRow, n - row * perRow);
+        const totalWidth = (inRow - 1) * spacing;
+        return { x: -totalWidth / 2 + (i % perRow) * spacing, y: y + row * spacing };
+    });
 }
 
 // Clockwise angle of a token around the board centre, from the top (0) round to just under a full turn.
@@ -248,7 +252,7 @@ export function newGrimoireStateFromDraw(
 }
 
 // Used when going straight to the grim without a draw: every chosen character becomes an unseated
-// (no playerName) token laid out along the top of the board, ready for the storyteller to seat by hand.
+// (no playerName) token laid out in rows of up to 5 from the top of the board, ready for the storyteller to seat by hand.
 export function newGrimoireStateWithTokensAlongTop(
     clockId: string,
     scriptId: string,

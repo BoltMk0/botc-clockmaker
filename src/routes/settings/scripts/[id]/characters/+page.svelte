@@ -64,7 +64,10 @@
                 alert(`Character with id ${characterId} not found`);
                 return;
             }
-            data.script.characters.push(char);
+            const added: ScriptCharacter = { ...char, firstNightOrder: null, otherNightOrder: null };
+            data.script.characters.push(added);
+            insertIntoNightOrder('first', added);
+            insertIntoNightOrder('other', added);
         }
         // `data = data` is a no-op: same reference in, same reference out, so Svelte's
         // equality check skips invalidation. A shallow copy forces reactivity to notice.
@@ -149,6 +152,28 @@
         data = { ...data };
     }
 
+    // Slots a newly added character into one night's existing (possibly manually edited) order,
+    // just before the first character whose default night order comes after its own. Characters
+    // with no scraped default go to the end. Every waking character ends up numbered, so the
+    // server doesn't see a null order on save and re-rank the whole night from defaults.
+    function insertIntoNightOrder(list: NightList, added: ScriptCharacter) {
+        const key = list === 'first' ? 'firstNightOrder' : 'otherNightOrder';
+        const defaultKey = list === 'first' ? 'defaultFirstNightOrder' : 'defaultOtherNightOrder';
+        const wakesKey = list === 'first' ? 'wakes_first_night' : 'wakes_other_nights';
+        if (!added[wakesKey]) return;
+
+        const current = (data.script.characters as ScriptCharacter[])
+            .filter(c => c[wakesKey] && c.id !== added.id)
+            .sort(orderSort(key));
+        const addedDefault = added[defaultKey];
+        let insertAt = addedDefault == null
+            ? -1
+            : current.findIndex(c => c[defaultKey] != null && (c[defaultKey] as number) > addedDefault);
+        if (insertAt === -1) insertAt = current.length;
+
+        applyOrder(list, [...current.slice(0, insertAt), added, ...current.slice(insertAt)]);
+    }
+
     // Re-derives the order for one night from each character's canonical default night order,
     // discarding any manual ordering. Characters that don't wake this night, or have no
     // scraped default, end up with no order.
@@ -197,7 +222,7 @@
             });
             if (!charsRes.ok) throw new Error(`characters: ${charsRes.status}`);
 
-            alert('Script saved successfully');
+            await goto('/settings/scripts');
         } catch (er) {
             alert(`Failed to save script: ${er}`);
         }

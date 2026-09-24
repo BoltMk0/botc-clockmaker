@@ -174,7 +174,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ day: 0 })
             });
-            localStorage.setItem(`grimoire-locked-${data.clockid}`, 'true');
+            localStorage.setItem(`grimoire-locked-${data.clockid}`, 'false');
             goto(`/admin/${data.clockid}/grim`);
         } finally {
             submitting = false;
@@ -468,7 +468,10 @@
         {:else if step === 'preset' && builder.script}
             <div class="script-picker">
             <div class="section preset-list">
-                <h2 style="margin-top: 0;">Presets for {builder.playerCount} players</h2>
+                <div class="script-picker-header">
+                    <h2 style="margin: 0;">Presets for {builder.playerCount} players</h2>
+                    <a class="button-style" href="/settings/scripts/{builder.script.id}">Manage Presets</a>
+                </div>
                 {#if loadingPresets}
                     <div style="opacity: 0.6;">Loading…</div>
                 {:else if matchingPresets.length === 0}
