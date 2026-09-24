@@ -51,7 +51,8 @@ export class Clocktower extends EventEmitter<ClocktowerEvents> {
     readonly secondsRemaining: number;      // Derived from progress
     readonly timeOfDay: TimeOfDay;
     
-    get progress() { return this.#progress; }
+    // A clock set up with no time (e.g. the day was ended early) is already at night.
+    get progress() { return this.#model.clock.time.duration === 0 ? 1 : this.#progress; }
 
     // Private attrs
     #model: ClocktowerModel;

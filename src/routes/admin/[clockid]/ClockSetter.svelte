@@ -201,7 +201,7 @@
                 <a class="button-style" id="edit-button" href="/settings/clocks">
                     <img class="button-icon-img" src="{gearshape}" alt="Config"/>
                 </a>
-                <button class="button-container-button stop-btn" onclick={onStop} disabled={!model.running || model.timeOfDay === 'night'}>Stop</button>
+                <button class="button-container-button stop-btn" onclick={onStop} disabled={model.timeOfDay === 'night'} title={model.running ? 'Pause the timer' : 'End the day'}>Stop</button>
                 <button class="button-container-button start-btn" onclick={onStart} disabled={model.running}>Start</button>
                 <button class="button-container-button ring-bell-btn" onclick={onBell}>
                     <img class="button-icon-img" src="{bell_and_waves}" alt="Ring Bell"/>

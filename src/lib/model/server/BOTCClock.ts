@@ -79,7 +79,7 @@ export class BOTCTClock extends EventEmitter {
         } else {
             console.log("No active timer, not advancing day.");
         }
-        this.running = false;
+        if(this.running) this.stop();
         this.duration = timerOption.duration;
         this.ringBellWhen = timerOption.ringBellWhenRemaining ?? undefined;
     }
@@ -91,7 +91,11 @@ export class BOTCTClock extends EventEmitter {
     }
 
     stop() {
-        if(!this.running) return;
+        if(!this.running) {
+            // Stopping an already stopped clock ends the day, running out the remaining time.
+            if(this.duration !== 0) this.duration = 0;
+            return;
+        }
         this.#model.clock.time.serverStartTime = null;
         this.emit('modelUpdated', this.#model);
     }
