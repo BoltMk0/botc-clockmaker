@@ -183,8 +183,15 @@
 
     let sidebarOpen = $state(false);
     let audioDim: AudioDim|null = $state(null); // Created on mount: it opens a connection to the server
+    let audioMenuOpen = $state(false);
+    let audioMenuEl: HTMLElement|undefined = $state();
     let showStingPopup = $state(false);
     let stingTriggering = $state(false);
+
+    // Close the audio menu on any press outside it
+    function closeAudioMenuOnOutsidePress(e: PointerEvent){
+        if(audioMenuOpen && !audioMenuEl?.contains(e.target as Node)) audioMenuOpen = false;
+    }
 
     function triggerSting(){
         stingTriggering = true;
@@ -197,7 +204,6 @@
 
     function closeStingPopup(){
         showStingPopup = false;
-        if(audioDim) audioDim.dimmed = false;
     }
     // Board token size in board px; the zoom does the fitting to the screen.
     const tokenSize = BOARD_TOKEN_SIZE;
@@ -1041,7 +1047,7 @@
 
 </script>
 
-<svelte:window onpointermove={onPointerMove} onpointerup={onPointerUp}/>
+<svelte:window onpointerdown={closeAudioMenuOnOutsidePress} onpointermove={onPointerMove} onpointerup={onPointerUp}/>
 
 <style>
     /* Pins the whole grim view to the viewport and clips everything else (e.g. the hidden tray sitting
@@ -1779,6 +1785,20 @@
         background: rgba(80, 140, 255, 0.7);
     }
 
+    .audio-menu {
+        position: relative;
+    }
+
+    /* Hangs below the audio button, clear of the sidebar column */
+    .audio-menu-options {
+        position: absolute;
+        left: 0;
+        top: 52px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
     .sidebar-btn svg {
         width: 22px;
         height: 22px;
@@ -1926,18 +1946,54 @@
             {/if}
         </button>
 
-        <!-- Dim the audio everywhere (on all clients), then offer a sting to punctuate the moment -->
-        <button class="sidebar-btn" class:active={audioDim?.dimmed} onclick={() => {
-            const wasDimmed = audioDim?.dimmed ?? false;
-            audioDim?.toggle();
-            if(!wasDimmed && data.hasStings) showStingPopup = true;
-        }} title={audioDim?.dimmed ? 'Restore audio volume' : `Dim audio (-${audioDim?.amountDb ?? 12} dB)`}>
-            <svg viewBox="0 0 24 24" style="overflow: visible;"><g transform="translate(0 {audioDim?.dimmed ? -2 : 0})"><path d="M18.5 12A4.5 4.5 0 0 0 16 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/>{#if !audioDim?.dimmed}<path d="M16.5 3.23v2.06c2.6.86 4.5 3.54 4.5 6.71s-1.9 5.85-4.5 6.71v2.06c3.6-.91 6.5-4.49 6.5-8.77s-2.9-7.86-6.5-8.77z"/>{/if}</g>{#if audioDim?.dimmed}<text x="12" y="27.5" text-anchor="middle" font-size="8" font-weight="bold" fill="currentColor">DIM</text>{/if}</svg>
-        </button>
+        <!-- Audio menu: dim, sting, mixer -->
+        <div class="audio-menu" bind:this={audioMenuEl}>
+            <button class="sidebar-btn" class:active={audioMenuOpen} onclick={() => {
+                audioMenuOpen = !audioMenuOpen;
+                // The draw tools pop out over the same area, so opening the audio menu leaves draw mode.
+                if (audioMenuOpen) editing = false;
+            }} title="{audioMenuOpen ? 'Hide' : 'Show'} audio menu">
+                {#if audioMenuOpen}
+                    <svg viewBox="0 0 24 24"><path d="M7.41 15.41 12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+                {:else if audioDim?.dimmed}
+                    <svg viewBox="0 0 24 24" style="overflow: visible;"><g transform="translate(0 -4)"><path d="M18.5 12A4.5 4.5 0 0 0 16 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/></g><text x="12" y="27.5" text-anchor="middle" font-size="8" font-weight="bold" fill="currentColor">DIM</text></svg>
+                {:else}
+                    <svg viewBox="0 0 24 24"><path d="M18.5 12A4.5 4.5 0 0 0 16 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/><path d="M16.5 3.23v2.06c2.6.86 4.5 3.54 4.5 6.71s-1.9 5.85-4.5 6.71v2.06c3.6-.91 6.5-4.49 6.5-8.77s-2.9-7.86-6.5-8.77z"/></svg>
+                {/if}
+            </button>
+            {#if audioMenuOpen}
+            <div class="audio-menu-options">
+                <!-- Dim the audio everywhere (on all clients) -->
+                <button class="sidebar-btn" class:active={audioDim?.dimmed} onclick={() => audioDim?.toggle()} title={audioDim?.dimmed ? 'Restore audio volume' : `Dim audio (-${audioDim?.amountDb ?? 12} dB)`}>
+                    <svg viewBox="0 0 24 24" style="overflow: visible;">
+                        <text x="12" y="13" text-anchor="middle" font-size="8" fill="currentColor"><tspan font-size="14">{audioDim?.dimmed ? `-${audioDim.amountDb}` : 0}</tspan> dB</text>
+                        <text x="12" y="27" text-anchor="middle" font-size="9" font-weight="bold" fill="currentColor" opacity={audioDim?.dimmed ? 1 : 0.5}>DIM</text>
+                    </svg>
+                </button>
+
+                {#if data.hasStings}
+                <!-- Open the sting overlay, to punctuate the moment -->
+                <button class="sidebar-btn" onclick={() => { audioMenuOpen = false; showStingPopup = true; }} title="Sting">
+                    <svg viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
+                </button>
+                {/if}
+
+                <!-- Open the mixer as a remote control only (no sound plays on this device), with a way back to this page -->
+                <button class="sidebar-btn" onclick={() => {audioMenuOpen = false; saveGrimoire().then(()=>goto(`/admin/mixer?remote_only=1&back_uri=${encodeURIComponent(location.pathname + location.search)}`))} } title="Open mixer">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M4 5h2v14H4zM11 5h2v14h-2zM18 5h2v14h-2z"/>
+                        <rect x="2" y="13" width="6" height="3" rx="1"/>
+                        <rect x="9" y="7" width="6" height="3" rx="1"/>
+                        <rect x="16" y="11" width="6" height="3" rx="1"/>
+                    </svg>
+                </button>
+            </div>
+            {/if}
+        </div>
 
         {#if showStingPopup}
         <div class="sting-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 30};">
-            <button class="sting-close-btn" onclick={closeStingPopup} title="Close (restores audio volume)" aria-label="Close">
+            <button class="sting-close-btn" onclick={closeStingPopup} title="Close" aria-label="Close">
                 <svg viewBox="0 0 24 24"><path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.42L10.59 13.4 4.3 19.71 2.88 18.3 9.17 12 2.88 5.71 4.3 4.29l6.29 6.3 6.29-6.3z"/></svg>
             </button>
             <button class="sting-trigger-btn button-style" disabled={stingTriggering} onclick={triggerSting}>
@@ -2068,16 +2124,6 @@
         <button class="sidebar-btn" onclick={() => location.reload()} title="Refresh page">
             <svg viewBox="0 0 24 24">
                 <path d="M12 5V2L8 6l4 4V7c3.31 0 6 2.69 6 6 0 1.3-.42 2.5-1.13 3.47l1.46 1.46C19.07 16.07 20 14.15 20 12c0-4.42-3.58-8-8-8zm-6.87 3.53L3.67 7.07C2.93 7.93 2 9.85 2 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3c-3.31 0-6-2.69-6-6 0-1.3.42-2.5 1.13-3.47z"/>
-            </svg>
-        </button>
-
-        <!-- Open the mixer as a remote control only (no sound plays on this device), with a way back to this page -->
-        <button class="sidebar-btn" onclick={() => {saveGrimoire().then(()=>goto(`/admin/mixer?remote_only=1&back_uri=${encodeURIComponent(location.pathname + location.search)}`))} } title="Open mixer">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M4 5h2v14H4zM11 5h2v14h-2zM18 5h2v14h-2z"/>
-                <rect x="2" y="13" width="6" height="3" rx="1"/>
-                <rect x="9" y="7" width="6" height="3" rx="1"/>
-                <rect x="16" y="11" width="6" height="3" rx="1"/>
             </svg>
         </button>
 
