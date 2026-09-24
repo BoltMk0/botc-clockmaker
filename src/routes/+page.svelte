@@ -1,10 +1,14 @@
 <script lang="ts">
+    import SkyBackdrop from '$lib/components/ClocktowerScene/SkyBackdrop.svelte';
+
     const menuItems = [
         { label: 'Play', href: '/play' },
         { label: 'Rules', href: '/rules' },
         { label: 'Settings', href: '/settings' }
     ];
 </script>
+
+<SkyBackdrop />
 
 <div class="home-menu">
     <img class="home-icon" src="/icons/appicon_256x256.png" alt="" />
@@ -19,6 +23,7 @@
 
 <style>
     .home-menu {
+        position: relative; /* above the absolutely-positioned SkyBackdrop */
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -46,8 +51,9 @@
 
     .home-version {
         font-size: small;
-        opacity: 0.5;
+        opacity: 0.7;
         margin-top: -1.8em;
+        text-shadow: 0 1px 3px #000a;
     }
 
     .home-menu-buttons {
@@ -61,5 +67,14 @@
     .home-menu-button {
         font-size: x-large;
         padding: 0.7em 1em;
+        /* Translucent over the SkyBackdrop */
+        background-color: color-mix(in srgb, var(--theme-bg-tertiary) 55%, transparent);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        border: 1px solid #ffffff33;
+    }
+
+    .home-menu-button:hover {
+        background-color: color-mix(in srgb, #666 70%, transparent);
     }
 </style>

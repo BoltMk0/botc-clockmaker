@@ -9,9 +9,7 @@
 
     const path = $derived(page.url.pathname);
     const links = [
-        { label: "Home", href: "/" },
-        { label: "Play", href: "/play" },
-        { label: "Settings", href: "/settings" }
+        { label: "Home", href: "/" }
     ];
 
     /** Optional ?back_uri=/some/path: shows a back button instead of the navbar. Same-site paths only. */
