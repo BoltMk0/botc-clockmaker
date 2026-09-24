@@ -547,7 +547,7 @@
             {/if}
             <div class="finish-choices">
                 <button class="button-style highlight" disabled={submitting || !builder.isSorted} onclick={drawTokens}>Draw tokens</button>
-                <button class="button-style" disabled={submitting || !builder.isSorted} onclick={goStraightToGrim}>Go straight to grim view</button>
+                <button class="button-style" disabled={submitting} onclick={goStraightToGrim}>Go straight to grim view</button>
             </div>
             </div>
         {:else}
