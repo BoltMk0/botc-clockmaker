@@ -14,7 +14,9 @@
     let categoryFilter: FilterOption = $state('all');
 
     type NightList = 'first' | 'other';
-    let dragState: { list: NightList; id: string } | null = $state(null);
+    // 'script' is the "In Script" column, where rows can only be reordered within their category
+    type DragList = NightList | 'script';
+    let dragState: { list: DragList; id: string } | null = $state(null);
     let dropTargetId: string | null = $state(null);
     let dropPosition: 'before' | 'after' = $state('before');
 
@@ -59,7 +61,7 @@
         data = { ...data };
     }
 
-    function onDragStart(e: DragEvent, list: NightList, id: string) {
+    function onDragStart(e: DragEvent, list: DragList, id: string) {
         dragState = { list, id };
         if (e.dataTransfer) {
             e.dataTransfer.effectAllowed = 'move';
@@ -67,8 +69,21 @@
         }
     }
 
-    function onDragOverRow(e: DragEvent, list: NightList, id: string) {
-        if (!dragState || dragState.list !== list) return;
+    function scriptCategoryOf(id: string) {
+        return (data.script.characters as ScriptCharacter[]).find(c => c.id === id)?.category;
+    }
+
+    function canDropOn(list: DragList, targetId: string) {
+        if (!dragState || dragState.list !== list) return false;
+        if (list === 'script') return scriptCategoryOf(dragState.id) === scriptCategoryOf(targetId);
+        return true;
+    }
+
+    function onDragOverRow(e: DragEvent, list: DragList, id: string) {
+        if (!canDropOn(list, id)) {
+            if (dropTargetId === id) dropTargetId = null;
+            return;
+        }
         e.preventDefault();
         const row = e.currentTarget as HTMLElement;
         const rect = row.getBoundingClientRect();
@@ -76,10 +91,12 @@
         dropTargetId = id;
     }
 
-    function onDropRow(e: DragEvent, list: NightList, targetId: string) {
-        if (!dragState || dragState.list !== list) return;
+    function onDropRow(e: DragEvent, list: DragList, targetId: string) {
+        if (!dragState || !canDropOn(list, targetId)) return;
         e.preventDefault();
-        const currentList = list === 'first' ? firstNightList : otherNightList;
+        const currentList = list === 'script'
+            ? data.script.characters as ScriptCharacter[]
+            : list === 'first' ? firstNightList : otherNightList;
         const movedId = dragState.id;
         if (movedId === targetId) {
             clearDrag();
@@ -98,7 +115,13 @@
             return;
         }
         const reordered = [...remaining.slice(0, insertAt), moved, ...remaining.slice(insertAt)];
-        applyOrder(list, reordered);
+        if (list === 'script') {
+            // The script's character array order is persisted as-is, so it is the display order
+            data.script.characters = reordered;
+            data = { ...data };
+        } else {
+            applyOrder(list, reordered);
+        }
         clearDrag();
     }
 
@@ -377,13 +400,23 @@
                 <div class="character-category-column-header">
                     <div>In Script</div>
                 </div>
-                <div class="character-category-column-content">
+                <div class="character-category-column-content" role="list">
                     {#each ALL_CHARACTER_CATEGORIES as category}
                         {@const inCat = data.script.characters.filter((c: ScriptCharacter) => c.category === category)}
                         {#if inCat.length > 0}
                             <div style="opacity: 0.6;">{captialiseString(category)} ({inCat.length})</div>
-                            {#each inCat as character}
-                                <div class="character-list-item">
+                            {#each inCat as character (character.id)}
+                                <div
+                                    class="character-list-item drag-row"
+                                    class:dragging={dragState?.list === 'script' && dragState?.id === character.id}
+                                    data-drop={dropTargetId === character.id && dragState?.list === 'script' ? dropPosition : null}
+                                    draggable="true"
+                                    role="listitem"
+                                    ondragstart={(e) => onDragStart(e, 'script', character.id)}
+                                    ondragover={(e) => onDragOverRow(e, 'script', character.id)}
+                                    ondrop={(e) => onDropRow(e, 'script', character.id)}
+                                    ondragend={clearDrag}
+                                >
                                     <button class:in-use={true} onclick={() => onAddCharacter(character.id)}>
                                         <CharacterThumb {character}/>
                                         <div class="character-row-body">
