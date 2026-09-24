@@ -90,7 +90,7 @@
     // the time/count banners stacked above and below it. The tower, clock
     // face and hands are all sized off `planeHeight` and anchored on the
     // clock's centre, so this scales them together around that point.
-    const PORTRAIT_TOWER_SCALE = 0.85;
+    const PORTRAIT_TOWER_SCALE = 0.65;
     const towerPlaneHeight = $derived(portrait ? planeHeight * PORTRAIT_TOWER_SCALE : planeHeight);
 
     // Smooth the day-progress value over time instead of snapping the sun
