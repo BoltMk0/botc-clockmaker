@@ -1,9 +1,22 @@
 <script lang="ts">
-    import { parseSpotifyContextUri, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
+    import { isSpotifyPhasePreset, parseSpotifyContextUri, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
+    import DayIcon from "$lib/assets/dayIcon.svelte";
+    import NightIcon from "$lib/assets/nightIcon.svelte";
     import { onMount } from "svelte";
 
-    // `link` is whatever the user typed/pasted; it becomes a normalised URI on save.
-    type Row = { id: string, name: string, link: string };
+    // The links are whatever the user typed/pasted; they become normalised URIs on save.
+    // A `phase` row is a day/night preset, using dayLink/nightLink; otherwise just `link`.
+    type Row = { id: string, name: string, phase: boolean, link: string, dayLink: string, nightLink: string };
+
+    function toRow(p: SpotifyPreset): Row {
+        return isSpotifyPhasePreset(p)
+            ? { id: p.id, name: p.name, phase: true, link: '', dayLink: p.dayUri, nightLink: p.nightUri }
+            : { id: p.id, name: p.name, phase: false, link: p.uri, dayLink: '', nightLink: '' };
+    }
+
+    function isInvalidLink(link: string) {
+        return link.trim() !== '' && !parseSpotifyContextUri(link);
+    }
 
     let rows: Row[] = $state([]);
     let savedSnapshot = $state(JSON.stringify([]));
@@ -18,7 +31,7 @@
             if (r.ok) return r.json();
             throw new Error('Failed to fetch');
         }).then((data: SpotifyPreset[]) => {
-            rows = data.map(p => ({ id: p.id, name: p.name, link: p.uri }));
+            rows = data.map(toRow);
             savedSnapshot = JSON.stringify(rows);
         }).catch(() => {
             alert('Failed to fetch Spotify presets!');
@@ -28,15 +41,25 @@
     function save() {
         const presets: SpotifyPreset[] = [];
         for (const row of rows) {
-            const uri = parseSpotifyContextUri(row.link);
-            if (!uri) {
-                alert(`"${row.name || '(unnamed)'}" isn't a Spotify album or playlist link.`);
-                return;
+            if (row.phase) {
+                const dayUri = parseSpotifyContextUri(row.dayLink);
+                const nightUri = parseSpotifyContextUri(row.nightLink);
+                if (!dayUri || !nightUri) {
+                    alert(`"${row.name || '(unnamed)'}" needs a Spotify album or playlist link for both day and night.`);
+                    return;
+                }
+                presets.push({ id: row.id, name: row.name.trim() || 'Day / Night', dayUri, nightUri });
+            } else {
+                const uri = parseSpotifyContextUri(row.link);
+                if (!uri) {
+                    alert(`"${row.name || '(unnamed)'}" isn't a Spotify album or playlist link.`);
+                    return;
+                }
+                presets.push({ id: row.id, name: row.name.trim() || uri, uri });
             }
-            presets.push({ id: row.id, name: row.name.trim() || uri, uri });
         }
         // Show the normalised form back to the user
-        const normalised = presets.map(p => ({ id: p.id, name: p.name, link: p.uri }));
+        const normalised = presets.map(toRow);
         fetch('/api/spotifyPresets', {
             method: 'POST',
             body: JSON.stringify(presets),
@@ -63,7 +86,7 @@
     <h2>Spotify Presets</h2>
     <button class="save" disabled={!dirty} onclick={save}>Save changes</button>
 </div>
-<p class="description">Albums and playlists shown on the Spotify strip in the mixer. Clicking one starts it playing straight away. In Spotify, use Share &rarr; Copy link and paste it here.</p>
+<p class="description">Albums and playlists shown on the Spotify strip in the mixer. Clicking one starts it playing straight away. In Spotify, use Share &rarr; Copy link and paste it here.<br/>A day/night preset has a list for each phase: it plays the one for the current phase, and crossfades to a random track from the other whenever the games go from day to night or back.</p>
 <div class="table-container">
 <table>
     <tbody>
@@ -75,14 +98,26 @@
         {#each rows as row, i (row.id)}
             <tr>
                 <td><input bind:value={row.name} type="text" placeholder="Name"/></td>
-                <td><input class="link-input" class:invalid={row.link.trim() !== '' && !parseSpotifyContextUri(row.link)} bind:value={row.link} type="text" placeholder="https://open.spotify.com/playlist/..."/></td>
+                <td>
+                    {#if row.phase}
+                        <div class="phase-links">
+                            <span class="phase-icon" title="Day"><DayIcon/></span>
+                            <input class="link-input" class:invalid={isInvalidLink(row.dayLink)} bind:value={row.dayLink} type="text" placeholder="Day: https://open.spotify.com/playlist/..."/>
+                            <span class="phase-icon" title="Night"><NightIcon/></span>
+                            <input class="link-input" class:invalid={isInvalidLink(row.nightLink)} bind:value={row.nightLink} type="text" placeholder="Night: https://open.spotify.com/playlist/..."/>
+                        </div>
+                    {:else}
+                        <input class="link-input" class:invalid={isInvalidLink(row.link)} bind:value={row.link} type="text" placeholder="https://open.spotify.com/playlist/..."/>
+                    {/if}
+                </td>
                 <td><button onclick={()=>rows.splice(i, 1)}>Delete</button></td>
             </tr>
         {/each}
         <tr>
             <td colspan="3">
-                <div style="display: flex;">
-                <button style="flex: 1;" class="add" onclick={()=>rows.push({ id: newId(), name: '', link: '' })}>Add Preset</button>
+                <div style="display: flex; gap: 0.5em;">
+                <button style="flex: 1;" class="add" onclick={()=>rows.push({ id: newId(), name: '', phase: false, link: '', dayLink: '', nightLink: '' })}>Add Preset</button>
+                <button style="flex: 1;" class="add" onclick={()=>rows.push({ id: newId(), name: '', phase: true, link: '', dayLink: '', nightLink: '' })}>Add Day/Night Preset</button>
                 </div>
             </td>
         </tr>
@@ -96,6 +131,17 @@
     input.link-input {
         width: 32em;
         max-width: 100%;
+    }
+
+    .phase-links {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        gap: 0.3em 0.5em;
+    }
+
+    .phase-icon {
+        display: flex;
     }
 
     input.invalid {

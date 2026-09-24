@@ -1,9 +1,20 @@
-export type SpotifyPreset = {
+/** Plays a single album/playlist. */
+export type SpotifySinglePreset = {
     id: string;
     name: string;
     /** Normalised context URI, e.g. spotify:playlist:37i9dQZF1DXcBWIGoYBM5M */
     uri: string;
 };
+
+/** Follows the games' day/night phase: plays `dayUri` by day and `nightUri` at night, switching over when the phase changes. */
+export type SpotifyPhasePreset = {
+    id: string;
+    name: string;
+    dayUri: string;
+    nightUri: string;
+};
+
+export type SpotifyPreset = SpotifySinglePreset | SpotifyPhasePreset;
 
 const CONTEXT_URI_REGEX = /^spotify:(album|playlist):[A-Za-z0-9]+$/;
 
@@ -11,11 +22,16 @@ export function isSpotifyContextUri(value: unknown): value is string {
     return typeof value === 'string' && CONTEXT_URI_REGEX.test(value);
 }
 
+export function isSpotifyPhasePreset(preset: SpotifyPreset): preset is SpotifyPhasePreset {
+    return 'dayUri' in preset;
+}
+
 export function isSpotifyPreset(value: unknown): value is SpotifyPreset {
-    return typeof value === 'object' && value !== null &&
-        typeof (value as SpotifyPreset).id === 'string' &&
-        typeof (value as SpotifyPreset).name === 'string' &&
-        isSpotifyContextUri((value as SpotifyPreset).uri);
+    if (typeof value !== 'object' || value === null) return false;
+    const preset = value as Record<string, unknown>;
+    if (typeof preset.id !== 'string' || typeof preset.name !== 'string') return false;
+    if ('dayUri' in preset) return isSpotifyContextUri(preset.dayUri) && isSpotifyContextUri(preset.nightUri);
+    return isSpotifyContextUri(preset.uri);
 }
 
 /** Whether two context URIs are the same album/playlist (tolerates the old spotify:user:NAME:playlist:ID form). */

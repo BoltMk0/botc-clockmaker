@@ -4,6 +4,7 @@ import { v7 } from 'uuid';
 import { CLOCK_CONFIG_MANAGER } from '$lib/resources/server/clock-config';
 import { newClocktowerModel, type ClocktowerModel } from '../common/ClocktowerModel';
 import { BOTCTClock } from './BOTCClock';
+import type { TimeOfDay } from '../client/types';
 
 
 console.log("Loading BOTCTClock model...");
@@ -49,6 +50,14 @@ class ClockInstanceManager extends EventEmitter {
 
     listInstances(): ClocktowerModel[] {
         return Array.from(this.instances.values()).map(instance => (instance.model));
+    }
+
+    /** With several games each in their own day/night phase, daytime wins: it's day if any game is in daytime. */
+    get timeOfDay(): TimeOfDay {
+        for(const instance of this.instances.values()){
+            if(instance.timeOfDay === 'day') return 'day';
+        }
+        return 'night';
     }
 
     newInstance(id?: string): {id: string, instance: BOTCTClock} {

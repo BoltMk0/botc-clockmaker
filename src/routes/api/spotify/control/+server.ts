@@ -1,7 +1,10 @@
 import { getSpotifyHelperInstance } from '$lib/model/server/Spotify/SpotifyHelper.js';
 import { error } from '@sveltejs/kit';
 
-/** Remote-control the player: { action: 'play' | 'pause' | 'next' | 'previous' } or { action: 'volume', volume: 0..100 } */
+/**
+ * Remote-control the player: { action: 'play' | 'pause' | 'next' | 'previous' }, { action: 'volume', volume: 0..100 },
+ * { action: 'playContext', uri } or { action: 'playPhasePreset', presetId }
+ */
 export async function POST({ request }) {
     const command = await request.json().catch(() => null);
     if (typeof command !== 'object' || command === null || typeof command.action !== 'string') {

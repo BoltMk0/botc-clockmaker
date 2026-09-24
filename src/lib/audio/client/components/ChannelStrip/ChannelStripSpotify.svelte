@@ -5,7 +5,9 @@
     import PlayIcon from "../PlayIcon.svelte";
     import PauseIcon from "../PauseIcon.svelte";
     import type { SpotifyPlayer } from "../../SpotifyPlayer.svelte";
-    import { isSameSpotifyContext, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
+    import DayIcon from "$lib/assets/dayIcon.svelte";
+    import NightIcon from "$lib/assets/nightIcon.svelte";
+    import { isSameSpotifyContext, isSpotifyPhasePreset, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
 
     const NOW_PLAYING_LINE_PX = 14; // Keep in step with .now-playing-text line-height
 
@@ -45,6 +47,29 @@
         if (!active) return;
         spotify.setVolume(Math.round(rawVolume * gain));
     });
+    /**
+     * Whether `uri` is one of the preset's albums/playlists. A day/night preset only counts while it's the one selected;
+     * a plain one only while no day/night preset is, so the two kinds can share a playlist without both lighting up.
+     */
+    function presetMatches(preset: SpotifyPreset, uri: string | null | undefined) {
+        if (isSpotifyPhasePreset(preset)) {
+            return model?.phasePresetId === preset.id &&
+                (isSameSpotifyContext(uri, preset.dayUri) || isSameSpotifyContext(uri, preset.nightUri));
+        }
+        return !model?.phasePresetId && isSameSpotifyContext(uri, preset.uri);
+    }
+
+    /**
+     * The loaded preset just toggles play/pause; any other starts playing from the beginning. A paused day/night preset
+     * is resumed through the server instead, which switches it to the other list if the phase changed while it was paused.
+     */
+    function clickPreset(preset: SpotifyPreset, current: boolean, playing: boolean) {
+        if (playing) spotify.togglePlayPause();
+        else if (isSpotifyPhasePreset(preset)) spotify.playPhasePreset(preset.id);
+        else if (current) spotify.togglePlayPause();
+        else spotify.playContext(preset.uri);
+    }
+
     let menuOpen = $state(false);
     let nowPlayingHeight = $state(0);
     const nowPlayingLines = $derived(Math.max(1, Math.floor(nowPlayingHeight / NOW_PLAYING_LINE_PX)));
@@ -98,19 +123,28 @@
         {#if presets.length > 0}
         <div class="presets">
             {#each presets as preset (preset.id)}
-                {@const current = isSameSpotifyContext(spotify.playback?.contextUri, preset.uri)}
+                {@const current = presetMatches(preset, spotify.playback?.contextUri)}
                 {@const playing = current && spotify.playback?.playing === true}
-                {@const pending = isSameSpotifyContext(model.pendingContextUri, preset.uri)}
-                <!-- The loaded preset just toggles play/pause; any other starts playing from the beginning. -->
+                {@const pending = presetMatches(preset, model.pendingContextUri)}
+                {@const kind = isSpotifyPhasePreset(preset) ? ' (day/night)' : ''}
                 <AudioMixerText
-                    onclick={()=>current ? spotify.togglePlayPause() : spotify.playContext(preset.uri)}
+                    onclick={()=>clickPreset(preset, current, playing)}
                     style="{PRESET_ROW} {pending ? PENDING_PRESET : current ? CURRENT_PRESET : ''}"
-                    title={pending ? `Loading ${preset.name}` : playing ? `Pause ${preset.name}` : current ? `Resume ${preset.name}` : `Play ${preset.name}`}>
+                    title={pending ? `Loading ${preset.name}${kind}` : playing ? `Pause ${preset.name}${kind}` : current ? `Resume ${preset.name}${kind}` : `Play ${preset.name}${kind}`}>
                     <span class="preset-icon">
                         <!-- (Component names are the other way round: PlayIcon draws the pause bars, PauseIcon the triangle.) -->
                         {#if playing}<PlayIcon size={10}/>{:else}<PauseIcon size={10}/>{/if}
                     </span>
                     <span class="preset-name">{preset.name}</span>
+                    {#if isSpotifyPhasePreset(preset)}
+                        <!-- Which of its lists is loaded, or both icons when neither is -->
+                        {@const onDay = current && isSameSpotifyContext(spotify.playback?.contextUri, preset.dayUri)}
+                        {@const onNight = current && isSameSpotifyContext(spotify.playback?.contextUri, preset.nightUri)}
+                        <span class="preset-icon">
+                            {#if onDay || !current}<DayIcon size={10}/>{/if}
+                            {#if onNight || !current}<NightIcon size={10}/>{/if}
+                        </span>
+                    {/if}
                 </AudioMixerText>
             {/each}
         </div>

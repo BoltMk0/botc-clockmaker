@@ -3,8 +3,11 @@ import { env } from "$env/dynamic/private";
 import type { SpotifyControlAction, SpotifyModel, SpotifyPlaybackModel } from "$lib/audio/common/model/spotifyModel";
 import { dimGain } from "$lib/audio/common/model/audioDimModel";
 import { getAudioDimHelperInstance } from "../AudioDim/AudioDimHelper";
-import { isSameSpotifyContext, isSpotifyContextUri } from "$lib/audio/common/spotifyPreset";
+import { isSameSpotifyContext, isSpotifyContextUri, isSpotifyPhasePreset, type SpotifyPhasePreset } from "$lib/audio/common/spotifyPreset";
 import { JSONSingletonResourceManager } from "$lib/resources/server/jsonResourceManager";
+import { getSpotifyPresets } from "$lib/resources/server/spotifyPresets";
+import { getBOTCTClockInstanceManager } from "../model";
+import type { TimeOfDay } from "$lib/model/client/types";
 
 type SpotifyAuth = { refreshToken: string };
 
@@ -23,6 +26,8 @@ const FADE_MS = 1200;
 const SWITCH_TIMEOUT_MS = 4000;
 const FADE_STEP_MS = 100;
 const HOST_CHECK_INTERVAL_MS = 5000;
+/** How often to check the games' day/night phase while a day/night preset is selected. */
+const PHASE_CHECK_INTERVAL_MS = 1000;
 
 export class SpotifyHelper extends EventEmitter {
     #hostClientId: string | null = null;
@@ -37,6 +42,11 @@ export class SpotifyHelper extends EventEmitter {
     #dimFactor = 1;
     /** True while a playlist switch is fading/starting, so a dim change doesn't fight the fade. */
     #switching = false;
+    /** The day/night preset last started, if it's still the thing selected. */
+    #phasePresetId: string | null = null;
+    /** The phase the day/night preset was last switched for. */
+    #phaseTimeOfDay: TimeOfDay | null = null;
+    #phaseTimer: ReturnType<typeof setInterval> | null = null;
 
     constructor() {
         super();
@@ -70,7 +80,8 @@ export class SpotifyHelper extends EventEmitter {
             hostReady: this.#hostClientId !== null && this.#hostDeviceId !== null,
             volume: this.#volume,
             playback: this.#playback,
-            pendingContextUri: this.#pendingContextUri
+            pendingContextUri: this.#pendingContextUri,
+            phasePresetId: this.#phasePresetId
         };
     }
 
@@ -170,6 +181,7 @@ export class SpotifyHelper extends EventEmitter {
         this.#hostDeviceId = null;
         this.#playback = null;
         this.#pendingContextUri = null;
+        this.clearPhasePreset();
         if (this.#hostCheckTimer) {
             clearInterval(this.#hostCheckTimer);
             this.#hostCheckTimer = null;
@@ -194,6 +206,12 @@ export class SpotifyHelper extends EventEmitter {
         this.#hostLastSeen = Date.now();
         if (report.playback !== undefined) {
             this.#playback = report.playback;
+            // Something else was picked in Spotify itself, so the day/night preset is no longer selected
+            const phasePreset = this.phasePreset();
+            if (phasePreset && !this.#switching && report.playback?.playing && report.playback.contextUri &&
+                !this.isPhasePresetContext(phasePreset, report.playback.contextUri)) {
+                this.clearPhasePreset();
+            }
             this.changed();
         }
     }
@@ -232,7 +250,11 @@ export class SpotifyHelper extends EventEmitter {
                 break;
             case 'playContext':
                 if (!isSpotifyContextUri(command.uri)) throw new Error('Invalid album/playlist');
+                this.clearPhasePreset();
                 await this.playContext(command.uri, device);
+                break;
+            case 'playPhasePreset':
+                await this.playPhasePreset(command.presetId, device);
                 break;
             case 'next':
                 await this.api('POST', `/me/player/next?${device}`);
@@ -253,11 +275,77 @@ export class SpotifyHelper extends EventEmitter {
         }
     }
 
+    // ---- Day/night presets ----
+
+    /** Starts a day/night preset on the list for the current phase, and keeps it following the phase from then on. */
+    private async playPhasePreset(presetId: string, device: string) {
+        const preset = getSpotifyPresets().find(p => p.id === presetId);
+        if (!preset || !isSpotifyPhasePreset(preset)) throw new Error('Unknown day/night preset');
+        const timeOfDay = getBOTCTClockInstanceManager().timeOfDay;
+        const uri = timeOfDay === 'day' ? preset.dayUri : preset.nightUri;
+        // Already loaded with this phase's list (just paused): carry on where it left off
+        const resume = this.#phasePresetId === presetId && isSameSpotifyContext(this.#playback?.contextUri, uri);
+        this.#phasePresetId = presetId;
+        this.#phaseTimeOfDay = timeOfDay;
+        if (this.#phaseTimer === null) {
+            this.#phaseTimer = setInterval(() => this.checkPhase(), PHASE_CHECK_INTERVAL_MS);
+            this.#phaseTimer.unref?.();
+        }
+        if (resume) {
+            await this.api('PUT', `/me/player/play?${device}`);
+            this.changed();
+        } else {
+            await this.playContext(uri, device);
+        }
+    }
+
+    /** When the games' phase changes, crossfades a playing day/night preset over to its list for the new phase. */
+    private checkPhase() {
+        const timeOfDay = getBOTCTClockInstanceManager().timeOfDay;
+        if (timeOfDay === this.#phaseTimeOfDay) return;
+        this.#phaseTimeOfDay = timeOfDay;
+        const preset = this.phasePreset();
+        if (!preset) {
+            // Deleted in settings since it was started
+            this.clearPhasePreset();
+            this.changed();
+            return;
+        }
+        // A paused preset is left alone; starting it again picks the new phase's list
+        const deviceId = this.#hostDeviceId;
+        if (deviceId === null || !this.#playback?.playing) return;
+        const uri = timeOfDay === 'day' ? preset.dayUri : preset.nightUri;
+        console.log(`Spotify: phase changed to ${timeOfDay}, switching "${preset.name}" to ${uri}`);
+        this.playContext(uri, `device_id=${encodeURIComponent(deviceId)}`, { fadeIn: true })
+            .catch((e) => console.error('Failed to switch Spotify playlist for the new phase', e));
+    }
+
+    private phasePreset(): SpotifyPhasePreset | null {
+        if (this.#phasePresetId === null) return null;
+        const preset = getSpotifyPresets().find(p => p.id === this.#phasePresetId);
+        return preset && isSpotifyPhasePreset(preset) ? preset : null;
+    }
+
+    private isPhasePresetContext(preset: SpotifyPhasePreset, uri: string) {
+        return isSameSpotifyContext(uri, preset.dayUri) || isSameSpotifyContext(uri, preset.nightUri);
+    }
+
+    private clearPhasePreset() {
+        this.#phasePresetId = null;
+        this.#phaseTimeOfDay = null;
+        if (this.#phaseTimer) {
+            clearInterval(this.#phaseTimer);
+            this.#phaseTimer = null;
+        }
+    }
+
+    // ---- Switching playlists ----
+
     /**
-     * Switches to a new album/playlist: fades the old one out, then starts the new one at full volume.
-     * Spotify only has one active stream, so the two can't overlap.
+     * Switches to a new album/playlist: fades the old one out, then starts the new one at full volume (or fades it
+     * back in, with `fadeIn`). Spotify only has one active stream, so the two can't overlap.
      */
-    private async playContext(uri: string, device: string) {
+    private async playContext(uri: string, device: string, options: { fadeIn?: boolean } = {}) {
         const token = ++this.#fadeToken; // A newer request supersedes this one, including mid-fade
         const target = this.#volume;
         const wasPlaying = this.#playback?.playing === true;
@@ -266,7 +354,7 @@ export class SpotifyHelper extends EventEmitter {
         this.#switching = true;
         this.changed();
         try {
-            if (wasPlaying && !await this.fadeOut(device, target, token)) return;
+            if (wasPlaying && !await this.fade(device, target, token, 'out')) return;
             // Shuffle first, so playback of the new context starts on a random track
             await this.api('PUT', `/me/player/shuffle?state=true&${device}`);
             await this.api('PUT', `/me/player/play?${device}`, { context_uri: uri });
@@ -274,7 +362,10 @@ export class SpotifyHelper extends EventEmitter {
                 // The play call returns before the player has actually switched, so restoring volume now would let the
                 // old track blast back in. Wait until the player reports the new playlist (and a new track).
                 await this.waitForSwitch(uri, before, token);
-                if (token === this.#fadeToken) await this.setDeviceVolume(device, target);
+                if (token === this.#fadeToken) {
+                    if (options.fadeIn) await this.fade(device, target, token, 'in');
+                    else await this.setDeviceVolume(device, target);
+                }
             }
         } catch (e) {
             // Don't leave the player silent if we failed after fading out
@@ -311,13 +402,14 @@ export class SpotifyHelper extends EventEmitter {
         });
     }
 
-    /** Equal-power fade of the device volume from target down to 0. Returns false if superseded by a newer request. */
-    private async fadeOut(device: string, target: number, token: number) {
+    /** Equal-power fade of the device volume from target down to 0, or back up. Returns false if superseded by a newer request. */
+    private async fade(device: string, target: number, token: number, direction: 'in' | 'out') {
         const start = Date.now();
         for (; ;) {
             if (token !== this.#fadeToken) return false;
             const t = Math.min(1, (Date.now() - start) / FADE_MS);
-            await this.setDeviceVolume(device, target * Math.cos(t * Math.PI / 2));
+            const angle = t * Math.PI / 2;
+            await this.setDeviceVolume(device, target * (direction === 'out' ? Math.cos(angle) : Math.sin(angle)));
             if (t >= 1) return true;
             // Each API call takes a moment anyway; this just keeps us well inside Spotify's rate limits
             await new Promise(resolve => setTimeout(resolve, FADE_STEP_MS));
