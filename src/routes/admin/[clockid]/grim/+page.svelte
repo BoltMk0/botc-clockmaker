@@ -509,12 +509,17 @@
         viewTy = 0;
     }
 
-    // Spaces the players evenly round the middle guide ring in their current order; unnamed tokens and reminders rotate with the nearest player.
-    function resetTokenPositions() {
+    // The reset-positions popup, offering one choice per guide ring (innermost first).
+    let showResetPositions = $state(false);
+    const RESET_RING_LABELS = ['Near', 'Mid', 'Far'];
+
+    // Spaces the players evenly round the chosen guide ring in their current order; unnamed tokens and reminders rotate with the nearest player.
+    function resetTokenPositions(ringIndex: number) {
+        showResetPositions = false;
         if (placedTokens.length === 0) return;
-        if (!confirm("Space the players evenly round the circle (other tokens follow their nearest player; loric and fabled stay put)?")) return;
         closeReminderTray();
-        const laidOut = layoutTokensAtDefaultPositions(placedTokens, placedReminders, isSideRoleToken);
+        const radius = tokenSize * ALIGNMENT_RING_FACTORS[ringIndex];
+        const laidOut = layoutTokensAtDefaultPositions(placedTokens, placedReminders, isSideRoleToken, radius);
         gameState.present.placedTokens = laidOut.tokens;
         gameState.present.placedReminders = laidOut.reminders;
         rescheduleSaveGrimoire();
@@ -2026,7 +2031,7 @@
 
         {#if !tokensLocked}
         <!-- Put all tokens back in their starting positions -->
-        <button class="sidebar-btn" onclick={resetTokenPositions} title="Reset token positions">
+        <button class="sidebar-btn" onclick={() => { if (placedTokens.length > 0) showResetPositions = true; }} title="Reset token positions">
             <svg viewBox="0 0 24 24">
                 <circle cx="12" cy="3.5" r="2.2" fill="currentColor"/>
                 <circle cx="18" cy="6" r="2.2" fill="currentColor"/>
@@ -2636,6 +2641,23 @@
                 {:else}
                     <div>Connecting to clock...</div>
                 {/if}
+            </div>
+        </div>
+    {/if}
+
+    {#if showResetPositions}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {z_indecies.ui};" onclick={() => {showResetPositions = false;}} role="dialog" tabindex="0">
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div style="background: var(--theme-bg-secondary); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; max-width: 320px;" onclick={(e) => e.stopPropagation()} >
+                <h2 style="margin: 0; padding: 0;">Reset token positions</h2>
+                <div style="opacity: 0.8;">Space the players evenly round a ring. Other tokens follow their nearest player; loric and fabled stay put.</div>
+                <div style="display: flex; gap: 10px;">
+                    {#each RESET_RING_LABELS as label, index}
+                        <button class="button-style" style="flex: 1;" onclick={() => resetTokenPositions(index)}>{label}</button>
+                    {/each}
+                </div>
+                <button class="button-style" onclick={() => {showResetPositions = false;}}>Cancel</button>
             </div>
         </div>
     {/if}
