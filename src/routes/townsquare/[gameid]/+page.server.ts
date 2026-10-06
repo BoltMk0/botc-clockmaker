@@ -4,6 +4,7 @@ import { getBOTCTClockInstanceManager, InstanceNotFoundError } from '$lib/model/
 import { listAmbienceResources } from '$lib/resources/server/ambience-resources';
 import { get_grimoire_state_history_resource_for_clock } from '$lib/resources/server/grimoire-state';
 import { getSpotifyPresets } from '$lib/resources/server/spotifyPresets';
+import { getTimerOptions } from '$lib/resources/server/timerOptions';
 import { error } from '@sveltejs/kit';
 
 
@@ -16,7 +17,9 @@ export async function load({params}){
         const stingEngineModel = getStingEngineHelperInstance().model;
         const spotifyPresets = getSpotifyPresets();
         const hasGrim = get_grimoire_state_history_resource_for_clock(params.gameid) !== null;
+        const timerOptions = getTimerOptions();
         return {
+            timerOptions,
             model: clock.model,
             clientIds,
             ambienceResources,

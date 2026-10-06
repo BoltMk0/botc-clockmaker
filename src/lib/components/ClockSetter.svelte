@@ -9,48 +9,17 @@
     import bell_slash from '$lib/assets/bell.slash.png';
     import type { Clocktower } from "$lib/model/client/Clocktower.svelte";
     import { type TimerOption } from "$lib/common/timerOption";
-    import { goto } from "$app/navigation";
 
 
     let {
         model,
         timerOptions,
-        hasGrim,
-        inGrim = false,
         onstart = () => {}
     }: {
         model: Clocktower;
         timerOptions: TimerOption[];
-        hasGrim: boolean;
-        // Already inside the grimoire view, so its own setup/view/remove controls are hidden.
-        inGrim?: boolean;
         onstart?: () => void;
     } = $props();
-
-    // Whether a grimoire state exists for this clock - tracked locally
-    // (seeded from the initial server-loaded value) so the Setup/View/Remove
-    // buttons below can update immediately after an action without a full
-    // page reload. The virtual grimoire is optional: some tables run without
-    // one, so this lets a game exist with or without it.
-    let grimExists = $state(hasGrim);
-    function setupGrim(){
-        goto(`/admin/${model.id}/grim/setup`);
-    }
-
-    function removeGrim(){
-        if(!confirm("Are you sure you want to remove the grim for this game? This action cannot be undone.")) return;
-        fetch(`/admin/${model.id}/grim/state`, {
-            method: 'DELETE'
-        }).then(response => {
-            if (!response.ok) {
-                alert("Failed to remove grim");
-                throw new Error('Failed to remove grim');
-            }
-            grimExists = false;
-        }).catch(error => {
-            console.error("Error removing grim:", error);
-        });
-    }
 
     function onStop(){
         fetch(`/api/clock/${model.id}/stop`, {
@@ -207,17 +176,6 @@
                     <img class="button-icon-img" src="{bell_and_waves}" alt="Ring Bell"/>
                 </button>
             </div>
-
-            {#if inGrim}
-                <!-- no grim controls while in the grim -->
-            {:else if grimExists}
-                <div class="grim-controls">
-                    <a class="button-style" href="/admin/{model.id}/grim">View</a>
-                    <button class="button-style error" onclick={removeGrim}>Remove</button>
-                </div>
-            {:else}
-                <button class="button-style" onclick={setupGrim} style="width: 100%; box-sizing: border-box; text-align: center; background: transparent; border: 2px dashed currentColor; opacity: 0.45; padding: 0.8em 1em;">Setup Grim</button>
-            {/if}
         </div>
     </div>
 </div>
@@ -272,17 +230,6 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 5px;
-    }
-
-    .grim-controls {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 5px;
-    }
-
-    .grim-controls .button-style {
-        box-sizing: border-box;
-        text-align: center;
     }
 
     .button-container {

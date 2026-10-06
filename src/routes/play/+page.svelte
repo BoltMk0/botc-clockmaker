@@ -5,9 +5,10 @@
     import BookIcon from '$lib/components/BookIcon.svelte';
     import TownSquareIcon from '$lib/components/TownSquareIcon.svelte';
     import CogIcon from '$lib/components/CogIcon.svelte';
+    import CustomOverlay from '$lib/components/CustomOverlay.svelte';
     import type { ClocktowerModel } from '$lib/model/common/ClocktowerModel';
 
-    let { data }: { data: { games: { instance: ClocktowerModel, scriptName: string | null }[] } } = $props();
+    let { data }: { data: { games: { instance: ClocktowerModel, scriptName: string | null, hasGrim: boolean }[] } } = $props();
 
     let creating = $state(false);
 
@@ -27,6 +28,33 @@
         });
     }
 
+    // The game whose grim the End game dialog is for.
+    let endGameId: string | null = $state(null);
+    let endGameVisible = $state(false);
+
+    function openEndGame(id: string){
+        endGameId = id;
+        endGameVisible = true;
+    }
+
+    // A winner credits the game to the preset it was set up from (if any) before the grim is deleted.
+    function endGame(winner?: 'good' | 'evil'){
+        endGameVisible = false;
+        const id = endGameId;
+        if(!id) return;
+        const query = winner ? `?winner=${winner}` : '';
+        fetch(`/admin/${id}/grim/state${query}`, { method: 'DELETE' }).then(response => {
+            if(!response.ok){
+                alert("Failed to end game");
+                throw new Error('Failed to end game');
+            }
+            localStorage.removeItem(`grimoire-state-${id}`);
+            return invalidateAll();
+        }).catch(error => {
+            console.error("Error ending game:", error);
+        });
+    }
+
 </script>
 
 <TopNavbar/>
@@ -40,10 +68,10 @@
             <span>New Game</span>
         </button>
     </header>
-    <p class="description">Open a game's town square or storytelling view.</p>
+    <p class="description">Open a game's town square or grimoire.</p>
 
     <div class="game-list">
-        {#each data.games as { instance, scriptName } (instance.clock.clockId)}
+        {#each data.games as { instance, scriptName, hasGrim } (instance.clock.clockId)}
             {@const id = instance.clock.clockId}
             <div class="game-panel">
                 <div class="game-panel-name">{instance.config.teamName ?? id}</div>
@@ -65,8 +93,15 @@
                     </div>
                 </div>
                 <div class="game-panel-actions">
-                    <a class="button-style" href="/townsquare/{id}"><TownSquareIcon size={36}/><span>Town Square</span><small>The shared clock display for players</small></a>
-                    <a class="button-style" href="/admin/{id}/storytell"><BookIcon size={36}/><span>Storytell</span><small>Grimoire and clock controls for the storyteller</small></a>
+                    <a class="button-style" href="/townsquare/{id}"><TownSquareIcon size={36}/><span>Town Square</span></a>
+                    {#if hasGrim}
+                        <div class="grim-actions">
+                            <a class="button-style" href="/admin/{id}/grim"><BookIcon size={36}/><span>Grimoire</span></a>
+                            <button class="button-style end-game" onclick={() => openEndGame(id)}>End game</button>
+                        </div>
+                    {:else}
+                        <a class="button-style setup-grim" href="/admin/{id}/grim/setup"><PlusIcon size={36}/><span>Setup Grimoire</span></a>
+                    {/if}
                 </div>
             </div>
         {/each}
@@ -88,6 +123,16 @@
     </section>
   </div>
 </div>
+
+<CustomOverlay title="End game" showButton={false} showClose={false} bind:visible={endGameVisible}>
+    <p style="margin-top: 0;">Who won this game? This deletes the grimoire and cannot be undone.</p>
+    <div class="end-game-choices">
+        <button class="button-style evil-victory" onclick={() => endGame('evil')}>Evil victory</button>
+        <button class="button-style good-victory" onclick={() => endGame('good')}>Good victory</button>
+        <button class="button-style" onclick={() => endGame()}>Just delete</button>
+        <button class="button-style cancel" onclick={() => endGameVisible = false}>Cancel</button>
+    </div>
+</CustomOverlay>
 
 <style>
     .play {
@@ -229,11 +274,52 @@
         justify-content: center;
     }
 
-    .game-panel-actions small {
-        font-size: 0.75rem;
-        font-style: italic;
-        line-height: 1.3;
-        opacity: 0.7;
+    .grim-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5em;
+    }
+
+    .grim-actions > a {
+        flex: 1;
+    }
+
+    .game-panel-actions .end-game {
+        flex: 0 0 auto;
+        padding: 0.4em 0.5em;
+        font-size: medium;
+        background-color: #b63737;
+        color: #fff;
+    }
+
+    .end-game-choices {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .end-game-choices .button-style {
+        padding: 0.8em 1em;
+        text-align: center;
+    }
+
+    .end-game-choices .cancel {
+        margin-top: 10px;
+    }
+
+    .evil-victory {
+        background-color: #b63737;
+        color: #fff;
+    }
+
+    .good-victory {
+        background-color: #2563eb;
+        color: #fff;
+    }
+
+    .game-panel-actions .setup-grim {
+        background: transparent;
+        border: 2px dashed currentColor;
     }
 
     .empty {

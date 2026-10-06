@@ -10,17 +10,25 @@
     import type { Resource } from "$lib/resources/common/types";
     import type { SpotifyPlayer } from "$lib/audio/client/SpotifyPlayer.svelte";
     import type { SpotifyPreset } from "$lib/audio/common/spotifyPreset";
+    import type { Clocktower } from "$lib/model/client/Clocktower.svelte";
+    import type { TimerOption } from "$lib/common/timerOption";
+    import ClockSetter from "./ClockSetter.svelte";
 
-    // In the town square the menu is just the display settings (cogwheel icon, no page links), with a back button to /play.
+    // In the town square the menu has no page links: a back button to /play, the clock timer controls (when given a clock),
+    // the audio mixer and the display settings.
     // Pass the page's audio engine (and its ambience resources / spotify player) so the mixer button can show the full mixer for it.
     let {
         townSquare = false,
+        clock = null,
+        timerOptions = [],
         audioEngine = null,
         ambienceResources = [],
         spotify = null,
         spotifyPresets = []
     }: {
         townSquare?: boolean;
+        clock?: Clocktower | null;
+        timerOptions?: TimerOption[];
         audioEngine?: AudioEngine | null;
         ambienceResources?: Resource[];
         spotify?: SpotifyPlayer | null;
@@ -71,6 +79,21 @@
         font-size: x-large;
         padding-top: 60px;
         z-index: 1000;
+        overflow-y: auto;
+    }
+
+    .back-link {
+        position: absolute;
+        top: 12px;
+        left: 14px;
+        display: flex;
+        align-items: center;
+        gap: 0.2em;
+        font-size: large;
+    }
+
+    .clock-controls-pane {
+        font-size: medium;
     }
 
     a {
@@ -157,44 +180,26 @@
     }
 </style>
 
-{#if townSquare}
-    <a aria-label="Back to Play" class="hamburger" href="/play" style="position: absolute; top: 10px; left: 10px; display: flex;">
-        <svg width={36} height={36} viewBox="0 0 24 24" style="fill: none; stroke: #FFF; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));">
-            <path d="M15 5l-7 7 7 7" />
-        </svg>
-    </a>
-{/if}
-<button aria-label={townSquare ? "Settings" : "Menu"} class="no-button-style hamburger" onclick={()=>{visible = true;}} style="position: absolute; top: 10px; left: {townSquare ? 56 : 10}px;">
-    {#if townSquare}
-        <svg width={36} height={36} viewBox="0 0 24 24" style="fill: #FFF; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));">
-            <path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.07-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7 7 0 0 0-1.62-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96a.5.5 0 0 0-.6.22L2.75 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.05.31-.08.63-.08.94s.03.63.08.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.12.22.37.29.6.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.26.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.09.48 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z" />
-        </svg>
-    {:else}
-        <svg width={36} height={36} viewBox="0 0 100 100" style="fill: #FFF; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));">
-            <rect x={0} y={0} width={100} height={20} rx={10} ry={10}/>
-            <rect x={0} y={40} width={100} height={20} rx={10} ry={10}/>
-            <rect x={0} y={80} width={100} height={20} rx={10} ry={10}/>
-        </svg>
-    {/if}
-</button>
-
-{#if townSquare && audioEngine}
-<button aria-label="Audio Mixer" class="no-button-style hamburger" onclick={()=>{showMixer = true;}} style="position: absolute; top: 10px; left: 102px;">
-    <svg width={36} height={36} viewBox="0 0 24 24" style="fill: none; stroke: #FFF; stroke-width: 2; stroke-linecap: round; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));">
-        <line x1="5" y1="4" x2="5" y2="20"/>
-        <line x1="12" y1="4" x2="12" y2="20"/>
-        <line x1="19" y1="4" x2="19" y2="20"/>
-        <circle cx="5" cy="9" r="2" fill="#FFF"/>
-        <circle cx="12" cy="15" r="2" fill="#FFF"/>
-        <circle cx="19" cy="6" r="2" fill="#FFF"/>
+<button aria-label="Menu" class="no-button-style hamburger" onclick={()=>{visible = true;}} style="position: absolute; top: 10px; left: 10px;">
+    <svg width={36} height={36} viewBox="0 0 100 100" style="fill: #FFF; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));">
+        <rect x={0} y={0} width={100} height={20} rx={10} ry={10}/>
+        <rect x={0} y={40} width={100} height={20} rx={10} ry={10}/>
+        <rect x={0} y={80} width={100} height={20} rx={10} ry={10}/>
     </svg>
 </button>
-{/if}
 
 <div class="navbar-main" style="transform: translateX({visible ? "0" : "-100%"});">
     <button onclick={()=>{visible = false;}} class="close-button">
         X
     </button>
+    {#if townSquare}
+    <a class="back-link" href="/play" target="_self">
+        <svg width={28} height={28} viewBox="0 0 24 24" style="fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;">
+            <path d="M15 5l-7 7 7 7" />
+        </svg>
+        Back to Play
+    </a>
+    {/if}
     {#if !townSquare}
     <ul style="list-style-type: none; padding: 0 2em 0 1em; margin: 0; margin-bottom: 1em;">
         <li><a href="/" target="_self">Home</a></li>
@@ -207,7 +212,7 @@
                     <li>
                         <a href="/townsquare/{client.clock.clockId}" target="_self">{client.config.teamName}</a>
                         <ul>
-                            <li><a href="/admin/{client.clock.clockId}/storytell" target="_self">Storytell</a></li>
+                            <li><a href="/admin/{client.clock.clockId}/grim" target="_self">Grimoire</a></li>
                         </ul>
                     </li>
                 {/each}
@@ -221,6 +226,18 @@
     {/if}
 
     <div style="display: grid; gap: 10px;">
+        {#if townSquare && clock}
+        <div class="navbar-settings-pane clock-controls-pane">
+            <ClockSetter model={clock} {timerOptions}/>
+        </div>
+        {/if}
+        {#if townSquare && audioEngine}
+        <div class="navbar-settings-pane">
+            <button class="button-style" style="width: 100%; font-size: large; padding: 0.5em 1em;" onclick={() => { showMixer = true; visible = false; }}>
+                Audio Mixer
+            </button>
+        </div>
+        {/if}
         <div class="navbar-settings-pane">
             <div style="display: flex; justify-content: space-between;">
                 <div style="font-size: smaller; text-align: center;">Display Size</div>

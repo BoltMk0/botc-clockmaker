@@ -17,7 +17,7 @@ export async function load({ params }) {
     const grimoireState = isGrimoireStateHistory(rawGrimoireState) ? rawGrimoireState : null;
 
     // A deleted grim must not be reachable (e.g. via browser back); send them to pick what to do next.
-    if (!grimoireState) throw redirect(302, `/admin/${clockid}/storytell`);
+    if (!grimoireState) throw redirect(302, `/play`);
 
     return {
         clockid,

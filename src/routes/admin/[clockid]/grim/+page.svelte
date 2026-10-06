@@ -14,7 +14,7 @@
     import { Clocktower } from "$lib/model/client/Clocktower.svelte.js";
     import FullDisplay from "$lib/components/FullDisplay/FullDisplay.svelte";
     import { onMount } from "svelte";
-    import ClockSetter from "../ClockSetter.svelte";
+    import ClockSetter from "$lib/components/ClockSetter.svelte";
     import type { CanvasToolType } from "$lib/components/DrawableCanvas2/types.js";
     import AnotatableViewV2 from "$lib/components/DrawableCanvas2/AnotatableViewV2.svelte";
     import PlayerToken from "$lib/components/PlayerToken.svelte";
@@ -523,6 +523,29 @@
         // Screen position = centre + translate + scale * world, so no translation keeps the board's centre on screen centre.
         viewTx = 0;
         viewTy = 0;
+    }
+
+    let showDeleteGrim = $state(false);
+
+    // A winner credits the game to the preset it was set up from (if any) before the grim is deleted.
+    async function deleteGrim(winner?: 'good' | 'evil') {
+        showDeleteGrim = false;
+        // Drop any pending autosave so it can't recreate the grim after the delete.
+        if (saveGrimoireTimeout) {
+            clearTimeout(saveGrimoireTimeout);
+            saveGrimoireTimeout = null;
+        }
+        const query = winner ? `?winner=${winner}` : '';
+        try {
+            const response = await fetch(`grim/state${query}`, { method: 'DELETE' });
+            if (!response.ok) throw new Error(response.statusText);
+        } catch (er) {
+            console.error("Error deleting grim:", er);
+            alert("Failed to delete grim");
+            return;
+        }
+        localStorage.removeItem(`grimoire-state-${data.clockid}`);
+        goto('/play', { replaceState: true });
     }
 
     // The reset-positions popup, offering one choice per guide ring (innermost first).
@@ -1795,6 +1818,10 @@
         background: rgba(80, 140, 255, 0.7);
     }
 
+    .sidebar-btn.delete-grim-btn {
+        color: #ff7b7b;
+    }
+
     .audio-menu {
         position: relative;
     }
@@ -2033,6 +2060,11 @@
         </div>
 
         {#if sidebarOpen}
+        <!-- Go back -->
+        <button class="sidebar-btn" onclick={() => {saveGrimoire().then(()=>goto(`/play`, { replaceState: true }))} } title="Back to Play">
+            <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+        </button>
+
         <!-- Canvas control -->
          <div style="position: relative">
             <button class="sidebar-btn" class:active={editing} onclick={() => {
@@ -2046,7 +2078,8 @@
                 </svg>
             </button>
             {#if editing}
-            <div style="position: absolute; left: 52px; top: 0; display: flex; flex-direction: column; gap: 8px;">
+            <!-- Raised one square (button + gap) to sit beside the back button rather than below it. -->
+            <div style="position: absolute; left: 52px; top: -52px; display: flex; flex-direction: column; gap: 8px;">
                 <!-- TOOLS -->
                 {#each tools as tool, index}
                     <button class="sidebar-btn" class:active={index === activeToolIndex} onclick={() => activeToolIndex = index} title={tool.type === 'pen' ? `Pen tool (color: ${tool.color})` : 'Eraser tool'}>
@@ -2151,9 +2184,15 @@
             </svg>
         </button>
 
-        <!-- Go back -->
-        <button class="sidebar-btn" onclick={() => {saveGrimoire().then(()=>goto(`/admin/${data.clockid}/storytell`, { replaceState: true }))} } title="Back to storytell">
-            <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+        <!-- Delete the grim, recording who won -->
+        <button class="sidebar-btn delete-grim-btn" onclick={() => showDeleteGrim = true} title="Delete grim">
+            <svg viewBox="0 0 24 28">
+                <rect x="5" y="7" width="14" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                <path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" fill="none" stroke="currentColor" stroke-width="2"/>
+                <line x1="10" y1="13" x2="10" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <line x1="14" y1="13" x2="14" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <line x1="3" y1="7" x2="21" y2="7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
         </button>
 
         {/if}
@@ -2717,7 +2756,7 @@
                     <button class="button-style error" onclick={()=>{showTimerOptions = false;}}>X</button>
                 </div>
                 {#if clockClient}
-                    <ClockSetter model={clockClient} timerOptions={data.timerOptions} hasGrim={true} inGrim onstart={()=>{showTimerOptions = false}}/>
+                    <ClockSetter model={clockClient} timerOptions={data.timerOptions} onstart={()=>{showTimerOptions = false}}/>
                 {:else}
                     <div>Connecting to clock...</div>
                 {/if}
@@ -2738,6 +2777,21 @@
                     {/each}
                 </div>
                 <button class="button-style" onclick={() => {showResetPositions = false;}}>Cancel</button>
+            </div>
+        </div>
+    {/if}
+
+    {#if showDeleteGrim}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {z_indecies.ui};" onclick={() => {showDeleteGrim = false;}} role="dialog" tabindex="0">
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div style="background: var(--theme-bg-secondary); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; max-width: 320px;" onclick={(e) => e.stopPropagation()} >
+                <h2 style="margin: 0; padding: 0;">Delete grim</h2>
+                <div style="opacity: 0.8;">Who won this game? This cannot be undone.</div>
+                <button class="button-style" style="background-color: #b63737; color: #fff; padding: 0.8em 1em;" onclick={() => deleteGrim('evil')}>Evil victory</button>
+                <button class="button-style" style="background-color: #2563eb; color: #fff; padding: 0.8em 1em;" onclick={() => deleteGrim('good')}>Good victory</button>
+                <button class="button-style" style="padding: 0.8em 1em;" onclick={() => deleteGrim()}>Just delete</button>
+                <button class="button-style" style="padding: 0.8em 1em; margin-top: 10px;" onclick={() => {showDeleteGrim = false;}}>Cancel</button>
             </div>
         </div>
     {/if}

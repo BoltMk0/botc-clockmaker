@@ -104,7 +104,7 @@
                 alert("Bell ring sound reset to default successfully");
                 newFinalBellRingSoundFile = null;
                 const thisPage = window.location.pathname;
-                goto(`/admin/${clock.clock.clockId}`).then(() => {
+                goto(`/play`).then(() => {
                     goto(thisPage);
                 });
             }).catch(error => {

@@ -47,7 +47,7 @@
 <FullDisplay model={model}/>
 {/if}
 
-<SideMenu townSquare {audioEngine} ambienceResources={data.ambienceResources} {spotify} spotifyPresets={data.spotifyPresets}/>
+<SideMenu townSquare clock={model} timerOptions={data.timerOptions} {audioEngine} ambienceResources={data.ambienceResources} {spotify} spotifyPresets={data.spotifyPresets}/>
 
 {#if appSettings.showQRCodes && qrCodes.length > 0 && appSettings.displayMode !== 'clocktower3d'}
 {#each QR_POSITIONS as pos}
