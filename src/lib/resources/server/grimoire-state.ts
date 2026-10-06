@@ -7,7 +7,6 @@ export function get_grimoire_state_history_resource_for_clock(clockid: string): 
         console.debug("No grimoire state history resource found for clock", clockid);
         return null;
     }
-    console.debug("Grimoire state history resource found for clock", clockid);
     return ensureTokenIds(history);
 }
 
