@@ -1,60 +1,21 @@
 <script lang="ts">
-    import { goto, invalidateAll } from '$app/navigation';
-    import HSlider from '$lib/audio/client/components/HSlider.svelte';
-    import type { ClocktowerAudioTrackModel } from '$lib/audio/common/model/clocktowerAudioTrackModel.svelte';
-    import { dbToLinear, linearToDb } from '$lib/common/util';
+    import { invalidateAll } from '$app/navigation';
+    import type { ClockSfxPreset } from '$lib/audio/common/clockSfxPreset';
     import type { ClocktowerModel } from '$lib/model/common/ClocktowerModel';
 
     interface ConfigPageData {
         clock: ClocktowerModel;
-        sfx_resources: {id: string, name: string}[];
+        clockSfxPresets: ClockSfxPreset[];
     };
 
     let data: ConfigPageData = $props();
 
+    // svelte-ignore state_referenced_locally
     let clock = $state(data.clock);
-    let sfx_resources = $state(data.sfx_resources);
 
     $effect.pre(()=>{if(clock.config.teamName === null) clock.config.teamName = clock.clock.clockId!});
 
-    let newFinalBellRingSoundFile: File | null = null;
-    let newReminderBellSoundFile: File | null = null;
-
-    async function saveBellSound(file: File | null, resourceName: string): Promise<void> {
-        return new Promise((resolve, reject) => {
-            if(file){
-                const formData = new FormData();
-                formData.append('file', file);
-
-                fetch(`/resources/${resourceName}`, {
-                    method: 'POST',
-                    body: formData
-                }).then(response => {
-                    if (!response.ok) {
-                        throw new Error('Failed to upload ' + resourceName);
-                    }
-                    console.log(resourceName + " uploaded successfully");
-                    resolve();
-                }).catch(error => {
-                    console.error("Error uploading " + resourceName + ":", error);
-                    alert("Error uploading " + resourceName + ": " + error);
-                    reject(error);
-                });
-            } else {
-                resolve();
-            }
-        });
-    }
-
     async function onSave(){
-        if(newFinalBellRingSoundFile){
-            await saveBellSound(newFinalBellRingSoundFile, `final-bell/${clock.clock.clockId}`);
-        }
-
-        if(newReminderBellSoundFile){
-            await saveBellSound(newReminderBellSoundFile, `reminder-bell/${clock.clock.clockId}`);
-        }
-        
         fetch(`/api/clock/${clock.clock.clockId}/config`, {
             method: 'POST',
             body: JSON.stringify(clock.config),
@@ -66,25 +27,10 @@
             console.log("Config saved successfully");
             invalidateAll();
         }).then(()=>{
-            saveAudioSettings(clock.audio);
-        }).then(()=>{
             alert("Config saved successfully!")
         }).catch(error => {
             console.error("Error saving config:", error);
             alert("Error saving config: " + error);
-        });
-    }
-
-    async function saveAudioSettings(settings: ClocktowerAudioTrackModel){
-        return fetch(`/api/clock/${clock.clock.clockId}/audioParams`, {
-            method: 'POST',
-            body: JSON.stringify(settings),
-            headers: {'Content-Type': 'application/json'}
-        }).then(response=>{
-            if(!response.ok){
-                throw new Error("Failed to save audio settings");
-            }
-            invalidateAll();
         });
     }
 
@@ -93,29 +39,7 @@
             await fetch(`/api/clock/${clock.clock.clockId}`, {method: 'DELETE'}).then(()=>invalidateAll())
     }
 
-    function resetResource(name: string){
-        if(confirm("Are you sure you want to reset to the default " + name + "?")){
-            fetch(`/resources/${name}`, {
-                method: 'DELETE'
-            }).then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to reset bell ring sound');
-                }
-                alert("Bell ring sound reset to default successfully");
-                newFinalBellRingSoundFile = null;
-                const thisPage = window.location.pathname;
-                goto(`/play`).then(() => {
-                    goto(thisPage);
-                });
-            }).catch(error => {
-                console.error("Error resetting bell ring sound:", error);
-                alert("Error resetting bell ring sound: " + error);
-            });
-        }
-    }
-
-    const finalBellGain = $derived(clock.audio.gain * (clock.audio.balance > 0 ? 1 : Math.cos(Math.PI/2 * Math.abs(clock.audio.balance))))
-    const reminderBellGain = $derived(clock.audio.gain * (clock.audio.balance < 0 ? 1 : Math.cos(Math.PI/2 * Math.abs(clock.audio.balance))))
+    const selectedPreset = $derived(data.clockSfxPresets.find(p => p.id === clock.config.clockSfxPresetId));
 </script>
 
 <div class="main">
@@ -133,71 +57,31 @@
 
     <div class="panel">
         <div class="panel-header">
-            <h2>Sound Effects</h2>
-            <a href="/settings/resources" class="button-style">Manage Resources</a>
+            <h2>Clock SFX Preset</h2>
+            <a href="/settings/audio" class="button-style">Manage Presets</a>
         </div>
         <table>
-            <thead>
-                <tr>
-                    <th style="width: fit-content;">Event</th>
-                    <th>Sound File</th>
-                </tr>
-            </thead>
             <tbody>
                 <tr>
-                    <td style="width: fit-content;">
-                        <div>Final Bell Sound</div>
-                        <div>({linearToDb(finalBellGain).toFixed(1)}dB)</div>
-                    </td>
+                    <td>Bell Sounds</td>
                     <td>
-                        <div class="audio-file-input-container">
-                            <select bind:value={clock.config.resourceMapping.finalBell.resource_id}>
-                                <option value={null}>None</option>
-                                {#each sfx_resources as res}
-                                    <option value={`${res.id}`}>{res.name}</option>
-                                {/each}
-                            </select>
-                            {#if clock.config.resourceMapping.finalBell.resource_id}
-                                <audio src="/api/resources/{clock.config.resourceMapping.finalBell.resource_id}" controls volume={finalBellGain}></audio>
-                            {/if}
-                        </div>
-                    </td>
-                </tr>
-                <tr>
-                    <td style="width: fit-content;">
-                        <div>Reminder Bell Sound</div>
-                        <div>({linearToDb(reminderBellGain).toFixed(1)}dB)</div>
-                    </td>
-                    <td style="min-width: 200px;">
-                        <div class="audio-file-input-container">
-                        <select bind:value={clock.config.resourceMapping.reminderBell.resource_id}>
+                        <select bind:value={clock.config.clockSfxPresetId}>
                             <option value={null}>None</option>
-                            {#each sfx_resources as res}
-                                <option value={`${res.id}`}>{res.name}</option>
+                            {#each data.clockSfxPresets as preset (preset.id)}
+                                <option value={preset.id}>{preset.name}</option>
                             {/each}
                         </select>
-                        {#if clock.config.resourceMapping.reminderBell.resource_id}
-                            <audio src="/api/resources/{clock.config.resourceMapping.reminderBell.resource_id}" controls volume={reminderBellGain}></audio>
+                        {#if clock.config.clockSfxPresetId !== null && !selectedPreset}
+                            <div>The selected preset no longer exists.</div>
+                        {:else if selectedPreset}
+                            <div>
+                                Final bell: {selectedPreset.final ? 'yes' : 'none'} &middot;
+                                Reminder bell: {selectedPreset.reminder ? 'yes' : 'none'} &middot;
+                                <a href="/settings/audio/clocksfx/{selectedPreset.id}">Edit</a>
+                            </div>
                         {/if}
-                        </div>
                     </td>
                 </tr>
-                <tr>
-                    <td>Balance ({clock.audio.balance})</td>
-                    <td><HSlider bind:value={clock.audio.balance} min={-1} max={1} step={0.1}/></td>
-                </tr>
-                
-                <tr>
-                    <td>Gain ({linearToDb(clock.audio.gain).toFixed(0)}dB)</td>
-                    <td><HSlider value={linearToDb(clock.audio.gain)} min={-18} max={0} step={1} onchange={(val)=>clock.audio.gain = dbToLinear(val)}/></td>
-                </tr>
-
-                
-                <tr>
-                    <td>Pan ({clock.audio.pan})</td>
-                    <td><HSlider bind:value={clock.audio.pan} min={-1} max={1} step={0.1}/></td>
-                </tr>
-                
             </tbody>
         </table>
     </div>
@@ -243,15 +127,6 @@
         border-collapse: collapse;
     }
 
-    th {
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--theme-on-bg-secondary);
-        text-align: left;
-        padding: 0 0.5rem 0.5rem;
-    }
 
     td {
         padding: 0.6rem 0.5rem;
@@ -260,6 +135,7 @@
     }
 
     td > div:nth-child(2) {
+        margin-top: 0.4rem;
         font-size: 0.8rem;
         color: var(--theme-on-bg-secondary);
     }
@@ -288,19 +164,6 @@
 
     .panel-header h2 {
         margin: 0 0 1rem;
-    }
-
-    .audio-file-input-container {
-        width: 100%;
-    }
-
-    .audio-file-input-container > * {
-        width: 100%;
-    }
-
-    .audio-file-input-container > audio {
-        margin-top: 0.5rem;
-        height: 2.25rem;
     }
 
     .actions {

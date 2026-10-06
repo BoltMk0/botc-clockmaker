@@ -42,6 +42,11 @@ export function slugify(name: string): string {
 }
 
 
+/** The stored form of a typed resource name (for audio asset libraries): lowercase, spaces as underscores. */
+export function resourceNameSlug(name: string): string {
+    return name.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_-]/g, "");
+}
+
 export function prettifyResourceType(type: ResourceType): string {
     switch(type){
         case "sfx": return "SFX";

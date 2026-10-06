@@ -1,5 +1,4 @@
 import { isClocktowerAudioTrackModel } from '$lib/audio/common/model/clocktowerAudioTrackModel.svelte.js';
-import { isClocktowerModel } from '$lib/model/common/ClocktowerModel.js';
 import { getBOTCTClockInstanceManager } from '$lib/model/server/model';
 import { error } from '@sveltejs/kit';
 
@@ -16,7 +15,5 @@ export async function POST({ params, request }) {
     instance.audioGain = body.gain;
     instance.audioPan = body.pan;
     instance.audioBalance = body.balance;
-    instance.finalBellResourceId = body.resources.finalBell;
-    instance.reminderBellResourceId = body.resources.reminderBell;
     return new Response(JSON.stringify({ success: true }), { status: 200 });
 }

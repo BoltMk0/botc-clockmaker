@@ -2,6 +2,7 @@ import { getDefaultConfig, isConfig, type Config } from '$lib/common/config';
 import { EventEmitter } from 'node:events';
 import { v7 } from 'uuid';
 import { CLOCK_CONFIG_MANAGER } from '$lib/resources/server/clock-config';
+import { getDefaultClockSfxPresetId } from '$lib/resources/server/clock-sfx-presets';
 import { newClocktowerModel, type ClocktowerModel } from '../common/ClocktowerModel';
 import { BOTCTClock } from './BOTCClock';
 import type { TimeOfDay } from '../client/types';
@@ -69,6 +70,7 @@ class ClockInstanceManager extends EventEmitter {
         const model: ClocktowerModel = newClocktowerModel(instanceId);
         model.config.teamName = `Team ${this.instances.size + 1}`;
         model.config.theme.hue = (this.instances.size * 137) % 360; // use golden angle to distribute hues
+        model.config.clockSfxPresetId = getDefaultClockSfxPresetId();
 
         const instance = new BOTCTClock(model);
         instance.save();
@@ -78,6 +80,22 @@ class ClockInstanceManager extends EventEmitter {
         console.log(`Created new BOTCTClock instance with id: ${instanceId}`);
 
         return {id: instanceId, instance};
+    }
+
+    /** Sends the new sounds to every game using this preset. */
+    refreshClockSfxPreset(presetId: string) {
+        for(const instance of this.instances.values()){
+            if(instance.config.clockSfxPresetId === presetId) instance.refreshSfx();
+        }
+    }
+
+    /** Moves every game using this (just deleted) preset over to the default one. */
+    reassignDeletedClockSfxPreset(presetId: string) {
+        for(const instance of this.instances.values()){
+            if(instance.config.clockSfxPresetId === presetId){
+                instance.config = { ...instance.config, clockSfxPresetId: getDefaultClockSfxPresetId() };
+            }
+        }
     }
 
     hasInstance(id: string): boolean {

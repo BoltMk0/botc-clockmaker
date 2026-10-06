@@ -68,6 +68,19 @@ export class StingEngineHelper extends EventEmitter {
     }
 
     /**
+     * Points every slot holding `oldId` at `newId` instead: for a renamed resource. For a deleted one (null), the
+     * slot is re-armed with a fresh random pick instead, so it stays ready to fire.
+     */
+    replaceResource(oldId: string, newId: string | null) {
+        this.#model.tracks.forEach((track, index) => {
+            if (track.loadedResourceId !== oldId) return;
+            track.loadedResourceId = newId ?? pickRandomStingResourceId();
+            this.emit('trackUpdate', index, track);
+            this.scheduleSave();
+        });
+    }
+
+    /**
      * Fires whichever slot is currently armed (broadcast to clients, which each play back whatever they
      * already have loaded there), then immediately arms the other slot with a fresh random pick and swaps
      * which slot will fire next time.

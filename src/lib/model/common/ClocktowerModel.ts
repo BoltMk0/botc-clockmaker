@@ -1,4 +1,5 @@
 import { isClocktowerAudioTrackModel, type ClocktowerAudioTrackModel } from "$lib/audio/common/model/clocktowerAudioTrackModel.svelte";
+import { NO_CLOCK_SFX } from "$lib/audio/common/clockSfxPreset";
 import { getDefaultConfig, isConfig, type Config } from "$lib/common/config";
 import { isClocktowerClockModel, type ClocktowerClockModel } from "./ClocktowerClockModel";
 
@@ -37,10 +38,7 @@ export function newClocktowerModel(id: string): ClocktowerModel {
             pan: 0,
             gain: 1,
             balance: 0,
-            resources: {
-                finalBell: null,
-                reminderBell: null
-            }
+            sfx: { ...NO_CLOCK_SFX }
         },
         config: getDefaultConfig()
     }

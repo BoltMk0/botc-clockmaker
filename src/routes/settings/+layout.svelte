@@ -3,7 +3,6 @@
     import TopNavbar from '$lib/components/TopNavbar.svelte';
 
     const paths = [
-        '/settings/resources',
         '/settings/scripts',
         '/settings/characters',
         '/settings/clocks',
@@ -11,9 +10,17 @@
         '/settings/customMessages',
         '/settings/qrCodes',
         '/settings/audio',
+        '/settings/rulesSlides',
         '/settings/feedback',
         '/settings/password'
     ]
+
+    /** For the paths whose label isn't just their name. */
+    const LABELS: Record<string, string> = {
+        '/settings/clocks': 'games',
+        '/settings/customMessages': 'Grim Messages',
+        '/settings/rulesSlides': 'Rules Slides'
+    };
 
     const currentPath = $derived(page.url.pathname);
 
@@ -48,8 +55,8 @@
     <div class="settings-layout-links in-a-column" class:open={menuOpen}>
         <div style="font-size: x-large; opacity: 0.6;">Settings</div>
         {#each paths as path}
-            {@const label = path === '/settings/clocks' ? 'games' : path === '/settings/customMessages' ? 'Grim Messages' : path.replace('/settings/', '')}
-            <a class="button-style" class:highlight={currentPath === path} href={path} onclick={() => menuOpen = false}>{label.charAt(0).toUpperCase() + label.slice(1)}</a>
+            {@const label = LABELS[path] ?? path.replace('/settings/', '')}
+            <a class="button-style" class:highlight={currentPath === path || currentPath.startsWith(path + '/')} href={path} onclick={() => menuOpen = false}>{label.charAt(0).toUpperCase() + label.slice(1)}</a>
         {/each}
     </div>
     <div class="settings-layout-content">

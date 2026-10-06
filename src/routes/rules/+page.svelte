@@ -71,7 +71,7 @@
 </div>
 {:else}
     No rules to show
-    <a href="/settings/resources">Upload Slides</a>
+    <a href="/settings/rulesSlides">Upload Slides</a>
 {/if}
 
 <a class="back-button" href="/" aria-label="Back to main menu">

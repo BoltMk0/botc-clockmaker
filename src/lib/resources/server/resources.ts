@@ -1,6 +1,6 @@
 import { ALL_RESOURCE_TYPES, getAcceptedExtensionsForResourceType, type Resource, type ResourceType } from "../common/types";
-import { getExtensionForMimeType, getMimeTypeForExtension, prettifyResourceName} from "../common/util";
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync, type Stats } from "fs";
+import { getExtensionForMimeType, getMimeTypeForExtension, prettifyResourceName, resourceNameSlug } from "../common/util";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync, type Stats } from "fs";
 
 
 const RESOURCE_DATA_DIR =  process.env.RESOURCE_DATA_DIR || "data/resources";
@@ -127,6 +127,49 @@ export function deleteResource(id: string|Resource): boolean {
         console.error(`Error deleting resource file ${filepath}:`, err);
         return false;
     }
+}
+
+export class ResourceNameTakenError extends Error {
+    constructor(name: string) {
+        super(`A resource named "${name}" already exists`);
+        this.name = "ResourceNameTakenError";
+    }
+}
+
+/**
+ * Renames a resource's file (keeping its type and extension), and returns its new id. Anything referring to it by
+ * its old id needs updating by the caller. Throws ResourceNameTakenError if the new name is in use.
+ */
+export function renameResource(resource: Resource, newName: string): string {
+    const slug = resourceNameSlug(newName);
+    if(!slug) throw new Error("Name must contain at least one letter or number");
+    const ext = resource.id.slice(resource.id.lastIndexOf('.'));
+    const newId = `${resource.type}-${slug}${ext}`;
+    if(newId === resource.id) return newId;
+    const newResource = parseResourceId(newId);
+    if(!newResource) throw new Error(`Invalid resource name: ${newName}`);
+    if(existsSync(getResourceFilePath(newResource))) throw new ResourceNameTakenError(slug);
+    renameSync(getResourceFilePath(resource), getResourceFilePath(newResource));
+    return newId;
+}
+
+/**
+ * Stores an uploaded file as a new resource named after it, adding a number to the name if it's taken rather than
+ * overwriting. Returns the new id. Throws if the file's extension isn't accepted for the type.
+ */
+export function createUniqueResource(type: ResourceType, filename: string, data: Buffer): string {
+    const dot = filename.lastIndexOf('.');
+    const ext = dot >= 0 ? filename.slice(dot).toLowerCase() : '';
+    if(!getAcceptedExtensionsForResourceType(type).includes(ext)){
+        throw new Error(`Unsupported file "${filename}". Allowed: ${getAcceptedExtensionsForResourceType(type).join(', ')}`);
+    }
+    const base = resourceNameSlug(dot >= 0 ? filename.slice(0, dot) : filename) || 'untitled';
+    let id = `${type}-${base}${ext}`;
+    for(let n = 2; existsSync(getResourceFilePath({ id, type })); n++){
+        id = `${type}-${base}_${n}${ext}`;
+    }
+    saveResource(id, data);
+    return id;
 }
 
 export function encodeResourceId(type: ResourceType, name: string, mimeType: string): string {

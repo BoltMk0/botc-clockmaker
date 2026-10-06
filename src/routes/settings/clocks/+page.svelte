@@ -5,12 +5,12 @@
     import SideTabLayout from '$lib/components/SideTabLayout.svelte';
     import { v7 } from 'uuid';
     import ClockEditView from './ClockEditView.svelte';
-    import type { Resource } from '$lib/resources/common/types';
+    import type { ClockSfxPreset } from '$lib/audio/common/clockSfxPreset';
     import { type ClocktowerModel } from '$lib/model/common/ClocktowerModel';
 
     type Props = {
         clocks: ClocktowerModel[];
-        sfxResources: Resource[]
+        clockSfxPresets: ClockSfxPreset[]
     };
 
     const {data}: {data: Props} = $props();
@@ -24,8 +24,6 @@
         : 0;
 
     var selectedIndex = $state(initialIndex);
-
-    $inspect("Loaded SFX:", data.sfxResources)
 
     function createNewClock(){
         let newClockId = v7();
@@ -69,7 +67,7 @@
 
 {#snippet renderClockSettings(clock: ClocktowerModel)}
     {#key clock.clock.clockId}
-        <ClockEditView {clock} sfx_resources={data.sfxResources}/>
+        <ClockEditView {clock} clockSfxPresets={data.clockSfxPresets}/>
     {/key}
 {/snippet}
 

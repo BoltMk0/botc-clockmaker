@@ -2,9 +2,147 @@
     import { isSpotifyPhasePreset, parseSpotifyContextUri, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
     import DayIcon from "$lib/assets/dayIcon.svelte";
     import NightIcon from "$lib/assets/nightIcon.svelte";
+    import BinIcon from "$lib/assets/binIcon.svelte";
     import { onMount } from "svelte";
     import { AudioDim } from "$lib/audio/client/AudioDim.svelte";
     import { DEFAULT_DIM_AMOUNT_DB, MAX_DIM_AMOUNT_DB, MIN_DIM_AMOUNT_DB } from "$lib/audio/common/model/audioDimModel";
+    import type { ClockSfxPreset } from "$lib/audio/common/clockSfxPreset";
+    import { goto, invalidateAll } from "$app/navigation";
+    import { getAcceptedExtensionsForResourceType, type Resource } from "$lib/resources/common/types";
+    import { prettifyResourceName, resourceNameSlug } from "$lib/resources/common/util";
+
+    let { data }: { data: { clockSfxPresets: ClockSfxPreset[], ambienceResources: Resource[], stingResources: Resource[] } } = $props();
+
+    // ---- Audio asset libraries (ambience, stings) ----
+
+    type AudioAssetListOptions = {
+        type: 'ambience' | 'sting',
+        getResources: () => Resource[],
+        loop: boolean,
+        addLabel: string,
+        emptyText: string,
+        deleteWarning: string
+    };
+
+    /** One library's list: a single preview player, plus uploading, renaming and deleting. */
+    class AudioAssetList {
+        /** The asset loaded in the preview player. */
+        previewId: string | null = $state(null);
+        player: HTMLAudioElement | undefined = $state();
+        /** Name edits in progress, by asset id. */
+        nameDrafts: Record<string, string> = $state({});
+
+        uploading = $state(false);
+        readonly options: AudioAssetListOptions;
+
+        constructor(options: AudioAssetListOptions) {
+            this.options = options;
+        }
+
+        get resources() { return this.options.getResources(); }
+
+        /** Uploads the picked files as new assets, one after another. */
+        async upload(files: FileList | null) {
+            if (!files || files.length === 0) return;
+            this.uploading = true;
+            try {
+                for (const file of files) {
+                    const formData = new FormData();
+                    formData.append('type', this.options.type);
+                    formData.append('file', file);
+                    const r = await fetch('/api/audioAssets', { method: 'POST', body: formData });
+                    if (!r.ok) {
+                        const message = await r.json().then(j => j.message).catch(() => r.statusText);
+                        alert(`Failed to upload "${file.name}" (${r.status}): ${message}`);
+                    }
+                }
+            } finally {
+                this.uploading = false;
+                await invalidateAll();
+            }
+        }
+
+        draft(res: Resource) {
+            return this.nameDrafts[res.id] ?? prettifyResourceName(res.name);
+        }
+
+        isRenamed(res: Resource) {
+            const slug = resourceNameSlug(this.draft(res));
+            return slug !== '' && slug !== res.name;
+        }
+
+        preview(res: Resource) {
+            this.previewId = res.id;
+            // Wait for the new src to be applied before playing
+            queueMicrotask(() => {
+                if (!this.player) return;
+                this.player.currentTime = 0;
+                this.player.play().catch(() => {});
+            });
+        }
+
+        async rename(res: Resource) {
+            if (!this.isRenamed(res)) return;
+            const r = await fetch(`/api/audioAssets/${encodeURIComponent(res.id)}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ name: this.draft(res) }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (!r.ok) {
+                const message = await r.json().then(j => j.message).catch(() => r.statusText);
+                alert(`Failed to rename (${r.status}): ${message}`);
+                return;
+            }
+            const { id } = await r.json();
+            delete this.nameDrafts[res.id];
+            if (this.previewId === res.id) this.previewId = id;
+            await invalidateAll();
+        }
+
+        async delete(res: Resource) {
+            if (!confirm(`Delete "${prettifyResourceName(res.name)}"? ${this.options.deleteWarning} This cannot be undone.`)) return;
+            const r = await fetch(`/api/audioAssets/${encodeURIComponent(res.id)}`, { method: 'DELETE' });
+            if (!r.ok) {
+                alert(`Failed to delete (${r.status})`);
+                return;
+            }
+            delete this.nameDrafts[res.id];
+            if (this.previewId === res.id) this.previewId = null;
+            await invalidateAll();
+        }
+    }
+
+    const acceptedAudioExtensions = getAcceptedExtensionsForResourceType('ambience').join(',');
+
+    const ambienceAssets = new AudioAssetList({
+        type: 'ambience',
+        getResources: () => data.ambienceResources,
+        loop: true,
+        addLabel: '+ Ambience Asset',
+        emptyText: 'No ambience assets uploaded.',
+        deleteWarning: 'Any ambience track playing it will be emptied.'
+    });
+    const stingAssets = new AudioAssetList({
+        type: 'sting',
+        getResources: () => data.stingResources,
+        loop: false,
+        addLabel: '+ Sting Asset',
+        emptyText: 'No audio stings uploaded.',
+        deleteWarning: 'A sting slot holding it will be re-armed with another one.'
+    });
+
+    function createClockSfxPreset() {
+        fetch('/api/clockSfx', {
+            method: 'POST',
+            body: JSON.stringify({ name: 'New Clock SFX Preset' }),
+            headers: { 'Content-Type': 'application/json' }
+        }).then(res => {
+            if (!res.ok) throw new Error(`Failed to create preset (${res.status})`);
+            return res.json();
+        }).then((preset: ClockSfxPreset) => {
+            goto(`/settings/audio/clocksfx/${preset.id}`);
+        }).catch(e => alert(e));
+    }
 
     let audioDim: AudioDim | null = $state(null); // Created on mount: it opens a connection to the server
     /** The dim slider's position while it's being dragged, before it's sent. */
@@ -109,6 +247,103 @@
 
 <div class="panel">
 <div class="panel-header">
+    <h2>Clock SFX</h2>
+</div>
+<p class="description">The final and reminder bell sounds a game's clock rings. Each game picks one of these in its settings; new games use the first.</p>
+<div class="table-container">
+<table>
+    <tbody>
+        <tr>
+            <th>Name</th>
+            <th>Final bell</th>
+            <th>Reminder bell</th>
+            <th></th>
+        </tr>
+        {#each data.clockSfxPresets as preset (preset.id)}
+            <tr>
+                <td>{preset.name}</td>
+                <td class="has-sound">{preset.final ? '✓' : '—'}</td>
+                <td class="has-sound">{preset.reminder ? '✓' : '—'}</td>
+                <td><a class="edit-link" href="/settings/audio/clocksfx/{preset.id}">Edit</a></td>
+            </tr>
+        {/each}
+        <tr>
+            <td colspan="4">
+                <button style="width: 100%;" class="add" onclick={createClockSfxPreset}>+ Clock SFX Preset</button>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+</div>
+
+{#snippet audioAssetList(list: AudioAssetList)}
+<div class="asset-player">
+    <div class="asset-now-playing">
+        {#if list.previewId}
+            {@const res = list.resources.find(r => r.id === list.previewId)}
+            {res ? prettifyResourceName(res.name) : ''}
+        {:else}
+            Nothing selected
+        {/if}
+    </div>
+    <audio bind:this={list.player} src={list.previewId ? `/api/resources/${list.previewId}` : undefined} controls loop={list.options.loop}></audio>
+</div>
+<div class="table-container">
+<table>
+    <tbody>
+        <tr>
+            <th>Name</th>
+            <th></th>
+        </tr>
+        {#each list.resources as res (res.id)}
+            <tr class="asset-row" class:selected={list.previewId === res.id} onclick={() => list.preview(res)}>
+                <td>
+                    <input class="name-input" type="text" value={list.draft(res)}
+                        onclick={(e) => e.stopPropagation()}
+                        oninput={(e) => list.nameDrafts[res.id] = e.currentTarget.value}
+                        onkeydown={(e) => { if (e.key === 'Enter') list.rename(res); }}/>
+                </td>
+                <td class="row-actions">
+                    <button class="save" disabled={!list.isRenamed(res)} onclick={(e) => { e.stopPropagation(); list.rename(res); }}>Rename</button>
+                    <button class="icon-button" onclick={(e) => { e.stopPropagation(); list.delete(res); }} aria-label="Delete {prettifyResourceName(res.name)}" title="Delete"><BinIcon size={18}/></button>
+                </td>
+            </tr>
+        {:else}
+            <tr><td colspan="2" class="empty">{list.options.emptyText}</td></tr>
+        {/each}
+        <tr>
+            <td colspan="2">
+                <label class="add add-upload" class:disabled={list.uploading}>
+                    {list.uploading ? 'Uploading...' : list.options.addLabel}
+                    <input type="file" accept={acceptedAudioExtensions} multiple disabled={list.uploading}
+                        onchange={(e) => { list.upload(e.currentTarget.files); e.currentTarget.value = ''; }}/>
+                </label>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+{/snippet}
+
+<div class="panel">
+<div class="panel-header">
+    <h2>Ambience Assets</h2>
+</div>
+<p class="description">The sounds the mixer's ambience tracks can play. Click one to preview it.</p>
+{@render audioAssetList(ambienceAssets)}
+</div>
+
+<div class="panel">
+<div class="panel-header">
+    <h2>Audio Stings</h2>
+</div>
+<p class="description">The short sounds the sting button picks from at random. Click one to preview it.</p>
+{@render audioAssetList(stingAssets)}
+</div>
+
+<div class="panel">
+<div class="panel-header">
     <h2>Spotify Presets</h2>
     <button class="save" disabled={!dirty} onclick={save}>Save changes</button>
 </div>
@@ -118,29 +353,36 @@
     <tbody>
         <tr>
             <th>Name</th>
+            <th></th>
             <th>Album / playlist link</th>
             <th></th>
         </tr>
         {#each rows as row, i (row.id)}
             <tr>
-                <td><input bind:value={row.name} type="text" placeholder="Name"/></td>
+                <td><input class="name-input" bind:value={row.name} type="text" placeholder="Name"/></td>
+                <td class="phase-icons">
+                    {#if row.phase}
+                        <div class="phase-stack">
+                            <span class="phase-icon" title="Day"><DayIcon/></span>
+                            <span class="phase-icon" title="Night"><NightIcon/></span>
+                        </div>
+                    {/if}
+                </td>
                 <td>
                     {#if row.phase}
-                        <div class="phase-links">
-                            <span class="phase-icon" title="Day"><DayIcon/></span>
+                        <div class="phase-stack">
                             <input class="link-input" class:invalid={isInvalidLink(row.dayLink)} bind:value={row.dayLink} type="text" placeholder="Day: https://open.spotify.com/playlist/..."/>
-                            <span class="phase-icon" title="Night"><NightIcon/></span>
                             <input class="link-input" class:invalid={isInvalidLink(row.nightLink)} bind:value={row.nightLink} type="text" placeholder="Night: https://open.spotify.com/playlist/..."/>
                         </div>
                     {:else}
                         <input class="link-input" class:invalid={isInvalidLink(row.link)} bind:value={row.link} type="text" placeholder="https://open.spotify.com/playlist/..."/>
                     {/if}
                 </td>
-                <td><button onclick={()=>rows.splice(i, 1)}>Delete</button></td>
+                <td class="row-actions"><button class="icon-button" onclick={()=>rows.splice(i, 1)} aria-label="Delete preset" title="Delete"><BinIcon size={18}/></button></td>
             </tr>
         {/each}
         <tr>
-            <td colspan="3">
+            <td colspan="4">
                 <div style="display: flex; gap: 0.5em;">
                 <button style="flex: 1;" class="add" onclick={()=>rows.push({ id: newId(), name: '', phase: false, link: '', dayLink: '', nightLink: '' })}>Add Preset</button>
                 <button style="flex: 1;" class="add" onclick={()=>rows.push({ id: newId(), name: '', phase: true, link: '', dayLink: '', nightLink: '' })}>Add Day/Night Preset</button>
@@ -155,20 +397,134 @@
 </div>
 
 <style>
-    input.link-input {
-        width: 32em;
-        max-width: 100%;
+    input.name-input {
+        width: 100%;
+        min-width: 10em;
+        box-sizing: border-box;
     }
 
-    .phase-links {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        align-items: center;
-        gap: 0.3em 0.5em;
+    input.link-input {
+        width: 100%;
+        min-width: 20em;
+        box-sizing: border-box;
+    }
+
+    /* The icons and the inputs are stacked in neighbouring cells; the same item height keeps each icon level with its input. */
+    .phase-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3em;
+    }
+
+    .phase-stack > * {
+        height: 2em;
+        box-sizing: border-box;
+    }
+
+    td.phase-icons {
+        width: 1px; /* Shrink to the icons */
+        padding-left: 0;
+        padding-right: 0;
     }
 
     .phase-icon {
         display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .asset-player {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        margin-bottom: 1rem;
+    }
+
+    .asset-now-playing {
+        font-weight: bold;
+    }
+
+    .asset-player audio {
+        width: 100%;
+    }
+
+    .asset-row {
+        cursor: pointer;
+    }
+
+    tr.asset-row.selected td {
+        background-color: var(--theme-bg-tertiary);
+    }
+
+    /* Looks like the other "+" buttons; it's a label so clicking it opens the (hidden) file picker. */
+    label.add-upload {
+        display: block;
+        box-sizing: border-box;
+        width: 100%;
+        padding: 0.3em 0.5em;
+        border: 2px dashed var(--theme-slider-trim);
+        border-radius: 4px;
+        text-align: center;
+        cursor: pointer;
+        color: var(--theme-on-bg-secondary);
+    }
+
+    label.add-upload:hover {
+        border-color: var(--theme-highlight);
+    }
+
+    label.add-upload.disabled {
+        opacity: 0.5;
+        cursor: progress;
+    }
+
+    label.add-upload input {
+        display: none;
+    }
+
+    .row-actions > button + button {
+        margin-left: 0.3em;
+    }
+
+    button.icon-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.3em;
+        vertical-align: middle;
+    }
+
+    button.icon-button:hover {
+        border-color: var(--theme-error);
+        color: var(--theme-error);
+    }
+
+    .row-actions {
+        white-space: nowrap;
+        text-align: right;
+    }
+
+    .empty {
+        font-style: italic;
+        opacity: 0.7;
+    }
+
+    .has-sound {
+        text-align: center;
+    }
+
+    a.edit-link {
+        display: inline-block;
+        background-color: var(--theme-bg-tertiary);
+        color: var(--theme-on-bg-tertiary);
+        border: 1px solid var(--theme-slider-trim);
+        border-radius: 4px;
+        padding: 0.3em 0.8em;
+        text-decoration: none;
+    }
+
+    a.edit-link:hover {
+        border-color: var(--theme-highlight);
     }
 
     input.invalid {

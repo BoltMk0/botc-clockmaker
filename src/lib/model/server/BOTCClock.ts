@@ -1,7 +1,9 @@
 import type { ClocktowerAudioTrackModel } from "$lib/audio/common/model/clocktowerAudioTrackModel.svelte";
 import type { ClockInstanceInfo, Config } from "$lib/common/config";
 import type { TimerOption } from "$lib/common/timerOption";
+import { clockSfxPlaybackFor } from "$lib/audio/common/clockSfxPreset";
 import { CLOCK_CONFIG_MANAGER } from "$lib/resources/server/clock-config";
+import { getClockSfxPreset } from "$lib/resources/server/clock-sfx-presets";
 import type { TimeOfDay } from "../client/types";
 import { EventEmitter } from "../client/util/eventEmitter";
 import type { ClocktowerModel } from "../common/ClocktowerModel";
@@ -19,8 +21,23 @@ export class BOTCTClock extends EventEmitter {
     constructor(model: ClocktowerModel){
         super();
         this.#model = model;
-        this.#model.audio.resources.finalBell = model.config.resourceMapping.finalBell.resource_id;
-        this.#model.audio.resources.reminderBell = model.config.resourceMapping.reminderBell.resource_id;
+        this.#resolveSfx();
+    }
+
+    /** Fills in audio.sfx from the clock's preset. Returns whether anything changed. */
+    #resolveSfx(): boolean {
+        const presetId = this.#model.config.clockSfxPresetId;
+        const sfx = clockSfxPlaybackFor(presetId === null ? null : getClockSfxPreset(presetId));
+        if(JSON.stringify(sfx) === JSON.stringify(this.#model.audio.sfx)) return false;
+        this.#model.audio.sfx = sfx;
+        return true;
+    }
+
+    /** Call when the clock's preset (or its sounds) changed, to send the new sounds to every client. */
+    refreshSfx(){
+        if(!this.#resolveSfx()) return;
+        this.scheduleSave();
+        this.debouncedEmit('audio', this.#model.audio);
     }
 
     on(event: 'audio', listener: (audio: ClocktowerAudioTrackModel) => void): this;
@@ -113,8 +130,6 @@ export class BOTCTClock extends EventEmitter {
     get audioGain() { return this.#model.audio.gain; }
     get audioPan() { return this.#model.audio.pan; }
     get audioBalance() { return this.#model.audio.balance; }
-    get finalBellResourceId() { return this.#model.audio.resources.finalBell; }
-    get reminderBellResourceId() { return this.#model.audio.resources.reminderBell; }
 
     get config() { return this.#model.config; }
 
@@ -142,21 +157,6 @@ export class BOTCTClock extends EventEmitter {
         this.debouncedEmit('audio', this.#model.audio);
     }
 
-    set finalBellResourceId(id: string|null){
-        if(id === '') id = null;
-        this.#model.audio.resources.finalBell = id;
-        this.scheduleSave();
-        this.debouncedEmit('audio', this.#model.audio);
-    }
-
-    
-    set reminderBellResourceId(id: string|null){
-        if(id === '') id = null;
-        this.#model.audio.resources.reminderBell = id;
-        this.scheduleSave();
-        this.debouncedEmit('audio', this.#model.audio);
-    }
-
     set day(day: number){
         this.#model.clock.day = day;
         this.scheduleSave();
@@ -165,10 +165,9 @@ export class BOTCTClock extends EventEmitter {
 
     set config(config: Config){
         this.#model.config = config;
-        this.#model.audio.resources.finalBell = config.resourceMapping.finalBell.resource_id;
-        this.#model.audio.resources.reminderBell = config.resourceMapping.reminderBell.resource_id;
         this.scheduleSave();
         this.debouncedEmit('modelUpdated', this.#model);
+        if(this.#resolveSfx()) this.debouncedEmit('audio', this.#model.audio);
     }
 
     set duration(duration: number){

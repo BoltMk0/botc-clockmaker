@@ -35,9 +35,6 @@ export class Clocktower extends EventEmitter<ClocktowerEvents> {
     get balance() { return this.#model.audio.balance; }
     set balance(balance: number) { this.#model.audio.balance = balance; this.scheduleAudioSend(); }
 
-    get finalBellResourceId() { return this.#model.audio.resources.finalBell; }
-    get reminderBellResourceId() { return this.#model.audio.resources.reminderBell; }
-
     get duration(){ return this.#model.clock.time.duration; }
 
     get hue(): number { return this.#model.config.theme.hue; }
@@ -166,8 +163,6 @@ export class Clocktower extends EventEmitter<ClocktowerEvents> {
 
     connectAudio(outputNode: AudioNode): AudioClockTrack{
         this.disconnectAudio();
-        this.#model.audio.resources.finalBell = this.#model.config.resourceMapping.finalBell.resource_id;
-        this.#model.audio.resources.reminderBell = this.#model.config.resourceMapping.reminderBell.resource_id;
         this.#audioTrack = new AudioClockTrack(this.#model.clock.clockId, this.#model.audio, this.#model.config.teamName ?? "", outputNode);
         // Syncs the mixer's clock channel strip (gain/pan/balance) to every other connected mixer.
         this.#audioTrack.onLocalChange = ()=>this.scheduleAudioSend();
@@ -213,8 +208,7 @@ export class Clocktower extends EventEmitter<ClocktowerEvents> {
             if(editedAt !== undefined && now - editedAt < AUDIO_LOCAL_EDIT_HOLD_MS) continue;
             if(audio[k] !== model[k]) audio[k] = model[k];
         }
-        if(audio.resources.finalBell !== model.resources.finalBell) audio.resources.finalBell = model.resources.finalBell;
-        if(audio.resources.reminderBell !== model.resources.reminderBell) audio.resources.reminderBell = model.resources.reminderBell;
+        if(JSON.stringify(audio.sfx) !== JSON.stringify(model.sfx)) audio.sfx = model.sfx;
     }
 
     close(){

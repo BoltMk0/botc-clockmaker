@@ -1,11 +1,8 @@
-import type { Config } from "$lib/common/config";
+import { bellBalanceGains } from "../common/clockSfxPreset";
 import type { ClocktowerAudioTrackModel } from "../common/model/clocktowerAudioTrackModel.svelte";
 import { AudioTrack } from "./AudioTrack.svelte";
 
-function resourceToUrl(res: string|null){
-    return res === null ? '' : `/api/resources/${res}`
-}
-    
+
 export class AudioClockTrack extends AudioTrack {
     /** When set, bells never ring (used by remote-only clients). */
     silent = false;
@@ -22,6 +19,9 @@ export class AudioClockTrack extends AudioTrack {
 
     readonly #finalBellGainNode: GainNode;
     readonly #reminderBellGainNode: GainNode;
+    /** The SFX preset's pan trim, ahead of the track's own panner. */
+    readonly #sfxPanNode: StereoPannerNode;
+    readonly #stopSfxSync: ()=>void;
 
     constructor(
         readonly id: string,
@@ -76,13 +76,34 @@ export class AudioClockTrack extends AudioTrack {
         this.#finalBellGainNode = context.createGain();
         this.#reminderBellGainNode = context.createGain();
 
-        this.#reminderBellAudioSource.connect(this.#reminderBellGainNode).connect(super.input);
-        this.#finalBellAudioSource.connect(this.#finalBellGainNode).connect(super.input);
+        this.#sfxPanNode = context.createStereoPanner();
+        this.#sfxPanNode.connect(super.input);
+
+        this.#reminderBellAudioSource.connect(this.#reminderBellGainNode).connect(this.#sfxPanNode);
+        this.#finalBellAudioSource.connect(this.#finalBellGainNode).connect(this.#sfxPanNode);
 
         this.persistMute(`clock.${this.id}`);
-        this.balance = model.balance; // Trigger update of final/reminder bell gains
-        this.reminderBellResourceId = this.reminderBellResourceId;
-        this.finalBellResourceId = this.finalBellResourceId;
+        // Keep the bells in step with the model when it's changed from elsewhere (a server update, e.g. the
+        // clock's SFX preset being swapped or edited, or another mixer moving the balance).
+        this.#stopSfxSync = $effect.root(()=>{
+            $effect(()=>{ this.#setSource(this.#finalBellAudio, model.sfx.finalUrl); });
+            $effect(()=>{ this.#setSource(this.#reminderBellAudio, model.sfx.reminderUrl); });
+            $effect(()=>{ this.#sfxPanNode.pan.value = model.sfx.pan; });
+            $effect(()=>{ this.#updateBellGains(); });
+        });
+    }
+
+    #setSource(audio: HTMLAudioElement, url: string|null){
+        console.log(`Updating bell source of Clock #${this.id} to "${url ?? ''}"`);
+        if(url === null) audio.removeAttribute('src');
+        else audio.src = url;
+    }
+
+    #updateBellGains(){
+        const clock = bellBalanceGains(this.#model.balance);
+        const preset = bellBalanceGains(this.#model.sfx.balance);
+        this.#finalBellGainNode.gain.value = clock.final * preset.final * this.#model.sfx.gain;
+        this.#reminderBellGainNode.gain.value = clock.reminder * preset.reminder * this.#model.sfx.gain;
     }
 
     get input(): AudioNode { return this.#finalBellAudioSource; }
@@ -103,42 +124,25 @@ export class AudioClockTrack extends AudioTrack {
 
     set balance(balance: number) {
         this.#model.balance = balance;
-        const finalGain = this.#model.balance > 0 ?  1 : Math.sin(Math.PI/2 * (1 + this.#model.balance));
-        const reminderGain = this.#model.balance < 0 ?  1 : Math.sin(Math.PI/2 * (1 - this.#model.balance));
-        this.#finalBellGainNode.gain.value = finalGain;
-        this.#reminderBellGainNode.gain.value = reminderGain;
+        this.#updateBellGains();
         this.onLocalChange?.();
-    }
-
-    get reminderBellResourceId(){ return this.#model.resources.reminderBell; }
-    get finalBellResourceId(){ return this.#model.resources.finalBell; }
-    set reminderBellResourceId(id: string|null){
-        this.#model.resources.reminderBell = id;
-        const url = resourceToUrl(this.#model.resources.reminderBell);
-        console.log(`Updating reminder bell source of Clock #${this.id} to "${url}" (resid=${id})`);
-        this.#reminderBellAudio.src = url;
-    }
-    set finalBellResourceId(id: string|null){
-        this.#model.resources.finalBell = id;
-        const url = resourceToUrl(this.#model.resources.finalBell);
-        console.log(`Updating final bell source of Clock #${this.id} to "${url}" (resid=${id})`);
-        this.#finalBellAudio.src = url;
     }
 
     ringFinalBell(){
         console.log("Ringing final bell for clock track", this.id)
-        if(this.silent || this.#finalBellAudio.src === '') return;
+        if(this.silent || this.#model.sfx.finalUrl === null) return;
         this.#finalBellAudio.currentTime = 0;
         this.#finalBellAudio.play();
     }
 
     ringReminderBell(){
-        if(this.silent || this.#reminderBellAudio.src === '') return;
+        if(this.silent || this.#model.sfx.reminderUrl === null) return;
         this.#reminderBellAudio.currentTime = 0;
         this.#reminderBellAudio.play();
     }
 
     close(): void {
+        this.#stopSfxSync();
         super.close();
     }
 }

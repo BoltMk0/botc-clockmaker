@@ -74,6 +74,13 @@ export class AmbienceEngineHelper extends EventEmitter {
         }
     }
 
+    /** Points every track playing `oldId` at `newId` instead (or unloads them, for null): for a renamed or deleted resource. */
+    replaceResource(oldId: string, newId: string|null){
+        this.#tracks.forEach((track, index)=>{
+            if(track.model.loadedResourceId === oldId) this.updateTrack(index, { loadedResourceId: newId });
+        });
+    }
+
     /** Appends a new empty track. Clients pick it up from the engine update (they append any tracks they're missing). */
     addTrack(){
         if(this.#model.tracks.length >= MAX_AMBIENCE_TRACKS) throw new Error(`At most ${MAX_AMBIENCE_TRACKS} ambience tracks`);
