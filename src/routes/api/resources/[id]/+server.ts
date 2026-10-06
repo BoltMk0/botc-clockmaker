@@ -1,4 +1,4 @@
-import { deleteResource, findResourceById, getResourceData } from '$lib/resources/server/resources';
+import { deleteResource, findResourceById, getResourceData, getResourceStats } from '$lib/resources/server/resources';
 
 /** Parses a single `bytes=start-end` range header. Returns null if absent/unsupported, 'invalid' if unsatisfiable. */
 function parseRange(header: string | null, size: number): {start: number, end: number} | 'invalid' | null {
@@ -26,6 +26,24 @@ export async function GET({params, request}){
         console.warn(`Resource with id ${params.id} not found`);
         return new Response("Resource not found", { status: 404 });
     }
+    const stats = getResourceStats(resource);
+    if (!stats) {
+        console.warn(`Resource ${resource.name} found but data is missing`);
+        return new Response("Resource data not found", { status: 404 });
+    }
+
+    // Revalidate on every use, but let unchanged files come back as a bodyless 304. The ETag changes when a file
+    // is re-uploaded under the same id, so replacements still show up immediately.
+    const etag = `"${stats.size.toString(16)}-${Math.floor(stats.mtimeMs).toString(16)}"`;
+    const cacheHeaders = {
+        "Cache-Control": "no-cache",
+        "ETag": etag,
+        "Last-Modified": stats.mtime.toUTCString()
+    };
+    if(request.headers.get('if-none-match') === etag){
+        return new Response(null, { status: 304, headers: cacheHeaders });
+    }
+
     const data = getResourceData(resource);
     if (!data) {
         console.warn(`Resource ${resource.name} found but data is missing`);
@@ -36,7 +54,8 @@ export async function GET({params, request}){
     const baseHeaders = {
         "Content-Type": resource.mimetype,
         "Content-Disposition": `inline; filename="${resource.name}"`,
-        "Accept-Ranges": "bytes"
+        "Accept-Ranges": "bytes",
+        ...cacheHeaders
     };
 
     // Media elements need Range support to seek (e.g. random start offsets for ambience tracks).

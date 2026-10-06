@@ -1,6 +1,6 @@
 import { ALL_RESOURCE_TYPES, getAcceptedExtensionsForResourceType, type Resource, type ResourceType } from "../common/types";
 import { getExtensionForMimeType, getMimeTypeForExtension, prettifyResourceName} from "../common/util";
-import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync, type Stats } from "fs";
 
 
 const RESOURCE_DATA_DIR =  process.env.RESOURCE_DATA_DIR || "data/resources";
@@ -84,6 +84,12 @@ export function getResourceData(resource: Resource): Buffer | null {
     const filepath = getResourceFilePath(resource);
     if (!existsSync(filepath)) return null;
     return Buffer.from(readFileSync(filepath));
+}
+
+export function getResourceStats(resource: Resource): Stats | null {
+    const filepath = getResourceFilePath(resource);
+    if (!existsSync(filepath)) return null;
+    return statSync(filepath);
 }
 
 export function resourceExists(resource: Resource|string): boolean {

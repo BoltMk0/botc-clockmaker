@@ -1,5 +1,6 @@
 import { ALL_RESOURCE_TYPES, isValidResourceType } from "$lib/resources/common/types";
 import { createResource, deleteResource, listResources } from "$lib/resources/server/resources";
+import { getMimeTypeForExtension } from "$lib/resources/common/util";
 import type { Actions } from "./$types";
 
 export async function load(){
@@ -23,7 +24,12 @@ export const actions: Actions = {
         const buffer = Buffer.from(arrayBuffer);
         const nameFromFilename = file.name.replace(/\.[^/.]+$/, "").replaceAll(/[_-]+/g, " ").trim();
 
-        const id = createResource(name.length > 0 ? name : nameFromFilename, type, file.type, buffer);
+        // Prefer the extension over file.type: browsers report AAC/M4A inconsistently (audio/x-m4a, audio/x-aac, or empty)
+        const extMatch = /(\.[^./\\]+)$/.exec(file.name);
+        const extMimeType = extMatch ? getMimeTypeForExtension(extMatch[1]) : 'application/octet-stream';
+        const mimeType = extMimeType !== 'application/octet-stream' ? extMimeType : file.type;
+
+        const id = createResource(name.length > 0 ? name : nameFromFilename, type, mimeType, buffer);
         return { success: true, id };
     },
 

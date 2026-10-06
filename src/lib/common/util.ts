@@ -164,6 +164,8 @@ const mimeTypeMap: {[key: string]: string} = {
     '.wav': 'audio/wav',
     '.ogg': 'audio/ogg',
     '.flac': 'audio/flac',
+    '.aac': 'audio/aac',
+    '.m4a': 'audio/mp4',
     '.png': 'image/png',
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
