@@ -5,7 +5,6 @@
     const paths = [
         '/settings/scripts',
         '/settings/characters',
-        '/settings/clocks',
         '/settings/timerOptions',
         '/settings/customMessages',
         '/settings/qrCodes',
@@ -17,7 +16,6 @@
 
     /** For the paths whose label isn't just their name. */
     const LABELS: Record<string, string> = {
-        '/settings/clocks': 'games',
         '/settings/customMessages': 'Grim Messages',
         '/settings/rulesSlides': 'Rules Slides'
     };

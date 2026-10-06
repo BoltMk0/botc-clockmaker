@@ -167,7 +167,7 @@
                 {/each}
             </div>
             <div style="display: grid; grid-template-columns: 2fr 3fr 3fr 2fr; font-size: 1em; gap: 5px;">
-                <a class="button-style" id="edit-button" href="/settings/clocks">
+                <a class="button-style" id="edit-button" href="/settings/timerOptions">
                     <img class="button-icon-img" src="{gearshape}" alt="Config"/>
                 </a>
                 <button class="button-container-button stop-btn" onclick={onStop} disabled={model.timeOfDay === 'night'} title={model.running ? 'Pause the timer' : 'End the day'}>Stop</button>

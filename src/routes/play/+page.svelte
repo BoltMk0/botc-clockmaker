@@ -4,11 +4,17 @@
     import PlusIcon from '$lib/components/PlusIcon.svelte';
     import BookIcon from '$lib/components/BookIcon.svelte';
     import TownSquareIcon from '$lib/components/TownSquareIcon.svelte';
-    import CogIcon from '$lib/components/CogIcon.svelte';
+    import TrashIcon from '$lib/components/TrashIcon.svelte';
+    import PencilIcon from '$lib/components/PencilIcon.svelte';
+    import type { Config } from '$lib/common/config';
     import CustomOverlay from '$lib/components/CustomOverlay.svelte';
     import type { ClocktowerModel } from '$lib/model/common/ClocktowerModel';
+    import type { ClockSfxPreset } from '$lib/audio/common/clockSfxPreset';
 
-    let { data }: { data: { games: { instance: ClocktowerModel, scriptName: string | null, hasGrim: boolean }[] } } = $props();
+    let { data }: { data: {
+        games: { instance: ClocktowerModel, scriptName: string | null, hasGrim: boolean }[],
+        clockSfxPresets: ClockSfxPreset[]
+    } } = $props();
 
     let creating = $state(false);
 
@@ -26,6 +32,65 @@
         }).finally(() => {
             creating = false;
         });
+    }
+
+    function deleteGame(instance: ClocktowerModel){
+        const id = instance.clock.clockId;
+        if(!confirm(`Delete "${instance.config.teamName ?? id}"? This cannot be undone.`)) return;
+        fetch(`/api/clock/${id}`, { method: 'DELETE' }).then(response => {
+            if(!response.ok){
+                alert("Failed to delete game");
+                throw new Error('Failed to delete game');
+            }
+            return invalidateAll();
+        }).catch(error => {
+            console.error("Error deleting game:", error);
+        });
+    }
+
+    function saveConfig(instance: ClocktowerModel, changes: Partial<Config>, what: string){
+        const id = instance.clock.clockId;
+        const config = { ...instance.config, teamName: instance.config.teamName ?? id, ...changes };
+        fetch(`/api/clock/${id}/config`, {
+            method: 'POST',
+            body: JSON.stringify(config),
+            headers: { 'Content-Type': 'application/json' }
+        }).then(response => {
+            if(!response.ok){
+                alert(`Failed to change ${what}`);
+                throw new Error(`Failed to change ${what}`);
+            }
+            return invalidateAll();
+        }).catch(error => {
+            console.error(`Error changing ${what}:`, error);
+            invalidateAll(); // Put the page back to the saved values
+        });
+    }
+
+    // Saved as soon as it's picked; the server re-resolves the clock's bell sounds from the preset.
+    function setClockSfxPreset(instance: ClocktowerModel, presetId: string | null){
+        saveConfig(instance, { clockSfxPresetId: presetId }, 'clock SFX preset');
+    }
+
+    // The game whose name is being edited, and the name typed so far.
+    let renamingId: string | null = $state(null);
+    let renameValue = $state('');
+
+    function startRename(instance: ClocktowerModel){
+        renamingId = instance.clock.clockId;
+        renameValue = instance.config.teamName ?? instance.clock.clockId;
+    }
+
+    function finishRename(instance: ClocktowerModel){
+        if(renamingId !== instance.clock.clockId) return; // Already finished (Enter then blur)
+        renamingId = null;
+        const name = renameValue.trim();
+        if(name && name !== instance.config.teamName) saveConfig(instance, { teamName: name }, 'game name');
+    }
+
+    function focusAndSelect(input: HTMLInputElement){
+        input.focus();
+        input.select();
     }
 
     // The game whose grim the End game dialog is for.
@@ -74,10 +139,29 @@
         {#each data.games as { instance, scriptName, hasGrim } (instance.clock.clockId)}
             {@const id = instance.clock.clockId}
             <div class="game-panel">
-                <div class="game-panel-name">{instance.config.teamName ?? id}</div>
-                <a class="settings-link" href="/settings/clocks?select={id}" aria-label="Game settings" title="Settings">
-                    <CogIcon size={24}/>
-                </a>
+                <div class="game-panel-name">
+                    {#if renamingId === id}
+                        <input
+                            class="rename-input"
+                            type="text"
+                            aria-label="Game name"
+                            bind:value={renameValue}
+                            use:focusAndSelect
+                            onblur={() => finishRename(instance)}
+                            onkeydown={(e) => {
+                                if(e.key === 'Enter') finishRename(instance);
+                                else if(e.key === 'Escape') renamingId = null;
+                            }}/>
+                    {:else}
+                        <span>{instance.config.teamName ?? id}</span>
+                        <button class="rename-game" onclick={() => startRename(instance)} aria-label="Rename game" title="Rename">
+                            <PencilIcon size={20}/>
+                        </button>
+                    {/if}
+                </div>
+                <button class="delete-game" onclick={() => deleteGame(instance)} aria-label="Delete game" title="Delete">
+                    <TrashIcon size={24}/>
+                </button>
                 <div class="game-panel-stats">
                     <div class="stat">
                         <div class="stat-label">Script</div>
@@ -92,6 +176,15 @@
                         <div class="stat-value">{instance.clock.day}</div>
                     </div>
                 </div>
+                <label class="sfx-preset">
+                    <span class="stat-label">Clock SFX</span>
+                    <select value={instance.config.clockSfxPresetId ?? ''} onchange={(e) => setClockSfxPreset(instance, e.currentTarget.value || null)}>
+                        <option value="">None</option>
+                        {#each data.clockSfxPresets as preset (preset.id)}
+                            <option value={preset.id}>{preset.name}</option>
+                        {/each}
+                    </select>
+                </label>
                 <div class="game-panel-actions">
                     <a class="button-style" href="/townsquare/{id}"><TownSquareIcon size={36}/><span>Town Square</span></a>
                     {#if hasGrim}
@@ -222,22 +315,84 @@
     }
 
     .game-panel-name {
+        display: flex;
+        align-items: center;
+        gap: 0.3em;
         font-size: x-large;
         word-break: break-word;
         padding-right: 2em;
     }
 
-    .settings-link {
+    .rename-game {
+        display: flex;
+        flex: 0 0 auto;
+        padding: 0.2em;
+        border: none;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--theme-on-bg);
+        opacity: 0.6;
+        cursor: pointer;
+    }
+
+    .rename-game:hover {
+        opacity: 1;
+        background-color: var(--theme-bg-tertiary);
+    }
+
+    .rename-input {
+        flex: 1;
+        min-width: 0;
+        box-sizing: border-box;
+        padding: 0.1em 0.4em;
+        border: 1px solid var(--theme-highlight);
+        border-radius: 6px;
+        outline: none;
+        background-color: var(--theme-bg-tertiary);
+        color: var(--theme-on-bg-tertiary);
+        font: inherit;
+    }
+
+    .delete-game {
         position: absolute;
         top: 0.8em;
         right: 1em;
         display: flex;
+        padding: 0.2em;
+        border: none;
+        border-radius: 6px;
+        background: transparent;
         color: var(--theme-on-bg);
         opacity: 0.6;
+        cursor: pointer;
     }
 
-    .settings-link:hover {
+    .delete-game:hover {
         opacity: 1;
+        background-color: var(--theme-error);
+        color: var(--theme-on-error);
+    }
+
+    .sfx-preset {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2em;
+    }
+
+    .sfx-preset select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0.5rem 0.6rem;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background-color: var(--theme-bg-tertiary);
+        color: var(--theme-on-bg-tertiary);
+        font: inherit;
+    }
+
+    .sfx-preset select:focus {
+        outline: none;
+        border-color: var(--theme-highlight);
     }
 
     .game-panel-stats {
