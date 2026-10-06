@@ -76,8 +76,10 @@ export class SSEClient {
         // genuinely changes elsewhere (ambience/sting/spotify/audioDim). Without also counting pings
         // as a liveness signal, the watchdog below would wrongly declare those quieter connections
         // stale and force-reconnect them every few seconds even while perfectly healthy.
-        this.#ping_unsubscribe = this.sse_connection.select('ping').subscribe(() => {
-            this.lastMessageTime = Date.now();
+        // Every ping carries the same empty data, so a plain `select('ping')` store would never notify after
+        // the first one (stores skip unchanged values); `transform` runs per event, and the timestamp always changes.
+        this.#ping_unsubscribe = this.sse_connection.select('ping').transform(() => Date.now()).subscribe((time) => {
+            if(time !== null) this.lastMessageTime = time;
         });
 
         if(typeof window !== 'undefined'){
