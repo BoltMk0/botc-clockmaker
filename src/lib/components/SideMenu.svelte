@@ -96,6 +96,13 @@
         font-size: medium;
     }
 
+    .remote-link {
+        display: block;
+        text-align: center;
+        margin-top: 8px;
+        font-size: small;
+    }
+
     a {
         color: var(--theme-on-bg);
         text-decoration: none;
@@ -229,6 +236,7 @@
         {#if townSquare && clock}
         <div class="navbar-settings-pane clock-controls-pane">
             <ClockSetter model={clock} {timerOptions}/>
+            <a class="remote-link" href="/admin/{clock.id}/remote" target="_blank" rel="noopener">Open remote in its own page ↗</a>
         </div>
         {/if}
         {#if townSquare && audioEngine}
