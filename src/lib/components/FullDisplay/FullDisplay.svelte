@@ -159,7 +159,7 @@
         </div>
     {/if}
 
-    <div class="instruction-text-container" style="opacity: {showInstructionText ? "1" : "0"}; font-size: {shownSize/15}px;">
+    <div class="instruction-text-container" style="opacity: {showInstructionText ? "1" : "0"}; font-size: 3.5vw;">
         <div class="instruction-text">
             {instructionText}
         </div>
