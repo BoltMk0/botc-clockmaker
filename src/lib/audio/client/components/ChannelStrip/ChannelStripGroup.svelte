@@ -2,7 +2,7 @@
     import type { Snippet } from 'svelte';
     import ChannelStrip from './ChannelStrip.svelte';
     import AudioMixerText from './AudioMixerText.svelte';
-    import { AudioTrackGroup } from '../../AudioTrackGroup';
+    import { AudioTrackGroup } from '../../AudioTrackGroup.svelte';
     import { AudioTrack } from '../../AudioTrack.svelte';
 
     const {

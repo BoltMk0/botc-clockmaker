@@ -21,16 +21,23 @@ export function isAmbienceEngineModel(data: any): data is AmbienceEngineModel {
     return true;
 }
 
+/** Upper limit on the number of ambience tracks, so a stray click-fest can't spawn an unbounded number of them. */
+export const MAX_AMBIENCE_TRACKS = 16;
+
+export function newAmbienceTrackModel(): AmbienceTrackModel {
+    return {
+        gain: 1,
+        pan: 0,
+        loadedResourceId: null,
+        activeAtNight: true,
+        activeInDay: true
+    };
+}
+
 export function newAmbienceEngineModel(nTracks: number = 4): AmbienceEngineModel {
     return {
         playing: false,
-        tracks: Array.from({length: nTracks}, ()=>({
-            gain: 1,
-            pan: 0,
-            loadedResourceId: null,
-            activeAtNight: true,
-            activeInDay: true
-        })),
+        tracks: Array.from({length: nTracks}, newAmbienceTrackModel),
         gain: 1,
         pan: 0
     }

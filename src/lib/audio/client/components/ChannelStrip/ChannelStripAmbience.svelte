@@ -12,13 +12,16 @@
         track,
         title,
         timeOfDay,
-        onTitleClick = undefined
+        onTitleClick = undefined,
+        onRemove = undefined
     }: {
         resources: Resource[];
         track: AudioAmbienceTrack;
         title: string;
         timeOfDay: TimeOfDay;
         onTitleClick?: (ev?: any)=>void;
+        /** Shows a "Remove ambience track" button at the bottom of the track picker when set. */
+        onRemove?: ()=>void;
     } = $props();
 
     const selectedResourceValue: number = $derived(resources.findIndex((r)=>{return track.loadedResourceId === r.id}));
@@ -66,6 +69,9 @@
             {#each resources as resource, i (resource.id)}
                 <button class="button-style" disabled={selectedResourceValue === i} onclick={()=>{track.loadedResourceId = resource.id; showOverlay = false;}}>{resource.name}</button>
             {/each}
+            {#if onRemove}
+                <button class="button-style remove-track-btn" onclick={()=>{showOverlay = false; onRemove();}}>Remove ambience track</button>
+            {/if}
         </div>
     </CustomOverlay>
 </div>
@@ -76,6 +82,12 @@
         flex-direction: column;
         gap: 0.3em;
         min-width: 200px;
+    }
+
+    button.remove-track-btn {
+        margin-top: 0.7em;
+        background-color: var(--theme-error);
+        color: var(--theme-on-error);
     }
 
     button.daynight-btn {

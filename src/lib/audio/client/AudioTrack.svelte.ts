@@ -71,9 +71,16 @@ export class AudioTrack implements AudioTrackBase {
         }
     }
 
-    /** Remember this track's mute state on this device under the given key, and restore it now. */
-    persistMute(key: string) {
+    /**
+     * Remember this track's mute state on this device under the given key, and restore it now - or, with
+     * `restore` false, keep the current state and save it under the new key instead (for a track whose key moved).
+     */
+    persistMute(key: string, restore = true) {
         this.#muteStorageKey = `mixer.mute.${key}`;
+        if(!restore){
+            this.muted = this.#muted;
+            return;
+        }
         try {
             this.muted = localStorage.getItem(this.#muteStorageKey) === '1';
         } catch { /* storage unavailable */ }

@@ -14,3 +14,15 @@ export async function POST({request, params}){
     }
     return new Response();
 }
+
+/** Remove one track (later tracks shift down an index). */
+export async function DELETE({params}){
+    const index = parseInt(params.index);
+    if(isNaN(index)) return error(400, {message: 'Invalid index in url - failed to parse'});
+    try {
+        getAmbienceEngineHelperInstance().removeTrack(index);
+    } catch (e) {
+        return error(400, {message: e instanceof Error ? e.message : String(e)});
+    }
+    return new Response();
+}

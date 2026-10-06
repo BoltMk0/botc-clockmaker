@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { doubleTap } from "./doubleTap";
+
 	let {
 		value = $bindable(0),
 		min = 0,
@@ -41,6 +43,8 @@
 	height: 32px;
     box-sizing: border-box;
     accent-color: var(--theme-slider-accent);
+	/* No double-tap-to-zoom, which would otherwise eat the double tap that resets the slider */
+	touch-action: manipulation;
 }
 </style>
 
@@ -53,5 +57,6 @@
 	oninput={handleInput}
 	onchange={handleChange}
 	ondblclick={resetToZero}
+	use:doubleTap={resetToZero}
 	class="horizontal-slider"
 />

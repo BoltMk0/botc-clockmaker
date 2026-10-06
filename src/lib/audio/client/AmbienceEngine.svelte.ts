@@ -1,5 +1,5 @@
 import { AudioAmbienceTrack } from "$lib/audio/client/AudioAmbienceTrack.svelte";
-import { AudioTrackGroup } from "$lib/audio/client/AudioTrackGroup";
+import { AudioTrackGroup } from "$lib/audio/client/AudioTrackGroup.svelte";
 import type { AmbienceEngineModel, AmbienceEnginePatch, AmbienceTrackPatch } from "$lib/audio/common/model/ambienceEngineModel";
 import type { AmbienceTrackModel } from "$lib/audio/common/model/ambienceTrackModel";
 import type { TimeOfDay } from "../../model/client/types";
@@ -47,10 +47,7 @@ export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
         this.#silent = options.silent ?? false;
 
         this.persistMute('ambience.bus');
-        this.tracks.forEach((track, index)=>{
-            track.persistMute(`ambience.track.${index}`);
-            track.onLocalChange = (patch)=>this.queueTrackPatch(index, patch);
-        });
+        this.tracks.forEach((track, index)=>this.setupTrack(track, index));
 
         // Drive playback from (shared playing flag) x (bus mute) x (time of day) x (per-track day/night activity).
         // Muting the bus is local to this device, so treat it the same as pausing rather than touching the shared `playing` flag.
@@ -71,6 +68,9 @@ export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
                     break;
                 case 'ambienceTrackUpdate':
                     this.applyRemoteTrack(msg.index, msg.model);
+                    break;
+                case 'ambienceTrackRemoved':
+                    this.removeLocalTrack(msg.index);
                     break;
                 default:
                     break;
@@ -105,9 +105,67 @@ export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
     pause(){ this.playing = false; }
     togglePlayPause() { this.playing = !this.playing; }
 
+    /** Ask the server for a new empty track; it's added here (as on every client) when the update comes back. */
+    addTrack(){
+        this.send('POST', '/api/ambienceEngine/tracks');
+    }
+
+    /** Ask the server to remove a track; it's removed here (as on every client) when the update comes back. */
+    removeTrack(index: number){
+        // Send any queued edits first, while their indices still point at the right tracks
+        if(this.#sendTimer !== null){
+            clearTimeout(this.#sendTimer);
+            this.#sendTimer = null;
+            this.flush();
+        }
+        this.send('DELETE', `/api/ambienceEngine/tracks/${index}`);
+    }
+
     /** Retry playback of all tracks (call after a user gesture, once the browser permits audio). */
     retryPlayback(){
         for(const t of this.tracks) t.applyPlayback();
+    }
+
+    private setupTrack(track: AudioAmbienceTrack, index: number){
+        track.persistMute(`ambience.track.${index}`);
+        // Looked up at send time, since removing an earlier track shifts this one's index
+        track.onLocalChange = (patch)=>{
+            const i = this.tracks.indexOf(track);
+            if(i !== -1) this.queueTrackPatch(i, patch);
+        };
+    }
+
+    private appendLocalTrack(model: AmbienceTrackModel){
+        this.#model.tracks.push(model);
+        const index = this.#model.tracks.length - 1;
+        // Pass the reactive proxy the model array now holds, not the plain object pushed into it
+        const track = new AudioAmbienceTrack(this.#model.tracks[index], this.input, `Track ${index + 1}`);
+        this.tracks.push(track);
+        this.setupTrack(track, index);
+    }
+
+    private removeLocalTrack(index: number){
+        const track = this.tracks[index];
+        if(!track) return;
+        track.close();
+        this.tracks.splice(index, 1);
+        this.#model.tracks.splice(index, 1);
+
+        // Later tracks have shifted down an index: move their queued edits and saved mute state along with them
+        const pending = [...this.#pendingTracks];
+        this.#pendingTracks.clear();
+        for(const [i, patch] of pending){
+            if(i !== index) this.#pendingTracks.set(i > index ? i - 1 : i, patch);
+        }
+        for(const key of [...this.#localEdits.keys()]){
+            if(key.startsWith('track.')) this.#localEdits.delete(key);
+        }
+        for(let i = index; i < this.tracks.length; i++){
+            this.tracks[i].persistMute(`ambience.track.${i}`, false);
+        }
+        try {
+            localStorage.removeItem(`mixer.mute.ambience.track.${this.tracks.length}`);
+        } catch { /* storage unavailable */ }
     }
 
     // ---- Local edits -> server ----
@@ -143,18 +201,18 @@ export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
         this.#pendingEngine = {};
         this.#pendingTracks.clear();
         if(Object.keys(enginePatch).length > 0){
-            this.post('/api/ambienceEngine', enginePatch);
+            this.send('POST', '/api/ambienceEngine', enginePatch);
         }
         for(const [index, patch] of trackPatches){
-            this.post(`/api/ambienceEngine/tracks/${index}`, patch);
+            this.send('POST', `/api/ambienceEngine/tracks/${index}`, patch);
         }
     }
 
-    private post(url: string, body: object){
+    private send(method: 'POST'|'DELETE', url: string, body?: object){
         fetch(url, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(body)
+            method,
+            headers: body ? {'Content-Type': 'application/json'} : undefined,
+            body: body ? JSON.stringify(body) : undefined
         }).then((res)=>{
             if(!res.ok) console.error(`AmbienceEngine - update to ${url} rejected: ${res.status}`);
         }).catch((e)=>{
@@ -175,6 +233,10 @@ export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
 
     private applyRemoteEngine(model: AmbienceEngineModel){
         this.applyFields('engine', this.#model, model, ENGINE_KEYS);
+        // Tracks are only ever appended, or removed via their own message (see removeLocalTrack), so a count
+        // mismatch here means tracks were added - or, after a missed removal while disconnected, there are extras.
+        while(this.tracks.length > model.tracks.length) this.removeLocalTrack(this.tracks.length - 1);
+        for(let i = this.tracks.length; i < model.tracks.length; i++) this.appendLocalTrack({...model.tracks[i]});
         model.tracks.forEach((t, i)=>this.applyRemoteTrack(i, t));
     }
 

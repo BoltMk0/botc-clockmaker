@@ -27,6 +27,7 @@ class MixerListener extends SSEClientManager {
         super();
         ambienceEngine.on('engineUpdate', (model) => this.broadcast({ type: 'ambienceEngineUpdate', model }));
         ambienceEngine.on('trackUpdate', (index, model) => this.broadcast({ type: 'ambienceTrackUpdate', index, model }));
+        ambienceEngine.on('trackRemoved', (index) => this.broadcast({ type: 'ambienceTrackRemoved', index }));
         stingEngine.on('engineUpdate', (model) => this.broadcast({ type: 'stingEngineUpdate', model }));
         stingEngine.on('trackUpdate', (index, model) => this.broadcast({ type: 'stingTrackUpdate', index, model }));
         stingEngine.on('trigger', (slot) => this.broadcast({ type: 'stingTrigger', slot }));

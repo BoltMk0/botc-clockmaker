@@ -1,5 +1,7 @@
 
 <script lang="ts">
+    import { doubleTap } from "./doubleTap";
+
     let {
         value = $bindable(1), // linear value (0..1)
         min = 0,
@@ -67,6 +69,8 @@
     appearance: none;
     background: transparent;
     cursor: pointer;
+    /* No double-tap-to-zoom, which would otherwise eat the double tap that resets the fader */
+    touch-action: manipulation;
 }
 
 .vertical-slider::-webkit-slider-runnable-track {
@@ -140,6 +144,7 @@
     oninput={handleInput}
     onchange={handleChange}
     ondblclick={resetToZero}
+    use:doubleTap={resetToZero}
     style=""
     class="vertical-slider"
 />

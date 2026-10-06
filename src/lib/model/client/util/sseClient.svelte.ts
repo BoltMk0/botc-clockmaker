@@ -63,7 +63,16 @@ export class SSEClient {
                 self.scheduleSSEReconnect();
             }
         });
-        this.sse_data_store = this.sse_connection.select('message').json<WSMessage>();
+        // Parsed per event via `transform` rather than `.json()`: that derives from a plain string store, which skips
+        // a message identical to the one before it - e.g. two consecutive `ambienceTrackRemoved` for the same index.
+        this.sse_data_store = this.sse_connection.select('message').transform((raw): WSMessage|null => {
+            try {
+                return JSON.parse(raw);
+            } catch (e) {
+                console.error('SSE: failed to parse message', raw, e);
+                return null;
+            }
+        });
         this.sse_store_unsubscribe = this.sse_data_store.subscribe((value) => {
             if(value){
                 this.lastMessageTime = Date.now();

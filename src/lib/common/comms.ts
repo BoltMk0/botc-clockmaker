@@ -43,6 +43,11 @@ export type AmbienceTrackUpdateMessage = WSMessageBase & {
     model: AmbienceTrackModel;
 };
 
+export type AmbienceTrackRemovedMessage = WSMessageBase & {
+    type: 'ambienceTrackRemoved',
+    index: number;
+};
+
 export type SpotifyUpdateMessage = WSMessageBase & {
     type: 'spotifyUpdate',
     model: SpotifyModel
@@ -77,6 +82,7 @@ export type WSMessage =
     |ClockAudioParamsMessage
     |AmbienceEngineUpdateMessage
     |AmbienceTrackUpdateMessage
+    |AmbienceTrackRemovedMessage
     |SpotifyUpdateMessage
     |AudioDimUpdateMessage
     |StingEngineUpdateMessage

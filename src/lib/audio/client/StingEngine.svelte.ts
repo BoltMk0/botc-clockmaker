@@ -1,5 +1,5 @@
 import { AudioStingSlot } from "$lib/audio/client/AudioStingSlot.svelte";
-import { AudioTrackGroup } from "$lib/audio/client/AudioTrackGroup";
+import { AudioTrackGroup } from "$lib/audio/client/AudioTrackGroup.svelte";
 import type { StingEngineModel, StingEnginePatch } from "$lib/audio/common/model/stingEngineModel";
 import type { AudioResourceTrackModel } from "$lib/audio/common/model/audioResourceTrackModel";
 import { subscribeMixerEvents } from "./MixerEventsClient";

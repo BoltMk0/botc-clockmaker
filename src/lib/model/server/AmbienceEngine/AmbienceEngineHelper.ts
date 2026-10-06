@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import { AmbienceTrackHelper } from "./AmbienceTrackHelper";
-import { newAmbienceEngineModel, type AmbienceEngineModel } from "$lib/audio/common/model/ambienceEngineModel";
+import { MAX_AMBIENCE_TRACKS, newAmbienceEngineModel, newAmbienceTrackModel, type AmbienceEngineModel } from "$lib/audio/common/model/ambienceEngineModel";
 import type { AmbienceTrackModel } from "$lib/audio/common/model/ambienceTrackModel";
 import { loadAmbienceEngineModelFromResources, saveAmbienceEngineModel } from "$lib/resources/server/ambience-engine-config";
 
@@ -19,6 +19,7 @@ export class AmbienceEngineHelper extends EventEmitter {
 
     on(eventName: 'engineUpdate', listener: (model: AmbienceEngineModel)=>void): this;
     on(eventName: 'trackUpdate', listener: (index: number, model: AmbienceTrackModel)=>void): this;
+    on(eventName: 'trackRemoved', listener: (index: number)=>void): this;
     on(eventName: string | symbol, listener: (...args: any[]) => void): this {
         return super.on(eventName, listener);
     }
@@ -71,6 +72,29 @@ export class AmbienceEngineHelper extends EventEmitter {
             this.emit('trackUpdate', index, track.model);
             this.scheduleSave();
         }
+    }
+
+    /** Appends a new empty track. Clients pick it up from the engine update (they append any tracks they're missing). */
+    addTrack(){
+        if(this.#model.tracks.length >= MAX_AMBIENCE_TRACKS) throw new Error(`At most ${MAX_AMBIENCE_TRACKS} ambience tracks`);
+        const model = newAmbienceTrackModel();
+        this.#model.tracks.push(model);
+        this.#tracks.push(new AmbienceTrackHelper(model));
+        this.emit('engineUpdate', this.#model);
+        this.scheduleSave();
+    }
+
+    /**
+     * Removes one track, shifting the later ones down an index. Announced with its own event rather than an engine
+     * update, so clients drop exactly that track - matching on count alone would leave the later tracks each taking
+     * on the next one's settings (and reloading its audio).
+     */
+    removeTrack(index: number){
+        if(!this.#tracks[index]) throw new Error('Invalid track index - out of range');
+        this.#model.tracks.splice(index, 1);
+        this.#tracks.splice(index, 1);
+        this.emit('trackRemoved', index);
+        this.scheduleSave();
     }
 }
 
