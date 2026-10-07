@@ -3,13 +3,16 @@
     import DayIcon from "$lib/assets/dayIcon.svelte";
     import NightIcon from "$lib/assets/nightIcon.svelte";
     import BinIcon from "$lib/assets/binIcon.svelte";
-    import { onMount } from "svelte";
+    import { onMount, tick } from "svelte";
     import { AudioDim } from "$lib/audio/client/AudioDim.svelte";
     import { DEFAULT_DIM_AMOUNT_DB, MAX_DIM_AMOUNT_DB, MIN_DIM_AMOUNT_DB } from "$lib/audio/common/model/audioDimModel";
     import type { ClockSfxPreset } from "$lib/audio/common/clockSfxPreset";
     import { goto, invalidateAll } from "$app/navigation";
     import { getAcceptedExtensionsForResourceType, type Resource } from "$lib/resources/common/types";
     import { prettifyResourceName, resourceNameSlug } from "$lib/resources/common/util";
+    import LoopPreviewPlayer from "$lib/audio/client/components/LoopPreviewPlayer.svelte";
+    import PlayIcon from "$lib/audio/client/components/PlayIcon.svelte";
+    import PauseIcon from "$lib/audio/client/components/PauseIcon.svelte";
 
     let { data }: { data: { clockSfxPresets: ClockSfxPreset[], ambienceResources: Resource[], stingResources: Resource[] } } = $props();
 
@@ -29,6 +32,8 @@
         /** The asset loaded in the preview player. */
         previewId: string | null = $state(null);
         player: HTMLAudioElement | undefined = $state();
+        /** Used instead of `player` for looping lists, so loops play gaplessly as they do in-game. */
+        loopPlayer: LoopPreviewPlayer | undefined = $state();
         /** Name edits in progress, by asset id. */
         nameDrafts: Record<string, string> = $state({});
 
@@ -71,14 +76,31 @@
             return slug !== '' && slug !== res.name;
         }
 
-        preview(res: Resource) {
+        async preview(res: Resource) {
             this.previewId = res.id;
             // Wait for the new src to be applied before playing
-            queueMicrotask(() => {
-                if (!this.player) return;
-                this.player.currentTime = 0;
-                this.player.play().catch(() => {});
-            });
+            await tick();
+            if (this.options.loop) {
+                this.loopPlayer?.play();
+                return;
+            }
+            if (!this.player) return;
+            this.player.currentTime = 0;
+            this.player.play().catch(() => {});
+        }
+
+        /** Whether this asset is the one currently playing in the loop player. */
+        isPlaying(res: Resource) {
+            return this.previewId === res.id && (this.loopPlayer?.isPlaying() ?? false);
+        }
+
+        /** Row play/pause button: pauses or resumes the selected asset, or starts another just before its loop point. */
+        togglePlay(res: Resource) {
+            if (this.previewId !== res.id) {
+                this.preview(res);
+                return;
+            }
+            this.loopPlayer?.setPaused(this.isPlaying(res));
         }
 
         async rename(res: Resource) {
@@ -287,17 +309,32 @@
             Nothing selected
         {/if}
     </div>
-    <audio bind:this={list.player} src={list.previewId ? `/api/resources/${list.previewId}` : undefined} controls loop={list.options.loop}></audio>
+    {#if list.options.loop}
+        <LoopPreviewPlayer bind:this={list.loopPlayer} url={list.previewId ? `/api/resources/${list.previewId}` : null}/>
+    {:else}
+        <audio bind:this={list.player} src={list.previewId ? `/api/resources/${list.previewId}` : undefined} controls></audio>
+    {/if}
 </div>
 <div class="table-container">
 <table>
     <tbody>
         <tr>
+            {#if list.options.loop}<th></th>{/if}
             <th>Name</th>
             <th></th>
         </tr>
         {#each list.resources as res (res.id)}
-            <tr class="asset-row" class:selected={list.previewId === res.id} onclick={() => list.preview(res)}>
+            <tr class="asset-row" class:selected={list.previewId === res.id} onclick={() => list.options.loop ? list.togglePlay(res) : list.preview(res)}>
+                {#if list.options.loop}
+                    {@const rowPlaying = list.isPlaying(res)}
+                    <td class="play-cell">
+                        <!-- (Component names are the other way round: PlayIcon draws the pause bars, PauseIcon the triangle.) -->
+                        <button class="play-button" onclick={(e) => { e.stopPropagation(); list.togglePlay(res); }}
+                            aria-label="{rowPlaying ? 'Pause' : 'Play'} {prettifyResourceName(res.name)}" title={rowPlaying ? 'Pause' : 'Play'}>
+                            {#if rowPlaying}<PlayIcon size={18}/>{:else}<PauseIcon size={18}/>{/if}
+                        </button>
+                    </td>
+                {/if}
                 <td>
                     <input class="name-input" type="text" value={list.draft(res)}
                         onclick={(e) => e.stopPropagation()}
@@ -310,10 +347,10 @@
                 </td>
             </tr>
         {:else}
-            <tr><td colspan="2" class="empty">{list.options.emptyText}</td></tr>
+            <tr><td colspan={list.options.loop ? 3 : 2} class="empty">{list.options.emptyText}</td></tr>
         {/each}
         <tr>
-            <td colspan="2">
+            <td colspan={list.options.loop ? 3 : 2}>
                 <label class="add add-upload" class:disabled={list.uploading}>
                     {list.uploading ? 'Uploading...' : list.options.addLabel}
                     <input type="file" accept={acceptedAudioExtensions} multiple disabled={list.uploading}
@@ -330,7 +367,7 @@
 <div class="panel-header">
     <h2>Ambience Assets</h2>
 </div>
-<p class="description">The sounds the mixer's ambience tracks can play. Click one to preview it.</p>
+<p class="description">The sounds the mixer's ambience tracks can play. Click one to play or pause its loop.</p>
 {@render audioAssetList(ambienceAssets)}
 </div>
 
@@ -497,6 +534,26 @@
     button.icon-button:hover {
         border-color: var(--theme-error);
         color: var(--theme-error);
+    }
+
+    .play-cell {
+        width: 1px; /* Shrink to the button */
+    }
+
+    button.play-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.1em;
+        border: none;
+        outline: none;
+        background: none;
+        color: inherit;
+        vertical-align: middle;
+    }
+
+    button.play-button:focus-visible {
+        outline: 2px solid var(--theme-highlight); /* Keep a focus ring for keyboard users */
     }
 
     .row-actions {

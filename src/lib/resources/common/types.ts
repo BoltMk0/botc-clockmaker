@@ -53,7 +53,7 @@ export function getAcceptedExtensionsForResourceType(resourceType: ResourceType)
         case "music":
         case "ambience":
         case "sting":
-            return [".wav", ".mp3", ".aac", ".m4a"];
+            return [".wav", ".mp3", ".aac", ".m4a", ".flac", ".ogg"];
         case "grimoirestate":
         case "clockconfig":
             return [".json"];
