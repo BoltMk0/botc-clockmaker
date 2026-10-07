@@ -86,7 +86,7 @@ Most content is managed in the app itself, under **Settings** (games, scripts, c
 | `RESOURCE_DATA_DIR` | Where configuration and resources are stored (default `data/resources`) |
 | `PORT` | Port to serve on (default `3000`) |
 | `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `FEEDBACK_TO_EMAILS` | Optional. Used to email submissions from the feedback form. Without them, feedback is still saved to disk but no email is sent |
-| `TURNSTILE_SECRET_KEY` | Optional. Cloudflare Turnstile secret for the feedback form |
+| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret for the feedback form, read at runtime. Without it, feedback submissions are rejected |
 
 
 <br>

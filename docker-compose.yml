@@ -7,5 +7,9 @@ services:
       - data:/data
     environment:
       - RESOURCE_DATA_DIR=/data
+    # Secrets (TURNSTILE_SECRET_KEY, GMAIL_*, FEEDBACK_TO_EMAILS) are read at runtime from .env, if present
+    env_file:
+      - path: .env
+        required: false
 volumes:
   data:

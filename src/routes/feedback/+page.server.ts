@@ -1,7 +1,7 @@
 import { fail } from "@sveltejs/kit";
 import type { Actions } from "./$types";
 import { sendEmail } from "$lib/resources/server/mailer";
-import { TURNSTILE_SECRET_KEY } from "$env/static/private";
+import { env } from "$env/dynamic/private";
 import { writeFileSync } from "fs";
 import { FEEDBACK_DIR } from "$lib/resources/server/feedback";
 
@@ -31,10 +31,17 @@ export const actions: Actions = {
         const token = formData.get('cf-turnstile-response')?.toString();
         if (!token) return fail(400, { success: false });
 
+        // Read at runtime rather than baked into the build, so the secret stays out of the image
+        const secret = env.TURNSTILE_SECRET_KEY;
+        if (!secret) {
+            console.warn('Rejecting feedback - TURNSTILE_SECRET_KEY missing from environment vars, so it cannot be verified');
+            return fail(503, { success: false });
+        }
+
         const verification = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ secret: TURNSTILE_SECRET_KEY, response: token }),
+            body: JSON.stringify({ secret, response: token }),
         }).then(r => r.json() as Promise<{ success: boolean; action?: string; hostname?: string }>);
 
         if (!verification.success || verification.action !== 'feedback') {
