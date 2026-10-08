@@ -420,7 +420,7 @@
     <h2>Spotify Presets</h2>
     <button class="save" disabled={!dirty} onclick={save}>Save changes</button>
 </div>
-<p class="description">Albums and playlists shown on the Spotify strip in the mixer. Clicking one starts it playing straight away. In Spotify, use Share &rarr; Copy link and paste it here.<br/>An adaptive playlist has a list for each phase: it plays the one for the current phase, and crossfades to a random track from the next phase's list whenever the games' phase changes. Leave a phase empty to keep playing whatever was on through it; a phase with the same list as the one playing also carries straight on.</p>
+<p class="description">Albums and playlists shown on the Spotify strip in the mixer. Clicking one starts it playing straight away. In Spotify, use Share &rarr; Copy link and paste it here.<br/>An adaptive playlist has a list for each phase: it plays the one for the current phase, and fades out to a random track from the next phase's list whenever the games' phase changes. Leave a phase empty to keep playing whatever was on through it; a phase with the same list as the one playing also carries straight on.</p>
 <div class="data-table-scroll">
 <table class="data-table spotify-table">
     <tbody>

@@ -23,6 +23,8 @@ const SCOPES = ['streaming', 'user-read-email', 'user-read-private', 'user-modif
 const HOST_TIMEOUT_MS = 15000;
 /** Fade-out time when switching playlists. */
 const FADE_MS = 1200;
+/** Fade-out time when an adaptive playlist switches to the new phase's list - longer, as it's not something the user just clicked. */
+const PHASE_SWITCH_FADE_MS = 2000;
 /** How long to wait for the player to report the new playlist before giving up and restoring volume anyway. */
 const SWITCH_TIMEOUT_MS = 4000;
 /** Step interval of the volume fades. Steps go straight to the host's player (see setDeviceVolume), not to Spotify, so can be fine. */
@@ -337,7 +339,7 @@ export class SpotifyHelper extends EventEmitter {
 
     /**
      * When the games' phase changes, moves the volume to the new phase's time-of-day trim - as part of the adaptive
-     * playlist's switch to the new phase's list, if there is one (fade out, switch, fade in at the new level), or
+     * playlist's switch to the new phase's list, if there is one (fade out, switch, start at the new level), or
      * otherwise as a fade of its own.
      */
     private checkPhase() {
@@ -345,12 +347,12 @@ export class SpotifyHelper extends EventEmitter {
         const switching = this.#adaptivePresetId !== null && timeOfDay !== this.#phaseTimeOfDay && this.followPhaseWithAdaptivePreset(timeOfDay);
         if (timeOfDay === this.#trimTimeOfDay) return;
         this.#trimTimeOfDay = timeOfDay;
-        // A switch fades back in at the new phase's trim itself (see playContext)
+        // A switch starts the new playlist at the new phase's trim itself (see playContext)
         if (!switching && !this.#switching) this.rampTrim();
     }
 
     /**
-     * Crossfades a playing adaptive playlist over to its list for the new phase. Nothing changes if the new phase has no
+     * Switches a playing adaptive playlist over to its list for the new phase. Nothing changes if the new phase has no
      * list, or the same one as is already playing. Returns whether it started a switch.
      */
     private followPhaseWithAdaptivePreset(timeOfDay: TimeOfDay): boolean {
@@ -368,7 +370,7 @@ export class SpotifyHelper extends EventEmitter {
         const uri = preset.phaseUris[timeOfDay];
         if (uri === null || isSameSpotifyContext(this.#pendingContextUri ?? this.#playback.contextUri, uri)) return false;
         console.log(`Spotify: phase changed to ${timeOfDay}, switching "${preset.name}" to ${uri}`);
-        this.playContext(uri, `device_id=${encodeURIComponent(deviceId)}`, { fadeIn: true })
+        this.playContext(uri, `device_id=${encodeURIComponent(deviceId)}`, { fadeOutMs: PHASE_SWITCH_FADE_MS })
             .catch((e) => console.error('Failed to switch Spotify playlist for the new phase', e));
         return true;
     }
@@ -425,11 +427,11 @@ export class SpotifyHelper extends EventEmitter {
     // ---- Switching playlists ----
 
     /**
-     * Switches to a new album/playlist: fades the old one out, then starts the new one at full volume (or fades it
-     * back in, with `fadeIn`). Spotify only has one active stream, so the two can't overlap. This is the only ramp
-     * while it runs: it takes over from any time-of-day trim fade, and comes back in at the current phase's trim.
+     * Switches to a new album/playlist: fades the old one out (over `fadeOutMs`), then starts the new one at full volume.
+     * Spotify only has one active stream, so the two can't overlap. This is the only ramp while it runs: it takes over
+     * from any time-of-day trim fade, and comes back in at the current phase's trim.
      */
-    private async playContext(uri: string, device: string, options: { fadeIn?: boolean } = {}) {
+    private async playContext(uri: string, device: string, options: { fadeOutMs?: number } = {}) {
         const token = ++this.#fadeToken; // A newer request supersedes this one, including mid-fade
         const wasPlaying = this.#playback?.playing === true;
         const before = this.#playback;
@@ -438,7 +440,7 @@ export class SpotifyHelper extends EventEmitter {
         this.#switching = true;
         this.changed();
         try {
-            if (wasPlaying && !await this.fade(device, token, 'out')) return;
+            if (wasPlaying && !await this.fadeOut(device, token, options.fadeOutMs ?? FADE_MS)) return;
             // Shuffle first, so playback of the new context starts on a random track
             await this.api('PUT', `/me/player/shuffle?state=true&${device}`);
             await this.api('PUT', `/me/player/play?${device}`, { context_uri: uri });
@@ -448,8 +450,7 @@ export class SpotifyHelper extends EventEmitter {
                 await this.waitForSwitch(uri, before, token);
                 if (token === this.#fadeToken) {
                     this.#trimDb = this.targetTrimDb();
-                    if (options.fadeIn) await this.fade(device, token, 'in');
-                    else await this.setDeviceVolume(device, this.#volume);
+                    await this.setDeviceVolume(device, this.#volume);
                 }
             } else if (token === this.#fadeToken) {
                 this.#trimDb = this.targetTrimDb();
@@ -494,16 +495,15 @@ export class SpotifyHelper extends EventEmitter {
     }
 
     /**
-     * Equal-power fade of the device volume from the chosen volume down to 0, or back up. Follows #volume as it goes, so
-     * a volume change mid-fade is folded in rather than cutting across it. Returns false if superseded by a newer request.
+     * Equal-power fade of the device volume from the chosen volume down to 0. Follows #volume as it goes, so a volume
+     * change mid-fade is folded in rather than cutting across it. Returns false if superseded by a newer request.
      */
-    private async fade(device: string, token: number, direction: 'in' | 'out') {
+    private async fadeOut(device: string, token: number, durationMs: number) {
         const start = Date.now();
         for (; ;) {
             if (token !== this.#fadeToken) return false;
-            const t = Math.min(1, (Date.now() - start) / FADE_MS);
-            const angle = t * Math.PI / 2;
-            await this.setDeviceVolume(device, this.#volume * (direction === 'out' ? Math.cos(angle) : Math.sin(angle)));
+            const t = Math.min(1, (Date.now() - start) / durationMs);
+            await this.setDeviceVolume(device, this.#volume * Math.cos(t * Math.PI / 2));
             if (t >= 1) return true;
             await new Promise(resolve => setTimeout(resolve, FADE_STEP_MS));
         }
