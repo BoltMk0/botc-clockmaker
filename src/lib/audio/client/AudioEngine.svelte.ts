@@ -8,11 +8,12 @@ import type { AudioTrackModel } from "../common/model/audioTrackModel.svelte";
 import { AudioClockTrack } from "./AudioClockTrack.svelte";
 import { AudioTrack, type AudioTrackBase } from "./AudioTrack.svelte";
 import { AudioDim } from "./AudioDim.svelte";
+import { DIM_FADE_MS } from "../common/model/audioDimModel";
 import { StingEngine } from "./StingEngine.svelte";
 import type { StingEngineModel } from "../common/model/stingEngineModel";
 
-/** Time constant of the dim ramp: settles in roughly half a second, without clicks. */
-const DIM_TIME_CONSTANT_S = 0.12;
+/** Time constant of the ramp while the dim amount is being changed: quick, just enough to avoid zipper noise. */
+const DIM_AMOUNT_TIME_CONSTANT_S = 0.03;
 
 const MUTE_STORAGE_KEY = 'mixer.mute.master';
 
@@ -90,9 +91,24 @@ export class AudioEngine implements AudioTrackBase {
             // Follow the shared dim (a silent client plays nothing, so has nothing to dim)
             const dim = this.#dim = new AudioDim();
             let lastTimeOfDay = this.#timeOfDay;
+            let lastDimmed = dim.dimmed;
             this.#stopEffects = $effect.root(()=>{
                 $effect(()=>{
-                    this.#dimNode.gain.setTargetAtTime(dim.gain, this.#context.currentTime, DIM_TIME_CONSTANT_S);
+                    // Fade the dim in or out, but follow the amount being changed straight away
+                    const gain = dim.gain;
+                    const dimmedChanged = dim.dimmed !== lastDimmed;
+                    lastDimmed = dim.dimmed;
+                    const param = this.#dimNode.gain;
+                    const now = this.#context.currentTime;
+                    const current = param.value; // Reflects any fade in progress
+                    param.cancelScheduledValues(now);
+                    param.setValueAtTime(current, now);
+                    if(dimmedChanged){
+                        // Linear in dB, like the trim's phase fade (the dim never goes to 0, so this is safe)
+                        param.exponentialRampToValueAtTime(gain, now + DIM_FADE_MS / 1000);
+                    } else {
+                        param.setTargetAtTime(gain, now, DIM_AMOUNT_TIME_CONSTANT_S);
+                    }
                 });
                 $effect(()=>{
                     // Fade into a new phase's trim, but follow a knob being turned straight away

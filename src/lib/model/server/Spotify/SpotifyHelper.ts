@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import { env } from "$env/dynamic/private";
 import type { SpotifyControlAction, SpotifyModel, SpotifyPlaybackModel } from "$lib/audio/common/model/spotifyModel";
-import { dimGain } from "$lib/audio/common/model/audioDimModel";
+import { DIM_FADE_MS, type AudioDimModel } from "$lib/audio/common/model/audioDimModel";
 import { getAudioDimHelperInstance } from "../AudioDim/AudioDimHelper";
 import { getTimeOfDayTrimHelperInstance } from "../TimeOfDayTrim/TimeOfDayTrimHelper";
 import { adaptivePresetUriFor, isAdaptivePresetContext, isSameSpotifyContext, isSpotifyContextUri, isSpotifyAdaptivePreset, type SpotifyAdaptivePreset } from "$lib/audio/common/spotifyPreset";
@@ -44,8 +44,11 @@ export class SpotifyHelper extends EventEmitter {
     #volume = 50;
     #fadeToken = 0;
     #pendingContextUri: string | null = null;
-    /** Linear multiplier from the shared audio dim, applied to every volume we send to Spotify. */
-    #dimFactor = 1;
+    /** The shared audio dim, applied to every volume we send to Spotify, in dB (0, or ramping to/from -amountDb). */
+    #dimDb = 0;
+    #dimModel: AudioDimModel;
+    #dimToken = 0;
+    #dimRamping = false;
     /** True while a playlist switch is fading/starting, so a dim change doesn't fight the fade. */
     #switching = false;
     /** The adaptive playlist last started, if it's still the thing selected. */
@@ -67,10 +70,18 @@ export class SpotifyHelper extends EventEmitter {
     constructor() {
         super();
         const dim = getAudioDimHelperInstance();
-        this.#dimFactor = dimGain(dim.model);
+        this.#dimModel = dim.model;
+        this.#dimDb = this.targetDimDb();
         dim.on('update', (model) => {
-            this.#dimFactor = dimGain(model);
-            this.applyLevelChange('audio dim');
+            const dimmedChanged = model.dimmed !== this.#dimModel.dimmed;
+            this.#dimModel = model;
+            if (dimmedChanged) {
+                this.rampDim();
+            } else if (!this.#dimRamping) {
+                // The amount being changed is followed straight away (a ramp in progress picks it up as it goes)
+                this.#dimDb = this.targetDimDb();
+                this.applyLevelChange('audio dim');
+            }
         });
 
         this.#trimTimeOfDay = getBOTCTClockInstanceManager().timeOfDay;
@@ -375,6 +386,35 @@ export class SpotifyHelper extends EventEmitter {
         return true;
     }
 
+    // ---- Audio dim ----
+
+    private targetDimDb() {
+        return this.#dimModel.dimmed ? -this.#dimModel.amountDb : 0;
+    }
+
+    /**
+     * Fades from the current dim to the target, linear in dB, in step with the mixers' own dim fade. Only sends the
+     * volume while nothing else is fading it: a trim ramp or playlist switch reads #dimDb as it goes, so carries it.
+     */
+    private async rampDim() {
+        const token = ++this.#dimToken;
+        const startDb = this.#dimDb;
+        const start = Date.now();
+        this.#dimRamping = true;
+        try {
+            for (; ;) {
+                if (token !== this.#dimToken) return;
+                const t = Math.min(1, (Date.now() - start) / DIM_FADE_MS);
+                this.#dimDb = startDb + (this.targetDimDb() - startDb) * t;
+                this.applyLevelChange('audio dim');
+                if (t >= 1) return;
+                await new Promise(resolve => setTimeout(resolve, FADE_STEP_MS));
+            }
+        } finally {
+            if (token === this.#dimToken) this.#dimRamping = false;
+        }
+    }
+
     // ---- Time-of-day trim ----
 
     private targetTrimDb() {
@@ -511,7 +551,7 @@ export class SpotifyHelper extends EventEmitter {
 
     /** Multiplier from the shared dim and the current time-of-day trim, applied to every volume we send. */
     private levelFactor() {
-        return this.#dimFactor * Math.pow(10, this.#trimDb / 20);
+        return Math.pow(10, (this.#dimDb + this.#trimDb) / 20);
     }
 
     /**
