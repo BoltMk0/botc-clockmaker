@@ -21,7 +21,7 @@ export default defineConfig({
 				start_url: '/',
 				scope: '/',
 				display_override: ['standalone', 'minimal-ui'],
-				background_color: '#121212',
+				background_color: '#282828',
 				description: 'A clock for BOTCT events',
 				theme_color: '#2d4550',
 				icons: [

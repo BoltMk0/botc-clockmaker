@@ -96,7 +96,7 @@
 		touch-action: pan-y;
 		margin: 0;
 		padding: 0;
-		background-color: var(--theme-shadow);
+		background-color: var(--theme-app-bg);
 	}
 
 	.body-content:focus {

@@ -16,6 +16,8 @@
     --theme-bg: #222;
     --theme-bg-secondary: #333;
     --theme-bg-tertiary: #444;
+    /* Behind every page. Keep in sync with app.html (shown before the CSS loads) and the PWA background_color. */
+    --theme-app-bg: #282828;
 
     --theme-shadow: #0007;
     --theme-on-bg: #eee;
