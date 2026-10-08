@@ -65,6 +65,9 @@
     const highlighted = $derived(sections.flatMap(s => s.characters).filter(c => highlightedIds.has(c.id)));
 
     let showQr = $state(false);
+
+    // The back-to-top button only shows once the page has been scrolled a little way.
+    let scrolledDown = $state(false);
 </script>
 
 {#snippet characterCard(character: Character, inHighlighted: boolean)}
@@ -87,7 +90,7 @@
 
 <svelte:window onkeydown={(e) => { if (e.key === 'Escape') showQr = false; }}/>
 
-<div class="script-viewer" style="--script-hue: {data.script.hue};" bind:this={scroller}>
+<div class="script-viewer" style="--script-hue: {data.script.hue};" bind:this={scroller} onscroll={() => scrolledDown = (scroller?.scrollTop ?? 0) > 200}>
     <header>
         {#if data.backUrl}
             <a class="back-button" href={data.backUrl} aria-label="Back">
@@ -105,6 +108,11 @@
                 <path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/>
             </svg>
             Share
+        </button>
+        <button class="to-top" class:visible={scrolledDown} tabindex={scrolledDown ? 0 : -1} aria-hidden={!scrolledDown} onclick={() => scroller?.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Back to top">
+            <svg width={22} height={22} viewBox="0 0 24 24">
+                <path d="M6 15l6-6 6 6" />
+            </svg>
         </button>
     </header>
 
@@ -195,6 +203,37 @@
         stroke-width: 2.5;
         stroke-linecap: round;
         stroke-linejoin: round;
+    }
+
+    /* Hangs just below the sticky header, centred, over the list. */
+    .to-top {
+        position: absolute;
+        top: calc(100% + 1.4em);
+        left: 50%;
+        width: 3.4em;
+        height: 3.4em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        background-color: var(--theme-bg-tertiary);
+        color: var(--theme-on-bg);
+        box-shadow: 0 3px 10px var(--theme-shadow);
+        cursor: pointer;
+        opacity: 0;
+        pointer-events: none;
+        transform: translate(-50%, -0.5em);
+        transition: opacity 0.2s, transform 0.2s;
+    }
+    .to-top.visible {
+        opacity: 0.92;
+        pointer-events: auto;
+        transform: translate(-50%, 0);
+    }
+    .to-top svg {
+        stroke-width: 3;
     }
 
     .share-button {
