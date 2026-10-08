@@ -49,12 +49,11 @@
 </div>
 
 <style>
+    /* The whole page scrolls, toolbar included, so the list gets the full screen once scrolled down. */
     .characters-page {
-        display: grid;
-        grid-template-rows: auto 1fr;
         height: 100%;
         width: 100%;
-        overflow: hidden;
+        overflow-y: auto;
         background-color: var(--theme-bg);
     }
 
@@ -139,7 +138,6 @@
     }
 
     .body {
-        overflow-y: auto;
         padding: 0 2em 2em 2em;
     }
 </style>
