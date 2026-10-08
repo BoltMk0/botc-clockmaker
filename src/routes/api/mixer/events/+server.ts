@@ -34,6 +34,7 @@ class MixerListener extends SSEClientManager {
         stingEngine.on('trackUpdate', (index, model) => this.broadcast({ type: 'stingTrackUpdate', index, model }));
         stingEngine.on('trigger', (slot) => this.broadcast({ type: 'stingTrigger', slot }));
         spotify.on('update', (model) => this.broadcast({ type: 'spotifyUpdate', model }));
+        spotify.on('deviceVolume', (hostClientId, volume) => this.broadcast({ type: 'spotifyDeviceVolume', hostClientId, volume }));
         audioDim.on('update', (model) => this.broadcast({ type: 'audioDimUpdate', model }));
         timeOfDayTrim.on('update', (model) => this.broadcast({ type: 'timeOfDayTrimUpdate', model }));
     }
@@ -68,6 +69,9 @@ export function POST() {
                     send({ type: 'ambienceEngineUpdate', model: mgr.ambienceEngine.model });
                     send({ type: 'stingEngineUpdate', model: mgr.stingEngine.model });
                     send({ type: 'spotifyUpdate', model: mgr.spotify.model });
+                    // A host reconnecting may have missed volume changes while it was away
+                    const deviceVolume = mgr.spotify.deviceVolume;
+                    if (deviceVolume) send({ type: 'spotifyDeviceVolume', ...deviceVolume });
                     send({ type: 'audioDimUpdate', model: mgr.audioDim.model });
                     send({ type: 'timeOfDayTrimUpdate', model: mgr.timeOfDayTrim.model });
                 });

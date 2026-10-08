@@ -13,6 +13,7 @@ type SpotifySDKPlayer = {
     connect(): Promise<boolean>;
     disconnect(): void;
     activateElement(): Promise<void>;
+    setVolume(volume: number): Promise<void>;
     addListener(event: string, cb: (arg: any) => void): boolean;
 };
 type SpotifySDK = {
@@ -61,6 +62,8 @@ export class SpotifyPlayer {
     #heartbeat: ReturnType<typeof setInterval> | null = null;
     #volumeTimer: ReturnType<typeof setTimeout> | null = null;
     #pendingVolume: number | null = null;
+    /** The volume (0..1) the server last told this client's player to be at, while hosting. */
+    #deviceVolume: number | null = null;
     /** Bumped on every start/stop, so a start that was abandoned partway doesn't complete. */
     #generation = 0;
 
@@ -70,6 +73,13 @@ export class SpotifyPlayer {
     constructor(options: { remoteOnly?: boolean } = {}) {
         this.canHost = !(options.remoteOnly ?? false);
         this.#unsubscribeEvents = subscribeMixerEvents((msg) => {
+            if (msg.type === 'spotifyDeviceVolume') {
+                // The server runs the volume (fades, dim, trim), but this client's player applies it, locally
+                if (msg.hostClientId !== this.clientId) return;
+                this.#deviceVolume = msg.volume;
+                this.#player?.setVolume(msg.volume).catch((e) => console.error('SpotifyPlayer - failed to set volume', e));
+                return;
+            }
             if (msg.type !== 'spotifyUpdate') return;
             const wasHost = this.isHost;
             this.model = msg.model;
@@ -98,7 +108,7 @@ export class SpotifyPlayer {
 
             const player = new Spotify.Player({
                 name: PLAYER_NAME,
-                volume: (this.model?.volume ?? 50) / 100,
+                volume: this.#deviceVolume ?? (this.model?.volume ?? 50) / 100,
                 getOAuthToken: (cb) => {
                     fetch('/api/spotify/token', this.jsonInit('POST', { clientId: this.clientId }))
                         .then(res => res.ok ? res.json() : Promise.reject(new Error(`token request failed: ${res.status}`)))
@@ -152,6 +162,7 @@ export class SpotifyPlayer {
         window.removeEventListener('pagehide', this.#releaseOnLeave);
         this.#player?.disconnect();
         this.#player = null;
+        this.#deviceVolume = null;
     }
 
     private sendRelease() {

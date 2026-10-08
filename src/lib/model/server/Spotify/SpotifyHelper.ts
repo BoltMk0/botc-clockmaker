@@ -25,7 +25,8 @@ const HOST_TIMEOUT_MS = 15000;
 const FADE_MS = 1200;
 /** How long to wait for the player to report the new playlist before giving up and restoring volume anyway. */
 const SWITCH_TIMEOUT_MS = 4000;
-const FADE_STEP_MS = 100;
+/** Step interval of the volume fades. Steps go straight to the host's player (see setDeviceVolume), not to Spotify, so can be fine. */
+const FADE_STEP_MS = 25;
 /** How long the volume takes to move to the new phase's time-of-day trim - in step with the mixer's own fade. */
 const TRIM_FADE_MS = 3000;
 const HOST_CHECK_INTERVAL_MS = 5000;
@@ -58,6 +59,8 @@ export class SpotifyHelper extends EventEmitter {
     #trimTimeOfDay: TimeOfDay;
     #trimToken = 0;
     #trimRamping = false;
+    /** The volume (0..1, dim and trim included) last sent to the host's player. */
+    #deviceVolume: number | null = null;
 
     constructor() {
         super();
@@ -93,6 +96,8 @@ export class SpotifyHelper extends EventEmitter {
     #accessTokenExpiresAt = 0;
 
     on(eventName: 'update', listener: (model: SpotifyModel) => void): this;
+    /** The host's player should set its volume to this (0..1). */
+    on(eventName: 'deviceVolume', listener: (hostClientId: string, volume: number) => void): this;
     on(eventName: string | symbol, listener: (...args: any[]) => void): this {
         return super.on(eventName, listener);
     }
@@ -209,6 +214,7 @@ export class SpotifyHelper extends EventEmitter {
         this.#hostDeviceId = null;
         this.#playback = null;
         this.#pendingContextUri = null;
+        this.#deviceVolume = null;
         this.clearAdaptivePreset();
         if (this.#hostCheckTimer) {
             clearInterval(this.#hostCheckTimer);
@@ -251,7 +257,8 @@ export class SpotifyHelper extends EventEmitter {
         this.#hostDeviceId = deviceId;
         await this.api('PUT', '/me/player', { device_ids: [deviceId], play: false });
         // The SDK starts at the volume without the dim or trim
-        if (this.levelFactor() !== 1) await this.setDeviceVolume(`device_id=${encodeURIComponent(deviceId)}`, this.#volume);
+        this.#deviceVolume = null;
+        await this.setDeviceVolume(`device_id=${encodeURIComponent(deviceId)}`, this.#volume);
         this.changed();
     }
 
@@ -498,7 +505,6 @@ export class SpotifyHelper extends EventEmitter {
             const angle = t * Math.PI / 2;
             await this.setDeviceVolume(device, this.#volume * (direction === 'out' ? Math.cos(angle) : Math.sin(angle)));
             if (t >= 1) return true;
-            // Each API call takes a moment anyway; this just keeps us well inside Spotify's rate limits
             await new Promise(resolve => setTimeout(resolve, FADE_STEP_MS));
         }
     }
@@ -508,10 +514,25 @@ export class SpotifyHelper extends EventEmitter {
         return this.#dimFactor * Math.pow(10, this.#trimDb / 20);
     }
 
-    private async setDeviceVolume(device: string, volume: number) {
-        // `volume` is the level the user chose; the dim and trim are applied here so callers needn't think about them
-        const effective = volume * this.levelFactor();
-        await this.api('PUT', `/me/player/volume?volume_percent=${Math.round(Math.min(100, Math.max(0, effective)))}&${device}`);
+    /**
+     * Sets the host player's volume. Rather than through Spotify's Web API (a round trip to Spotify, rate limited), this
+     * goes straight to the host over the mixer events stream, and its SDK player sets the volume locally (see
+     * SpotifyPlayer) - quick and cheap enough for fine fade steps.
+     * @param volume The level the user chose (0..100); the dim and trim are applied here so callers needn't think about them.
+     */
+    private async setDeviceVolume(_device: string, volume: number) {
+        const hostClientId = this.#hostClientId;
+        if (hostClientId === null) return;
+        const effective = Math.min(1, Math.max(0, volume * this.levelFactor() / 100));
+        if (effective === this.#deviceVolume) return;
+        this.#deviceVolume = effective;
+        this.emit('deviceVolume', hostClientId, effective);
+    }
+
+    /** The volume the host's player should currently be at, for a (re)connecting host to pick up. */
+    get deviceVolume(): { hostClientId: string, volume: number } | null {
+        if (this.#hostClientId === null || this.#deviceVolume === null) return null;
+        return { hostClientId: this.#hostClientId, volume: this.#deviceVolume };
     }
 
     private async api(method: string, path: string, body?: object) {

@@ -55,6 +55,13 @@ export type SpotifyUpdateMessage = WSMessageBase & {
     model: SpotifyModel
 };
 
+/** Sets the Spotify host's player volume locally (0..1, dim and trim included). Only the named host acts on it. */
+export type SpotifyDeviceVolumeMessage = WSMessageBase & {
+    type: 'spotifyDeviceVolume',
+    hostClientId: string,
+    volume: number
+};
+
 export type AudioDimUpdateMessage = WSMessageBase & {
     type: 'audioDimUpdate',
     model: AudioDimModel
@@ -91,6 +98,7 @@ export type WSMessage =
     |AmbienceTrackUpdateMessage
     |AmbienceTrackRemovedMessage
     |SpotifyUpdateMessage
+    |SpotifyDeviceVolumeMessage
     |AudioDimUpdateMessage
     |TimeOfDayTrimUpdateMessage
     |StingEngineUpdateMessage
