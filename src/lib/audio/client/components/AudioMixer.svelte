@@ -11,7 +11,13 @@
     import type { SpotifyPlayer } from "../SpotifyPlayer.svelte";
     import type { SpotifyPreset } from "$lib/audio/common/spotifyPreset";
     import ChannelStripSpotify from "./ChannelStrip/ChannelStripSpotify.svelte";
-    
+    import Knob from "./Knob.svelte";
+    import { TIME_OF_DAY_TRIM_RANGE_DB } from "$lib/audio/common/model/timeOfDayTrimModel";
+    import { TIME_OF_DAY_LABELS, TIMES_OF_DAY, type TimeOfDay } from "$lib/model/client/types";
+
+    /** How long the trim bubble stays up after the knob stops moving. */
+    const TRIM_BUBBLE_MS = 1200;
+
     let {
         audioEngine,
         ambienceResources,
@@ -24,6 +30,28 @@
         spotifyPresets?: SpotifyPreset[];
     } = $props();
 
+    // The trim being adjusted, shown in a bubble at the top of the screen (the knobs are small, and a finger covers them)
+    let trimBubblePhase = $state<TimeOfDay|null>(null);
+    let trimBubbleTimer: ReturnType<typeof setTimeout>|null = null;
+
+    function setTrim(phase: TimeOfDay, db: number) {
+        audioEngine.setTimeOfDayTrimDb(phase, db);
+        trimBubblePhase = phase;
+        if (trimBubbleTimer !== null) clearTimeout(trimBubbleTimer);
+        trimBubbleTimer = setTimeout(() => { trimBubblePhase = null; trimBubbleTimer = null; }, TRIM_BUBBLE_MS);
+    }
+
+    /** Moves the element to the end of <body>, so no ancestor's stacking context or clipping can hide it. */
+    function portal(node: HTMLElement) {
+        document.body.appendChild(node);
+        return { destroy() { node.remove(); } };
+    }
+
+    function formatTrim(db: number) {
+        return `${db > 0 ? '+' : ''}${db.toFixed(1)}`;
+    }
+
+    $effect(() => () => { if (trimBubbleTimer !== null) clearTimeout(trimBubbleTimer); });
 </script>
 
 <style>
@@ -65,6 +93,64 @@
         background: var(--theme-slider-trim);
     }
 
+    /* Per-phase master trims, laid out like the day/dusk/night toggles on the ambience strips. */
+    .time-of-day-trims {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2px;
+        padding: 5px 0;
+    }
+
+    .time-of-day-trim {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        padding: 2px 0;
+        border: 1px solid transparent;
+        border-radius: 4px;
+        color: #FFF8;
+    }
+
+    .time-of-day-trim.current {
+        border-color: var(--theme-highlight);
+        color: white;
+    }
+
+    .trim-bubble {
+        position: fixed;
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        /* Above the top navbar (1000) and the side menu's mixer overlay (2000) */
+        z-index: 3000;
+        display: flex;
+        align-items: center;
+        gap: 0.6em;
+        padding: 8px 18px;
+        border-radius: 999px;
+        background-color: rgb(50, 50, 54);
+        border: 3px solid var(--theme-slider-trim);
+        box-shadow: 0 6px 14px #000b;
+        color: white;
+        font-family: 'Courier New', Courier, monospace;
+        font-weight: bold;
+        font-size: 1.1em;
+        white-space: nowrap;
+        pointer-events: none;
+    }
+
+    .trim-bubble-value {
+        min-width: 6.5ch;
+        text-align: right;
+    }
+
+    .time-of-day-trim-value {
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.6em;
+        font-weight: bold;
+    }
+
     .mixer-channel-strips {
         display: flex;
         gap: 5px;
@@ -74,6 +160,14 @@
         flex: 1;
     }
 </style>
+
+{#if trimBubblePhase !== null}
+<div class="trim-bubble" use:portal>
+    <TimeOfDayIcon timeOfDay={trimBubblePhase} size={20}/>
+    <span>{TIME_OF_DAY_LABELS[trimBubblePhase]}</span>
+    <span class="trim-bubble-value">{formatTrim(audioEngine.timeOfDayTrimDb[trimBubblePhase])} dB</span>
+</div>
+{/if}
 
 <div class="mixer-main">
     <div class="mixer-groups">
@@ -101,9 +195,23 @@
                  fader still controls it, just via Spotify's own volume API rather than a Web Audio gain node -
                  it's still one of this mixer's own channels, not a separate thing, so it sits in the same row.
                  MASTER stays the rightmost strip, so this goes just before it rather than after. -->
-            <ChannelStripSpotify {spotify} presets={spotifyPresets} masterGain={audioEngine.gain} style="--theme-slider-accent: #AFA;"/>
+            <ChannelStripSpotify {spotify} presets={spotifyPresets} masterGain={audioEngine.gain * audioEngine.spotifyTimeOfDayGain} style="--theme-slider-accent: #AFA;"/>
             {/if}
-            <ChannelStrip audioTrack={audioEngine} title="MASTER" style="--theme-slider-accent: #DCC"/>
+            {#snippet timeOfDayTrims()}
+                <div class="time-of-day-trims">
+                    {#each TIMES_OF_DAY as phase}
+                        {@const db = audioEngine.timeOfDayTrimDb[phase]}
+                        <div class="time-of-day-trim" class:current={audioEngine.timeOfDay === phase}>
+                            <TimeOfDayIcon timeOfDay={phase} size={12}/>
+                            <Knob value={db} min={-TIME_OF_DAY_TRIM_RANGE_DB} max={TIME_OF_DAY_TRIM_RANGE_DB} step={0.5}
+                                title="{TIME_OF_DAY_LABELS[phase]} level (drag up/down, double-click to reset)"
+                                onchange={(v)=>setTrim(phase, v)}/>
+                            <span class="time-of-day-trim-value">{formatTrim(db)}</span>
+                        </div>
+                    {/each}
+                </div>
+            {/snippet}
+            <ChannelStrip audioTrack={audioEngine} title="MASTER" fxSnippet={timeOfDayTrims} style="--theme-slider-accent: #DCC"/>
             </div>
         </div>
         <!-- Clocks (player bells) and the sting engine get their own mixer, with its own independent master

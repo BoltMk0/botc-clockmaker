@@ -5,6 +5,7 @@ import { getAmbienceEngineHelperInstance, type AmbienceEngineHelper } from '$lib
 import { getStingEngineHelperInstance, type StingEngineHelper } from '$lib/model/server/StingEngine/StingEngineHelper.js';
 import { getSpotifyHelperInstance, type SpotifyHelper } from '$lib/model/server/Spotify/SpotifyHelper.js';
 import { getAudioDimHelperInstance, type AudioDimHelper } from '$lib/model/server/AudioDim/AudioDimHelper.js';
+import { getTimeOfDayTrimHelperInstance, type TimeOfDayTrimHelper } from '$lib/model/server/TimeOfDayTrim/TimeOfDayTrimHelper.js';
 import { SSEClientManager } from '../../../events/sseClientManager';
 
 export type emit_cb = (eventName: string, data: string) => Unsafe<void, Error>;
@@ -22,7 +23,8 @@ class MixerListener extends SSEClientManager {
         readonly ambienceEngine: AmbienceEngineHelper,
         readonly stingEngine: StingEngineHelper,
         readonly spotify: SpotifyHelper,
-        readonly audioDim: AudioDimHelper
+        readonly audioDim: AudioDimHelper,
+        readonly timeOfDayTrim: TimeOfDayTrimHelper
     ) {
         super();
         ambienceEngine.on('engineUpdate', (model) => this.broadcast({ type: 'ambienceEngineUpdate', model }));
@@ -33,6 +35,7 @@ class MixerListener extends SSEClientManager {
         stingEngine.on('trigger', (slot) => this.broadcast({ type: 'stingTrigger', slot }));
         spotify.on('update', (model) => this.broadcast({ type: 'spotifyUpdate', model }));
         audioDim.on('update', (model) => this.broadcast({ type: 'audioDimUpdate', model }));
+        timeOfDayTrim.on('update', (model) => this.broadcast({ type: 'timeOfDayTrimUpdate', model }));
     }
 }
 
@@ -44,7 +47,8 @@ function getManager() {
             getAmbienceEngineHelperInstance(),
             getStingEngineHelperInstance(),
             getSpotifyHelperInstance(),
-            getAudioDimHelperInstance()
+            getAudioDimHelperInstance(),
+            getTimeOfDayTrimHelperInstance()
         );
     }
     return mixerListenerInstance;
@@ -65,6 +69,7 @@ export function POST() {
                     send({ type: 'stingEngineUpdate', model: mgr.stingEngine.model });
                     send({ type: 'spotifyUpdate', model: mgr.spotify.model });
                     send({ type: 'audioDimUpdate', model: mgr.audioDim.model });
+                    send({ type: 'timeOfDayTrimUpdate', model: mgr.timeOfDayTrim.model });
                 });
                 return () => {
                     unregisterClient();

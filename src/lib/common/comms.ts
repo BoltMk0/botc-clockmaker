@@ -1,6 +1,7 @@
 import type { AmbienceEngineModel } from "$lib/audio/common/model/ambienceEngineModel";
 import type { AmbienceTrackModel } from "$lib/audio/common/model/ambienceTrackModel";
 import type { AudioDimModel } from "$lib/audio/common/model/audioDimModel";
+import type { TimeOfDayTrimModel } from "$lib/audio/common/model/timeOfDayTrimModel";
 import type { AudioResourceTrackModel } from "$lib/audio/common/model/audioResourceTrackModel";
 import type { StingEngineModel } from "$lib/audio/common/model/stingEngineModel";
 import type { SpotifyModel } from "$lib/audio/common/model/spotifyModel";
@@ -59,6 +60,11 @@ export type AudioDimUpdateMessage = WSMessageBase & {
     model: AudioDimModel
 };
 
+export type TimeOfDayTrimUpdateMessage = WSMessageBase & {
+    type: 'timeOfDayTrimUpdate',
+    model: TimeOfDayTrimModel
+};
+
 export type StingEngineUpdateMessage = WSMessageBase & {
     type: 'stingEngineUpdate',
     model: StingEngineModel
@@ -86,6 +92,7 @@ export type WSMessage =
     |AmbienceTrackRemovedMessage
     |SpotifyUpdateMessage
     |AudioDimUpdateMessage
+    |TimeOfDayTrimUpdateMessage
     |StingEngineUpdateMessage
     |StingTrackUpdateMessage
     |StingTriggerMessage
