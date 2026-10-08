@@ -5,7 +5,6 @@ import { listAmbienceResources } from '$lib/resources/server/ambience-resources'
 import { get_grimoire_state_history_resource_for_clock } from '$lib/resources/server/grimoire-state';
 import { getScriptById } from '$lib/resources/server/scripts';
 import { getSpotifyPresets } from '$lib/resources/server/spotifyPresets';
-import { getTimerOptions } from '$lib/resources/server/timerOptions';
 import { error } from '@sveltejs/kit';
 
 
@@ -21,9 +20,7 @@ export async function load({params}){
         const hasGrim = grim !== null;
         const scriptRecord = grim?.scriptId ? getScriptById(grim.scriptId) : null;
         const script = scriptRecord ? { id: scriptRecord.id, name: scriptRecord.name } : null;
-        const timerOptions = getTimerOptions();
         return {
-            timerOptions,
             model: clock.model,
             clientIds,
             ambienceResources,

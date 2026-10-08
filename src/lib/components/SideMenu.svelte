@@ -11,17 +11,14 @@
     import type { SpotifyPlayer } from "$lib/audio/client/SpotifyPlayer.svelte";
     import type { SpotifyPreset } from "$lib/audio/common/spotifyPreset";
     import type { Clocktower } from "$lib/model/client/Clocktower.svelte";
-    import type { TimerOption } from "$lib/common/timerOption";
-    import ClockSetter from "./ClockSetter.svelte";
     import { QR_POSITIONS, QR_POSITION_LABELS } from "$lib/resources/common/qrCodes";
 
-    // In the town square the menu has no page links: a back button to /play, the clock timer controls (when given a clock),
+    // In the town square the menu has no page links: a back button to /play, a link to the clock's remote (when given a clock),
     // the audio mixer and the display settings.
     // Pass the page's audio engine (and its ambience resources / spotify player) so the mixer button can show the full mixer for it.
     let {
         townSquare = false,
         clock = null,
-        timerOptions = [],
         audioEngine = null,
         ambienceResources = [],
         spotify = null,
@@ -29,7 +26,6 @@
     }: {
         townSquare?: boolean;
         clock?: Clocktower | null;
-        timerOptions?: TimerOption[];
         audioEngine?: AudioEngine | null;
         ambienceResources?: Resource[];
         spotify?: SpotifyPlayer | null;
@@ -83,25 +79,32 @@
         overflow-y: auto;
     }
 
-    .back-link {
+    /* Spans the menu's whole top strip (its padding-top), so anywhere along the top closes it. */
+    .menu-close {
         position: absolute;
-        top: 12px;
-        left: 14px;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 60px;
+        padding: 0 14px;
+        box-sizing: border-box;
         display: flex;
         align-items: center;
-        gap: 0.2em;
-        font-size: large;
+        color: var(--theme-on-bg);
+        opacity: 0.8;
+        cursor: pointer;
     }
 
-    .clock-controls-pane {
-        font-size: medium;
+    .menu-close:hover {
+        opacity: 1;
     }
 
-    .remote-link {
+    .link-button {
         display: block;
         text-align: center;
-        margin-top: 8px;
-        font-size: small;
+        font-size: large;
+        padding: 0.5em 1em;
+        opacity: 1;
     }
 
     a {
@@ -151,7 +154,7 @@
         border-radius: 8px;
     }
 
-    .qr-settings-pane {
+    .stacked-pane {
         display: flex;
         flex-direction: column;
         gap: 8px;
@@ -203,17 +206,11 @@
 </button>
 
 <div class="navbar-main" style="transform: translateX({visible ? "0" : "-100%"});">
-    <button onclick={()=>{visible = false;}} class="close-button">
-        X
-    </button>
-    {#if townSquare}
-    <a class="back-link" href="/play" target="_self">
+    <button onclick={()=>{visible = false;}} class="no-button-style menu-close" aria-label="Close menu">
         <svg width={28} height={28} viewBox="0 0 24 24" style="fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;">
             <path d="M15 5l-7 7 7 7" />
         </svg>
-        Back to Play
-    </a>
-    {/if}
+    </button>
     {#if !townSquare}
     <ul style="list-style-type: none; padding: 0 2em 0 1em; margin: 0; margin-bottom: 1em;">
         <li><a href="/" target="_self">Home</a></li>
@@ -240,20 +237,26 @@
     {/if}
 
     <div style="display: grid; gap: 10px;">
-        {#if townSquare && clock}
-        <div class="navbar-settings-pane clock-controls-pane">
-            <ClockSetter model={clock} {timerOptions}/>
-            <a class="remote-link" href="/admin/{clock.id}/remote" target="_blank" rel="noopener">Open remote in its own page ↗</a>
-        </div>
-        {/if}
-        {#if townSquare && audioEngine}
-        <div class="navbar-settings-pane">
+        {#if townSquare}
+        <div class="navbar-settings-pane stacked-pane">
+            <a class="button-style link-button" href="/play" target="_self">Back to Play</a>
+            {#if clock}
+            <a class="button-style link-button" href="/admin/{clock.id}/remote" target="_blank" rel="noopener">Open Clock Remote ↗</a>
+            {/if}
+            {#if audioEngine}
             <button class="button-style" style="width: 100%; font-size: large; padding: 0.5em 1em;" onclick={() => { showMixer = true; visible = false; }}>
                 Audio Mixer
             </button>
+            {/if}
         </div>
         {/if}
-        <div class="navbar-settings-pane">
+        <div class="navbar-settings-pane stacked-pane">
+            <div style="font-size: smaller; text-align: center;">Display Mode</div>
+            <select bind:value={appSettings.displayMode} style="width: 100%; font-size: x-large;">
+                <option value="original">Original</option>
+                <option value="clocktower">Clocktower</option>
+                <option value="clocktower3d">Clocktower (3D)</option>
+            </select>
             <div style="display: flex; justify-content: space-between;">
                 <div style="font-size: smaller; text-align: center;">Display Size</div>
 
@@ -270,14 +273,6 @@
             {/if}
         </div>
         <div class="navbar-settings-pane">
-            <div style="font-size: smaller; text-align: center;">Display Mode</div>
-            <select bind:value={appSettings.displayMode} style="width: 100%; font-size: x-large;">
-                <option value="original">Original</option>
-                <option value="clocktower">Clocktower</option>
-                <option value="clocktower3d">Clocktower (3D)</option>
-            </select>
-        </div>
-        <div class="navbar-settings-pane">
             <div style="display: flex; justify-content: space-between;">
                 <div style="font-size: smaller; text-align: center;">Show Clock Names</div>
 
@@ -286,8 +281,7 @@
                 </div>
             </div>
         </div>
-        <div class="navbar-settings-pane qr-settings-pane">
-            <div style="font-size: smaller; text-align: center;">QR Codes</div>
+        <div class="navbar-settings-pane stacked-pane">
             <div style="display: flex; justify-content: space-between;">
                 <div style="font-size: smaller; text-align: center;">Show Custom QR</div>
                 <div style="display: flex; gap: 0.5em; align-items: center; font-size: 18px;">
