@@ -23,10 +23,19 @@
     }
 
     .panel {
-        padding: 1em;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        padding: 1em 1em 0;
         border-radius: 1em;
         box-sizing: border-box;
+        overflow: hidden;
+    }
+
+    /* The scroll container has no top padding so sticky category headings sit flush
+       with its top edge, with nothing visible above them. */
+    .panel-scroll {
         overflow-y: auto;
+        min-height: 0;
     }
 </style>
 
@@ -44,7 +53,9 @@
                     <a class="button-style" href="/settings/scripts/{data.script.id}/characters">Edit Characters</a>
                 </div>
             </div>
-            <CharacterList characters={data.script.characters}/>
+            <div class="panel-scroll">
+                <CharacterList characters={data.script.characters}/>
+            </div>
         </div>
     </div>
 </div>
