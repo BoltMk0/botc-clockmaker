@@ -14,7 +14,8 @@
     let {
         spotify,
         presets = [],
-        // Linear multiplier from the mixer's master gain fader (and its time-of-day trim). Spotify plays through its own device/SDK
+        // Linear multiplier from the mixer's master gain fader (the shared time-of-day trim is applied by the
+        // server instead, so it can be one ramp with a playlist switch's fades - see SpotifyHelper). Spotify plays through its own device/SDK
         // rather than the Web Audio master bus, so it can't pick this up like every other channel does -
         // instead it's folded into the volume this strip sends Spotify (see setVolume/the masterGain effect
         // below), so the master fader still ducks/mutes it in step with everything else. This fader's own

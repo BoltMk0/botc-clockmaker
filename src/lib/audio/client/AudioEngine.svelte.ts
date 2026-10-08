@@ -1,4 +1,3 @@
-import { untrack } from "svelte";
 import type { Clocktower } from "$lib/model/client/Clocktower.svelte";
 import { combineTimesOfDay, type TimeOfDay } from "$lib/model/client/types";
 import { TimeOfDayTrim } from "./TimeOfDayTrim.svelte";
@@ -21,8 +20,6 @@ const MUTE_STORAGE_KEY = 'mixer.mute.master';
 const TIME_OF_DAY_TRIM_PHASE_FADE_S = 3;
 /** Time constant of the ramp while a trim knob is being turned: quick, just enough to avoid zipper noise. */
 const TIME_OF_DAY_TRIM_KNOB_TIME_CONSTANT_S = 0.03;
-/** Step interval of Spotify's phase-change fade: each step is a volume call to Spotify, so keep well inside its rate limits. */
-const SPOTIFY_TRIM_FADE_STEP_MS = 250;
 
 export class AudioEngine implements AudioTrackBase {
     #context: AudioContext;
@@ -32,11 +29,7 @@ export class AudioEngine implements AudioTrackBase {
     // Per-phase trim on top of the master fader. Unlike the fader, shared across every client (like the dim).
     #timeOfDayTrim = new TimeOfDayTrim();
     #timeOfDayNode: GainNode;
-    // Spotify can't go through #timeOfDayNode (see ChannelStripSpotify), so it gets its own copy of the trim,
-    // stepped through the same fade on a phase change
-    #spotifyTrimDb = $state(0);
-    #spotifyFadeTimer: ReturnType<typeof setInterval>|null = null;
-    #stopTrimEffects: ()=>void;
+    // (Spotify can't go through #timeOfDayNode; the server applies the trim to its volume instead - see SpotifyHelper.)
     #dimNode: GainNode; // After the master fader, so dimming never fights the user's gain
     #dim: AudioDim|null = null;
     #stopEffects: (()=>void)|null = null;
@@ -85,30 +78,6 @@ export class AudioEngine implements AudioTrackBase {
         // With several games each in their own phase, the earliest wins: it's day if any game is in daytime.
         this.#timeOfDay = $derived(combineTimesOfDay(clocks.map(clock=>clock.timeOfDay)));
         this.#timeOfDayNode.gain.value = this.timeOfDayGain;
-        this.#spotifyTrimDb = this.#timeOfDayTrim.model[this.#timeOfDay];
-        // Runs even on a silent client, which can still be the one driving Spotify's volume
-        let lastSpotifyTimeOfDay = this.#timeOfDay;
-        this.#stopTrimEffects = $effect.root(()=>{
-            $effect(()=>{
-                const timeOfDay = this.#timeOfDay;
-                const targetDb = this.#timeOfDayTrim.model[timeOfDay];
-                const phaseChanged = timeOfDay !== lastSpotifyTimeOfDay;
-                lastSpotifyTimeOfDay = timeOfDay;
-                this.stopSpotifyFade();
-                if(!phaseChanged){
-                    this.#spotifyTrimDb = targetDb;
-                    return;
-                }
-                // Linear in dB, matching the Web Audio fade
-                const startDb = untrack(()=>this.#spotifyTrimDb);
-                const start = Date.now();
-                this.#spotifyFadeTimer = setInterval(()=>{
-                    const t = Math.min(1, (Date.now() - start) / (TIME_OF_DAY_TRIM_PHASE_FADE_S * 1000));
-                    this.#spotifyTrimDb = startDb + (targetDb - startDb) * t;
-                    if(t >= 1) this.stopSpotifyFade();
-                }, SPOTIFY_TRIM_FADE_STEP_MS);
-            });
-        });
         this.#ambienceEngineModel = $state(ambienceEngineModel ?? null)
         this.#ambienceEngine = this.#ambienceEngineModel ? new AmbienceEngine(this.#ambienceEngineModel, this.#gainNode, ()=>this.#timeOfDay, {silent: this.#silent}) : null;
         this.#stingEngineModel = $state(stingEngineModel ?? null)
@@ -185,14 +154,6 @@ export class AudioEngine implements AudioTrackBase {
     setTimeOfDayTrimDb(timeOfDay: TimeOfDay, db: number){ this.#timeOfDayTrim.set(timeOfDay, db); }
     /** Linear gain of the current phase's trim. */
     get timeOfDayGain(){ return this.#timeOfDayTrim.gain(this.#timeOfDay); }
-    /** Linear gain of the trim for Spotify: as timeOfDayGain, but stepped through the fade when the phase changes. */
-    get spotifyTimeOfDayGain(){ return Math.pow(10, this.#spotifyTrimDb / 20); }
-
-    private stopSpotifyFade(){
-        if(this.#spotifyFadeTimer === null) return;
-        clearInterval(this.#spotifyFadeTimer);
-        this.#spotifyFadeTimer = null;
-    }
 
     get input(){ return this.#gainNode; }
     get analyser(){ return this.#analyser; }
@@ -205,8 +166,6 @@ export class AudioEngine implements AudioTrackBase {
             clock.close();
         }
         this.#stopEffects?.();
-        this.#stopTrimEffects();
-        this.stopSpotifyFade();
         this.#dim?.close();
         this.#timeOfDayTrim.close();
         this.#ambienceEngine?.close();

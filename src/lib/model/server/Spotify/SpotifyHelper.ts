@@ -3,6 +3,7 @@ import { env } from "$env/dynamic/private";
 import type { SpotifyControlAction, SpotifyModel, SpotifyPlaybackModel } from "$lib/audio/common/model/spotifyModel";
 import { dimGain } from "$lib/audio/common/model/audioDimModel";
 import { getAudioDimHelperInstance } from "../AudioDim/AudioDimHelper";
+import { getTimeOfDayTrimHelperInstance } from "../TimeOfDayTrim/TimeOfDayTrimHelper";
 import { adaptivePresetUriFor, isAdaptivePresetContext, isSameSpotifyContext, isSpotifyContextUri, isSpotifyAdaptivePreset, type SpotifyAdaptivePreset } from "$lib/audio/common/spotifyPreset";
 import { JSONSingletonResourceManager } from "$lib/resources/server/jsonResourceManager";
 import { getSpotifyPresets } from "$lib/resources/server/spotifyPresets";
@@ -25,9 +26,11 @@ const FADE_MS = 1200;
 /** How long to wait for the player to report the new playlist before giving up and restoring volume anyway. */
 const SWITCH_TIMEOUT_MS = 4000;
 const FADE_STEP_MS = 100;
+/** How long the volume takes to move to the new phase's time-of-day trim - in step with the mixer's own fade. */
+const TRIM_FADE_MS = 3000;
 const HOST_CHECK_INTERVAL_MS = 5000;
-/** How often to check the games' phase while an adaptive playlist is selected. */
-const PHASE_CHECK_INTERVAL_MS = 1000;
+/** How often to check the games' phase (for adaptive playlists and the time-of-day trim). */
+const PHASE_CHECK_INTERVAL_MS = 250;
 
 export class SpotifyHelper extends EventEmitter {
     #hostClientId: string | null = null;
@@ -46,7 +49,15 @@ export class SpotifyHelper extends EventEmitter {
     #adaptivePresetId: string | null = null;
     /** The phase the adaptive playlist was last switched for. */
     #phaseTimeOfDay: TimeOfDay | null = null;
-    #phaseTimer: ReturnType<typeof setInterval> | null = null;
+    /**
+     * The shared time-of-day trim (on the Music & Ambience master) currently applied to every volume we send, in dB.
+     * Applied here rather than by the mixers, so that it and a playlist switch's fades are one ramp, not two fighting.
+     */
+    #trimDb: number;
+    /** The phase whose trim #trimDb is at, or ramping towards. */
+    #trimTimeOfDay: TimeOfDay;
+    #trimToken = 0;
+    #trimRamping = false;
 
     constructor() {
         super();
@@ -54,11 +65,28 @@ export class SpotifyHelper extends EventEmitter {
         this.#dimFactor = dimGain(dim.model);
         dim.on('update', (model) => {
             this.#dimFactor = dimGain(model);
-            const deviceId = this.#hostDeviceId;
-            if (deviceId === null || this.#switching) return;
-            this.setDeviceVolume(`device_id=${encodeURIComponent(deviceId)}`, this.#volume)
-                .catch((e) => console.error('Failed to apply audio dim to Spotify', e));
+            this.applyLevelChange('audio dim');
         });
+
+        this.#trimTimeOfDay = getBOTCTClockInstanceManager().timeOfDay;
+        this.#trimDb = this.targetTrimDb();
+        getTimeOfDayTrimHelperInstance().on('update', () => {
+            // A ramp or switch in progress picks the new value up as it goes
+            if (this.#trimRamping || this.#switching) return;
+            this.#trimDb = this.targetTrimDb();
+            this.applyLevelChange('time-of-day trim');
+        });
+
+        const phaseTimer = setInterval(() => this.checkPhase(), PHASE_CHECK_INTERVAL_MS);
+        phaseTimer.unref?.();
+    }
+
+    /** Re-sends the volume after the dim or trim changes - unless a fade is under way, which applies it itself. */
+    private applyLevelChange(what: string) {
+        const deviceId = this.#hostDeviceId;
+        if (deviceId === null || this.#switching || this.#trimRamping) return;
+        this.setDeviceVolume(`device_id=${encodeURIComponent(deviceId)}`, this.#volume)
+            .catch((e) => console.error(`Failed to apply ${what} to Spotify`, e));
     }
 
     #accessToken: string | null = null;
@@ -222,8 +250,8 @@ export class SpotifyHelper extends EventEmitter {
         this.#hostLastSeen = Date.now();
         this.#hostDeviceId = deviceId;
         await this.api('PUT', '/me/player', { device_ids: [deviceId], play: false });
-        // The SDK starts at the undimmed volume
-        if (this.#dimFactor !== 1) await this.setDeviceVolume(`device_id=${encodeURIComponent(deviceId)}`, this.#volume);
+        // The SDK starts at the volume without the dim or trim
+        if (this.levelFactor() !== 1) await this.setDeviceVolume(`device_id=${encodeURIComponent(deviceId)}`, this.#volume);
         this.changed();
     }
 
@@ -265,8 +293,9 @@ export class SpotifyHelper extends EventEmitter {
             case 'volume': {
                 if (typeof command.volume !== 'number' || isNaN(command.volume)) throw new Error('Invalid volume');
                 const volume = Math.round(Math.min(100, Math.max(0, command.volume)));
-                await this.setDeviceVolume(device, volume);
                 this.#volume = volume;
+                // Mid-switch, the fades follow #volume as they go; setting it on the device now would cut across them
+                if (!this.#switching) await this.setDeviceVolume(device, volume);
                 this.changed();
                 break;
             }
@@ -291,10 +320,6 @@ export class SpotifyHelper extends EventEmitter {
         const uri = ownUri ?? adaptivePresetUriFor(preset, timeOfDay);
         this.#adaptivePresetId = presetId;
         this.#phaseTimeOfDay = timeOfDay;
-        if (this.#phaseTimer === null) {
-            this.#phaseTimer = setInterval(() => this.checkPhase(), PHASE_CHECK_INTERVAL_MS);
-            this.#phaseTimer.unref?.();
-        }
         if (resume) {
             await this.api('PUT', `/me/player/play?${device}`);
             this.changed();
@@ -304,28 +329,79 @@ export class SpotifyHelper extends EventEmitter {
     }
 
     /**
-     * When the games' phase changes, crossfades a playing adaptive playlist over to its list for the new phase. Nothing
-     * changes if the new phase has no list, or the same one as is already playing.
+     * When the games' phase changes, moves the volume to the new phase's time-of-day trim - as part of the adaptive
+     * playlist's switch to the new phase's list, if there is one (fade out, switch, fade in at the new level), or
+     * otherwise as a fade of its own.
      */
     private checkPhase() {
         const timeOfDay = getBOTCTClockInstanceManager().timeOfDay;
-        if (timeOfDay === this.#phaseTimeOfDay) return;
+        const switching = this.#adaptivePresetId !== null && timeOfDay !== this.#phaseTimeOfDay && this.followPhaseWithAdaptivePreset(timeOfDay);
+        if (timeOfDay === this.#trimTimeOfDay) return;
+        this.#trimTimeOfDay = timeOfDay;
+        // A switch fades back in at the new phase's trim itself (see playContext)
+        if (!switching && !this.#switching) this.rampTrim();
+    }
+
+    /**
+     * Crossfades a playing adaptive playlist over to its list for the new phase. Nothing changes if the new phase has no
+     * list, or the same one as is already playing. Returns whether it started a switch.
+     */
+    private followPhaseWithAdaptivePreset(timeOfDay: TimeOfDay): boolean {
         this.#phaseTimeOfDay = timeOfDay;
         const preset = this.adaptivePreset();
         if (!preset) {
             // Deleted in settings since it was started
             this.clearAdaptivePreset();
             this.changed();
-            return;
+            return false;
         }
         // A paused preset is left alone; starting it again picks the new phase's list
         const deviceId = this.#hostDeviceId;
-        if (deviceId === null || !this.#playback?.playing) return;
+        if (deviceId === null || !this.#playback?.playing) return false;
         const uri = preset.phaseUris[timeOfDay];
-        if (uri === null || isSameSpotifyContext(this.#pendingContextUri ?? this.#playback.contextUri, uri)) return;
+        if (uri === null || isSameSpotifyContext(this.#pendingContextUri ?? this.#playback.contextUri, uri)) return false;
         console.log(`Spotify: phase changed to ${timeOfDay}, switching "${preset.name}" to ${uri}`);
         this.playContext(uri, `device_id=${encodeURIComponent(deviceId)}`, { fadeIn: true })
             .catch((e) => console.error('Failed to switch Spotify playlist for the new phase', e));
+        return true;
+    }
+
+    // ---- Time-of-day trim ----
+
+    private targetTrimDb() {
+        return getTimeOfDayTrimHelperInstance().model[this.#trimTimeOfDay];
+    }
+
+    /** Fades from the current trim to the current phase's, linear in dB. Superseded by a newer ramp or a playlist switch. */
+    private async rampTrim() {
+        const token = ++this.#trimToken;
+        const startDb = this.#trimDb;
+        const start = Date.now();
+        this.#trimRamping = true;
+        try {
+            for (; ;) {
+                if (token !== this.#trimToken) return;
+                const t = Math.min(1, (Date.now() - start) / TRIM_FADE_MS);
+                // The target is read as we go, so a knob turned mid-fade is followed
+                const targetDb = this.targetTrimDb();
+                this.#trimDb = startDb + (targetDb - startDb) * t;
+                const deviceId = this.#hostDeviceId;
+                if (deviceId !== null) {
+                    await this.setDeviceVolume(`device_id=${encodeURIComponent(deviceId)}`, this.#volume)
+                        .catch((e) => console.error('Failed to fade Spotify to the time-of-day trim', e));
+                }
+                if (t >= 1) return;
+                await new Promise(resolve => setTimeout(resolve, FADE_STEP_MS));
+            }
+        } finally {
+            if (token === this.#trimToken) this.#trimRamping = false;
+        }
+    }
+
+    /** Stops a trim ramp where it is (a playlist switch takes over from there). */
+    private stopTrimRamp() {
+        this.#trimToken++;
+        this.#trimRamping = false;
     }
 
     private adaptivePreset(): SpotifyAdaptivePreset | null {
@@ -337,28 +413,25 @@ export class SpotifyHelper extends EventEmitter {
     private clearAdaptivePreset() {
         this.#adaptivePresetId = null;
         this.#phaseTimeOfDay = null;
-        if (this.#phaseTimer) {
-            clearInterval(this.#phaseTimer);
-            this.#phaseTimer = null;
-        }
     }
 
     // ---- Switching playlists ----
 
     /**
      * Switches to a new album/playlist: fades the old one out, then starts the new one at full volume (or fades it
-     * back in, with `fadeIn`). Spotify only has one active stream, so the two can't overlap.
+     * back in, with `fadeIn`). Spotify only has one active stream, so the two can't overlap. This is the only ramp
+     * while it runs: it takes over from any time-of-day trim fade, and comes back in at the current phase's trim.
      */
     private async playContext(uri: string, device: string, options: { fadeIn?: boolean } = {}) {
         const token = ++this.#fadeToken; // A newer request supersedes this one, including mid-fade
-        const target = this.#volume;
         const wasPlaying = this.#playback?.playing === true;
         const before = this.#playback;
+        this.stopTrimRamp(); // The fade out carries on from wherever it had got to
         this.#pendingContextUri = uri;
         this.#switching = true;
         this.changed();
         try {
-            if (wasPlaying && !await this.fade(device, target, token, 'out')) return;
+            if (wasPlaying && !await this.fade(device, token, 'out')) return;
             // Shuffle first, so playback of the new context starts on a random track
             await this.api('PUT', `/me/player/shuffle?state=true&${device}`);
             await this.api('PUT', `/me/player/play?${device}`, { context_uri: uri });
@@ -367,13 +440,20 @@ export class SpotifyHelper extends EventEmitter {
                 // old track blast back in. Wait until the player reports the new playlist (and a new track).
                 await this.waitForSwitch(uri, before, token);
                 if (token === this.#fadeToken) {
-                    if (options.fadeIn) await this.fade(device, target, token, 'in');
-                    else await this.setDeviceVolume(device, target);
+                    this.#trimDb = this.targetTrimDb();
+                    if (options.fadeIn) await this.fade(device, token, 'in');
+                    else await this.setDeviceVolume(device, this.#volume);
                 }
+            } else if (token === this.#fadeToken) {
+                this.#trimDb = this.targetTrimDb();
+                await this.setDeviceVolume(device, this.#volume);
             }
         } catch (e) {
             // Don't leave the player silent if we failed after fading out
-            if (token === this.#fadeToken) await this.setDeviceVolume(device, target).catch(() => { });
+            if (token === this.#fadeToken) {
+                this.#trimDb = this.targetTrimDb();
+                await this.setDeviceVolume(device, this.#volume).catch(() => { });
+            }
             throw e;
         } finally {
             // A newer request has already set its own pending playlist, which is not ours to clear
@@ -406,23 +486,31 @@ export class SpotifyHelper extends EventEmitter {
         });
     }
 
-    /** Equal-power fade of the device volume from target down to 0, or back up. Returns false if superseded by a newer request. */
-    private async fade(device: string, target: number, token: number, direction: 'in' | 'out') {
+    /**
+     * Equal-power fade of the device volume from the chosen volume down to 0, or back up. Follows #volume as it goes, so
+     * a volume change mid-fade is folded in rather than cutting across it. Returns false if superseded by a newer request.
+     */
+    private async fade(device: string, token: number, direction: 'in' | 'out') {
         const start = Date.now();
         for (; ;) {
             if (token !== this.#fadeToken) return false;
             const t = Math.min(1, (Date.now() - start) / FADE_MS);
             const angle = t * Math.PI / 2;
-            await this.setDeviceVolume(device, target * (direction === 'out' ? Math.cos(angle) : Math.sin(angle)));
+            await this.setDeviceVolume(device, this.#volume * (direction === 'out' ? Math.cos(angle) : Math.sin(angle)));
             if (t >= 1) return true;
             // Each API call takes a moment anyway; this just keeps us well inside Spotify's rate limits
             await new Promise(resolve => setTimeout(resolve, FADE_STEP_MS));
         }
     }
 
+    /** Multiplier from the shared dim and the current time-of-day trim, applied to every volume we send. */
+    private levelFactor() {
+        return this.#dimFactor * Math.pow(10, this.#trimDb / 20);
+    }
+
     private async setDeviceVolume(device: string, volume: number) {
-        // `volume` is the level the user chose; the dim, if any, is applied here so callers needn't think about it
-        const effective = volume * this.#dimFactor;
+        // `volume` is the level the user chose; the dim and trim are applied here so callers needn't think about them
+        const effective = volume * this.levelFactor();
         await this.api('PUT', `/me/player/volume?volume_percent=${Math.round(Math.min(100, Math.max(0, effective)))}&${device}`);
     }
 

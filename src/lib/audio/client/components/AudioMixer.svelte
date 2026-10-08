@@ -196,7 +196,7 @@
                  fader still controls it, just via Spotify's own volume API rather than a Web Audio gain node -
                  it's still one of this mixer's own channels, not a separate thing, so it sits in the same row.
                  MASTER stays the rightmost strip, so this goes just before it rather than after. -->
-            <ChannelStripSpotify {spotify} presets={spotifyPresets} masterGain={audioEngine.gain * audioEngine.spotifyTimeOfDayGain} style="--theme-slider-accent: #AFA;"/>
+            <ChannelStripSpotify {spotify} presets={spotifyPresets} masterGain={audioEngine.gain} style="--theme-slider-accent: #AFA;"/>
             {/if}
             {#snippet timeOfDayTrims()}
                 <div class="time-of-day-trims">
