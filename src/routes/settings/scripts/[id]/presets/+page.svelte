@@ -37,6 +37,7 @@
         height: 100%;
         display: grid;
         grid-template-rows: auto minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr);
         gap: 1em;
         overflow: hidden;
     }
@@ -46,6 +47,49 @@
         align-items: center;
         justify-content: space-between;
         gap: 1em;
+    }
+    .presets-header .button-style {
+        white-space: nowrap;
+    }
+    .title {
+        display: flex;
+        align-items: center;
+        gap: 0.6em;
+        min-width: 0;
+    }
+    .title-swatch {
+        width: 1.5em;
+        height: 1.5em;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .title h2 {
+        margin: 0;
+        font-size: 2.2rem;
+    }
+
+    /* Phones: Back and New Preset share the top row, with the title on its own row beneath them. */
+    @media (max-width: 560px) {
+        .presets-header {
+            display: grid;
+            grid-template-columns: auto auto;
+            grid-template-areas: "back new" "title title";
+            gap: 0.75em;
+        }
+        .presets-header .back {
+            grid-area: back;
+            justify-self: start;
+        }
+        .presets-header .new {
+            grid-area: new;
+            justify-self: end;
+        }
+        .title {
+            grid-area: title;
+        }
+        .title h2 {
+            font-size: 1.6rem;
+        }
     }
 
     .panel {
@@ -83,12 +127,12 @@
 
 <div class="presets-main padded">
     <div class="presets-header">
-        <a class="button-style" href="/settings/scripts/{data.script.id}">← Back</a>
-        <div style="display: flex; align-items: center; gap: 0.6em;">
-            <div style="width: 1.5em; height: 1.5em; border-radius: 50%; background-color: {data.script.hue};"></div>
-            <h2 style="margin: 0; font-size: 2.2rem;">{data.script.name} Presets</h2>
+        <a class="button-style back" href="/settings/scripts/{data.script.id}">← Back</a>
+        <div class="title">
+            <div class="title-swatch" style="background-color: {data.script.hue};"></div>
+            <h2>{data.script.name} Presets</h2>
         </div>
-        <a class="button-style" href="/settings/scripts/{data.script.id}/presets/new">+ New Preset</a>
+        <a class="button-style new" href="/settings/scripts/{data.script.id}/presets/new">+ New Preset</a>
     </div>
     <div class="panel">
         {#each presetGroups as group (group.playerCount)}

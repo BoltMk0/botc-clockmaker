@@ -31,7 +31,20 @@
 
 
 <style>
+    .scripts-page {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        height: 100%;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 1.5rem;
+        overflow-y: auto;
+    }
+
     .scripts-main {
+        width: 100%;
+        max-width: 40em;
         padding: 1.5rem;
         box-sizing: border-box;
         background-color: var(--theme-bg-secondary);
@@ -43,9 +56,16 @@
 
     .scripts-main-header {
         display: flex;
+        flex-wrap: wrap;
         justify-content: space-between;
         align-items: center;
-        gap: 1.5rem;
+        gap: 0.75rem 1.5rem;
+    }
+
+    .header-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5em;
     }
 
     .scripts-main-header h2 {
@@ -66,7 +86,6 @@
         display: flex;
         flex-direction: column;
         gap: 0.7em;
-        min-width: 32em;
         border: 1px solid var(--theme-bg-tertiary);
         border-radius: 10px;
         background-color: var(--theme-bg);
@@ -112,6 +131,25 @@
         opacity: 0.7;
     }
 
+    @media (max-width: 560px) {
+        .scripts-page {
+            padding: 0.75rem;
+        }
+        .scripts-main {
+            padding: 1rem;
+        }
+        .scripts-contents {
+            padding: 0.6rem;
+        }
+        .script-card-header {
+            gap: 0.7em;
+            padding: 0.7em 0.8em;
+        }
+    }
+
+    .import-form input[type="file"] {
+        max-width: 100%;
+    }
     .import-form {
         display: flex;
         flex-direction: column;
@@ -127,13 +165,13 @@
     }
 </style>
 
-<div style="display: flex; justify-content: center; align-items: flex-start; height: 100%; width: 100%; box-sizing: border-box; padding: 1.5rem; overflow-y: auto;">
+<div class="scripts-page">
 
     
 <div class="scripts-main">
     <div class="scripts-main-header">
         <h2>Scripts</h2>
-        <div style="display: flex; gap: 0.5em;">
+        <div class="header-actions">
         <a class="button-style" href="scripts/scraper">Wiki Scraper</a>
         <CustomOverlay title="Import Script" buttonTitle="Import">
             <form class="import-form" action="?/importScript" method="POST" enctype="multipart/form-data" use:enhance={()=>{
