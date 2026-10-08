@@ -12,7 +12,7 @@ export interface AmbienceEngineModel extends AudioTrackGroupModel<AmbienceTrackM
 /** Partial update of the engine-level fields, as sent to / broadcast by the server. */
 export type AmbienceEnginePatch = Partial<Pick<AmbienceEngineModel, 'playing'|'gain'|'pan'>>;
 /** Partial update of one ambience track, as sent to / broadcast by the server. */
-export type AmbienceTrackPatch = Partial<Pick<AmbienceTrackModel, 'gain'|'pan'|'activeInDay'|'activeAtNight'|'loadedResourceId'>>;
+export type AmbienceTrackPatch = Partial<Pick<AmbienceTrackModel, 'gain'|'pan'|'activeInDay'|'activeAtDusk'|'activeAtNight'|'loadedResourceId'>>;
 
 export function isAmbienceEngineModel(data: any): data is AmbienceEngineModel {
     if(typeof data !== 'object' || data === null) return false;
@@ -30,6 +30,7 @@ export function newAmbienceTrackModel(): AmbienceTrackModel {
         pan: 0,
         loadedResourceId: null,
         activeAtNight: true,
+        activeAtDusk: true,
         activeInDay: true
     };
 }

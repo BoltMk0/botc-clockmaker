@@ -180,8 +180,8 @@ export class SpotifyPlayer {
     next() { this.control({ action: 'next' }); }
     /** Starts playing an album/playlist straight away. */
     playContext(uri: string) { this.control({ action: 'playContext', uri }); }
-    /** Starts (or resumes) a day/night preset on the list for the current phase; it then follows the phase. */
-    playPhasePreset(presetId: string) { this.control({ action: 'playPhasePreset', presetId }); }
+    /** Starts (or resumes) an adaptive playlist on the list for the current phase; it then follows the phase. */
+    playAdaptivePreset(presetId: string) { this.control({ action: 'playAdaptivePreset', presetId }); }
     previous() { this.control({ action: 'previous' }); }
 
     /** @param volume 0..100. Rapid calls (a slider drag) are coalesced. */

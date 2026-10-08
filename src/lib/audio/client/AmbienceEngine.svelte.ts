@@ -1,7 +1,7 @@
 import { AudioAmbienceTrack } from "$lib/audio/client/AudioAmbienceTrack.svelte";
 import { AudioTrackGroup } from "$lib/audio/client/AudioTrackGroup.svelte";
 import type { AmbienceEngineModel, AmbienceEnginePatch, AmbienceTrackPatch } from "$lib/audio/common/model/ambienceEngineModel";
-import type { AmbienceTrackModel } from "$lib/audio/common/model/ambienceTrackModel";
+import { AMBIENCE_ACTIVE_KEYS, type AmbienceTrackModel } from "$lib/audio/common/model/ambienceTrackModel";
 import type { TimeOfDay } from "../../model/client/types";
 import { subscribeMixerEvents } from "./MixerEventsClient";
 
@@ -11,7 +11,7 @@ const SEND_DELAY_MS = 80;
 const LOCAL_EDIT_HOLD_MS = 500;
 
 const ENGINE_KEYS = ['playing', 'gain', 'pan'] as const;
-const TRACK_KEYS = ['gain', 'pan', 'activeInDay', 'activeAtNight', 'loadedResourceId'] as const;
+const TRACK_KEYS = ['gain', 'pan', 'activeInDay', 'activeAtDusk', 'activeAtNight', 'loadedResourceId'] as const;
 
 export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
 
@@ -49,14 +49,14 @@ export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
         this.persistMute('ambience.bus');
         this.tracks.forEach((track, index)=>this.setupTrack(track, index));
 
-        // Drive playback from (shared playing flag) x (bus mute) x (time of day) x (per-track day/night activity).
+        // Drive playback from (shared playing flag) x (bus mute) x (time of day) x (per-track activity in each phase).
         // Muting the bus is local to this device, so treat it the same as pausing rather than touching the shared `playing` flag.
         this.#stopEffects = $effect.root(()=>{
             $effect(()=>{
                 const playing = this.#model.playing && !this.muted;
                 const timeOfDay = this.#timeOfDay();
                 for(const t of this.tracks){
-                    t.setPlaying(!this.#silent && playing && (timeOfDay === 'day' ? t.activeInDay : t.activeAtNight));
+                    t.setPlaying(!this.#silent && playing && t[AMBIENCE_ACTIVE_KEYS[timeOfDay]]);
                 }
             });
         });

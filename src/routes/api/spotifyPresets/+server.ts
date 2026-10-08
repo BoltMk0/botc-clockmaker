@@ -9,7 +9,7 @@ export async function GET() {
 export async function POST({ request }) {
     const data = await request.json().catch(() => null);
     if (!Array.isArray(data) || !data.every(isSpotifyPreset)) {
-        return error(400, { message: 'Invalid data - not a list of Spotify presets (each needs an id, name and either an album/playlist URI or day and night URIs)' });
+        return error(400, { message: 'Invalid data - not a list of Spotify presets (each needs an id, name and either an album/playlist URI or, for an adaptive playlist, phaseUris with at least one URI)' });
     }
     saveSpotifyPresets(data);
     return new Response();

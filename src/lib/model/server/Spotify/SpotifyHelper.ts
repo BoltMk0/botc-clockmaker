@@ -3,7 +3,7 @@ import { env } from "$env/dynamic/private";
 import type { SpotifyControlAction, SpotifyModel, SpotifyPlaybackModel } from "$lib/audio/common/model/spotifyModel";
 import { dimGain } from "$lib/audio/common/model/audioDimModel";
 import { getAudioDimHelperInstance } from "../AudioDim/AudioDimHelper";
-import { isSameSpotifyContext, isSpotifyContextUri, isSpotifyPhasePreset, type SpotifyPhasePreset } from "$lib/audio/common/spotifyPreset";
+import { adaptivePresetUriFor, isAdaptivePresetContext, isSameSpotifyContext, isSpotifyContextUri, isSpotifyAdaptivePreset, type SpotifyAdaptivePreset } from "$lib/audio/common/spotifyPreset";
 import { JSONSingletonResourceManager } from "$lib/resources/server/jsonResourceManager";
 import { getSpotifyPresets } from "$lib/resources/server/spotifyPresets";
 import { getBOTCTClockInstanceManager } from "../model";
@@ -26,7 +26,7 @@ const FADE_MS = 1200;
 const SWITCH_TIMEOUT_MS = 4000;
 const FADE_STEP_MS = 100;
 const HOST_CHECK_INTERVAL_MS = 5000;
-/** How often to check the games' day/night phase while a day/night preset is selected. */
+/** How often to check the games' phase while an adaptive playlist is selected. */
 const PHASE_CHECK_INTERVAL_MS = 1000;
 
 export class SpotifyHelper extends EventEmitter {
@@ -42,9 +42,9 @@ export class SpotifyHelper extends EventEmitter {
     #dimFactor = 1;
     /** True while a playlist switch is fading/starting, so a dim change doesn't fight the fade. */
     #switching = false;
-    /** The day/night preset last started, if it's still the thing selected. */
-    #phasePresetId: string | null = null;
-    /** The phase the day/night preset was last switched for. */
+    /** The adaptive playlist last started, if it's still the thing selected. */
+    #adaptivePresetId: string | null = null;
+    /** The phase the adaptive playlist was last switched for. */
     #phaseTimeOfDay: TimeOfDay | null = null;
     #phaseTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -81,7 +81,7 @@ export class SpotifyHelper extends EventEmitter {
             volume: this.#volume,
             playback: this.#playback,
             pendingContextUri: this.#pendingContextUri,
-            phasePresetId: this.#phasePresetId
+            adaptivePresetId: this.#adaptivePresetId
         };
     }
 
@@ -181,7 +181,7 @@ export class SpotifyHelper extends EventEmitter {
         this.#hostDeviceId = null;
         this.#playback = null;
         this.#pendingContextUri = null;
-        this.clearPhasePreset();
+        this.clearAdaptivePreset();
         if (this.#hostCheckTimer) {
             clearInterval(this.#hostCheckTimer);
             this.#hostCheckTimer = null;
@@ -206,11 +206,11 @@ export class SpotifyHelper extends EventEmitter {
         this.#hostLastSeen = Date.now();
         if (report.playback !== undefined) {
             this.#playback = report.playback;
-            // Something else was picked in Spotify itself, so the day/night preset is no longer selected
-            const phasePreset = this.phasePreset();
-            if (phasePreset && !this.#switching && report.playback?.playing && report.playback.contextUri &&
-                !this.isPhasePresetContext(phasePreset, report.playback.contextUri)) {
-                this.clearPhasePreset();
+            // Something else was picked in Spotify itself, so the adaptive playlist is no longer selected
+            const adaptivePreset = this.adaptivePreset();
+            if (adaptivePreset && !this.#switching && report.playback?.playing && report.playback.contextUri &&
+                !isAdaptivePresetContext(adaptivePreset, report.playback.contextUri)) {
+                this.clearAdaptivePreset();
             }
             this.changed();
         }
@@ -250,11 +250,11 @@ export class SpotifyHelper extends EventEmitter {
                 break;
             case 'playContext':
                 if (!isSpotifyContextUri(command.uri)) throw new Error('Invalid album/playlist');
-                this.clearPhasePreset();
+                this.clearAdaptivePreset();
                 await this.playContext(command.uri, device);
                 break;
-            case 'playPhasePreset':
-                await this.playPhasePreset(command.presetId, device);
+            case 'playAdaptivePreset':
+                await this.playAdaptivePreset(command.presetId, device);
                 break;
             case 'next':
                 await this.api('POST', `/me/player/next?${device}`);
@@ -275,17 +275,21 @@ export class SpotifyHelper extends EventEmitter {
         }
     }
 
-    // ---- Day/night presets ----
+    // ---- Adaptive playlists ----
 
-    /** Starts a day/night preset on the list for the current phase, and keeps it following the phase from then on. */
-    private async playPhasePreset(presetId: string, device: string) {
+    /** Starts an adaptive playlist on the list for the current phase, and keeps it following the phase from then on. */
+    private async playAdaptivePreset(presetId: string, device: string) {
         const preset = getSpotifyPresets().find(p => p.id === presetId);
-        if (!preset || !isSpotifyPhasePreset(preset)) throw new Error('Unknown day/night preset');
+        if (!preset || !isSpotifyAdaptivePreset(preset)) throw new Error('Unknown adaptive playlist');
         const timeOfDay = getBOTCTClockInstanceManager().timeOfDay;
-        const uri = timeOfDay === 'day' ? preset.dayUri : preset.nightUri;
-        // Already loaded with this phase's list (just paused): carry on where it left off
-        const resume = this.#phasePresetId === presetId && isSameSpotifyContext(this.#playback?.contextUri, uri);
-        this.#phasePresetId = presetId;
+        const ownUri = preset.phaseUris[timeOfDay];
+        const current = this.#playback?.contextUri;
+        // Already loaded (just paused) with this phase's list - or with any of its lists, if this phase has none to
+        // switch to: carry on where it left off
+        const resume = this.#adaptivePresetId === presetId && isAdaptivePresetContext(preset, current) &&
+            (ownUri === null || isSameSpotifyContext(current, ownUri));
+        const uri = ownUri ?? adaptivePresetUriFor(preset, timeOfDay);
+        this.#adaptivePresetId = presetId;
         this.#phaseTimeOfDay = timeOfDay;
         if (this.#phaseTimer === null) {
             this.#phaseTimer = setInterval(() => this.checkPhase(), PHASE_CHECK_INTERVAL_MS);
@@ -299,39 +303,39 @@ export class SpotifyHelper extends EventEmitter {
         }
     }
 
-    /** When the games' phase changes, crossfades a playing day/night preset over to its list for the new phase. */
+    /**
+     * When the games' phase changes, crossfades a playing adaptive playlist over to its list for the new phase. Nothing
+     * changes if the new phase has no list, or the same one as is already playing.
+     */
     private checkPhase() {
         const timeOfDay = getBOTCTClockInstanceManager().timeOfDay;
         if (timeOfDay === this.#phaseTimeOfDay) return;
         this.#phaseTimeOfDay = timeOfDay;
-        const preset = this.phasePreset();
+        const preset = this.adaptivePreset();
         if (!preset) {
             // Deleted in settings since it was started
-            this.clearPhasePreset();
+            this.clearAdaptivePreset();
             this.changed();
             return;
         }
         // A paused preset is left alone; starting it again picks the new phase's list
         const deviceId = this.#hostDeviceId;
         if (deviceId === null || !this.#playback?.playing) return;
-        const uri = timeOfDay === 'day' ? preset.dayUri : preset.nightUri;
+        const uri = preset.phaseUris[timeOfDay];
+        if (uri === null || isSameSpotifyContext(this.#pendingContextUri ?? this.#playback.contextUri, uri)) return;
         console.log(`Spotify: phase changed to ${timeOfDay}, switching "${preset.name}" to ${uri}`);
         this.playContext(uri, `device_id=${encodeURIComponent(deviceId)}`, { fadeIn: true })
             .catch((e) => console.error('Failed to switch Spotify playlist for the new phase', e));
     }
 
-    private phasePreset(): SpotifyPhasePreset | null {
-        if (this.#phasePresetId === null) return null;
-        const preset = getSpotifyPresets().find(p => p.id === this.#phasePresetId);
-        return preset && isSpotifyPhasePreset(preset) ? preset : null;
+    private adaptivePreset(): SpotifyAdaptivePreset | null {
+        if (this.#adaptivePresetId === null) return null;
+        const preset = getSpotifyPresets().find(p => p.id === this.#adaptivePresetId);
+        return preset && isSpotifyAdaptivePreset(preset) ? preset : null;
     }
 
-    private isPhasePresetContext(preset: SpotifyPhasePreset, uri: string) {
-        return isSameSpotifyContext(uri, preset.dayUri) || isSameSpotifyContext(uri, preset.nightUri);
-    }
-
-    private clearPhasePreset() {
-        this.#phasePresetId = null;
+    private clearAdaptivePreset() {
+        this.#adaptivePresetId = null;
         this.#phaseTimeOfDay = null;
         if (this.#phaseTimer) {
             clearInterval(this.#phaseTimer);

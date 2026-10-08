@@ -1,7 +1,7 @@
 import { getAmbienceEngineHelperInstance } from '$lib/model/server/AmbienceEngine/AmbienceEngineHelper.js';
 import { error } from '@sveltejs/kit';
 
-/** Patch one track: { gain?, pan?, activeInDay?, activeAtNight?, loadedResourceId? } */
+/** Patch one track: { gain?, pan?, activeInDay?, activeAtDusk?, activeAtNight?, loadedResourceId? } */
 export async function POST({request, params}){
     const index = parseInt(params.index);
     if(isNaN(index)) return error(400, {message: 'Invalid index in url - failed to parse'});

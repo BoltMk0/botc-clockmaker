@@ -1,7 +1,7 @@
 <script lang="ts">
-    import { isSpotifyPhasePreset, parseSpotifyContextUri, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
-    import DayIcon from "$lib/assets/dayIcon.svelte";
-    import NightIcon from "$lib/assets/nightIcon.svelte";
+    import { isSpotifyAdaptivePreset, parseSpotifyContextUri, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
+    import TimeOfDayIcon from "$lib/assets/timeOfDayIcon.svelte";
+    import { TIME_OF_DAY_LABELS, TIMES_OF_DAY, type TimeOfDay } from "$lib/model/client/types";
     import BinIcon from "$lib/assets/binIcon.svelte";
     import { onMount, tick } from "svelte";
     import { AudioDim } from "$lib/audio/client/AudioDim.svelte";
@@ -188,13 +188,17 @@
     let draggingDimDb: number | null = $state(null);
 
     // The links are whatever the user typed/pasted; they become normalised URIs on save.
-    // A `phase` row is a day/night preset, using dayLink/nightLink; otherwise just `link`.
-    type Row = { id: string, name: string, phase: boolean, link: string, dayLink: string, nightLink: string };
+    // A `phase` row is an adaptive playlist, using a link per phase (any of which may be empty); otherwise just `link`.
+    type Row = { id: string, name: string, phase: boolean, link: string, phaseLinks: Record<TimeOfDay, string> };
+
+    function emptyPhaseLinks(): Record<TimeOfDay, string> {
+        return Object.fromEntries(TIMES_OF_DAY.map(t => [t, ''])) as Record<TimeOfDay, string>;
+    }
 
     function toRow(p: SpotifyPreset): Row {
-        return isSpotifyPhasePreset(p)
-            ? { id: p.id, name: p.name, phase: true, link: '', dayLink: p.dayUri, nightLink: p.nightUri }
-            : { id: p.id, name: p.name, phase: false, link: p.uri, dayLink: '', nightLink: '' };
+        return isSpotifyAdaptivePreset(p)
+            ? { id: p.id, name: p.name, phase: true, link: '', phaseLinks: Object.fromEntries(TIMES_OF_DAY.map(t => [t, p.phaseUris[t] ?? ''])) as Record<TimeOfDay, string> }
+            : { id: p.id, name: p.name, phase: false, link: p.uri, phaseLinks: emptyPhaseLinks() };
     }
 
     function isInvalidLink(link: string) {
@@ -227,13 +231,19 @@
         const presets: SpotifyPreset[] = [];
         for (const row of rows) {
             if (row.phase) {
-                const dayUri = parseSpotifyContextUri(row.dayLink);
-                const nightUri = parseSpotifyContextUri(row.nightLink);
-                if (!dayUri || !nightUri) {
-                    alert(`"${row.name || '(unnamed)'}" needs a Spotify album or playlist link for both day and night.`);
+                const phaseUris = {} as Record<TimeOfDay, string | null>;
+                for (const t of TIMES_OF_DAY) {
+                    if (isInvalidLink(row.phaseLinks[t])) {
+                        alert(`"${row.name || '(unnamed)'}": the ${TIME_OF_DAY_LABELS[t].toLowerCase()} link isn't a Spotify album or playlist link.`);
+                        return;
+                    }
+                    phaseUris[t] = row.phaseLinks[t].trim() === '' ? null : parseSpotifyContextUri(row.phaseLinks[t]);
+                }
+                if (TIMES_OF_DAY.every(t => phaseUris[t] === null)) {
+                    alert(`"${row.name || '(unnamed)'}" needs a Spotify album or playlist link for at least one phase.`);
                     return;
                 }
-                presets.push({ id: row.id, name: row.name.trim() || 'Day / Night', dayUri, nightUri });
+                presets.push({ id: row.id, name: row.name.trim() || 'Adaptive Playlist', phaseUris });
             } else {
                 const uri = parseSpotifyContextUri(row.link);
                 if (!uri) {
@@ -410,7 +420,7 @@
     <h2>Spotify Presets</h2>
     <button class="save" disabled={!dirty} onclick={save}>Save changes</button>
 </div>
-<p class="description">Albums and playlists shown on the Spotify strip in the mixer. Clicking one starts it playing straight away. In Spotify, use Share &rarr; Copy link and paste it here.<br/>A day/night preset has a list for each phase: it plays the one for the current phase, and crossfades to a random track from the other whenever the games go from day to night or back.</p>
+<p class="description">Albums and playlists shown on the Spotify strip in the mixer. Clicking one starts it playing straight away. In Spotify, use Share &rarr; Copy link and paste it here.<br/>An adaptive playlist has a list for each phase: it plays the one for the current phase, and crossfades to a random track from the next phase's list whenever the games' phase changes. Leave a phase empty to keep playing whatever was on through it; a phase with the same list as the one playing also carries straight on.</p>
 <div class="data-table-scroll">
 <table class="data-table">
     <tbody>
@@ -426,16 +436,18 @@
                 <td class="phase-icons">
                     {#if row.phase}
                         <div class="phase-stack">
-                            <span class="phase-icon" title="Day"><DayIcon/></span>
-                            <span class="phase-icon" title="Night"><NightIcon/></span>
+                            {#each TIMES_OF_DAY as t}
+                                <span class="phase-icon" title={TIME_OF_DAY_LABELS[t]}><TimeOfDayIcon timeOfDay={t}/></span>
+                            {/each}
                         </div>
                     {/if}
                 </td>
                 <td>
                     {#if row.phase}
                         <div class="phase-stack">
-                            <input class="link-input" class:invalid={isInvalidLink(row.dayLink)} bind:value={row.dayLink} type="text" placeholder="Day: https://open.spotify.com/playlist/..."/>
-                            <input class="link-input" class:invalid={isInvalidLink(row.nightLink)} bind:value={row.nightLink} type="text" placeholder="Night: https://open.spotify.com/playlist/..."/>
+                            {#each TIMES_OF_DAY as t}
+                                <input class="link-input" class:invalid={isInvalidLink(row.phaseLinks[t])} bind:value={row.phaseLinks[t]} type="text" placeholder="{TIME_OF_DAY_LABELS[t]}: https://open.spotify.com/playlist/... (empty: no change)"/>
+                            {/each}
                         </div>
                     {:else}
                         <input class="link-input" class:invalid={isInvalidLink(row.link)} bind:value={row.link} type="text" placeholder="https://open.spotify.com/playlist/..."/>
@@ -447,8 +459,8 @@
         <tr>
             <td colspan="4">
                 <div style="display: flex; gap: 0.5em;">
-                <button style="flex: 1;" class="add" onclick={()=>rows.push({ id: newId(), name: '', phase: false, link: '', dayLink: '', nightLink: '' })}>Add Preset</button>
-                <button style="flex: 1;" class="add" onclick={()=>rows.push({ id: newId(), name: '', phase: true, link: '', dayLink: '', nightLink: '' })}>Add Day/Night Preset</button>
+                <button style="flex: 1;" class="add" onclick={()=>rows.push({ id: newId(), name: '', phase: false, link: '', phaseLinks: emptyPhaseLinks() })}>Add Preset</button>
+                <button style="flex: 1;" class="add" onclick={()=>rows.push({ id: newId(), name: '', phase: true, link: '', phaseLinks: emptyPhaseLinks() })}>Add Adaptive Playlist</button>
                 </div>
             </td>
         </tr>

@@ -9,9 +9,8 @@
     import bell_slash from '$lib/assets/bell.slash.png';
     import type { Clocktower } from "$lib/model/client/Clocktower.svelte";
     import { type TimerOption } from "$lib/common/timerOption";
-    import { TIMES_OF_DAY, type TimeOfDay } from "$lib/model/client/types";
-    import DayIcon from "$lib/assets/dayIcon.svelte";
-    import NightIcon from "$lib/assets/nightIcon.svelte";
+    import { TIME_OF_DAY_LABELS, TIMES_OF_DAY, type TimeOfDay } from "$lib/model/client/types";
+    import TimeOfDayIcon from "$lib/assets/timeOfDayIcon.svelte";
 
 
     let {
@@ -23,8 +22,6 @@
         timerOptions: TimerOption[];
         onstart?: () => void;
     } = $props();
-
-    const TIME_OF_DAY_LABELS: Record<TimeOfDay, string> = { day: 'Day', night: 'Night' };
 
     // Counting down, as opposed to paused, or run out (left "running" until the next setup)
     const counting = $derived(model.running && model.progress < 1);
@@ -145,7 +142,7 @@
             <div class="time-of-day-row" style="grid-template-columns: repeat({TIMES_OF_DAY.length}, 1fr);">
                 {#each TIMES_OF_DAY as timeOfDay}
                     <button class="button-container-button time-of-day-btn" class:active={model.timeOfDay === timeOfDay} onclick={() => setTimeOfDay(timeOfDay)}>
-                        {#if timeOfDay === 'day'}<DayIcon size={18}/>{:else}<NightIcon size={18}/>{/if}
+                        <TimeOfDayIcon {timeOfDay} size={18}/>
                         {TIME_OF_DAY_LABELS[timeOfDay]}
                     </button>
                 {/each}
@@ -203,7 +200,7 @@
                 <a class="button-style" id="edit-button" href="/settings/timerOptions">
                     <img class="button-icon-img" src="{gearshape}" alt="Config"/>
                 </a>
-                <button class="button-container-button stop-btn" onclick={onStop} disabled={!counting && model.timeOfDay === 'night'} title={counting ? 'Pause the timer' : 'End the day'}>Stop</button>
+                <button class="button-container-button stop-btn" onclick={onStop} disabled={!counting && model.timeOfDay !== 'day'} title={counting ? 'Pause the timer' : 'End the day'}>Stop</button>
                 <button class="button-container-button start-btn" onclick={onStart} disabled={model.running}>Start</button>
                 <button class="button-container-button ring-bell-btn" onclick={onBell}>
                     <img class="button-icon-img" src="{bell_and_waves}" alt="Ring Bell"/>

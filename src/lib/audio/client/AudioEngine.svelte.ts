@@ -1,5 +1,5 @@
 import type { Clocktower } from "$lib/model/client/Clocktower.svelte";
-import type { TimeOfDay } from "$lib/model/client/types";
+import { combineTimesOfDay, type TimeOfDay } from "$lib/model/client/types";
 import { AmbienceEngine } from "../../audio/client/AmbienceEngine.svelte";
 import type { AmbienceEngineModel } from "../common/model/ambienceEngineModel";
 import type { AudioTrackModel } from "../common/model/audioTrackModel.svelte";
@@ -63,8 +63,8 @@ export class AudioEngine implements AudioTrackBase {
         console.log("Connection", clocks.length, "clocks")
         this.#clockAudioTracks = clocks.map(c=>c.connectAudio(this.#clocksMasterBus.input));
         if(this.#silent) this.#clockAudioTracks.forEach(t=>t.silent = true);
-        // With several games each in their own day/night phase, daytime wins: it's day if any game is in daytime.
-        this.#timeOfDay = $derived(clocks.some(clock=>clock.timeOfDay === 'day') ? 'day' : 'night');
+        // With several games each in their own phase, the earliest wins: it's day if any game is in daytime.
+        this.#timeOfDay = $derived(combineTimesOfDay(clocks.map(clock=>clock.timeOfDay)));
         this.#ambienceEngineModel = $state(ambienceEngineModel ?? null)
         this.#ambienceEngine = this.#ambienceEngineModel ? new AmbienceEngine(this.#ambienceEngineModel, this.#gainNode, ()=>this.#timeOfDay, {silent: this.#silent}) : null;
         this.#stingEngineModel = $state(stingEngineModel ?? null)

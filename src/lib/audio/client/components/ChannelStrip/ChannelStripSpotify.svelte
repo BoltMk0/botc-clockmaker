@@ -5,9 +5,9 @@
     import PlayIcon from "../PlayIcon.svelte";
     import PauseIcon from "../PauseIcon.svelte";
     import type { SpotifyPlayer } from "../../SpotifyPlayer.svelte";
-    import DayIcon from "$lib/assets/dayIcon.svelte";
-    import NightIcon from "$lib/assets/nightIcon.svelte";
-    import { isSameSpotifyContext, isSpotifyPhasePreset, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
+    import TimeOfDayIcon from "$lib/assets/timeOfDayIcon.svelte";
+    import { TIMES_OF_DAY } from "$lib/model/client/types";
+    import { isAdaptivePresetContext, isSameSpotifyContext, isSpotifyAdaptivePreset, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
 
     const NOW_PLAYING_LINE_PX = 14; // Keep in step with .now-playing-text line-height
 
@@ -68,24 +68,23 @@
         });
     });
     /**
-     * Whether `uri` is one of the preset's albums/playlists. A day/night preset only counts while it's the one selected;
-     * a plain one only while no day/night preset is, so the two kinds can share a playlist without both lighting up.
+     * Whether `uri` is one of the preset's albums/playlists. An adaptive playlist only counts while it's the one selected;
+     * a plain one only while no adaptive playlist is, so the two kinds can share a playlist without both lighting up.
      */
     function presetMatches(preset: SpotifyPreset, uri: string | null | undefined) {
-        if (isSpotifyPhasePreset(preset)) {
-            return model?.phasePresetId === preset.id &&
-                (isSameSpotifyContext(uri, preset.dayUri) || isSameSpotifyContext(uri, preset.nightUri));
+        if (isSpotifyAdaptivePreset(preset)) {
+            return model?.adaptivePresetId === preset.id && isAdaptivePresetContext(preset, uri);
         }
-        return !model?.phasePresetId && isSameSpotifyContext(uri, preset.uri);
+        return !model?.adaptivePresetId && isSameSpotifyContext(uri, preset.uri);
     }
 
     /**
-     * The loaded preset just toggles play/pause; any other starts playing from the beginning. A paused day/night preset
+     * The loaded preset just toggles play/pause; any other starts playing from the beginning. A paused adaptive playlist
      * is resumed through the server instead, which switches it to the other list if the phase changed while it was paused.
      */
     function clickPreset(preset: SpotifyPreset, current: boolean, playing: boolean) {
         if (playing) spotify.togglePlayPause();
-        else if (isSpotifyPhasePreset(preset)) spotify.playPhasePreset(preset.id);
+        else if (isSpotifyAdaptivePreset(preset)) spotify.playAdaptivePreset(preset.id);
         else if (current) spotify.togglePlayPause();
         else spotify.playContext(preset.uri);
     }
@@ -146,7 +145,7 @@
                 {@const current = presetMatches(preset, spotify.playback?.contextUri)}
                 {@const playing = current && spotify.playback?.playing === true}
                 {@const pending = presetMatches(preset, model.pendingContextUri)}
-                {@const kind = isSpotifyPhasePreset(preset) ? ' (day/night)' : ''}
+                {@const kind = isSpotifyAdaptivePreset(preset) ? ' (adaptive)' : ''}
                 <AudioMixerText
                     onclick={()=>clickPreset(preset, current, playing)}
                     style="{PRESET_ROW} {pending ? PENDING_PRESET : current ? CURRENT_PRESET : ''}"
@@ -156,13 +155,13 @@
                         {#if playing}<PlayIcon size={10}/>{:else}<PauseIcon size={10}/>{/if}
                     </span>
                     <span class="preset-name">{preset.name}</span>
-                    {#if isSpotifyPhasePreset(preset)}
-                        <!-- Which of its lists is loaded, or both icons when neither is -->
-                        {@const onDay = current && isSameSpotifyContext(spotify.playback?.contextUri, preset.dayUri)}
-                        {@const onNight = current && isSameSpotifyContext(spotify.playback?.contextUri, preset.nightUri)}
+                    {#if isSpotifyAdaptivePreset(preset)}
+                        <!-- The phases whose list is loaded, or every phase with a list when none is -->
                         <span class="preset-icon">
-                            {#if onDay || !current}<DayIcon size={10}/>{/if}
-                            {#if onNight || !current}<NightIcon size={10}/>{/if}
+                            {#each TIMES_OF_DAY as phase}
+                                {@const uri = preset.phaseUris[phase]}
+                                {#if uri !== null && (!current || isSameSpotifyContext(spotify.playback?.contextUri, uri))}<TimeOfDayIcon timeOfDay={phase} size={10}/>{/if}
+                            {/each}
                         </span>
                     {/if}
                 </AudioMixerText>

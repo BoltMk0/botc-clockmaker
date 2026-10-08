@@ -27,6 +27,10 @@ export class AmbienceTrackHelper {
             if(typeof patch.activeInDay !== 'boolean') throw new Error('Invalid activeInDay');
             clean.activeInDay = patch.activeInDay;
         }
+        if(patch.activeAtDusk !== undefined){
+            if(typeof patch.activeAtDusk !== 'boolean') throw new Error('Invalid activeAtDusk');
+            clean.activeAtDusk = patch.activeAtDusk;
+        }
         if(patch.activeAtNight !== undefined){
             if(typeof patch.activeAtNight !== 'boolean') throw new Error('Invalid activeAtNight');
             clean.activeAtNight = patch.activeAtNight;

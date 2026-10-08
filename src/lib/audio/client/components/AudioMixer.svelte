@@ -5,8 +5,7 @@
     import PlayIcon from "$lib/audio/client/components/PlayIcon.svelte";
     import PauseIcon from "$lib/audio/client/components/PauseIcon.svelte";
     import ChannelStripGroupAmbience from "./ChannelStrip/ChannelStripGroupAmbience.svelte";
-    import DayIcon from "$lib/assets/dayIcon.svelte";
-    import NightIcon from "$lib/assets/nightIcon.svelte";
+    import TimeOfDayIcon from "$lib/assets/timeOfDayIcon.svelte";
     import { AudioClockTrack } from "../AudioClockTrack.svelte";
     import type { AudioEngine } from "../AudioEngine.svelte";
     import type { SpotifyPlayer } from "../SpotifyPlayer.svelte";
@@ -85,11 +84,7 @@
             {#if audioEngine.ambienceEngine !== null}
             {#snippet ambienceEngineTitle()}
                 <div style="display: flex; gap: 0.5em; justify-content: center; align-items: center;">
-                    {#if audioEngine.timeOfDay === 'day'}
-                    <DayIcon size={14}/>
-                    {:else}
-                    <NightIcon size={14}/>
-                    {/if}
+                    <TimeOfDayIcon timeOfDay={audioEngine.timeOfDay} size={14}/>
                     <span>Ambience Engine</span>
                     {#if audioEngine?.ambienceEngine?.effectivelyPlaying}
                     <PlayIcon/>

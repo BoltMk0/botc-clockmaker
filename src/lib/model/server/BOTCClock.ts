@@ -18,7 +18,7 @@ export class BOTCTClock extends EventEmitter {
 
     #emissionTimeouts: Map<string|symbol, ReturnType<typeof setTimeout>> = new Map();
 
-    /** Fires when the running timer runs out, to turn the day to night. */
+    /** Fires when the running timer runs out, to turn the day to dusk. */
     #expiryTimeout: ReturnType<typeof setTimeout>|null = null;
 
     constructor(model: ClocktowerModel){
@@ -28,7 +28,7 @@ export class BOTCTClock extends EventEmitter {
         this.#scheduleExpiry();
     }
 
-    /** (Re)arms the timer that turns the day to night when the clock runs out. */
+    /** (Re)arms the timer that turns the day to dusk when the clock runs out. Night is only ever set from the remote. */
     #scheduleExpiry(){
         if(this.#expiryTimeout !== null){
             clearTimeout(this.#expiryTimeout);
@@ -37,10 +37,11 @@ export class BOTCTClock extends EventEmitter {
         const startTime = this.#model.clock.time.serverStartTime;
         if(startTime === null) return;
         const remainingMs = startTime + this.#model.clock.time.duration * 1000 - Date.now();
-        // Already run out (e.g. while the server was down): night falls straight away
+        // Already run out (e.g. while the server was down): dusk falls straight away. Only from day, so it never
+        // undoes a later phase set by hand (e.g. night set before the timer ran out, or before a restart).
         this.#expiryTimeout = setTimeout(()=>{
             this.#expiryTimeout = null;
-            this.timeOfDay = 'night';
+            if(this.timeOfDay === 'day') this.timeOfDay = 'dusk';
         }, Math.max(0, remainingMs));
     }
 
@@ -110,7 +111,7 @@ export class BOTCTClock extends EventEmitter {
 
     setup(timerOption: TimerOption) {
         console.log("Setting up clock...", timerOption);
-        if(this.#model.clock.day === 0 || this.timeOfDay === 'night'){
+        if(this.#model.clock.day === 0 || this.timeOfDay !== 'day'){
             // Day had ended, so advance to next day
             console.log("Advancing to next day...");
             this.day += 1;
@@ -139,7 +140,7 @@ export class BOTCTClock extends EventEmitter {
                 this.emit('modelUpdated', this.#model);
             }
             if(this.duration !== 0) this.duration = 0;
-            this.timeOfDay = 'night';
+            if(this.timeOfDay === 'day') this.timeOfDay = 'dusk';
             return;
         }
         this.#model.clock.time.serverStartTime = null;

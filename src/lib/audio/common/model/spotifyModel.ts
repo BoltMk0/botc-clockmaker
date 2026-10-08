@@ -21,8 +21,8 @@ export type SpotifyModel = {
     playback: SpotifyPlaybackModel | null;
     /** The album/playlist being switched to, from the start of the fade-out until it's actually playing. */
     pendingContextUri: string | null;
-    /** The day/night preset that was last started, which switches playlist whenever the games' phase changes. */
-    phasePresetId: string | null;
+    /** The adaptive playlist that was last started, which switches playlist whenever the games' phase changes. */
+    adaptivePresetId: string | null;
 };
 
 export type SpotifyControlAction =
@@ -31,5 +31,5 @@ export type SpotifyControlAction =
     | { action: 'next' }
     | { action: 'previous' }
     | { action: 'playContext', uri: string }
-    | { action: 'playPhasePreset', presetId: string }
+    | { action: 'playAdaptivePreset', presetId: string }
     | { action: 'volume', volume: number };

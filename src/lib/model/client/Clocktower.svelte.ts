@@ -140,8 +140,8 @@ export class Clocktower extends EventEmitter<ClocktowerEvents> {
             if(remaining <= 0) {
                 // If over 2 seconds late, assume clock was reset and don't ring bell
                 if(remaining > -2) {
-                    // The server turns it to night too; don't wait on its update to show it
-                    this.#model.clock.timeOfDay = 'night';
+                    // The server turns it to dusk too; don't wait on its update to show it
+                    if(this.#model.clock.timeOfDay === 'day') this.#model.clock.timeOfDay = 'dusk';
                     this.#audioTrack?.ringFinalBell();
                     this.emit('bellRing');
                 }

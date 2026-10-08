@@ -1,10 +1,10 @@
 <script lang="ts" generics="T">
     import type { Resource } from "$lib/resources/common/types";
     import ChannelStrip from "./ChannelStrip.svelte";
-    import DayIcon from "$lib/assets/dayIcon.svelte";
-    import NightIcon from "$lib/assets/nightIcon.svelte";
+    import TimeOfDayIcon from "$lib/assets/timeOfDayIcon.svelte";
     import type { AudioAmbienceTrack } from "../../AudioAmbienceTrack.svelte";
-    import type { TimeOfDay } from "$lib/model/client/types";
+    import { TIME_OF_DAY_LABELS, TIMES_OF_DAY, type TimeOfDay } from "$lib/model/client/types";
+    import { AMBIENCE_ACTIVE_KEYS } from "$lib/audio/common/model/ambienceTrackModel";
     import CustomOverlay from "$lib/components/CustomOverlay.svelte";
 
     let {
@@ -37,15 +37,16 @@
 
 
 {#snippet timeOfDayActivitySelection()}
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 3px 5px; padding: 5px; box-sizing: border-box; width: 100%; overflow: hidden; justify-items: center;">
-        <button class="daynight-btn button-style" onclick={()=>{track.activeInDay = !track.activeInDay}} class:isEnabled={track.activeInDay}>
-            <DayIcon color={track.activeInDay ? 'white' : '#FFF5'}/>
-        </button>
-        <button class="daynight-btn button-style" onclick={()=>{track.activeAtNight = !track.activeAtNight}} class:isEnabled={track.activeAtNight}>
-            <NightIcon color={track.activeAtNight ? 'white' : '#FFF5'}/>
-        </button>
-        {@render timeOfDayActiveIndicator(timeOfDay === 'day')}
-        {@render timeOfDayActiveIndicator(timeOfDay === 'night')}
+    <div style="display: grid; grid-template-columns: repeat({TIMES_OF_DAY.length}, 1fr); gap: 3px 3px; padding: 5px 3px; box-sizing: border-box; width: 100%; overflow: hidden; justify-items: center;">
+        {#each TIMES_OF_DAY as phase}
+            {@const key = AMBIENCE_ACTIVE_KEYS[phase]}
+            <button class="daynight-btn button-style" onclick={()=>{track[key] = !track[key]}} class:isEnabled={track[key]} title="{track[key] ? 'Plays' : 'Silent'} at {TIME_OF_DAY_LABELS[phase].toLowerCase()}">
+                <TimeOfDayIcon timeOfDay={phase} color={track[key] ? 'white' : '#FFF5'}/>
+            </button>
+        {/each}
+        {#each TIMES_OF_DAY as phase}
+            {@render timeOfDayActiveIndicator(timeOfDay === phase)}
+        {/each}
     </div>
 {/snippet}
 
@@ -96,8 +97,9 @@
         align-items: center;
         border: 2px solid transparent;
         box-sizing: border-box;
-        width: 2em;
-        height: 2em;
+        width: 100%;
+        max-width: 2em;
+        aspect-ratio: 1;
         padding: 0;
     }
 
