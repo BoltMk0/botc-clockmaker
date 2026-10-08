@@ -1097,6 +1097,7 @@
         inset: 0;
         overflow: hidden;
         overscroll-behavior: none;
+        background-color: #000;
         /* All touch gestures (pinch/pan/drag) are handled in JS; stop the browser zooming or scrolling the page. */
         touch-action: none;
     }
