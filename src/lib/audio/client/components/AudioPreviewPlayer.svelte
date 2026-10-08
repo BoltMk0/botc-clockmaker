@@ -4,12 +4,13 @@
     import PauseIcon from "./PauseIcon.svelte";
 
     /**
-     * Previews a looping asset the way AudioAmbienceTrack plays it in-game: decoded into an AudioBuffer and looped
-     * with an AudioBufferSourceNode, which is sample-accurate (unlike <audio loop>, which gaps when it seeks back).
+     * Previews an audio asset, decoded into an AudioBuffer and played with an AudioBufferSourceNode. Looping assets
+     * play the way AudioAmbienceTrack plays them in-game, which is sample-accurate (unlike <audio loop>, which gaps
+     * when it seeks back); others play once through.
      */
-    let { url }: { url: string | null } = $props();
+    let { url, loop = true }: { url: string | null, loop?: boolean } = $props();
 
-    /** play() starts this far before the end, so the loop's wrap-around is heard straight away. */
+    /** For looping assets, play() starts this far before the end, so the loop's wrap-around is heard straight away. */
     const START_BEFORE_END_S = 2;
 
     let context: AudioContext | null = null;
@@ -24,8 +25,8 @@
     let startedAt = 0;
     let position = $state(0);
     let frame: number | null = null;
-    /** play() was called before the buffer finished decoding, so start near the end once it has. */
-    let startNearEndOnLoad = false;
+    /** play() was called before the buffer finished decoding, so start from play()'s offset once it has. */
+    let startOnLoad = false;
 
     function getContext(): AudioContext {
         context ??= new AudioContext();
@@ -62,9 +63,9 @@
                 if (abort.signal.aborted) return; // Superseded by a later load while decoding
                 loadAbort = null;
                 buffer = decoded;
-                if (startNearEndOnLoad) {
-                    startNearEndOnLoad = false;
-                    startOffset = position = nearEndOffset(decoded);
+                if (startOnLoad) {
+                    startOnLoad = false;
+                    startOffset = position = playOffset(decoded);
                 }
                 if (playing) startSource(startOffset);
             })
@@ -81,8 +82,16 @@
         const ctx = getContext();
         const node = ctx.createBufferSource();
         node.buffer = buffer;
-        node.loop = true;
+        node.loop = loop;
         node.connect(ctx.destination);
+        // A one-shot asset finished: rewind, so playing again starts from the top
+        node.onended = () => {
+            if (source !== node) return; // Stopped by us, not finished
+            source.disconnect();
+            source = null;
+            startOffset = 0;
+            setPlaying(false);
+        };
         startOffset = offset;
         startedAt = ctx.currentTime;
         node.start(0, offset);
@@ -100,7 +109,8 @@
     function currentPosition(): number {
         if (buffer === null) return 0;
         if (source === null || context === null) return startOffset;
-        return (startOffset + context.currentTime - startedAt) % buffer.duration;
+        const elapsed = startOffset + context.currentTime - startedAt;
+        return loop ? elapsed % buffer.duration : Math.min(elapsed, buffer.duration);
     }
 
     function setPlaying(value: boolean) {
@@ -133,17 +143,17 @@
         seek((e.clientX - rect.left) / rect.width * buffer.duration);
     }
 
-    function nearEndOffset(b: AudioBuffer): number {
-        return Math.max(0, b.duration - START_BEFORE_END_S);
+    function playOffset(b: AudioBuffer): number {
+        return loop ? Math.max(0, b.duration - START_BEFORE_END_S) : 0;
     }
 
     /**
-     * Play from just before the end, so it wraps around the loop point straight away (call from a user gesture,
-     * so audio is allowed). If still loading, starts once decoded.
+     * Play a looping asset from just before the end, so it wraps around the loop point straight away, or any other
+     * from the start (call from a user gesture, so audio is allowed). If still loading, starts once decoded.
      */
     export function play() {
-        if (buffer === null) startNearEndOnLoad = true;
-        else seek(nearEndOffset(buffer));
+        if (buffer === null) startOnLoad = true;
+        else seek(playOffset(buffer));
         setPlaying(true);
     }
 
@@ -169,7 +179,7 @@
     });
 </script>
 
-<div class="loop-player">
+<div class="preview-player">
     <!-- (Component names are the other way round: PlayIcon draws the pause bars, PauseIcon the triangle.) -->
     <button class="play" disabled={url === null} onclick={() => setPlaying(!playing)} aria-label={playing ? 'Pause' : 'Play'} title={playing ? 'Pause' : 'Play'}>
         {#if playing}<PlayIcon size={14}/>{:else}<PauseIcon size={14}/>{/if}
@@ -183,7 +193,7 @@
 {#if loadError}<div class="error">{loadError}</div>{/if}
 
 <style>
-    .loop-player {
+    .preview-player {
         display: flex;
         align-items: center;
         gap: 0.6rem;

@@ -10,17 +10,21 @@
     import { goto, invalidateAll } from "$app/navigation";
     import { getAcceptedExtensionsForResourceType, type Resource } from "$lib/resources/common/types";
     import { prettifyResourceName, resourceNameSlug } from "$lib/resources/common/util";
-    import LoopPreviewPlayer from "$lib/audio/client/components/LoopPreviewPlayer.svelte";
+    import AudioPreviewPlayer from "$lib/audio/client/components/AudioPreviewPlayer.svelte";
     import PlayIcon from "$lib/audio/client/components/PlayIcon.svelte";
     import PauseIcon from "$lib/audio/client/components/PauseIcon.svelte";
+    import PencilIcon from "$lib/components/PencilIcon.svelte";
 
-    let { data }: { data: { clockSfxPresets: ClockSfxPreset[], ambienceResources: Resource[], stingResources: Resource[] } } = $props();
+    /** An audio asset, with its file size in bytes (null if it couldn't be read). */
+    type AssetResource = Resource & { size: number | null };
+
+    let { data }: { data: { clockSfxPresets: ClockSfxPreset[], ambienceResources: AssetResource[], stingResources: AssetResource[] } } = $props();
 
     // ---- Audio asset libraries (ambience, stings) ----
 
     type AudioAssetListOptions = {
         type: 'ambience' | 'sting',
-        getResources: () => Resource[],
+        getResources: () => AssetResource[],
         loop: boolean,
         addLabel: string,
         emptyText: string,
@@ -31,11 +35,10 @@
     class AudioAssetList {
         /** The asset loaded in the preview player. */
         previewId: string | null = $state(null);
-        player: HTMLAudioElement | undefined = $state();
-        /** Used instead of `player` for looping lists, so loops play gaplessly as they do in-game. */
-        loopPlayer: LoopPreviewPlayer | undefined = $state();
-        /** Name edits in progress, by asset id. */
-        nameDrafts: Record<string, string> = $state({});
+        player: AudioPreviewPlayer | undefined = $state();
+        /** The asset whose name is being edited, and the name typed so far. */
+        editingId: string | null = $state(null);
+        nameDraft = $state('');
 
         uploading = $state(false);
         readonly options: AudioAssetListOptions;
@@ -67,47 +70,45 @@
             }
         }
 
-        draft(res: Resource) {
-            return this.nameDrafts[res.id] ?? prettifyResourceName(res.name);
-        }
-
-        isRenamed(res: Resource) {
-            const slug = resourceNameSlug(this.draft(res));
-            return slug !== '' && slug !== res.name;
-        }
-
         async preview(res: Resource) {
             this.previewId = res.id;
-            // Wait for the new src to be applied before playing
+            // Wait for the new url to be applied before playing
             await tick();
-            if (this.options.loop) {
-                this.loopPlayer?.play();
-                return;
-            }
-            if (!this.player) return;
-            this.player.currentTime = 0;
-            this.player.play().catch(() => {});
+            this.player?.play();
         }
 
-        /** Whether this asset is the one currently playing in the loop player. */
+        /** Whether this asset is the one currently playing in the preview player. */
         isPlaying(res: Resource) {
-            return this.previewId === res.id && (this.loopPlayer?.isPlaying() ?? false);
+            return this.previewId === res.id && (this.player?.isPlaying() ?? false);
         }
 
-        /** Row play/pause button: pauses or resumes the selected asset, or starts another just before its loop point. */
+        /**
+         * Row play/pause button: pauses or resumes the selected asset, or starts another (looping assets just before
+         * their loop point, others from the start).
+         */
         togglePlay(res: Resource) {
             if (this.previewId !== res.id) {
                 this.preview(res);
                 return;
             }
-            this.loopPlayer?.setPaused(this.isPlaying(res));
+            this.player?.setPaused(this.isPlaying(res));
         }
 
-        async rename(res: Resource) {
-            if (!this.isRenamed(res)) return;
+        startEdit(res: Resource) {
+            this.editingId = res.id;
+            this.nameDraft = prettifyResourceName(res.name);
+        }
+
+        /** Closes the name input, renaming the asset if the name was changed. */
+        async finishEdit(res: Resource) {
+            if (this.editingId !== res.id) return; // Already finished (Enter then blur)
+            this.editingId = null;
+            const name = this.nameDraft;
+            const slug = resourceNameSlug(name);
+            if (slug === '' || slug === res.name) return;
             const r = await fetch(`/api/audioAssets/${encodeURIComponent(res.id)}`, {
                 method: 'PATCH',
-                body: JSON.stringify({ name: this.draft(res) }),
+                body: JSON.stringify({ name }),
                 headers: { 'Content-Type': 'application/json' }
             });
             if (!r.ok) {
@@ -116,7 +117,6 @@
                 return;
             }
             const { id } = await r.json();
-            delete this.nameDrafts[res.id];
             if (this.previewId === res.id) this.previewId = id;
             await invalidateAll();
         }
@@ -128,13 +128,30 @@
                 alert(`Failed to delete (${r.status})`);
                 return;
             }
-            delete this.nameDrafts[res.id];
             if (this.previewId === res.id) this.previewId = null;
             await invalidateAll();
         }
     }
 
     const acceptedAudioExtensions = getAcceptedExtensionsForResourceType('ambience').join(',');
+
+    /** The file's container format, from its extension (e.g. "WAV"). */
+    function containerType(res: Resource) {
+        const dot = res.id.lastIndexOf('.');
+        return dot === -1 ? '—' : res.id.slice(dot + 1).toUpperCase();
+    }
+
+    function formatFileSize(bytes: number | null) {
+        if (bytes === null) return '—';
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    function focusAndSelect(input: HTMLInputElement) {
+        input.focus();
+        input.select();
+    }
 
     const ambienceAssets = new AudioAssetList({
         type: 'ambience',
@@ -309,48 +326,57 @@
             Nothing selected
         {/if}
     </div>
-    {#if list.options.loop}
-        <LoopPreviewPlayer bind:this={list.loopPlayer} url={list.previewId ? `/api/resources/${list.previewId}` : null}/>
-    {:else}
-        <audio bind:this={list.player} src={list.previewId ? `/api/resources/${list.previewId}` : undefined} controls></audio>
-    {/if}
+    <AudioPreviewPlayer bind:this={list.player} url={list.previewId ? `/api/resources/${list.previewId}` : null} loop={list.options.loop}/>
 </div>
 <div class="table-container">
 <table>
     <tbody>
         <tr>
-            {#if list.options.loop}<th></th>{/if}
+            <th></th>
             <th>Name</th>
+            <th>Type</th>
+            <th>Size</th>
             <th></th>
         </tr>
         {#each list.resources as res (res.id)}
-            <tr class="asset-row" class:selected={list.previewId === res.id} onclick={() => list.options.loop ? list.togglePlay(res) : list.preview(res)}>
-                {#if list.options.loop}
-                    {@const rowPlaying = list.isPlaying(res)}
-                    <td class="play-cell">
-                        <!-- (Component names are the other way round: PlayIcon draws the pause bars, PauseIcon the triangle.) -->
-                        <button class="play-button" onclick={(e) => { e.stopPropagation(); list.togglePlay(res); }}
-                            aria-label="{rowPlaying ? 'Pause' : 'Play'} {prettifyResourceName(res.name)}" title={rowPlaying ? 'Pause' : 'Play'}>
-                            {#if rowPlaying}<PlayIcon size={18}/>{:else}<PauseIcon size={18}/>{/if}
-                        </button>
-                    </td>
-                {/if}
-                <td>
-                    <input class="name-input" type="text" value={list.draft(res)}
-                        onclick={(e) => e.stopPropagation()}
-                        oninput={(e) => list.nameDrafts[res.id] = e.currentTarget.value}
-                        onkeydown={(e) => { if (e.key === 'Enter') list.rename(res); }}/>
+            {@const rowPlaying = list.isPlaying(res)}
+            <tr class="asset-row" class:selected={list.previewId === res.id} onclick={() => list.togglePlay(res)}>
+                <td class="play-cell">
+                    <!-- (Component names are the other way round: PlayIcon draws the pause bars, PauseIcon the triangle.) -->
+                    <button class="play-button" onclick={(e) => { e.stopPropagation(); list.togglePlay(res); }}
+                        aria-label="{rowPlaying ? 'Pause' : 'Play'} {prettifyResourceName(res.name)}" title={rowPlaying ? 'Pause' : 'Play'}>
+                        {#if rowPlaying}<PlayIcon size={18}/>{:else}<PauseIcon size={18}/>{/if}
+                    </button>
                 </td>
+                <td class="name-cell">
+                    {#if list.editingId === res.id}
+                        <input class="name-input" type="text" aria-label="Asset name" bind:value={list.nameDraft}
+                            use:focusAndSelect
+                            onclick={(e) => e.stopPropagation()}
+                            onblur={() => list.finishEdit(res)}
+                            onkeydown={(e) => {
+                                if (e.key === 'Enter') list.finishEdit(res);
+                                else if (e.key === 'Escape') list.editingId = null;
+                            }}/>
+                    {:else}
+                        <div class="asset-name">
+                            <span>{prettifyResourceName(res.name)}</span>
+                            <button class="edit-button" onclick={(e) => { e.stopPropagation(); list.startEdit(res); }}
+                                aria-label="Rename {prettifyResourceName(res.name)}" title="Rename"><PencilIcon size={16}/></button>
+                        </div>
+                    {/if}
+                </td>
+                <td class="asset-meta">{containerType(res)}</td>
+                <td class="asset-meta">{formatFileSize(res.size)}</td>
                 <td class="row-actions">
-                    <button class="save" disabled={!list.isRenamed(res)} onclick={(e) => { e.stopPropagation(); list.rename(res); }}>Rename</button>
                     <button class="icon-button" onclick={(e) => { e.stopPropagation(); list.delete(res); }} aria-label="Delete {prettifyResourceName(res.name)}" title="Delete"><BinIcon size={18}/></button>
                 </td>
             </tr>
         {:else}
-            <tr><td colspan={list.options.loop ? 3 : 2} class="empty">{list.options.emptyText}</td></tr>
+            <tr><td colspan="5" class="empty">{list.options.emptyText}</td></tr>
         {/each}
         <tr>
-            <td colspan={list.options.loop ? 3 : 2}>
+            <td colspan="5">
                 <label class="add add-upload" class:disabled={list.uploading}>
                     {list.uploading ? 'Uploading...' : list.options.addLabel}
                     <input type="file" accept={acceptedAudioExtensions} multiple disabled={list.uploading}
@@ -375,7 +401,7 @@
 <div class="panel-header">
     <h2>Audio Stings</h2>
 </div>
-<p class="description">The short sounds the sting button picks from at random. Click one to preview it.</p>
+<p class="description">The short sounds the sting button picks from at random. Click one to play or pause it.</p>
 {@render audioAssetList(stingAssets)}
 </div>
 
@@ -481,8 +507,34 @@
         font-weight: bold;
     }
 
-    .asset-player audio {
-        width: 100%;
+    .asset-name {
+        display: flex;
+        align-items: center;
+        gap: 0.4em;
+    }
+
+    /* Quiet until hovered, so the names read as text rather than a row of buttons. */
+    button.edit-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.2em;
+        border-color: transparent;
+        background: none;
+        color: inherit;
+        opacity: 0.6;
+    }
+
+    button.edit-button:hover, button.edit-button:focus-visible {
+        border-color: var(--theme-highlight);
+        opacity: 1;
+    }
+
+    td.asset-meta {
+        width: 1px; /* Shrink to the content */
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+        opacity: 0.8;
     }
 
     .asset-row {
@@ -517,10 +569,6 @@
 
     label.add-upload input {
         display: none;
-    }
-
-    .row-actions > button + button {
-        margin-left: 0.3em;
     }
 
     button.icon-button {
