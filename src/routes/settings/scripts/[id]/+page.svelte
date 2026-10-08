@@ -111,6 +111,7 @@
             <div class="panel-header">
                 <h3>Characters ({data.script.characters.length})</h3>
                 <div class="panel-actions">
+                    <a class="button-style" href="/script/{data.script.id}?backUrl=/settings/scripts/{data.script.id}">View Script</a>
                     <a class="button-style" href="/settings/scripts/{data.script.id}/presets">Presets</a>
                     <a class="button-style" href="/settings/scripts/{data.script.id}/characters">Edit Characters</a>
                     <a class="button-style" href="/api/scripts/{data.script.id}/export" download>Export</a>

@@ -1,8 +1,9 @@
 <script lang="ts">
     import { page } from '$app/state';
+    import { tick } from 'svelte';
     import CharacterThumb from '$lib/components/CharacterThumb.svelte';
     import SiteQRCode from '$lib/components/SiteQRCode.svelte';
-    import { CHARACTER_CATEGORY_COLORS, type CharacterCategory } from '$lib/resources/common/gameData';
+    import { CHARACTER_CATEGORY_COLORS, type Character, type CharacterCategory } from '$lib/resources/common/gameData';
     import type { PageData } from './$types';
 
     let { data }: { data: PageData } = $props();
@@ -21,8 +22,64 @@
             .sort((a, b) => a.name.localeCompare(b.name)),
     })));
 
+    // Characters the viewer has tapped to highlight. Kept in this browser only, per script, so a refresh keeps them.
+    const storageKey = $derived(`script-viewer-highlighted:${data.script.id}`);
+    let highlightedIds = $state(new Set<string>());
+
+    $effect(() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem(storageKey) ?? '[]');
+            highlightedIds = new Set(Array.isArray(saved) ? saved.filter(id => typeof id === 'string') : []);
+        } catch {
+            highlightedIds = new Set();
+        }
+    });
+
+    let scroller = $state<HTMLElement>();
+
+    // The character's card in its own category section, which stays put whether or not it's highlighted.
+    function sectionCard(character: Character): HTMLElement | null {
+        return scroller?.querySelector(`[data-section-card="${CSS.escape(character.id)}"]`) ?? null;
+    }
+
+    // Highlighting grows or shrinks the Highlighted section at the top, which would push everything below it up
+    // or down. Scroll by the same amount so the character's card stays where it was on screen.
+    async function toggleHighlight(character: Character) {
+        const topBefore = sectionCard(character)?.getBoundingClientRect().top;
+        const next = new Set(highlightedIds);
+        next.has(character.id) ? next.delete(character.id) : next.add(character.id);
+        highlightedIds = next;
+        try {
+            localStorage.setItem(storageKey, JSON.stringify([...next]));
+        } catch {
+            // Storage can be unavailable (e.g. private browsing); highlights then last until the page is left.
+        }
+        await tick();
+        const topAfter = sectionCard(character)?.getBoundingClientRect().top;
+        if (scroller && topBefore !== undefined && topAfter !== undefined) {
+            scroller.scrollTop += topAfter - topBefore;
+        }
+    }
+
+    // In the same order as the sections below.
+    const highlighted = $derived(sections.flatMap(s => s.characters).filter(c => highlightedIds.has(c.id)));
+
     let showQr = $state(false);
 </script>
+
+{#snippet characterCard(character: Character, inHighlighted: boolean)}
+    <li style="--category-color: {CHARACTER_CATEGORY_COLORS[character.category]};" data-section-card={inHighlighted ? undefined : character.id}>
+        <button class="character-card no-button-style" class:highlighted={highlightedIds.has(character.id)} aria-pressed={highlightedIds.has(character.id)} onclick={() => toggleHighlight(character)}>
+            <CharacterThumb {character} size="3.2em"/>
+            <div class="character-text">
+                <div class="character-name">{character.name}</div>
+                {#if character.rules}
+                    <div class="character-rules">{character.rules}</div>
+                {/if}
+            </div>
+        </button>
+    </li>
+{/snippet}
 
 <svelte:head>
     <title>{data.script.name}</title>
@@ -30,7 +87,7 @@
 
 <svelte:window onkeydown={(e) => { if (e.key === 'Escape') showQr = false; }}/>
 
-<div class="script-viewer" style="--script-hue: {data.script.hue};">
+<div class="script-viewer" style="--script-hue: {data.script.hue};" bind:this={scroller}>
     <header>
         {#if data.backUrl}
             <a class="back-button" href={data.backUrl} aria-label="Back">
@@ -55,21 +112,23 @@
         {#if sections.every(s => s.characters.length === 0)}
             <p class="empty">This script has no characters yet.</p>
         {/if}
+        {#if highlighted.length > 0}
+            <section style="--category-color: var(--theme-highlight);">
+                <h2>Highlighted <span class="count">{highlighted.length}</span></h2>
+                <ul>
+                    {#each highlighted as character (character.id)}
+                        {@render characterCard(character, true)}
+                    {/each}
+                </ul>
+            </section>
+        {/if}
         {#each sections as { category, title, characters } (category)}
             {#if characters.length > 0}
                 <section style="--category-color: {CHARACTER_CATEGORY_COLORS[category]};">
                     <h2>{title} <span class="count">{characters.length}</span></h2>
                     <ul>
                         {#each characters as character (character.id)}
-                            <li>
-                                <CharacterThumb {character} size="3.2em"/>
-                                <div class="character-text">
-                                    <div class="character-name">{character.name}</div>
-                                    {#if character.rules}
-                                        <div class="character-rules">{character.rules}</div>
-                                    {/if}
-                                </div>
-                            </li>
+                            {@render characterCard(character, false)}
                         {/each}
                     </ul>
                 </section>
@@ -93,6 +152,8 @@
         height: 100%;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
+        /* Highlighting keeps the page still itself; the browser's own adjustment would double it. */
+        overflow-anchor: none;
         background-color: var(--theme-bg);
         color: var(--theme-on-bg);
     }
@@ -174,7 +235,10 @@
         gap: 0.6em;
     }
 
-    li {
+    .character-card {
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
         display: flex;
         align-items: center;
         gap: 0.8em;
@@ -182,7 +246,16 @@
         border-radius: 8px;
         background-color: var(--theme-bg-secondary);
         color: var(--theme-on-bg-secondary);
+        border: 2px solid transparent;
         border-left: 4px solid var(--category-color);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+    }
+    .character-card.highlighted {
+        border-color: var(--theme-highlight);
+        border-left-color: var(--category-color);
+        background-color: color-mix(in srgb, var(--theme-highlight) 18%, var(--theme-bg-secondary));
     }
 
     .character-text {
@@ -199,7 +272,6 @@
         font-size: 0.85em;
         line-height: 1.3;
         opacity: 0.85;
-        user-select: text;
     }
 
     .empty {
