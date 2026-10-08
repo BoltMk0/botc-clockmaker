@@ -2784,7 +2784,7 @@
                     <button class="button-style error" onclick={()=>{showTimerOptions = false;}}>X</button>
                 </div>
                 {#if clockClient}
-                    <ClockSetter model={clockClient} timerOptions={data.timerOptions} onstart={()=>{showTimerOptions = false}}/>
+                    <ClockSetter model={clockClient} timerOptions={data.timerOptions} onstart={()=>{showTimerOptions = false}} onmixer={() => {showTimerOptions = false; saveGrimoire().then(()=>goto(`/admin/mixer?remote_only=1&back_uri=${encodeURIComponent(location.pathname + location.search)}`))}}/>
                 {:else}
                     <div>Connecting to clock...</div>
                 {/if}

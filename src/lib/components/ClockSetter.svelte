@@ -11,20 +11,44 @@
     import { type TimerOption } from "$lib/common/timerOption";
     import { TIME_OF_DAY_LABELS, TIMES_OF_DAY, type TimeOfDay } from "$lib/model/client/types";
     import TimeOfDayIcon from "$lib/assets/timeOfDayIcon.svelte";
+    import { AudioDim } from "$lib/audio/client/AudioDim.svelte";
+    import { SpotifyPlayer } from "$lib/audio/client/SpotifyPlayer.svelte";
+    import { DEFAULT_DIM_AMOUNT_DB } from "$lib/audio/common/model/audioDimModel";
 
 
     let {
         model,
         timerOptions,
-        onstart = () => {}
+        onstart = () => {},
+        onmixer
     }: {
         model: Clocktower;
         timerOptions: TimerOption[];
         onstart?: () => void;
+        /** When given, the timer settings button becomes a mixer button calling this (to open the mixer as a remote). */
+        onmixer?: () => void;
     } = $props();
 
     // Counting down, as opposed to paused, or run out (left "running" until the next setup)
     const counting = $derived(model.running && model.progress < 1);
+
+    // The shared audio dim and Spotify transport. Created on mount: they connect to the server.
+    let audioDim: AudioDim|null = $state(null);
+    let spotify: SpotifyPlayer|null = $state(null); // Remote-only: controls a player running on another device
+    // Only offer skipping while a Spotify player is running somewhere and can take commands
+    const spotifyActive = $derived.by(() => {
+        const model = (spotify as SpotifyPlayer|null)?.model;
+        return !!model?.hostClientId && model.hostReady;
+    });
+
+    onMount(() => {
+        audioDim = new AudioDim();
+        spotify = new SpotifyPlayer({ remoteOnly: true });
+        return () => {
+            audioDim?.close();
+            spotify?.close();
+        };
+    });
 
     function onStop(){
         fetch(`/api/clock/${model.id}/stop`, {
@@ -137,7 +161,18 @@
 <div class="clock-setter-main">
     <div class="sections-wrap">
         <div class="setter-section">
-            <div class="time-remaining-display">{formatTime(model.secondsRemaining)}</div>
+            <div class="time-remaining-display">
+                {#if counting}
+                <button class="play-pause-btn" onclick={onStop} title="Pause the timer" aria-label="Pause the timer">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                </button>
+                {:else}
+                <button class="play-pause-btn" onclick={onStart} disabled={model.running} title="Start the timer" aria-label="Start the timer">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                </button>
+                {/if}
+                <span>{formatTime(model.secondsRemaining)}</span>
+            </div>
 
             <div class="time-of-day-row" style="grid-template-columns: repeat({TIMES_OF_DAY.length}, 1fr);">
                 {#each TIMES_OF_DAY as timeOfDay}
@@ -196,12 +231,28 @@
                     </button>
                 {/each}
             </div>
-            <div style="display: grid; grid-template-columns: 2fr 3fr 3fr 2fr; font-size: 1em; gap: 5px;">
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); font-size: 1em; gap: 5px;">
+                {#if onmixer}
+                <button class="button-style" id="edit-button" onclick={onmixer} title="Mixer remote">
+                    <svg class="button-icon-img" viewBox="0 0 24 24" fill="currentColor" aria-label="Mixer remote">
+                        <path d="M4 5h2v14H4zM11 5h2v14h-2zM18 5h2v14h-2z"/>
+                        <rect x="2" y="13" width="6" height="3" rx="1"/>
+                        <rect x="9" y="7" width="6" height="3" rx="1"/>
+                        <rect x="16" y="11" width="6" height="3" rx="1"/>
+                    </svg>
+                </button>
+                {:else}
                 <a class="button-style" id="edit-button" href="/settings/timerOptions">
                     <img class="button-icon-img" src="{gearshape}" alt="Config"/>
                 </a>
-                <button class="button-container-button stop-btn" onclick={onStop} disabled={!counting && model.timeOfDay !== 'day'} title={counting ? 'Pause the timer' : 'End the day'}>Stop</button>
-                <button class="button-container-button start-btn" onclick={onStart} disabled={model.running}>Start</button>
+                {/if}
+                <button class="button-container-button dim-btn" class:active={audioDim?.dimmed} onclick={() => audioDim?.toggle()} disabled={!audioDim} title={audioDim?.dimmed ? 'Restore audio volume' : `Dim audio (-${audioDim?.amountDb ?? DEFAULT_DIM_AMOUNT_DB} dB)`}>
+                    <div>DIM</div>
+                    <div class="dim-amount">{audioDim?.dimmed ? `-${audioDim.amountDb}` : 0} dB</div>
+                </button>
+                <button class="button-container-button" onclick={() => spotify?.next()} disabled={!spotifyActive} title="Skip Spotify track" aria-label="Skip Spotify track">
+                    <svg class="button-icon-img" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                </button>
                 <button class="button-container-button ring-bell-btn" onclick={onBell}>
                     <img class="button-icon-img" src="{bell_and_waves}" alt="Ring Bell"/>
                 </button>
@@ -252,8 +303,48 @@
 
     .time-remaining-display {
         font-size: 2.5em;
-        text-align: center;
         padding: 10px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.3em;
+    }
+
+    .play-pause-btn {
+        display: flex;
+        font-size: inherit; /* Buttons don't inherit it by default; the icon is sized relative to the time */
+        padding: 0;
+        margin: -0.2em 0; /* Keep the bigger icon from making the row taller */
+        border: none;
+        border-radius: 50%;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+    }
+
+    .play-pause-btn svg {
+        width: 1.2em;
+        height: 1.2em;
+    }
+
+    .play-pause-btn:hover:not(:disabled) {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .dim-btn {
+        font-weight: bold;
+        padding: 5px;
+        line-height: 1.1;
+    }
+
+    .dim-amount {
+        font-size: 0.65em;
+        font-weight: normal;
+        opacity: 0.7;
+    }
+
+    .dim-btn.active {
+        background-color: #2c6e9b;
     }
 
     .time-of-day-row {
@@ -315,14 +406,6 @@
     button:disabled {
         opacity: 0.6;
         cursor: not-allowed;
-    }
-
-    button.stop-btn {
-        background-color: #c0392b;
-    }
-
-    button.start-btn {
-        background-color: #27ae60;
     }
 
     button.ring-bell-btn {

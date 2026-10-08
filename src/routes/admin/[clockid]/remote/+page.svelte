@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { browser } from '$app/environment';
+    import { goto } from '$app/navigation';
     import ClockSetter from '$lib/components/ClockSetter.svelte';
     import { Clocktower } from '$lib/model/client/Clocktower.svelte';
     import type { PageData } from './$types';
@@ -17,6 +18,11 @@
             model?.close();
         }
     });
+
+    // The mixer as a remote control only (no sound plays on this device), with a way back to this page
+    function openMixer(){
+        goto(`/admin/mixer?remote_only=1&back_uri=${encodeURIComponent(location.pathname + location.search)}`);
+    }
 </script>
 
 <svelte:head>
@@ -33,7 +39,7 @@
 <div class="remote-page">
     <h2 class="team-name">{data.teamName}</h2>
     {#if model}
-    <ClockSetter {model} timerOptions={data.timerOptions}/>
+    <ClockSetter {model} timerOptions={data.timerOptions} onmixer={openMixer}/>
     {/if}
 </div>
 
