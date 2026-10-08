@@ -4,6 +4,7 @@
     import BookIcon from '$lib/components/BookIcon.svelte';
     import TownSquareIcon from '$lib/components/TownSquareIcon.svelte';
     import TrashIcon from '$lib/components/TrashIcon.svelte';
+    import RemoteIcon from '$lib/components/RemoteIcon.svelte';
     import PencilIcon from '$lib/components/PencilIcon.svelte';
     import type { Config } from '$lib/common/config';
     import CustomOverlay from '$lib/components/CustomOverlay.svelte';
@@ -161,9 +162,14 @@
                 </button>
             {/if}
         </div>
-        <button class="delete-game" onclick={() => deleteGame(instance)} aria-label="Delete game" title="Delete">
-            <TrashIcon size={24}/>
-        </button>
+        <div class="card-buttons">
+            <a class="card-button" href="/admin/{id}/remote" aria-label="Open remote" title="Remote">
+                <RemoteIcon size={24}/>
+            </a>
+            <button class="card-button delete-game" onclick={() => deleteGame(instance)} aria-label="Delete game" title="Delete">
+                <TrashIcon size={24}/>
+            </button>
+        </div>
         <div class="game-stats">
             <div class="stat script-stat">
                 <div class="stat-label">Script</div>
@@ -226,7 +232,7 @@
             {#if data.games.length > 0}
                 <a class="button-style" href="/townsquare/all">View All (Splitscreen)</a>
             {/if}
-            <a class="button-style" href="/admin/mixer">Audio Mixer</a>
+            <a class="button-style" href="/admin/mixer">Audio Only (Mixer)</a>
         </div>
   </section>
   </div>
@@ -362,7 +368,8 @@
         font-weight: bold;
         color: var(--theme-on-bg);
         word-break: break-word;
-        padding-right: 2em;
+        /* Clears the remote and delete buttons in the card's corner */
+        padding-right: 4.5em;
     }
 
     .game-name h2 {
@@ -400,23 +407,32 @@
         font: inherit;
     }
 
-    .delete-game {
+    .card-buttons {
         position: absolute;
-        top: 1.3rem;
-        right: 1.3rem;
+        top: 1.1rem;
+        right: 1.1rem;
         display: flex;
-        padding: 0.2em;
-        border: none;
-        border-radius: 6px;
-        background: transparent;
-        color: inherit;
-        opacity: 0.6;
+        gap: 0.4rem;
+    }
+
+    .card-button {
+        display: flex;
+        padding: 0.35em;
+        border: 1px solid var(--theme-bg-tertiary);
+        border-radius: 8px;
+        background-color: var(--theme-bg-tertiary);
+        color: var(--theme-on-bg-tertiary);
         cursor: pointer;
     }
 
+    .card-button:hover {
+        filter: brightness(1.2);
+    }
+
     .delete-game:hover {
-        opacity: 1;
+        filter: none;
         background-color: var(--theme-error);
+        border-color: var(--theme-error);
         color: var(--theme-on-error);
     }
 
@@ -624,9 +640,9 @@
             padding: 0.8rem;
         }
 
-        .delete-game {
-            top: 0.8rem;
-            right: 0.8rem;
+        .card-buttons {
+            top: 0.6rem;
+            right: 0.6rem;
         }
 
         /* Script gets its own row so long names don't squeeze Players and Day */
