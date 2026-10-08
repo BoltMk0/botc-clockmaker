@@ -3,8 +3,8 @@
     import TopNavbar from '$lib/components/TopNavbar.svelte';
 
     const paths = [
-        '/settings/scripts',
         '/settings/characters',
+        '/settings/scripts',
         '/settings/timerOptions',
         '/settings/customMessages',
         '/settings/qrCodes',
