@@ -129,95 +129,96 @@
     </svg>
     Back
   </a>
-  <div class="card">
-    <header class="card-header">
-        <h1>Play</h1>
-        <button class="new-game" onclick={createNewGame} disabled={creating}>
-            <PlusIcon size={20}/>
-            <span>New Game</span>
-        </button>
-    </header>
-    <p class="description">Open a game's town square or grimoire.</p>
+  <header class="page-header">
+    <h1>Play</h1>
+    <button class="new-game" onclick={createNewGame} disabled={creating}>
+        <PlusIcon size={20}/>
+        <span>New Game</span>
+    </button>
+  </header>
+  <p class="description">Open a game's town square or grimoire.</p>
 
-    <div class="game-list">
-        {#each data.games as { instance, scriptId, scriptName, hasGrim } (instance.clock.clockId)}
-            {@const id = instance.clock.clockId}
-            <div class="game-panel">
-                <div class="game-panel-name">
-                    {#if renamingId === id}
-                        <input
-                            class="rename-input"
-                            type="text"
-                            aria-label="Game name"
-                            bind:value={renameValue}
-                            use:focusAndSelect
-                            onblur={() => finishRename(instance)}
-                            onkeydown={(e) => {
-                                if(e.key === 'Enter') finishRename(instance);
-                                else if(e.key === 'Escape') renamingId = null;
-                            }}/>
-                    {:else}
-                        <span>{instance.config.teamName ?? id}</span>
-                        <button class="rename-game" onclick={() => startRename(instance)} aria-label="Rename game" title="Rename">
-                            <PencilIcon size={20}/>
-                        </button>
-                    {/if}
-                </div>
-                <button class="delete-game" onclick={() => deleteGame(instance)} aria-label="Delete game" title="Delete">
-                    <TrashIcon size={24}/>
+  {#each data.games as { instance, scriptId, scriptName, hasGrim } (instance.clock.clockId)}
+    {@const id = instance.clock.clockId}
+    <section class="card game-card">
+        <div class="game-name">
+            {#if renamingId === id}
+                <input
+                    class="rename-input"
+                    type="text"
+                    aria-label="Game name"
+                    bind:value={renameValue}
+                    use:focusAndSelect
+                    onblur={() => finishRename(instance)}
+                    onkeydown={(e) => {
+                        if(e.key === 'Enter') finishRename(instance);
+                        else if(e.key === 'Escape') renamingId = null;
+                    }}/>
+            {:else}
+                <h2>{instance.config.teamName ?? id}</h2>
+                <button class="rename-game" onclick={() => startRename(instance)} aria-label="Rename game" title="Rename">
+                    <PencilIcon size={20}/>
                 </button>
-                <div class="game-panel-stats">
-                    <div class="stat">
-                        <div class="stat-label">Script</div>
-                        <div class="stat-value script-value">
-                            <span>{scriptName ?? '-'}</span>
-                            {#if scriptId}
-                                <a class="view-script" href="/script/{scriptId}?backUrl=/play" aria-label="View script characters" title="View characters">
-                                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">
-                                        <path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>
-                                    </svg>
-                                </a>
-                            {/if}
-                        </div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat-label">Players</div>
-                        <div class="stat-value">{instance.clock.numPlayers}</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat-label">Day</div>
-                        <div class="stat-value">{instance.clock.day}</div>
-                    </div>
-                </div>
-                <label class="sfx-preset">
-                    <span class="stat-label">Clock SFX</span>
-                    <select value={instance.config.clockSfxPresetId ?? ''} onchange={(e) => setClockSfxPreset(instance, e.currentTarget.value || null)}>
-                        <option value="">None</option>
-                        {#each data.clockSfxPresets as preset (preset.id)}
-                            <option value={preset.id}>{preset.name}</option>
-                        {/each}
-                    </select>
-                </label>
-                <div class="game-panel-actions">
-                    <a class="button-style" href="/townsquare/{id}"><TownSquareIcon size={36}/><span>Town Square</span></a>
-                    {#if hasGrim}
-                        <div class="grim-actions">
-                            <a class="button-style" href="/admin/{id}/grim"><BookIcon size={36}/><span>Grimoire</span></a>
-                            <button class="button-style end-game" onclick={() => openEndGame(id)}>End game</button>
-                        </div>
-                    {:else}
-                        <a class="button-style setup-grim" href="/admin/{id}/grim/setup"><PlusIcon size={36}/><span>Setup Grimoire</span></a>
+            {/if}
+        </div>
+        <button class="delete-game" onclick={() => deleteGame(instance)} aria-label="Delete game" title="Delete">
+            <TrashIcon size={24}/>
+        </button>
+        <div class="game-stats">
+            <div class="stat script-stat">
+                <div class="stat-label">Script</div>
+                <div class="stat-value script-value">
+                    <span>{scriptName ?? '-'}</span>
+                    {#if scriptId}
+                        <a class="view-script" href="/script/{scriptId}?backUrl=/play" aria-label="View script characters" title="View characters">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                                <path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>
+                            </svg>
+                        </a>
                     {/if}
                 </div>
             </div>
-        {/each}
+            <div class="stat-pair">
+                <div class="stat">
+                    <div class="stat-label">Players</div>
+                    <div class="stat-value">{instance.clock.numPlayers}</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Day</div>
+                    <div class="stat-value">{instance.clock.day}</div>
+                </div>
+            </div>
+        </div>
+        <div class="game-panel">
+            <label class="sfx-preset">
+                <span class="stat-label">Clock SFX</span>
+                <select value={instance.config.clockSfxPresetId ?? ''} onchange={(e) => setClockSfxPreset(instance, e.currentTarget.value || null)}>
+                    <option value="">None</option>
+                    {#each data.clockSfxPresets as preset (preset.id)}
+                        <option value={preset.id}>{preset.name}</option>
+                    {/each}
+                </select>
+            </label>
+            <div class="game-panel-actions">
+                <a class="button-style" href="/townsquare/{id}"><TownSquareIcon size={36}/><span>Town Square</span></a>
+                {#if hasGrim}
+                    <div class="grim-actions">
+                        <a class="button-style" href="/admin/{id}/grim"><BookIcon size={36}/><span>Grimoire</span></a>
+                        <button class="button-style end-game" onclick={() => openEndGame(id)}>End game</button>
+                    </div>
+                {:else}
+                    <a class="button-style setup-grim" href="/admin/{id}/grim/setup"><PlusIcon size={36}/><span>Setup Grimoire</span></a>
+                {/if}
+            </div>
+        </div>
+    </section>
+  {/each}
 
-        {#if data.games.length === 0}
-            <p class="empty">No games yet. Create one to get started.</p>
-        {/if}
-
+  {#if data.games.length === 0}
+    <div class="card">
+        <p class="empty">No games yet. Create one to get started.</p>
     </div>
-  </div>
+  {/if}
 
   <section class="card tools">
         <h2>Tools</h2>
@@ -289,7 +290,7 @@
         box-shadow: 0 6px 24px var(--theme-shadow);
     }
 
-    .card-header {
+    .page-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -303,7 +304,7 @@
     }
 
     .description {
-        margin: 0.25rem 0 1.25rem;
+        margin: -0.5rem 0 0.25rem;
         font-size: 0.9rem;
         font-style: italic;
         opacity: 0.8;
@@ -332,14 +333,15 @@
         cursor: not-allowed;
     }
 
-    .game-list {
+    .game-card {
+        position: relative;
         display: flex;
         flex-direction: column;
         gap: 0.8em;
     }
 
+    /* The darker inset holding the clock SFX picker and the game's buttons */
     .game-panel {
-        position: relative;
         display: flex;
         flex-direction: column;
         gap: 0.8em;
@@ -351,13 +353,21 @@
         border-radius: 10px;
     }
 
-    .game-panel-name {
+    .game-name {
         display: flex;
         align-items: center;
         gap: 0.3em;
-        font-size: x-large;
+        /* Same as the Tools heading */
+        font-size: 1.25rem;
+        font-weight: bold;
+        color: var(--theme-on-bg);
         word-break: break-word;
         padding-right: 2em;
+    }
+
+    .game-name h2 {
+        margin: 0;
+        font-size: inherit;
     }
 
     .rename-game {
@@ -367,7 +377,7 @@
         border: none;
         border-radius: 6px;
         background: transparent;
-        color: var(--theme-on-bg);
+        color: inherit;
         opacity: 0.6;
         cursor: pointer;
     }
@@ -392,14 +402,14 @@
 
     .delete-game {
         position: absolute;
-        top: 0.8em;
-        right: 1em;
+        top: 1.3rem;
+        right: 1.3rem;
         display: flex;
         padding: 0.2em;
         border: none;
         border-radius: 6px;
         background: transparent;
-        color: var(--theme-on-bg);
+        color: inherit;
         opacity: 0.6;
         cursor: pointer;
     }
@@ -432,10 +442,31 @@
         border-color: var(--theme-highlight);
     }
 
-    .game-panel-stats {
-        display: grid;
-        grid-template-columns: 2fr 1fr 1fr;
+    /* Script, Players and Day share a row while the script name fits; otherwise
+       Players and Day wrap together onto their own row below it */
+    .game-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6em 0.5em;
+    }
+
+    /* Script takes nearly all the spare room on a shared row; the pair only
+       stretches when it has wrapped onto a row of its own */
+    .script-stat {
+        flex: 999 1 auto;
+        min-width: 0;
+    }
+
+    .stat-pair {
+        flex: 1 0 auto;
+        display: flex;
         gap: 0.5em;
+    }
+
+    .stat-pair .stat {
+        flex: 1;
+        min-width: 4.5em;
+        text-align: center;
     }
 
     .stat-label {
@@ -454,12 +485,15 @@
         gap: 0.3em;
     }
 
+    /* Negative margin keeps the icon's padding from making the script row
+       taller than Players and Day, so all three values share a baseline */
     .view-script {
         display: flex;
         flex: 0 0 auto;
         padding: 0.2em;
+        margin: -0.2em 0;
         border-radius: 6px;
-        color: var(--theme-on-bg);
+        color: inherit;
         opacity: 0.6;
     }
 
@@ -557,5 +591,62 @@
         box-sizing: border-box;
         text-align: center;
         padding: 0.7em 1.1em;
+    }
+
+    @media (max-width: 560px) {
+        .play {
+            padding: 0.75rem 0.75rem 1rem;
+        }
+
+        .column {
+            gap: 0.5rem;
+        }
+
+        .card {
+            padding: 1rem;
+        }
+
+        .page-header {
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .new-game {
+            padding: 0.45em 1em;
+        }
+
+        .game-card,
+        .game-panel {
+            gap: 0.7em;
+        }
+
+        .game-panel {
+            padding: 0.8rem;
+        }
+
+        .delete-game {
+            top: 0.8rem;
+            right: 0.8rem;
+        }
+
+        /* Script gets its own row so long names don't squeeze Players and Day */
+        .stat-value {
+            font-size: medium;
+        }
+
+        .game-panel-actions .button-style {
+            padding: 0.8em 0.4em;
+            font-size: medium;
+            gap: 0.3em;
+        }
+
+        .game-panel-actions .button-style :global(svg) {
+            width: 28px;
+            height: 28px;
+        }
+
+        .extra-links .button-style {
+            flex-basis: 100%;
+        }
     }
 </style>
