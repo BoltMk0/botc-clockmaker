@@ -48,10 +48,10 @@ class ClockInstanceCallbackHelper {
         }
     }
 
-    handleBellRingRequest() {
+    handleBellRingRequest(bell: 'start' | 'final') {
         this.broadcast({
             type: 'bellRingRequest',
-            bell: 'final'
+            bell
         });
     }
 

@@ -115,7 +115,7 @@
             <ChannelStrip audioTrack={audioEngine.stingEngine} title="STING" onTitleClick={()=>{audioEngine?.stingEngine?.trigger()}} style="--theme-slider-accent: #FA5;"/>
             {/if}
             <ChannelStripGroup model={audioEngine.clockAudioTracks} onChildTitleClick={(clock, index)=>{
-                clock.ringFinalBell();
+                clock.ringEndOfDay();
             }}/>
             <ChannelStrip audioTrack={audioEngine.clocksMaster} title="MASTER" style="--theme-slider-accent: #DCC"/>
             </div>

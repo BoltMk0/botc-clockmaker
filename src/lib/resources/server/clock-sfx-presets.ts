@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { extname, join } from "node:path";
 import { v7 } from "uuid";
-import { isClockSfxPreset, type ClockSfxPreset, type ClockSfxSlot, CLOCK_SFX_SLOTS } from "$lib/audio/common/clockSfxPreset";
+import { isClockSfxPreset, migrateLegacyClockSfxPreset, type ClockSfxPreset, type ClockSfxSlot, CLOCK_SFX_SLOTS } from "$lib/audio/common/clockSfxPreset";
 import { getAcceptedExtensionsForResourceType } from "../common/types";
 import { getMimeTypeForExtension, slugify } from "../common/util";
 import { JSONMultiResourceManager } from "./jsonResourceManager";
@@ -13,7 +13,13 @@ const CLOCK_SFX_FILE_DIR = join(RESOURCE_DATA_DIR, 'clocksfx');
 
 export const ACCEPTED_CLOCK_SFX_EXTENSIONS = getAcceptedExtensionsForResourceType('sfx');
 
-const CLOCK_SFX_PRESET_MANAGER = new JSONMultiResourceManager<ClockSfxPreset>('clocksfx-presets', isClockSfxPreset);
+/** Also upgrades presets saved before the start of day sound, so they validate. */
+function isClockSfxPresetMigrating(data: unknown): data is ClockSfxPreset {
+    migrateLegacyClockSfxPreset(data);
+    return isClockSfxPreset(data);
+}
+
+const CLOCK_SFX_PRESET_MANAGER = new JSONMultiResourceManager<ClockSfxPreset>('clocksfx-presets', isClockSfxPresetMigrating);
 
 /** Oldest first. */
 export function listClockSfxPresets(): ClockSfxPreset[] {
@@ -33,6 +39,7 @@ export function createClockSfxPreset(name: string): ClockSfxPreset {
         id: v7(),
         name,
         createdAt: Date.now(),
+        start: null,
         final: null,
         reminder: null,
         gain: 1,
@@ -120,6 +127,7 @@ export function migrateLegacyClockSfx(finalResourceId: string|null, reminderReso
         id,
         name: `Imported (${finalResource?.name ?? 'none'} / ${reminderResource?.name ?? 'none'})`,
         createdAt: 0, // Before any made by hand, so it stays the default for new games
+        start: null,
         final: null,
         reminder: null,
         gain: 1,

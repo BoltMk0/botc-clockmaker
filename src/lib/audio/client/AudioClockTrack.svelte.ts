@@ -1,4 +1,4 @@
-import { bellBalanceGains } from "../common/clockSfxPreset";
+import { bellBalanceGains, CLOCK_SFX_SLOTS, type ClockSfxSlot } from "../common/clockSfxPreset";
 import type { ClocktowerAudioTrackModel } from "../common/model/clocktowerAudioTrackModel.svelte";
 import { AudioTrack } from "./AudioTrack.svelte";
 
@@ -12,13 +12,7 @@ export class AudioClockTrack extends AudioTrack {
     onLocalChange: (()=>void)|null = null;
 
     readonly #model: ClocktowerAudioTrackModel;
-    readonly #finalBellAudioSource: MediaElementAudioSourceNode;
-    readonly #reminderBellAudioSource: MediaElementAudioSourceNode;
-    readonly #finalBellAudio: HTMLAudioElement;
-    readonly #reminderBellAudio: HTMLAudioElement;
-
-    readonly #finalBellGainNode: GainNode;
-    readonly #reminderBellGainNode: GainNode;
+    readonly #bells: Record<ClockSfxSlot, { audio: HTMLAudioElement, source: MediaElementAudioSourceNode, gainNode: GainNode }>;
     /** The SFX preset's pan trim, ahead of the track's own panner. */
     readonly #sfxPanNode: StereoPannerNode;
     readonly #stopSfxSync: ()=>void;
@@ -35,59 +29,40 @@ export class AudioClockTrack extends AudioTrack {
 
         let context = outputNode.context as AudioContext;
 
-        this.#reminderBellAudio = new Audio();
-        this.#finalBellAudio = new Audio();
-
-        this.#reminderBellAudio.onerror = ()=>{
-            console.error(`AudioTrackModel ${this.id} - ERROR: ${this.#reminderBellAudio.error?.message ?? "unknown error"}`);
-        }
-        this.#reminderBellAudio.onloadstart = (ev)=>{
-            console.debug(`AudioTrackModel ${this.id} - Loading audio: ${this.#reminderBellAudio.src}`);
-        }
-        this.#reminderBellAudio.onloadeddata = (ev)=>{
-            console.debug(`AudioTrackModel ${this.id} - Finished loading audio. Duration ${this.#reminderBellAudioSource.mediaElement.duration}s`);
-        }
-        this.#reminderBellAudio.onended = (()=>{
-            console.debug(`AudioTrackModel ${this.id} - playback ended`);
-        });
-        this.#reminderBellAudio.onplaying = (()=>{
-            console.debug(`AudioTrackModel ${this.id} - Is playing`, this.#reminderBellAudio.src);
-        });
-        
-        this.#finalBellAudio.onerror = ()=>{
-            console.error(`AudioTrackModel ${this.id} - ERROR: ${this.#finalBellAudio.error?.message ?? "unknown error"}`);
-        }
-        this.#finalBellAudio.onloadstart = (ev)=>{
-            console.debug(`AudioTrackModel ${this.id} - Loading audio: ${this.#finalBellAudio.src}`);
-        }
-        this.#finalBellAudio.onloadeddata = (ev)=>{
-            console.debug(`AudioTrackModel ${this.id} - Finished loading audio. Duration ${this.#finalBellAudioSource.mediaElement.duration}s`);
-        }
-        this.#finalBellAudio.onended = (()=>{
-            console.debug(`AudioTrackModel ${this.id} - playback ended`);
-        });
-        this.#finalBellAudio.onplaying = (()=>{
-            console.debug(`AudioTrackModel ${this.id} - Is playing`, this.#finalBellAudio.src);
-        });
-
-        this.#reminderBellAudioSource = context.createMediaElementSource(this.#reminderBellAudio);
-        this.#finalBellAudioSource = context.createMediaElementSource(this.#finalBellAudio);
-
-        this.#finalBellGainNode = context.createGain();
-        this.#reminderBellGainNode = context.createGain();
-
         this.#sfxPanNode = context.createStereoPanner();
         this.#sfxPanNode.connect(super.input);
 
-        this.#reminderBellAudioSource.connect(this.#reminderBellGainNode).connect(this.#sfxPanNode);
-        this.#finalBellAudioSource.connect(this.#finalBellGainNode).connect(this.#sfxPanNode);
+        const createBell = () => {
+            const audio = new Audio();
+            audio.onerror = ()=>{
+                console.error(`AudioTrackModel ${this.id} - ERROR: ${audio.error?.message ?? "unknown error"}`);
+            }
+            audio.onloadstart = ()=>{
+                console.debug(`AudioTrackModel ${this.id} - Loading audio: ${audio.src}`);
+            }
+            audio.onloadeddata = ()=>{
+                console.debug(`AudioTrackModel ${this.id} - Finished loading audio. Duration ${audio.duration}s`);
+            }
+            audio.onended = ()=>{
+                console.debug(`AudioTrackModel ${this.id} - playback ended`);
+            };
+            audio.onplaying = ()=>{
+                console.debug(`AudioTrackModel ${this.id} - Is playing`, audio.src);
+            };
+            const source = context.createMediaElementSource(audio);
+            const gainNode = context.createGain();
+            source.connect(gainNode).connect(this.#sfxPanNode);
+            return { audio, source, gainNode };
+        };
+        this.#bells = { start: createBell(), final: createBell(), reminder: createBell() };
 
         this.persistMute(`clock.${this.id}`);
         // Keep the bells in step with the model when it's changed from elsewhere (a server update, e.g. the
         // clock's SFX preset being swapped or edited, or another mixer moving the balance).
         this.#stopSfxSync = $effect.root(()=>{
-            $effect(()=>{ this.#setSource(this.#finalBellAudio, model.sfx.finalUrl); });
-            $effect(()=>{ this.#setSource(this.#reminderBellAudio, model.sfx.reminderUrl); });
+            $effect(()=>{ this.#setSource(this.#bells.start.audio, model.sfx.startUrl); });
+            $effect(()=>{ this.#setSource(this.#bells.final.audio, model.sfx.finalUrl); });
+            $effect(()=>{ this.#setSource(this.#bells.reminder.audio, model.sfx.reminderUrl); });
             $effect(()=>{ this.#sfxPanNode.pan.value = model.sfx.pan; });
             $effect(()=>{ this.#updateBellGains(); });
         });
@@ -102,11 +77,12 @@ export class AudioClockTrack extends AudioTrack {
     #updateBellGains(){
         const clock = bellBalanceGains(this.#model.balance);
         const preset = bellBalanceGains(this.#model.sfx.balance);
-        this.#finalBellGainNode.gain.value = clock.final * preset.final * this.#model.sfx.gain;
-        this.#reminderBellGainNode.gain.value = clock.reminder * preset.reminder * this.#model.sfx.gain;
+        for(const slot of CLOCK_SFX_SLOTS){
+            this.#bells[slot].gainNode.gain.value = clock[slot] * preset[slot] * this.#model.sfx.gain;
+        }
     }
 
-    get input(): AudioNode { return this.#finalBellAudioSource; }
+    get input(): AudioNode { return this.#bells.final.source; }
 
     get gain(): number { return super.gain; }
     set gain(val: number) {
@@ -128,18 +104,23 @@ export class AudioClockTrack extends AudioTrack {
         this.onLocalChange?.();
     }
 
-    ringFinalBell(){
-        console.log("Ringing final bell for clock track", this.id)
-        if(this.silent || this.#model.sfx.finalUrl === null) return;
-        this.#finalBellAudio.currentTime = 0;
-        this.#finalBellAudio.play();
+    #ring(slot: ClockSfxSlot, url: string|null){
+        if(this.silent || url === null) return;
+        const audio = this.#bells[slot].audio;
+        audio.currentTime = 0;
+        audio.play();
     }
 
-    ringReminderBell(){
-        if(this.silent || this.#model.sfx.reminderUrl === null) return;
-        this.#reminderBellAudio.currentTime = 0;
-        this.#reminderBellAudio.play();
+    /** When the game goes from night to day. */
+    ringStartOfDay(){ this.#ring('start', this.#model.sfx.startUrl); }
+
+    /** When the timer runs out, or the bell is rung by hand. */
+    ringEndOfDay(){
+        console.log("Ringing end of day bell for clock track", this.id)
+        this.#ring('final', this.#model.sfx.finalUrl);
     }
+
+    ringReminderBell(){ this.#ring('reminder', this.#model.sfx.reminderUrl); }
 
     close(): void {
         this.#stopSfxSync();

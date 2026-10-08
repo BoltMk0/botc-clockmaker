@@ -6,7 +6,7 @@
     import { onMount, tick } from "svelte";
     import { AudioDim } from "$lib/audio/client/AudioDim.svelte";
     import { DEFAULT_DIM_AMOUNT_DB, MAX_DIM_AMOUNT_DB, MIN_DIM_AMOUNT_DB } from "$lib/audio/common/model/audioDimModel";
-    import type { ClockSfxPreset } from "$lib/audio/common/clockSfxPreset";
+    import { CLOCK_SFX_SLOT_LABELS, CLOCK_SFX_SLOTS, type ClockSfxPreset } from "$lib/audio/common/clockSfxPreset";
     import { goto, invalidateAll } from "$app/navigation";
     import { getAcceptedExtensionsForResourceType, type Resource } from "$lib/resources/common/types";
     import { prettifyResourceName, resourceNameSlug } from "$lib/resources/common/util";
@@ -298,26 +298,24 @@
 <div class="panel-header">
     <h2>Clock SFX</h2>
 </div>
-<p class="description">The final and reminder bell sounds a game's clock rings. Each game picks one of these in its settings; new games use the first.</p>
+<p class="description">The sounds a game's clock plays at the start and end of the day, and for the reminder bell. Each game picks one of these in its settings; new games use the first.</p>
 <div class="data-table-scroll">
 <table class="data-table">
     <tbody>
         <tr>
             <th>Name</th>
-            <th>Final bell</th>
-            <th>Reminder bell</th>
+            {#each CLOCK_SFX_SLOTS as slot}<th>{CLOCK_SFX_SLOT_LABELS[slot]}</th>{/each}
             <th></th>
         </tr>
         {#each data.clockSfxPresets as preset (preset.id)}
             <tr>
                 <td>{preset.name}</td>
-                <td class="has-sound">{preset.final ? '✓' : '—'}</td>
-                <td class="has-sound">{preset.reminder ? '✓' : '—'}</td>
+                {#each CLOCK_SFX_SLOTS as slot}<td class="has-sound">{preset[slot] ? '✓' : '—'}</td>{/each}
                 <td><a class="edit-link" href="/settings/audio/clocksfx/{preset.id}">Edit</a></td>
             </tr>
         {/each}
         <tr>
-            <td colspan="4">
+            <td colspan={CLOCK_SFX_SLOTS.length + 2}>
                 <button style="width: 100%;" class="add" onclick={createClockSfxPreset}>+ Clock SFX Preset</button>
             </td>
         </tr>

@@ -25,6 +25,9 @@ function migrateLegacyModel(data: any) {
         audio.sfx = { ...NO_CLOCK_SFX }; // Filled in from the preset when the clock is loaded
         delete audio.resources;
     }
+    if(typeof audio?.sfx === 'object' && audio.sfx !== null && audio.sfx.startUrl === undefined){
+        audio.sfx.startUrl = null; // From before the start of day sound; also filled in when the clock is loaded
+    }
     const clock = data.clock;
     if(typeof clock === 'object' && clock !== null && clock.timeOfDay === undefined){
         // From before the phase was stored: it was night once the timer had run out (or been ended)

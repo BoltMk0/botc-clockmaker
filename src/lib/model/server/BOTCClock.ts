@@ -62,7 +62,8 @@ export class BOTCTClock extends EventEmitter {
     }
 
     on(event: 'audio', listener: (audio: ClocktowerAudioTrackModel) => void): this;
-    on(event: 'bellRingRequest', listener: () => void): this;
+    /** `bell` is the sound to ring: 'final' for the bell rung by hand, 'start' when the game goes from night to day. */
+    on(event: 'bellRingRequest', listener: (bell: 'start' | 'final') => void): this;
     on(event: 'modelUpdated', listener: (model: ClocktowerModel) => void): this;
     on(event: string, listener: (...args: any[]) => void): this {
         console.log("on", event, listener);
@@ -85,8 +86,10 @@ export class BOTCTClock extends EventEmitter {
     get timeOfDay(): TimeOfDay { return this.#model.clock.timeOfDay; }
 
     set timeOfDay(timeOfDay: TimeOfDay){
-        if(this.#model.clock.timeOfDay === timeOfDay) return;
+        const previous = this.#model.clock.timeOfDay;
+        if(previous === timeOfDay) return;
         this.#model.clock.timeOfDay = timeOfDay;
+        if(previous === 'night' && timeOfDay === 'day') this.emit('bellRingRequest', 'start');
         this.scheduleSave();
         this.debouncedEmit('modelUpdated', this.#model);
     }
@@ -149,7 +152,7 @@ export class BOTCTClock extends EventEmitter {
     }
 
     makeDaBellNoise(){
-        this.emit('bellRingRequest');
+        this.emit('bellRingRequest', 'final');
     }
 
 

@@ -11,6 +11,7 @@ import type { AudioTrack } from "$lib/audio/client/AudioTrack.svelte";
 type ClocktowerEvents = {
     bellRing: [];
     reminderRing: [];
+    dayStart: [];
 };
 
 /** Outgoing audio-param edits (gain/pan/balance, from the mixer's clock channel strip) are batched for
@@ -98,13 +99,20 @@ export class Clocktower extends EventEmitter<ClocktowerEvents> {
                     this.applyRemoteAudio(msg.model);
                     break;
                 case 'bellRingRequest':
-                    const bellRingFn = msg.bell === 'final' ? ()=>{
-                        this.#audioTrack?.ringFinalBell();
-                        this.emit('bellRing');
-                    } : ()=>{
-                        this.#audioTrack?.ringReminderBell();
-                        this.emit('reminderRing');
-                    }
+                    const bellRingFn = {
+                        start: ()=>{
+                            this.#audioTrack?.ringStartOfDay();
+                            this.emit('dayStart');
+                        },
+                        final: ()=>{
+                            this.#audioTrack?.ringEndOfDay();
+                            this.emit('bellRing');
+                        },
+                        reminder: ()=>{
+                            this.#audioTrack?.ringReminderBell();
+                            this.emit('reminderRing');
+                        }
+                    }[msg.bell];
 
                     if(msg.atTime){
                         this.#serverDeltaTimeManager.when({ reference: 'server', time: msg.atTime }, ()=>{
@@ -142,7 +150,7 @@ export class Clocktower extends EventEmitter<ClocktowerEvents> {
                 if(remaining > -2) {
                     // The server turns it to dusk too; don't wait on its update to show it
                     if(this.#model.clock.timeOfDay === 'day') this.#model.clock.timeOfDay = 'dusk';
-                    this.#audioTrack?.ringFinalBell();
+                    this.#audioTrack?.ringEndOfDay();
                     this.emit('bellRing');
                 }
             } else {

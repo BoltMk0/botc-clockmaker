@@ -5,6 +5,7 @@ import type { AudioResourceTrackModel } from "$lib/audio/common/model/audioResou
 import type { StingEngineModel } from "$lib/audio/common/model/stingEngineModel";
 import type { SpotifyModel } from "$lib/audio/common/model/spotifyModel";
 import type { ClocktowerAudioTrackModel } from "$lib/audio/common/model/clocktowerAudioTrackModel.svelte";
+import type { ClockSfxSlot } from "$lib/audio/common/clockSfxPreset";
 import type { ClocktowerModel } from "$lib/model/common/ClocktowerModel";
 
 export type WSMessageBase = {
@@ -23,7 +24,7 @@ export type SyncMessage = WSMessageBase & {
 
 export type BellRingRequestMessage = WSMessageBase & {
     type: 'bellRingRequest';
-    bell: 'final' | 'reminder';
+    bell: ClockSfxSlot;
     atTime?: number;
 };
 

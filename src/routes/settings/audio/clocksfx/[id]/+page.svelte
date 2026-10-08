@@ -1,7 +1,7 @@
 <script lang="ts">
-    import { goto, invalidateAll } from '$app/navigation';
+    import { goto } from '$app/navigation';
     import HSlider from '$lib/audio/client/components/HSlider.svelte';
-    import { bellBalanceGains, clockSfxFileUrl, type ClockSfxPreset, type ClockSfxSlot } from '$lib/audio/common/clockSfxPreset';
+    import { bellBalanceGains, CLOCK_SFX_SLOT_LABELS, CLOCK_SFX_SLOTS, clockSfxFileUrl, type ClockSfxPreset, type ClockSfxSlot } from '$lib/audio/common/clockSfxPreset';
     import { dbToLinear, linearToDb } from '$lib/common/util';
 
     let { data }: { data: { preset: ClockSfxPreset, acceptedExtensions: string[] } } = $props();
@@ -10,20 +10,19 @@
     let preset = $state(structuredClone(data.preset));
 
     /** Picked but not yet uploaded files, uploaded on save. */
-    let pendingFiles: Record<ClockSfxSlot, File | null> = $state({ final: null, reminder: null });
+    let pendingFiles: Record<ClockSfxSlot, File | null> = $state({ start: null, final: null, reminder: null });
     /** Object URLs for previewing pending files before they're uploaded. */
-    let pendingUrls: Record<ClockSfxSlot, string | null> = $state({ final: null, reminder: null });
+    let pendingUrls: Record<ClockSfxSlot, string | null> = $state({ start: null, final: null, reminder: null });
     /** Uploaded sounds to remove on save. */
-    let pendingRemovals: Record<ClockSfxSlot, boolean> = $state({ final: false, reminder: false });
+    let pendingRemovals: Record<ClockSfxSlot, boolean> = $state({ start: false, final: false, reminder: false });
     let saving = $state(false);
+    /** Shows the "Saved!" message; its OK goes back to the audio settings. */
+    let saved = $state(false);
 
-    const slots: { slot: ClockSfxSlot, label: string }[] = [
-        { slot: 'final', label: 'Final Bell Sound' },
-        { slot: 'reminder', label: 'Reminder Bell Sound' }
-    ];
+    const slots: { slot: ClockSfxSlot, label: string }[] = CLOCK_SFX_SLOTS.map(slot => ({ slot, label: `${CLOCK_SFX_SLOT_LABELS[slot]} Sound` }));
 
     const balance = $derived(bellBalanceGains(preset.balance));
-    const slotGain = $derived({ final: preset.gain * balance.final, reminder: preset.gain * balance.reminder });
+    const slotGain = $derived(Object.fromEntries(CLOCK_SFX_SLOTS.map(slot => [slot, preset.gain * balance[slot]])) as Record<ClockSfxSlot, number>);
 
     function previewUrl(slot: ClockSfxSlot): string | null {
         if(pendingUrls[slot]) return pendingUrls[slot];
@@ -76,15 +75,11 @@
                 }
             }
 
-            for(const { slot } of slots) removeSound(slot);
-            pendingRemovals = { final: false, reminder: false };
-            await invalidateAll();
-            preset = structuredClone(data.preset);
-            alert('Saved!');
+            for(const { slot } of slots) removeSound(slot); // Frees the preview URLs
+            saved = true;
         } catch(e) {
             console.error(e);
             alert(e);
-        } finally {
             saving = false;
         }
     }
@@ -168,7 +163,7 @@
             </tbody>
         </table>
         </div>
-        <p class="hint">Balance, gain and pan apply on top of each game's own mixer channel.</p>
+        <p class="hint">Start of Day plays when a game goes from night to day; End of Day when its timer runs out, or the bell is rung by hand. Balance trades the reminder bell (left) against the start and end of day sounds (right). Balance, gain and pan apply on top of each game's own mixer channel.</p>
     </div>
 
     <div class="actions">
@@ -178,7 +173,49 @@
 </div>
 </div>
 
+{#if saved}
+<div class="saved-backdrop">
+    <div class="saved-message" role="alertdialog" aria-label="Saved">
+        <div>Saved!</div>
+        <!-- svelte-ignore a11y_autofocus -->
+        <button class="save" onclick={() => goto('/settings/audio', { invalidateAll: true })} autofocus>OK</button>
+    </div>
+</div>
+{/if}
+
 <style>
+    .saved-backdrop {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 9999;
+    }
+
+    .saved-message {
+        min-width: min(20rem, calc(100vw - 32px));
+        box-sizing: border-box;
+        padding: 1.5rem 2rem;
+        border-radius: 12px;
+        background-color: var(--theme-bg-secondary);
+        color: var(--theme-on-bg);
+        box-shadow: 0 4px 16px var(--theme-shadow);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+        text-align: center;
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+
+    .saved-message button {
+        min-width: 6rem;
+        font-size: 1rem;
+    }
+
     .scroll {
         height: 100%;
         overflow-y: auto;
@@ -297,11 +334,11 @@
         gap: 0.75rem;
     }
 
-    .actions button {
+    .actions button, .saved-message button {
         padding: 0.7rem 1rem;
     }
 
-    .actions .save {
+    .actions .save, .saved-message .save {
         background-color: var(--theme-highlight);
         color: var(--theme-on-highlight);
     }
