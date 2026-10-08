@@ -145,10 +145,12 @@
         padding: 0;
     }
 
+    /* Outside the scrolling body, so it stays in view at the bottom of the page. */
     .footer-actions {
         display: flex;
         justify-content: space-between;
         gap: 1em;
+        flex-shrink: 0;
     }
 </style>
 
@@ -205,13 +207,9 @@
                 {:else}
                     {#each builder.bluffSets as set, i}
                         <h3>Set {i + 1}</h3>
-                        <CharacterList characters={set.map(id => builder.charById.get(id)).filter(c => !!c)} />
+                        <CharacterList characters={set.map(id => builder.charById.get(id)).filter(c => !!c)} grouped={false} />
                     {/each}
                 {/if}
-            </div>
-            <div class="footer-actions">
-                <button class="button-style" onclick={() => step = 'bluffs'}>← Back</button>
-                <button class="button-style highlight" disabled={saving || builder.playerCount === null || !builder.isSorted} onclick={save}>Save</button>
             </div>
         {:else}
             <BuilderSteps
@@ -221,5 +219,12 @@
             />
         {/if}
     </div>
+
+    {#if step === 'summary'}
+        <div class="footer-actions">
+            <button class="button-style" onclick={() => step = 'bluffs'}>← Back</button>
+            <button class="button-style highlight" disabled={saving || builder.playerCount === null || !builder.isSorted} onclick={save}>Save</button>
+        </div>
+    {/if}
 </div>
 {/if}

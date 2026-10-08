@@ -15,10 +15,13 @@
         onadd,
         onremove,
         countOf = c => (isSelected(c) ? 1 : 0),
+        grouped = true,
         categoryOrder = ['demon', 'minion', 'outsider', 'townsfolk', 'traveler', 'loric', 'fabled']
     }: {
         /** The categories to show, in order. */
         categoryOrder?: CharacterCategory[];
+        /** Set to false to show every character in one grid, still in category order, with no category headings. */
+        grouped?: boolean;
         characters: Character[];
         searchQuery?: string;
         /** Show category headers with zero characters (only while not searching). */
@@ -85,10 +88,11 @@
     const charactersByCategory = $derived.by(() => {
         const query = searchQuery.trim().toLowerCase();
         const matches = characters.filter(c => c.name.toLowerCase().includes(query));
-        return categoryOrder.map(category => ({
+        const groups: { category: CharacterCategory | null, characters: Character[] }[] = categoryOrder.map(category => ({
             category,
             characters: matches.filter(c => c.category === category)
         }));
+        return grouped ? groups : [{ category: null, characters: groups.flatMap(g => g.characters) }];
     });
 
     function toggleCategory(category: CharacterCategory) {
@@ -122,6 +126,7 @@
 {#each charactersByCategory as { category, characters: inCategory }}
     {#if inCategory.length > 0 || (showEmptyCategories && !searchQuery.trim())}
         <div class="category-group">
+            {#if category !== null}
             <button class="category-header no-button-style" onclick={() => toggleCategory(category)}>
                 <span class="chevron" class:open={openCategories.has(category)}>&rsaquo;</span>
                 <span class="category-name">{category}</span>
@@ -131,7 +136,8 @@
                     <span class="category-count">{inCategory.length}</span>
                 {/if}
             </button>
-            {#if openCategories.has(category)}
+            {/if}
+            {#if category === null || openCategories.has(category)}
                 <div class="character-grid">
                     {#each inCategory as character (character.id)}
                         {@const count = onadd ? countOf(character) : 0}
@@ -151,7 +157,7 @@
                             href={href?.(character)}
                             disabled={onpick ? disabled : undefined}
                             onclick={onpick ? () => onpick(character) : tapMode ? () => tapCharacter(character) : undefined}
-                            style="--category-color: {CHARACTER_CATEGORY_COLORS[category]};"
+                            style="--category-color: {CHARACTER_CATEGORY_COLORS[character.category]};"
                         >
                             {@render cardBody(character, selected, count)}
                             {#if tapMode && selected}

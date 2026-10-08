@@ -71,10 +71,25 @@
         gap: 1em;
     }
 
+    /* Fills the page's body; only the list scrolls, so the buttons below it are always in view. */
+    .step-layout {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 1em;
+    }
+    .step-scroll {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+    }
+
     .footer-actions {
         display: flex;
         justify-content: space-between;
         gap: 1em;
+        flex-shrink: 0;
     }
 </style>
 
@@ -94,7 +109,8 @@
         </div>
     </div>
 {:else if step === 'tokens' && builder.script}
-    <div class="section plain">
+<div class="step-layout">
+    <div class="section plain step-scroll">
         <CharacterList
             characters={builder.script.characters}
             headingSuffix={category => `${builder.chosenCharacters.filter(c => c.category === category).length} selected`}
@@ -107,8 +123,10 @@
         {#if !hideBack}<button class="button-style" onclick={() => navigate(beforeTokens)}>← Back</button>{:else}<span></span>{/if}
         <button class="button-style highlight" disabled={!builder.hasEnoughTokens} onclick={() => navigate('bluffs')}>Next →</button>
     </div>
+</div>
 {:else if step === 'bluffs' && builder.script}
-    <div class="section plain">
+<div class="step-layout">
+    <div class="section plain step-scroll">
         <h2 style="margin-top: 0;">Bluffs <span style="opacity: 0.6; font-weight: normal; font-size: 0.7em;">(optional)</span></h2>
         <div class="bluff-set-tabs">
             {#each builder.bluffSets as set, i}
@@ -137,4 +155,5 @@
         {#if !hideBack}<button class="button-style" onclick={() => navigate('tokens')}>← Back</button>{:else}<span></span>{/if}
         <button class="button-style highlight" disabled={!builder.bluffsValid} onclick={() => navigate(afterBluffs)}>Next →</button>
     </div>
+</div>
 {/if}
