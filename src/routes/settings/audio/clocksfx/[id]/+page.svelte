@@ -1,8 +1,9 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
     import HSlider from '$lib/audio/client/components/HSlider.svelte';
-    import { bellBalanceGains, CLOCK_SFX_SLOT_LABELS, CLOCK_SFX_SLOTS, clockSfxFileUrl, type ClockSfxPreset, type ClockSfxSlot } from '$lib/audio/common/clockSfxPreset';
+    import { bellBalanceGains, CLOCK_SFX_SLOT_LABELS, CLOCK_SFX_SLOT_TIMES_OF_DAY, CLOCK_SFX_SLOTS, clockSfxFileUrl, type ClockSfxPreset, type ClockSfxSlot } from '$lib/audio/common/clockSfxPreset';
     import { dbToLinear, linearToDb } from '$lib/common/util';
+    import TimeOfDayIcon from '$lib/assets/timeOfDayIcon.svelte';
 
     let { data }: { data: { preset: ClockSfxPreset, acceptedExtensions: string[] } } = $props();
 
@@ -115,39 +116,31 @@
 
     <div class="panel">
         <h2>Sound Effects</h2>
-        <div class="data-table-scroll">
+        <div class="sounds">
+            {#each slots as { slot, label } (slot)}
+                {@const url = previewUrl(slot)}
+                <div class="sound">
+                    <div class="sound-header">
+                        <div class="slot-label"><TimeOfDayIcon timeOfDay={CLOCK_SFX_SLOT_TIMES_OF_DAY[slot]} size={18}/>{label}</div>
+                        <div class="slot-volume">{linearToDb(slotGain[slot]).toFixed(1)}dB</div>
+                    </div>
+                    <div class="file-row">
+                        <input type="file" accept={data.acceptedExtensions.join(',')} onchange={(e) => pickFile(slot, e)}/>
+                        {#if url}
+                            <button class="remove" onclick={() => removeSound(slot)}>Remove</button>
+                        {/if}
+                    </div>
+                    {#if url}
+                        <audio src={url} controls volume={slotGain[slot]}></audio>
+                    {:else}
+                        <div class="no-sound">No sound</div>
+                    {/if}
+                </div>
+            {/each}
+        </div>
+        <div class="data-table-scroll mix-table">
         <table class="data-table">
-            <thead>
-                <tr>
-                    <th style="width: fit-content;">Event</th>
-                    <th>Sound File</th>
-                </tr>
-            </thead>
             <tbody>
-                {#each slots as { slot, label } (slot)}
-                    {@const url = previewUrl(slot)}
-                    <tr>
-                        <td style="width: fit-content;">
-                            <div>{label}</div>
-                            <div>({linearToDb(slotGain[slot]).toFixed(1)}dB)</div>
-                        </td>
-                        <td style="min-width: 200px;">
-                            <div class="audio-file-input-container">
-                                <div class="file-row">
-                                    <input type="file" accept={data.acceptedExtensions.join(',')} onchange={(e) => pickFile(slot, e)}/>
-                                    {#if url}
-                                        <button class="remove" onclick={() => removeSound(slot)}>Remove</button>
-                                    {/if}
-                                </div>
-                                {#if url}
-                                    <audio src={url} controls volume={slotGain[slot]}></audio>
-                                {:else}
-                                    <div class="no-sound">No sound</div>
-                                {/if}
-                            </div>
-                        </td>
-                    </tr>
-                {/each}
                 <tr>
                     <td>Balance ({preset.balance})</td>
                     <td><HSlider bind:value={preset.balance} min={-1} max={1} step={0.1}/></td>
@@ -184,6 +177,13 @@
 {/if}
 
 <style>
+    .slot-label {
+        display: flex;
+        align-items: center;
+        gap: 0.4em;
+        white-space: nowrap;
+    }
+
     .saved-backdrop {
         position: fixed;
         inset: 0;
@@ -258,7 +258,7 @@
         color: var(--theme-on-bg-secondary);
     }
 
-    td > div:nth-child(2), .no-sound, .hint {
+    .slot-volume, .no-sound, .hint {
         font-size: 0.8rem;
         color: var(--theme-on-bg-secondary);
     }
@@ -284,28 +284,53 @@
         border-color: var(--theme-highlight);
     }
 
-    .audio-file-input-container {
-        width: 100%;
+    .sounds {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
     }
 
+    /* Coloured like the table rows, so it doesn't match the panel it sits on */
+    .sound {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.6rem 0.75rem;
+        border-radius: 8px;
+        background-color: var(--theme-bg);
+    }
+
+    .sound-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .slot-volume {
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    .mix-table {
+        margin-top: 1rem;
+    }
+
+    /* The Remove button drops under the file input when they don't fit side by side */
     .file-row {
         display: flex;
+        flex-wrap: wrap;
         gap: 0.5rem;
     }
 
     .file-row input {
-        flex: 1;
+        flex: 1 1 12rem;
         min-width: 0;
     }
 
-    .audio-file-input-container > audio {
+    .sound > audio {
         width: 100%;
-        margin-top: 0.5rem;
         height: 2.25rem;
-    }
-
-    .no-sound {
-        margin-top: 0.5rem;
     }
 
     button {
@@ -347,5 +372,14 @@
         background-color: var(--theme-error);
         color: var(--theme-on-error);
         filter: none;
+    }
+
+    @media (max-width: 560px) {
+        .main {
+            padding: 0.75rem;
+        }
+        .panel {
+            padding: 1rem;
+        }
     }
 </style>

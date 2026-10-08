@@ -6,7 +6,7 @@
     import { onMount, tick } from "svelte";
     import { AudioDim } from "$lib/audio/client/AudioDim.svelte";
     import { DEFAULT_DIM_AMOUNT_DB, MAX_DIM_AMOUNT_DB, MIN_DIM_AMOUNT_DB } from "$lib/audio/common/model/audioDimModel";
-    import { CLOCK_SFX_SLOT_LABELS, CLOCK_SFX_SLOTS, type ClockSfxPreset } from "$lib/audio/common/clockSfxPreset";
+    import { CLOCK_SFX_SLOT_LABELS, CLOCK_SFX_SLOT_TIMES_OF_DAY, CLOCK_SFX_SLOTS, type ClockSfxPreset } from "$lib/audio/common/clockSfxPreset";
     import { goto, invalidateAll } from "$app/navigation";
     import { getAcceptedExtensionsForResourceType, type Resource } from "$lib/resources/common/types";
     import { prettifyResourceName, resourceNameSlug } from "$lib/resources/common/util";
@@ -304,14 +304,16 @@
     <tbody>
         <tr>
             <th>Name</th>
-            {#each CLOCK_SFX_SLOTS as slot}<th>{CLOCK_SFX_SLOT_LABELS[slot]}</th>{/each}
+            {#each CLOCK_SFX_SLOTS as slot}
+                <th class="slot-heading" title={CLOCK_SFX_SLOT_LABELS[slot]} aria-label={CLOCK_SFX_SLOT_LABELS[slot]}><TimeOfDayIcon timeOfDay={CLOCK_SFX_SLOT_TIMES_OF_DAY[slot]} size={20}/></th>
+            {/each}
             <th></th>
         </tr>
         {#each data.clockSfxPresets as preset (preset.id)}
             <tr>
                 <td>{preset.name}</td>
                 {#each CLOCK_SFX_SLOTS as slot}<td class="has-sound">{preset[slot] ? '✓' : '—'}</td>{/each}
-                <td><a class="edit-link" href="/settings/audio/clocksfx/{preset.id}">Edit</a></td>
+                <td class="row-actions edit-cell"><a class="edit-link" href="/settings/audio/clocksfx/{preset.id}" aria-label="Edit {preset.name}" title="Edit"><PencilIcon size={18}/></a></td>
             </tr>
         {/each}
         <tr>
@@ -342,8 +344,8 @@
         <tr>
             <th></th>
             <th>Name</th>
-            <th>Type</th>
-            <th>Size</th>
+            <th class="asset-meta">Type</th>
+            <th class="asset-meta">Size</th>
             <th></th>
         </tr>
         {#each list.resources as res (res.id)}
@@ -368,7 +370,7 @@
                             }}/>
                     {:else}
                         <div class="asset-name">
-                            <span>{prettifyResourceName(res.name)}</span>
+                            <span>{prettifyResourceName(res.name)}<span class="asset-meta-inline">{containerType(res)} · {formatFileSize(res.size)}</span></span>
                             <button class="edit-button" onclick={(e) => { e.stopPropagation(); list.startEdit(res); }}
                                 aria-label="Rename {prettifyResourceName(res.name)}" title="Rename"><PencilIcon size={16}/></button>
                         </div>
@@ -420,17 +422,17 @@
 </div>
 <p class="description">Albums and playlists shown on the Spotify strip in the mixer. Clicking one starts it playing straight away. In Spotify, use Share &rarr; Copy link and paste it here.<br/>An adaptive playlist has a list for each phase: it plays the one for the current phase, and crossfades to a random track from the next phase's list whenever the games' phase changes. Leave a phase empty to keep playing whatever was on through it; a phase with the same list as the one playing also carries straight on.</p>
 <div class="data-table-scroll">
-<table class="data-table">
+<table class="data-table spotify-table">
     <tbody>
-        <tr>
+        <tr class="spotify-header">
             <th>Name</th>
             <th></th>
             <th>Album / playlist link</th>
             <th></th>
         </tr>
         {#each rows as row, i (row.id)}
-            <tr>
-                <td><input class="name-input" bind:value={row.name} type="text" placeholder="Name"/></td>
+            <tr class="spotify-row">
+                <td class="spotify-name"><input class="name-input" bind:value={row.name} type="text" placeholder="Name"/></td>
                 <td class="phase-icons">
                     {#if row.phase}
                         <div class="phase-stack">
@@ -440,7 +442,7 @@
                         </div>
                     {/if}
                 </td>
-                <td>
+                <td class="spotify-links">
                     {#if row.phase}
                         <div class="phase-stack">
                             {#each TIMES_OF_DAY as t}
@@ -454,9 +456,9 @@
                 <td class="row-actions"><button class="icon-button" onclick={()=>rows.splice(i, 1)} aria-label="Delete preset" title="Delete"><BinIcon size={18}/></button></td>
             </tr>
         {/each}
-        <tr>
+        <tr class="spotify-add-row">
             <td colspan="4">
-                <div style="display: flex; gap: 0.5em;">
+                <div class="add-buttons">
                 <button style="flex: 1;" class="add" onclick={()=>rows.push({ id: newId(), name: '', phase: false, link: '', phaseLinks: emptyPhaseLinks() })}>Add Preset</button>
                 <button style="flex: 1;" class="add" onclick={()=>rows.push({ id: newId(), name: '', phase: true, link: '', phaseLinks: emptyPhaseLinks() })}>Add Adaptive Playlist</button>
                 </div>
@@ -486,11 +488,12 @@
     .phase-stack {
         display: flex;
         flex-direction: column;
-        gap: 0.3em;
+        gap: 0.3rem;
     }
 
+    /* rem, not em: inputs have the browser's smaller default font size, so an em height would differ from the icons' */
     .phase-stack > * {
-        height: 2em;
+        height: 2rem;
         box-sizing: border-box;
     }
 
@@ -547,8 +550,26 @@
         opacity: 0.8;
     }
 
+    /* Phones only: the type and size, under the name in place of their own columns. */
+    .asset-meta-inline {
+        display: none;
+        font-size: 0.85em;
+        font-variant-numeric: tabular-nums;
+        opacity: 0.7;
+    }
+
+    .asset-name > span {
+        overflow-wrap: anywhere;
+    }
+
     .asset-row {
         cursor: pointer;
+    }
+
+    .add-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5em;
     }
 
     tr.asset-row.selected td {
@@ -628,13 +649,28 @@
         text-align: center;
     }
 
+    /* The icon columns, and the edit button's, shrink to their content so the name column takes the rest of the width. */
+    th.slot-heading, td.has-sound, td.edit-cell {
+        width: 1px;
+        padding-left: 0.3em;
+        padding-right: 0.3em;
+    }
+
+    th.slot-heading {
+        line-height: 0; /* Hug the icon */
+        vertical-align: middle;
+    }
+
     a.edit-link {
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        vertical-align: middle;
         background-color: var(--theme-bg-tertiary);
         color: var(--theme-on-bg-tertiary);
         border: 1px solid var(--theme-slider-trim);
         border-radius: 4px;
-        padding: 0.3em 0.8em;
+        padding: 0.3em;
         text-decoration: none;
     }
 
@@ -658,12 +694,14 @@
         display: flex;
         flex-direction: column;
         gap: 1.5rem;
+        width: 100%;
     }
 
     .option {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
-        gap: 1em;
+        gap: 0.5em 1em;
     }
 
     .option-name {
@@ -671,8 +709,8 @@
     }
 
     .dim-slider {
-        width: 16em;
-        max-width: 100%;
+        flex: 0 1 16em;
+        min-width: 8em;
         padding: 0;
         border: none;
         background: transparent;
@@ -696,9 +734,10 @@
 
     .panel-header {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         justify-content: space-between;
-        gap: 1.5rem;
+        gap: 0.75rem 1.5rem;
     }
 
     .description {
@@ -755,5 +794,73 @@
         background-color: var(--theme-highlight);
         color: var(--theme-on-highlight);
         border-color: var(--theme-highlight);
+    }
+
+    @media (max-width: 560px) {
+        .main {
+            padding: 0.75rem;
+        }
+        .panels {
+            gap: 0.75rem;
+        }
+        .panel {
+            padding: 1rem;
+        }
+        .description {
+            margin-bottom: 1rem;
+        }
+
+        /* Fold the type and size columns into the name cell */
+        .asset-meta {
+            display: none;
+        }
+        .asset-meta-inline {
+            display: block;
+        }
+
+        /* Each Spotify preset becomes a card: the name and delete button on top, then its link(s) full width below */
+        .spotify-table tbody {
+            display: block;
+        }
+        .spotify-header {
+            display: none;
+        }
+        tr.spotify-row {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            grid-template-areas:
+                "name name actions"
+                "icons links links";
+        }
+        tr.spotify-row td {
+            border-top: none;
+        }
+        tr.spotify-row td:first-child {
+            border-top: 1px solid var(--theme-bg-tertiary);
+        }
+        tr.spotify-row td.spotify-name {
+            grid-area: name;
+        }
+        tr.spotify-row td.row-actions {
+            grid-area: actions;
+            border-top: 1px solid var(--theme-bg-tertiary);
+        }
+        tr.spotify-row td.phase-icons {
+            grid-area: icons;
+            width: auto;
+            padding-left: 0.3em;
+        }
+        tr.spotify-row td.spotify-links {
+            grid-area: links;
+        }
+        tr.spotify-add-row {
+            display: block;
+        }
+        tr.spotify-add-row td {
+            display: block;
+        }
+        input.name-input, input.link-input {
+            min-width: 0;
+        }
     }
 </style>

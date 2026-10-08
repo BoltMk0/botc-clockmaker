@@ -1,14 +1,24 @@
+import type { TimeOfDay } from "$lib/model/client/types";
+
 /**
  * `start`: the start of the day (when a game goes from night to day). `final`: the end of the day (the timer running
  * out, or the bell rung by hand). `reminder`: the warning ahead of the end of the day.
  */
 export type ClockSfxSlot = 'start' | 'final' | 'reminder';
-export const CLOCK_SFX_SLOTS: readonly ClockSfxSlot[] = ['start', 'final', 'reminder'] as const;
+/** In the order they play through a day, which is the order they're listed in. */
+export const CLOCK_SFX_SLOTS: readonly ClockSfxSlot[] = ['start', 'reminder', 'final'] as const;
 
 export const CLOCK_SFX_SLOT_LABELS: Record<ClockSfxSlot, string> = {
     start: 'Start of Day',
     final: 'End of Day',
     reminder: 'Reminder Bell'
+};
+
+/** The phase whose icon marks each slot: the day starting, drawing to a close, and over. */
+export const CLOCK_SFX_SLOT_TIMES_OF_DAY: Record<ClockSfxSlot, TimeOfDay> = {
+    start: 'day',
+    reminder: 'dusk',
+    final: 'night'
 };
 
 export function isClockSfxSlot(value: any): value is ClockSfxSlot {
