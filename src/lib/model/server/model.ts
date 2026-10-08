@@ -114,6 +114,7 @@ class ClockInstanceManager extends EventEmitter {
         console.log(`Freeing BOTCTClock instance with id: ${id}`);
         const instance = this.getInstance(id);
         if (instance) {
+            instance.close();
             this.emit('instanceFreed', id);
         }
         CLOCK_CONFIG_MANAGER.delete(id);

@@ -74,7 +74,7 @@ export class Clocktower extends EventEmitter<ClocktowerEvents> {
         this.#model = $state(model);
         this.running = $derived(this.#model.clock.time.serverStartTime !== null); 
         this.secondsRemaining = $derived(Math.max(0, this.#model.clock.time.duration - this.progress * this.#model.clock.time.duration));
-        this.timeOfDay = $derived<TimeOfDay>(this.#model.clock.time.duration === 0 || this.progress === 1 ? 'night' : 'day');
+        this.timeOfDay = $derived(this.#model.clock.timeOfDay);
         this.#serverDeltaTimeManager = new ServerDeltaTimeManager();
         this.#sseConnection = new SSEClient(`/events/clock/${this.id}`, (msg)=>{
             if(msg.type !== 'sync') console.log(msg);
@@ -140,6 +140,8 @@ export class Clocktower extends EventEmitter<ClocktowerEvents> {
             if(remaining <= 0) {
                 // If over 2 seconds late, assume clock was reset and don't ring bell
                 if(remaining > -2) {
+                    // The server turns it to night too; don't wait on its update to show it
+                    this.#model.clock.timeOfDay = 'night';
                     this.#audioTrack?.ringFinalBell();
                     this.emit('bellRing');
                 }

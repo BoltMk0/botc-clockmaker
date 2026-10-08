@@ -7,7 +7,7 @@ import { listResources, getResourceData } from "./resources";
 
 /**
  * Upgrades, in place, a saved model from before clock SFX presets (when each clock picked its own bells via
- * config.resourceMapping) so it validates. The upgraded model is written back on the clock's next autosave.
+ * config.resourceMapping), or from before the day/night phase was stored, so it validates. The upgraded model is written back on the clock's next autosave.
  */
 function migrateLegacyModel(data: any) {
     if(typeof data !== 'object' || data === null) return;
@@ -24,6 +24,14 @@ function migrateLegacyModel(data: any) {
     if(typeof audio === 'object' && audio !== null && audio.sfx === undefined){
         audio.sfx = { ...NO_CLOCK_SFX }; // Filled in from the preset when the clock is loaded
         delete audio.resources;
+    }
+    const clock = data.clock;
+    if(typeof clock === 'object' && clock !== null && clock.timeOfDay === undefined){
+        // From before the phase was stored: it was night once the timer had run out (or been ended)
+        const time = clock.time;
+        const ended = time?.duration === 0 ||
+            (typeof time?.serverStartTime === 'number' && Date.now() - time.serverStartTime >= time.duration * 1000);
+        clock.timeOfDay = ended ? 'night' : 'day';
     }
 }
 

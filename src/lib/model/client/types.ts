@@ -1,7 +1,8 @@
-export type TimeOfDay = 'day' | 'night';
+/** Every phase of the day, in the order they're shown. */
+export const TIMES_OF_DAY = ['day', 'night'] as const;
+
+export type TimeOfDay = typeof TIMES_OF_DAY[number];
 
 export function isTimeOfDay(value: any): value is TimeOfDay {
-    if(typeof value !== 'string') return false;
-    if(['day', 'night'].includes(value)) return false;
-    return true;
+    return TIMES_OF_DAY.includes(value);
 }

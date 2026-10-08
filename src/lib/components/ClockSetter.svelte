@@ -9,6 +9,9 @@
     import bell_slash from '$lib/assets/bell.slash.png';
     import type { Clocktower } from "$lib/model/client/Clocktower.svelte";
     import { type TimerOption } from "$lib/common/timerOption";
+    import { TIMES_OF_DAY, type TimeOfDay } from "$lib/model/client/types";
+    import DayIcon from "$lib/assets/dayIcon.svelte";
+    import NightIcon from "$lib/assets/nightIcon.svelte";
 
 
     let {
@@ -20,6 +23,11 @@
         timerOptions: TimerOption[];
         onstart?: () => void;
     } = $props();
+
+    const TIME_OF_DAY_LABELS: Record<TimeOfDay, string> = { day: 'Day', night: 'Night' };
+
+    // Counting down, as opposed to paused, or run out (left "running" until the next setup)
+    const counting = $derived(model.running && model.progress < 1);
 
     function onStop(){
         fetch(`/api/clock/${model.id}/stop`, {
@@ -96,6 +104,22 @@
         });
     }
 
+    function setTimeOfDay(timeOfDay: TimeOfDay){
+        fetch(`/api/clock/${model.id}/timeOfDay`, {
+            method: 'POST',
+            body: JSON.stringify({timeOfDay}),
+            headers: {'Content-Type': 'application/json'}
+        }).then(response => {
+            if (!response.ok) {
+                alert("Failed to set time of day");
+                throw new Error('Failed to set time of day');
+            }
+            console.log("Time of day set to", timeOfDay);
+        }).catch(error => {
+            console.error("Error setting time of day:", error);
+        });
+    }
+
     function setPlayers(players: number){
         fetch(`/api/clock/${model.id}/playerCount`, {
             method: 'POST',
@@ -117,6 +141,15 @@
     <div class="sections-wrap">
         <div class="setter-section">
             <div class="time-remaining-display">{formatTime(model.secondsRemaining)}</div>
+
+            <div class="time-of-day-row" style="grid-template-columns: repeat({TIMES_OF_DAY.length}, 1fr);">
+                {#each TIMES_OF_DAY as timeOfDay}
+                    <button class="button-container-button time-of-day-btn" class:active={model.timeOfDay === timeOfDay} onclick={() => setTimeOfDay(timeOfDay)}>
+                        {#if timeOfDay === 'day'}<DayIcon size={18}/>{:else}<NightIcon size={18}/>{/if}
+                        {TIME_OF_DAY_LABELS[timeOfDay]}
+                    </button>
+                {/each}
+            </div>
 
             <div class="day-player-row">
                 <div class="button-container-button" style="padding: 5px;">
@@ -143,7 +176,7 @@
 
             <div class="button-container">
                 {#each timerOptions as option, index}
-                    <button class="button-container-button timer-option" class:active={option.duration === model.duration} onclick={() => setupClock(option)} disabled={model.running && model.timeOfDay === 'day'} style="grid-column: span {(index === timerOptions.length - 1 && timerOptions.length%2 === 1) ? 2 : 1};">
+                    <button class="button-container-button timer-option" class:active={option.duration === model.duration} onclick={() => setupClock(option)} disabled={counting} style="grid-column: span {(index === timerOptions.length - 1 && timerOptions.length%2 === 1) ? 2 : 1};">
                         <div>
                             <div class="timer-icons" style="font-size: {option.label ? '0.8em' : '1em'};">
                                 <div>
@@ -170,7 +203,7 @@
                 <a class="button-style" id="edit-button" href="/settings/timerOptions">
                     <img class="button-icon-img" src="{gearshape}" alt="Config"/>
                 </a>
-                <button class="button-container-button stop-btn" onclick={onStop} disabled={model.timeOfDay === 'night'} title={model.running ? 'Pause the timer' : 'End the day'}>Stop</button>
+                <button class="button-container-button stop-btn" onclick={onStop} disabled={!counting && model.timeOfDay === 'night'} title={counting ? 'Pause the timer' : 'End the day'}>Stop</button>
                 <button class="button-container-button start-btn" onclick={onStart} disabled={model.running}>Start</button>
                 <button class="button-container-button ring-bell-btn" onclick={onBell}>
                     <img class="button-icon-img" src="{bell_and_waves}" alt="Ring Bell"/>
@@ -224,6 +257,23 @@
         font-size: 2.5em;
         text-align: center;
         padding: 10px;
+    }
+
+    .time-of-day-row {
+        display: grid;
+        gap: 5px;
+    }
+
+    .time-of-day-btn {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.4em;
+        padding: 10px;
+    }
+
+    .time-of-day-btn.active {
+        background-color: #2c6e9b;
     }
 
     .day-player-row {

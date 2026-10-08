@@ -29,7 +29,8 @@
     let showInstructionText: boolean = $state(false);
     let instructionText: string = $state("");
 
-    let progress = $derived(model.progress)
+    // The displays draw night at progress 1, so they follow the phase - which can be set by hand - rather than the timer alone
+    let progress = $derived(model.timeOfDay === 'night' ? 1 : Math.min(model.progress, 0.99))
 
     let instructionTimeout: NodeJS.Timeout | undefined = undefined;
     let otherClockNotificationTimeout: NodeJS.Timeout | undefined = undefined;

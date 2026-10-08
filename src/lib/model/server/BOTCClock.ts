@@ -18,10 +18,30 @@ export class BOTCTClock extends EventEmitter {
 
     #emissionTimeouts: Map<string|symbol, ReturnType<typeof setTimeout>> = new Map();
 
+    /** Fires when the running timer runs out, to turn the day to night. */
+    #expiryTimeout: ReturnType<typeof setTimeout>|null = null;
+
     constructor(model: ClocktowerModel){
         super();
         this.#model = model;
         this.#resolveSfx();
+        this.#scheduleExpiry();
+    }
+
+    /** (Re)arms the timer that turns the day to night when the clock runs out. */
+    #scheduleExpiry(){
+        if(this.#expiryTimeout !== null){
+            clearTimeout(this.#expiryTimeout);
+            this.#expiryTimeout = null;
+        }
+        const startTime = this.#model.clock.time.serverStartTime;
+        if(startTime === null) return;
+        const remainingMs = startTime + this.#model.clock.time.duration * 1000 - Date.now();
+        // Already run out (e.g. while the server was down): night falls straight away
+        this.#expiryTimeout = setTimeout(()=>{
+            this.#expiryTimeout = null;
+            this.timeOfDay = 'night';
+        }, Math.max(0, remainingMs));
     }
 
     /** Fills in audio.sfx from the clock's preset. Returns whether anything changed. */
@@ -61,13 +81,13 @@ export class BOTCTClock extends EventEmitter {
 
     get id() { return this.#model.clock.clockId; }
 
-    get timeOfDay(): TimeOfDay {
-        if(this.#model.clock.time.duration === 0) return 'night';
-        if(this.#model.clock.time.serverStartTime === null) return 'day';
-        // serverStartTime is in ms, duration in seconds
-        const elapsedSeconds = (Date.now() - this.#model.clock.time.serverStartTime) / 1000;
-        if(elapsedSeconds >= this.#model.clock.time.duration) return 'night';
-        return 'day';
+    get timeOfDay(): TimeOfDay { return this.#model.clock.timeOfDay; }
+
+    set timeOfDay(timeOfDay: TimeOfDay){
+        if(this.#model.clock.timeOfDay === timeOfDay) return;
+        this.#model.clock.timeOfDay = timeOfDay;
+        this.scheduleSave();
+        this.debouncedEmit('modelUpdated', this.#model);
     }
 
     get running(){
@@ -100,21 +120,30 @@ export class BOTCTClock extends EventEmitter {
         if(this.running) this.stop();
         this.duration = timerOption.duration;
         this.ringBellWhen = timerOption.ringBellWhenRemaining ?? undefined;
+        this.timeOfDay = 'day';
     }
 
     start() {
         if (this.running) return;
         this.#model.clock.time.serverStartTime = Date.now();
+        this.#scheduleExpiry();
+        this.timeOfDay = 'day';
         this.emit('modelUpdated', this.#model);
     }
 
     stop() {
-        if(!this.running) {
-            // Stopping an already stopped clock ends the day, running out the remaining time.
+        if(!this.running || this.#expiryTimeout === null) {
+            // Stopping an already stopped (or run out) clock ends the day, running out the remaining time.
+            if(this.running){
+                this.#model.clock.time.serverStartTime = null;
+                this.emit('modelUpdated', this.#model);
+            }
             if(this.duration !== 0) this.duration = 0;
+            this.timeOfDay = 'night';
             return;
         }
         this.#model.clock.time.serverStartTime = null;
+        this.#scheduleExpiry();
         this.emit('modelUpdated', this.#model);
     }
 
@@ -189,6 +218,14 @@ export class BOTCTClock extends EventEmitter {
 
     save(){
         this.scheduleSave();
+    }
+
+    /** Stops pending timers, so a freed clock doesn't fire (or save itself back) later. */
+    close(){
+        if(this.#expiryTimeout !== null) clearTimeout(this.#expiryTimeout);
+        if(this.configSaveTimeout !== null) clearTimeout(this.configSaveTimeout);
+        this.#expiryTimeout = null;
+        this.configSaveTimeout = null;
     }
 
     get info(): ClockInstanceInfo{
