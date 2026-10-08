@@ -93,7 +93,8 @@
         background: var(--theme-slider-trim);
     }
 
-    /* Per-phase master trims, laid out like the day/dusk/night toggles on the ambience strips. */
+    /* Per-phase master trims, laid out like the day/dusk/night toggles on the ambience strips. The MASTER strip is
+       widened (to 100px, from the usual 85px) so each column fits its knob and a "+12.0" readout. */
     .time-of-day-trims {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -211,7 +212,7 @@
                     {/each}
                 </div>
             {/snippet}
-            <ChannelStrip audioTrack={audioEngine} title="MASTER" fxSnippet={timeOfDayTrims} style="--theme-slider-accent: #DCC"/>
+            <ChannelStrip audioTrack={audioEngine} title="MASTER" fxSnippet={timeOfDayTrims} style="--theme-slider-accent: #DCC; width: 100px;"/>
             </div>
         </div>
         <!-- Clocks (player bells) and the sting engine get their own mixer, with its own independent master
