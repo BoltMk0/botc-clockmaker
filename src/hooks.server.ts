@@ -1,7 +1,7 @@
 import { redirect, type Handle } from "@sveltejs/kit";
 import { isValidSessionToken, SESSION_COOKIE } from "$lib/auth/server/auth";
 
-const PUBLIC_PREFIXES = ['/feedback', '/login', '/_app/'];
+const PUBLIC_PREFIXES = ['/feedback', '/login', '/script', '/_app/'];
 const PUBLIC_PATHS = ['/favicon.ico', '/favicon.png', '/robots.txt'];
 
 function isPublic(pathname: string): boolean {
@@ -9,10 +9,17 @@ function isPublic(pathname: string): boolean {
         PUBLIC_PREFIXES.some(p => pathname === p.replace(/\/$/, '') || pathname.startsWith(p.endsWith('/') ? p : p + '/'));
 }
 
+// Character images can be viewed without logging in, for the public script viewer (/script/[id]).
+const PUBLIC_CHARACTER_IMAGE = /^\/api\/characters\/[^/]+\/img$/;
+
+function isPublicRead(method: string, pathname: string): boolean {
+    return (method === 'GET' || method === 'HEAD') && PUBLIC_CHARACTER_IMAGE.test(pathname);
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
     const { pathname, search } = event.url;
 
-    if (isPublic(pathname) || isValidSessionToken(event.cookies.get(SESSION_COOKIE))) {
+    if (isPublic(pathname) || isPublicRead(event.request.method, pathname) || isValidSessionToken(event.cookies.get(SESSION_COOKIE))) {
         return resolve(event);
     }
 

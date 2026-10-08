@@ -13,6 +13,7 @@
     import type { Clocktower } from "$lib/model/client/Clocktower.svelte";
     import type { TimerOption } from "$lib/common/timerOption";
     import ClockSetter from "./ClockSetter.svelte";
+    import { QR_POSITIONS, QR_POSITION_LABELS } from "$lib/resources/common/qrCodes";
 
     // In the town square the menu has no page links: a back button to /play, the clock timer controls (when given a clock),
     // the audio mixer and the display settings.
@@ -150,6 +151,12 @@
         border-radius: 8px;
     }
 
+    .qr-settings-pane {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
     .qr-overlay {
         position: fixed;
         inset: 0;
@@ -278,14 +285,39 @@
                     <input name="autosize" type="checkbox" bind:checked={appSettings.showClockNames}/>
                 </div>
             </div>
+        </div>
+        <div class="navbar-settings-pane qr-settings-pane">
+            <div style="font-size: smaller; text-align: center;">QR Codes</div>
             <div style="display: flex; justify-content: space-between;">
-                <div style="font-size: smaller; text-align: center;">Show Feedback QR</div>
+                <div style="font-size: smaller; text-align: center;">Show Custom QR</div>
                 <div style="display: flex; gap: 0.5em; align-items: center; font-size: 18px;">
                     <input name="autosize" type="checkbox" bind:checked={appSettings.showQRCodes}/>
                 </div>
             </div>
-        </div>
-        <div class="navbar-settings-pane">
+            {#if townSquare}
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: smaller; text-align: center;">Script QR</div>
+                <select bind:value={appSettings.scriptQrPosition} aria-label="Script QR position">
+                    <option value={null}>Off</option>
+                    {#each QR_POSITIONS as position}
+                        <option value={position}>{QR_POSITION_LABELS[position]}</option>
+                    {/each}
+                </select>
+            </div>
+            {/if}
+            <div style="display: flex; justify-content: space-between;">
+                <div style="font-size: smaller; text-align: center;">QR Size</div>
+                <div style="display: flex; gap: 0.5em; align-items: center; font-size: 18px;">
+                    <div>Auto</div>
+                    <input name="qrautosize" type="checkbox" bind:checked={appSettings.qrAutoSize}/>
+                </div>
+            </div>
+            {#if !appSettings.qrAutoSize}
+            <div style="display: grid; grid-template-columns: 1fr 3.5em; gap: 10px; align-items: center;">
+                <HSlider bind:value={appSettings.qrScale} min={0.5} max={2} step={0.05}/>
+                <div style="text-align: right;">{Math.round(appSettings.qrScale * 100)}%</div>
+            </div>
+            {/if}
             <button class="button-style" style="width: 100%; font-size: large; padding: 0.5em 1em;" onclick={() => { showQRPopup = true; visible = false;}}>
                 Share QR Code
             </button>

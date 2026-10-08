@@ -19,10 +19,13 @@
     let {
         qrCodes,
         visibleHeight,
+        scale = 1,
         z = 0.25
     }: {
         qrCodes: QrCode[];
         visibleHeight: number;
+        /** Multiplies the codes' default width. */
+        scale?: number;
         z?: number;
     } = $props();
 
@@ -33,7 +36,7 @@
     const halfHeight = $derived(visibleHeight / 2);
 
     const margin = $derived(visibleHeight * MARGIN_FRACTION);
-    const codeWidth = $derived(visibleHeight * CODE_WIDTH_FRACTION);
+    const codeWidth = $derived(visibleHeight * CODE_WIDTH_FRACTION * scale);
     const verticalGap = $derived(visibleHeight * VERTICAL_GAP_FRACTION);
     const horizontalGap = $derived(visibleHeight * HORIZONTAL_GAP_FRACTION);
 

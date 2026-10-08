@@ -1,5 +1,6 @@
 import { browser } from "$app/environment";
 import type { FullDisplayMode } from "$lib/components/FullDisplay/fullDisplayTypes";
+import { isQrPosition, type QrPosition } from "$lib/resources/common/qrCodes";
 
 const STORAGE_KEY = "appSettings";
 
@@ -9,6 +10,12 @@ interface AppSettingsState {
     size: number;
     showClockNames: boolean;
     showQRCodes: boolean;
+    /** Where the town square shows a QR code for the game's script; null hides it. */
+    scriptQrPosition: QrPosition | null;
+    /** When on, QR codes use their default size and qrScale is ignored. */
+    qrAutoSize: boolean;
+    /** Multiplies the default QR code size, when qrAutoSize is off. */
+    qrScale: number;
 }
 
 const DEFAULT_STATE: AppSettingsState = {
@@ -16,7 +23,10 @@ const DEFAULT_STATE: AppSettingsState = {
     autoSize: true,
     size: 600,
     showClockNames: true,
-    showQRCodes: false
+    showQRCodes: false,
+    scriptQrPosition: null,
+    qrAutoSize: true,
+    qrScale: 1
 };
 
 
@@ -41,6 +51,14 @@ class AppSettingsModel {
     size: number = $state(DEFAULT_STATE.size);
     showClockNames: boolean = $state(DEFAULT_STATE.showClockNames);
     showQRCodes: boolean = $state(DEFAULT_STATE.showQRCodes);
+    scriptQrPosition: QrPosition | null = $state(DEFAULT_STATE.scriptQrPosition);
+    qrAutoSize: boolean = $state(DEFAULT_STATE.qrAutoSize);
+    qrScale: number = $state(DEFAULT_STATE.qrScale);
+
+    /** How much to scale QR codes by, relative to their default size. */
+    get qrSizeScale(): number {
+        return this.qrAutoSize ? 1 : this.qrScale;
+    }
 
     private saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -57,7 +75,10 @@ class AppSettingsModel {
                         autoSize: this.autoSize,
                         size: this.size,
                         showClockNames: this.showClockNames,
-                        showQRCodes: this.showQRCodes
+                        showQRCodes: this.showQRCodes,
+                        scriptQrPosition: this.scriptQrPosition,
+                        qrAutoSize: this.qrAutoSize,
+                        qrScale: this.qrScale
                     };
                     this.saveState(state);
                 });
@@ -110,6 +131,11 @@ class AppSettingsModel {
             this.size = parsedValue.size ?? this.size;
             this.showClockNames = parsedValue.showClockNames ?? this.showClockNames;
             this.showQRCodes = parsedValue.showQRCodes ?? this.showQRCodes;
+            if (parsedValue.scriptQrPosition === null || isQrPosition(parsedValue.scriptQrPosition)) {
+                this.scriptQrPosition = parsedValue.scriptQrPosition;
+            }
+            this.qrAutoSize = parsedValue.qrAutoSize ?? this.qrAutoSize;
+            this.qrScale = parsedValue.qrScale ?? this.qrScale;
         } catch(e) {
             console.error("Failed to parse stored app settings", e);
         }

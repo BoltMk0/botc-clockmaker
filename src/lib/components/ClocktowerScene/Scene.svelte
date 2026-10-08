@@ -40,7 +40,8 @@
         hasGrim = false,
         grimoireState = null,
         script = null,
-        qrCodes = []
+        qrCodes = [],
+        qrScale = 1
     }: {
         progress: number;
         totalTime: number;
@@ -64,6 +65,8 @@
         grimoireState?: GrimoireStateHistory | null;
         script?: ScriptWithCharacters | null;
         qrCodes?: QrCode[];
+        /** Multiplies the QR codes' default size. */
+        qrScale?: number;
     } = $props();
 
     const counts = $derived(getPlayerCount(playerCount));
@@ -145,6 +148,7 @@
     {grimoireState}
     {script}
     {qrCodes}
+    {qrScale}
 />
 <Tower {imageUrl} {normalMapUrl} {origin} planeHeight={towerPlaneHeight} horizontalOffset={scaledHorizontalOffset} {verticalOffset} />
 <ClockFace
@@ -179,5 +183,5 @@
          (see PlayerSeats.svelte, z~0.3) - so a seated token drawn over a
          corner occludes the code there instead of it always winning like
          the DOM overlay it replaces in this display mode. -->
-    <SceneQrCodes {qrCodes} {visibleHeight} z={0.25} />
+    <SceneQrCodes {qrCodes} {visibleHeight} scale={qrScale} z={0.25} />
 {/if}

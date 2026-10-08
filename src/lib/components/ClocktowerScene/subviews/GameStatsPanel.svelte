@@ -160,7 +160,8 @@
         hasGrim = false,
         grimoireState = null,
         script = null,
-        qrCodes = []
+        qrCodes = [],
+        qrScale = 1
     }: {
         day: number;
         // Day progress 0..1 and the day's total length in seconds - together
@@ -177,6 +178,7 @@
         // Used only to nudge the loric/fabled list in from the right edge
         // when a QR code is anchored near it (see `sideRolesRightMargin`).
         qrCodes?: QrCode[];
+        qrScale?: number;
     } = $props();
 
     // Whether at least one player is actually seated on the board (as
@@ -234,7 +236,7 @@
     );
     const sideRolesRightMargin = $derived(
         visibleHeight * SIDE_ROLES_MARGIN_FRACTION +
-        (hasRightQrCodes ? visibleHeight * (QR_CODE_WIDTH_FRACTION + QR_CODE_MARGIN_FRACTION) : 0)
+        (hasRightQrCodes ? visibleHeight * (QR_CODE_WIDTH_FRACTION * qrScale + QR_CODE_MARGIN_FRACTION) : 0)
     );
 
     // Time remaining as M:SS (clamped at 0).

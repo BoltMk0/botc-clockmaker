@@ -10,7 +10,7 @@
     import SiteQRCode from '$lib/components/SiteQRCode.svelte';
     import { appSettings } from '$lib/model/client/appSettings.svelte.js';
     import type { QrCode } from '$lib/resources/server/qrCodes';
-    import { QR_POSITIONS } from '$lib/resources/common/qrCodes';
+    import { QR_POSITIONS, scriptQrCode } from '$lib/resources/common/qrCodes';
 
     let { data }: { data: PageData } = $props();
 
@@ -18,6 +18,41 @@
     let audioEngine: AudioEngine|null = $state(null);
     let spotify: SpotifyPlayer|null = $state(null);
     let qrCodes: QrCode[] = $state([]);
+    // The game's script, for the script QR. Starts from the page load and is polled while the QR is shown here,
+    // so it follows the grimoire being set up or ended. The 3D display polls the grim itself (see ClocktowerScene).
+    // svelte-ignore state_referenced_locally
+    let script = $state<{ id: string; name: string } | null>(data.script);
+    const showDomScriptQr = $derived(appSettings.scriptQrPosition !== null && appSettings.displayMode !== 'clocktower3d');
+    $effect(() => {
+        if(!showDomScriptQr) return;
+        let cancelled = false;
+        async function poll() {
+            try {
+                const res = await fetch(`/admin/${data.model.clock.clockId}/grim/state`);
+                if(cancelled) return;
+                const scriptId: string | null = res.ok ? (await res.json()).scriptId ?? null : null;
+                if(scriptId === script?.id || cancelled) return;
+                if(!scriptId) { script = null; return; }
+                const fetched = await fetch(`/api/scripts/${scriptId}`).then(r => r.ok ? r.json() : null);
+                if(!cancelled) script = fetched ? { id: fetched.id, name: fetched.name } : null;
+            } catch {
+                // Ignore transient fetch failures; we'll just try again next tick.
+            }
+        }
+        poll();
+        const interval = setInterval(poll, 5000);
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
+        };
+    });
+
+    // The script QR joins the feedback codes so codes that share a position stack in one panel.
+    const shownQrCodes = $derived([
+        ...(appSettings.showQRCodes ? qrCodes : []),
+        ...(script && appSettings.scriptQrPosition ? [scriptQrCode(script, appSettings.scriptQrPosition)] : []),
+    ]);
+
     onMount(() => {
         if(!browser) return;
         model = new Clocktower(data.model);
@@ -49,13 +84,13 @@
 
 <SideMenu townSquare clock={model} timerOptions={data.timerOptions} {audioEngine} ambienceResources={data.ambienceResources} {spotify} spotifyPresets={data.spotifyPresets}/>
 
-{#if appSettings.showQRCodes && qrCodes.length > 0 && appSettings.displayMode !== 'clocktower3d'}
+{#if shownQrCodes.length > 0 && appSettings.displayMode !== 'clocktower3d'}
 {#each QR_POSITIONS as pos}
-    {@const group = qrCodes.filter(c => c.position === pos)}
+    {@const group = shownQrCodes.filter(c => c.position === pos)}
     {#if group.length > 0}
     <div class="qr-codes-panel {pos}">
         {#each group as code}
-            <SiteQRCode path={code.url} title={code.title}/>
+            <SiteQRCode path={code.url} title={code.title} size={8 * appSettings.qrSizeScale}/>
         {/each}
     </div>
     {/if}

@@ -8,7 +8,7 @@
     import Scene from "./Scene.svelte";
     import { isGrimoireStateHistory, type GrimoireStateHistory } from "$lib/resources/common/grimoireState";
     import type { ScriptWithCharacters } from "$lib/resources/common/gameData";
-    import { isQrCode, type QrCode } from "$lib/resources/common/qrCodes";
+    import { isQrCode, scriptQrCode, type QrCode } from "$lib/resources/common/qrCodes";
     import { appSettings } from "$lib/model/client/appSettings.svelte";
     import clocktowerColor from "$lib/assets/clocktower-scene/clocktower-color.png";
     import clocktowerNormal from "$lib/assets/clocktower-scene/clocktower-normal.png";
@@ -243,7 +243,11 @@
             })
             .catch(() => {});
     });
-    const shownQrCodes = $derived(appSettings.showQRCodes ? qrCodes : []);
+    // The script QR joins the feedback codes so SceneQrCodes stacks any that share a position.
+    const shownQrCodes = $derived([
+        ...(appSettings.showQRCodes ? qrCodes : []),
+        ...(hasGrim && script && appSettings.scriptQrPosition ? [scriptQrCode(script, appSettings.scriptQrPosition)] : []),
+    ]);
 
 </script>
 
@@ -285,6 +289,7 @@
                 {grimoireState}
                 {script}
                 qrCodes={shownQrCodes}
+                qrScale={appSettings.qrSizeScale}
             />
         </Canvas>
         {#if !assetsReady}

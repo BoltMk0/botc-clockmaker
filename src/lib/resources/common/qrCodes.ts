@@ -35,3 +35,8 @@ export function isQrCode(value: unknown): value is QrCode {
         'title' in value && typeof (value as QrCode).title === 'string' &&
         'position' in value && isQrPosition((value as QrCode).position);
 }
+
+/** The town square's script QR: links players to the public viewer for the game's script (/script/[id]). */
+export function scriptQrCode(script: { id: string; name: string }, position: QrPosition): QrCode {
+    return { url: `/script/${encodeURIComponent(script.id)}`, title: script.name, position };
+}

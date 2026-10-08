@@ -12,7 +12,7 @@
     import type { ClockSfxPreset } from '$lib/audio/common/clockSfxPreset';
 
     let { data }: { data: {
-        games: { instance: ClocktowerModel, scriptName: string | null, hasGrim: boolean }[],
+        games: { instance: ClocktowerModel, scriptId: string | null, scriptName: string | null, hasGrim: boolean }[],
         clockSfxPresets: ClockSfxPreset[]
     } } = $props();
 
@@ -136,7 +136,7 @@
     <p class="description">Open a game's town square or grimoire.</p>
 
     <div class="game-list">
-        {#each data.games as { instance, scriptName, hasGrim } (instance.clock.clockId)}
+        {#each data.games as { instance, scriptId, scriptName, hasGrim } (instance.clock.clockId)}
             {@const id = instance.clock.clockId}
             <div class="game-panel">
                 <div class="game-panel-name">
@@ -165,7 +165,16 @@
                 <div class="game-panel-stats">
                     <div class="stat">
                         <div class="stat-label">Script</div>
-                        <div class="stat-value">{scriptName ?? '-'}</div>
+                        <div class="stat-value script-value">
+                            <span>{scriptName ?? '-'}</span>
+                            {#if scriptId}
+                                <a class="view-script" href="/script/{scriptId}?backUrl=/play" aria-label="View script characters" title="View characters">
+                                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                                        <path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>
+                                    </svg>
+                                </a>
+                            {/if}
+                        </div>
                     </div>
                     <div class="stat">
                         <div class="stat-label">Players</div>
@@ -409,6 +418,26 @@
     .stat-value {
         font-size: large;
         word-break: break-word;
+    }
+
+    .script-value {
+        display: flex;
+        align-items: center;
+        gap: 0.3em;
+    }
+
+    .view-script {
+        display: flex;
+        flex: 0 0 auto;
+        padding: 0.2em;
+        border-radius: 6px;
+        color: var(--theme-on-bg);
+        opacity: 0.6;
+    }
+
+    .view-script:hover {
+        opacity: 1;
+        background-color: var(--theme-bg-tertiary);
     }
 
     .game-panel-actions {

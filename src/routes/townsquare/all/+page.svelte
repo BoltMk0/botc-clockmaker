@@ -60,12 +60,12 @@
 {#if appSettings.showQRCodes && qrCodes.length > 0}
 <div class="qr-codes-panel left">
     {#each qrCodes.filter((_, i) => i % 2 === 0) as code}
-        <SiteQRCode path={code.url} title={code.title}/>
+        <SiteQRCode path={code.url} title={code.title} size={8 * appSettings.qrSizeScale}/>
     {/each}
 </div>
 <div class="qr-codes-panel right">
     {#each qrCodes.filter((_, i) => i % 2 === 1) as code}
-        <SiteQRCode path={code.url} title={code.title}/>
+        <SiteQRCode path={code.url} title={code.title} size={8 * appSettings.qrSizeScale}/>
     {/each}
 </div>
 {/if}
