@@ -5,7 +5,7 @@
     import type { PageData } from "./$types";
     let { data }: { data: PageData } = $props();
 
-    const characterMap = new Map<string, ScriptCharacter>(data.characters.map((c: any) => [c.id, c]));
+    const characterMap = $derived(new Map<string, ScriptCharacter>(data.characters.map((c: any) => [c.id, c])));
 
     let searchQuery = $state("");
     // Travellers, Loric & Fabled are hidden by default - most scripts are built from the four core teams

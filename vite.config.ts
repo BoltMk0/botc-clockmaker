@@ -53,6 +53,10 @@ export default defineConfig({
 			}
 		})
 	],
+	build: {
+		// three.js + threlte make one ~800 kB chunk on their own (only loaded by the 3D clocktower scene), which can't usefully be split further
+		chunkSizeWarningLimit: 1000
+	},
 	preview: {
 		allowedHosts: ['*']
 	},

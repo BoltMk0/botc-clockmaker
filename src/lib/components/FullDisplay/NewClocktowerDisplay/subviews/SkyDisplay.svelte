@@ -46,16 +46,6 @@
         height: 100%;
     }
 
-    .dial-sun-container {
-        position: absolute;
-        width: 100%;
-        aspect-ratio: 1;
-        display: flex;
-        align-items: start;
-        justify-content: center;
-        box-sizing:content-box;
-    }
-
     .sky-display-sun-container {
         position: absolute;
         width: 100%;

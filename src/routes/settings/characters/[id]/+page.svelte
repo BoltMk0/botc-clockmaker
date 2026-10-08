@@ -156,34 +156,6 @@
         overflow: hidden;
     }
 
-    .character-list {
-        overflow-y: auto;
-        height: 100%;
-        background-color: var(--theme-bg-secondary);
-        padding: 1em;
-        box-sizing: border-box;
-    }
-
-    li > button {
-        width: 100%;
-        cursor: pointer;
-        padding: 0.2em 0.6em;
-        box-sizing: border-box;
-    }
-
-    li > button.selected {
-        background-color: #555;
-    }
-
-    li {
-        list-style: none;
-    }
-
-    ul {
-        padding: 0;
-        margin: 0;
-    }
-
     .character-list-grid {
         display: grid;
         grid-template-columns: 1fr;

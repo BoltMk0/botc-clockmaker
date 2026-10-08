@@ -183,7 +183,7 @@
 {#if editing}
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <div class="popup-backdrop" onclick={() => editing = null}>
-        <div class="popup" role="dialog" aria-label="Set number of {editing.name}" onclick={(e) => e.stopPropagation()}>
+        <div class="popup" role="dialog" tabindex="-1" aria-label="Set number of {editing.name}" onclick={(e) => e.stopPropagation()}>
             <div class="popup-title">
                 <CharacterThumb character={editing} size="2.8em"/>
                 <strong>{editing.name}</strong>

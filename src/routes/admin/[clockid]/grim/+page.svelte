@@ -584,6 +584,13 @@
         if (character) loadRemindersForCharacter(character.id).then(() => { reminderCache = reminderCache; });
     }
 
+    /** Keyboard equivalent of a click for non-button elements with role="button": Enter or Space activates. */
+    function onActivateKey(e: KeyboardEvent, activate: () => void) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault(); // Space would otherwise scroll
+        activate();
+    }
+
     function closeOverlay() {
         overlayOpen = false;
         overlayCharacter = null;
@@ -2368,7 +2375,11 @@
                                     class="tray-token"
                                     class:dragging={dragging?.character?.id === character.id}
                                     class:in-play={isInPlay(character.id)}
+                                    role="button"
+                                    tabindex="0"
+                                    aria-label={character.name}
                                     onclick={() => openCharacterOverlay(character)}
+                                    onkeydown={(e) => onActivateKey(e, () => openCharacterOverlay(character))}
                                 >
                                     <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} imageSize={TRAY_IMAGE_SIZE} norules/>
                                 </div>
@@ -2409,7 +2420,11 @@
                                     class="tray-token"
                                     class:dragging={dragging?.character?.id === character.id}
                                     class:in-play={isInPlay(character.id)}
+                                    role="button"
+                                    tabindex="0"
+                                    aria-label={character.name}
                                     onclick={() => openCharacterOverlay(character)}
+                                    onkeydown={(e) => onActivateKey(e, () => openCharacterOverlay(character))}
                                 >
                                     <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} imageSize={TRAY_IMAGE_SIZE} norules/>
                                 </div>
@@ -2427,7 +2442,11 @@
                                     class="tray-token"
                                     class:dragging={dragging?.character?.id === character.id}
                                     class:in-play={isInPlay(character.id)}
+                                    role="button"
+                                    tabindex="0"
+                                    aria-label={character.name}
                                     onclick={() => openCharacterOverlay(character)}
+                                    onkeydown={(e) => onActivateKey(e, () => openCharacterOverlay(character))}
                                 >
                                     <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} imageSize={TRAY_IMAGE_SIZE} norules/>
                                 </div>
@@ -2445,7 +2464,11 @@
                                     class="tray-token"
                                     class:dragging={dragging?.character?.id === character.id}
                                     class:in-play={isInPlay(character.id)}
+                                    role="button"
+                                    tabindex="0"
+                                    aria-label={character.name}
                                     onclick={() => openCharacterOverlay(character)}
+                                    onkeydown={(e) => onActivateKey(e, () => openCharacterOverlay(character))}
                                 >
                                     <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} imageSize={TRAY_IMAGE_SIZE} norules/>
                                 </div>
@@ -2463,7 +2486,11 @@
                                     class="tray-token"
                                     class:dragging={dragging?.character?.id === character.id}
                                     class:in-play={isInPlay(character.id)}
+                                    role="button"
+                                    tabindex="0"
+                                    aria-label={character.name}
                                     onclick={() => openCharacterOverlay(character)}
+                                    onkeydown={(e) => onActivateKey(e, () => openCharacterOverlay(character))}
                                 >
                                     <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} imageSize={TRAY_IMAGE_SIZE} norules/>
                                 </div>
