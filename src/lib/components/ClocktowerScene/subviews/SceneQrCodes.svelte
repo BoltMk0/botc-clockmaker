@@ -11,9 +11,8 @@
     // DOM layer on top of everything - see SceneQrCode.svelte.
     const MARGIN_FRACTION = 0.018; // 0.03 - 40%
     const CODE_WIDTH_FRACTION = 0.12;
-    const VERTICAL_GAP_FRACTION = 0.035;
-    // Smaller than the vertical gap - codes stacked side-by-side (the
-    // top/bottom rows) read fine closer together than a stacked column.
+    // Space between cards, edge to edge, in a column and in a row.
+    const VERTICAL_GAP_FRACTION = 0.01;
     const HORIZONTAL_GAP_FRACTION = 0.015;
 
     let {
@@ -40,28 +39,32 @@
     const verticalGap = $derived(visibleHeight * VERTICAL_GAP_FRACTION);
     const horizontalGap = $derived(visibleHeight * HORIZONTAL_GAP_FRACTION);
 
+    // Each card's height/width, as reported once it's drawn: cards grow
+    // taller the more lines their title wraps to, so stacking has to use
+    // their real heights rather than assuming every card is the same.
+    let aspects: Record<string, number> = $state({});
+    const keyOf = (code: QrCode) => code.position + code.url + code.title;
+    const heightOf = (code: QrCode) => codeWidth * (aspects[keyOf(code)] ?? 1);
+
     // "top"/"bottom" stack their group in a horizontal row (centred on the
     // anchor); every other position - the pure "left"/"right" edges and all
     // four corners - stacks its group in a vertical column instead.
     const isRow = (pos: QrPosition) => pos === "top" || pos === "bottom";
-    // The bottom-row/bottom-corner positions align by their bottom edge
-    // rather than being vertically centred like every other position -
-    // their card heights vary with title length (see SceneQrCode's
-    // canvasAspect), so centering would leave their bottoms at uneven
-    // distances from the screen edge.
-    const isBottomAligned = (pos: QrPosition) =>
-        pos === "bottom-left" || pos === "bottom" || pos === "bottom-right";
+    // Which screen edge a position's cards line up against vertically.
     // Corner columns pin to their top/bottom edge and grow inward (toward
-    // screen centre) - mirroring how the horizontal corner rows used to pin
-    // to their left/right edge. Only the pure "left"/"right" columns centre
-    // (DOM: `top: 50%` + translateY(-50%)) - see townsquare/[gameid]/
-    // +page.svelte's qr-codes-panel CSS.
+    // screen centre); only the pure "left"/"right" columns centre (DOM:
+    // `top: 50%` + translateY(-50%)) - see townsquare/[gameid]/
+    // +page.svelte's qr-codes-panel CSS. The top/bottom rows line their
+    // cards up by their top/bottom edges, so cards of different heights
+    // sit at an even distance from the screen edge.
     const verticalEdge = (pos: QrPosition): "top" | "bottom" | "center" => {
         switch (pos) {
             case "top-left":
+            case "top":
             case "top-right":
                 return "top";
             case "bottom-left":
+            case "bottom":
             case "bottom-right":
                 return "bottom";
             default:
@@ -69,71 +72,75 @@
         }
     };
 
-    function anchorFor(pos: QrPosition): { x: number; y: number } {
-        const left = -realHalfWidth + margin + codeWidth / 2;
-        const right = realHalfWidth - margin - codeWidth / 2;
-        const top = halfHeight - margin - codeWidth / 2;
-        // Bottom edge target, not a centre - see isBottomAligned above.
-        const bottom = -halfHeight + margin;
+    function anchorX(pos: QrPosition): number {
         switch (pos) {
-            case "top-left": return { x: left, y: top };
-            case "top": return { x: 0, y: top };
-            case "top-right": return { x: right, y: top };
-            case "left": return { x: left, y: 0 };
-            case "right": return { x: right, y: 0 };
-            case "bottom-left": return { x: left, y: bottom };
-            case "bottom": return { x: 0, y: bottom };
-            case "bottom-right": return { x: right, y: bottom };
+            case "top-left":
+            case "left":
+            case "bottom-left":
+                return -realHalfWidth + margin + codeWidth / 2;
+            case "top-right":
+            case "right":
+            case "bottom-right":
+                return realHalfWidth - margin - codeWidth / 2;
+            default:
+                return 0;
         }
+    }
+
+    // The card's centre y, given the y of the edge it lines up against.
+    function centreFrom(edgeY: number, vEdge: "top" | "bottom" | "center", height: number): number {
+        if (vEdge === "top") return edgeY - height / 2;
+        if (vEdge === "bottom") return edgeY + height / 2;
+        return edgeY;
     }
 
     // One entry per code, stacked along each position group's row (top/
     // bottom groups, left-to-right) or column (left/right groups and all
-    // four corners, top-to-bottom) around that position's anchor point.
+    // four corners, top-to-bottom).
     const placements = $derived.by(() => {
-        const result: { code: QrCode; x: number; y: number; alignBottom: boolean }[] = [];
+        const result: { code: QrCode; x: number; y: number }[] = [];
+        const top = halfHeight - margin;
+        const bottom = -halfHeight + margin;
         for (const pos of QR_POSITIONS) {
             const group = qrCodes.filter((c) => c.position === pos);
             if (group.length === 0) continue;
-            const anchor = anchorFor(pos);
-            const row = isRow(pos);
-            const alignBottom = isBottomAligned(pos);
+            const x = anchorX(pos);
             const vEdge = verticalEdge(pos);
-            const gap = row ? horizontalGap : verticalGap;
-            const stride = codeWidth + gap;
-            const total = group.length * codeWidth + (group.length - 1) * gap;
-            group.forEach((code, i) => {
-                // Centred groups (top/bottom rows, left/right columns)
-                // spread evenly either side of the anchor. Corner columns
-                // instead keep the edge-most code fixed at the anchor and
-                // grow the rest inward, so the column never pushes past
-                // the top/bottom edge.
-                let offset: number;
-                if (vEdge === "top") {
-                    offset = i * stride;
-                } else if (vEdge === "bottom") {
-                    offset = -(group.length - 1 - i) * stride;
-                } else {
-                    offset = -total / 2 + codeWidth / 2 + i * stride;
-                }
-                result.push({
-                    code,
-                    x: anchor.x + (row ? offset : 0),
-                    y: anchor.y + (row ? 0 : -offset),
-                    alignBottom
+            if (isRow(pos)) {
+                // Side by side, centred on the anchor
+                const stride = codeWidth + horizontalGap;
+                const total = group.length * codeWidth + (group.length - 1) * horizontalGap;
+                const edgeY = vEdge === "top" ? top : bottom;
+                group.forEach((code, i) => {
+                    result.push({
+                        code,
+                        x: x - total / 2 + codeWidth / 2 + i * stride,
+                        y: centreFrom(edgeY, vEdge, heightOf(code))
+                    });
                 });
+                continue;
+            }
+            // A column, top to bottom. Corner columns keep the edge-most card
+            // against their edge and grow the rest inward, so the column
+            // never pushes past the top/bottom of the screen.
+            const heights = group.map(heightOf);
+            const total = heights.reduce((a, b) => a + b, 0) + (group.length - 1) * verticalGap;
+            let cursor = vEdge === "top" ? top : vEdge === "bottom" ? bottom + total : total / 2;
+            group.forEach((code, i) => {
+                result.push({ code, x, y: cursor - heights[i] / 2 });
+                cursor -= heights[i] + verticalGap;
             });
         }
         return result;
     });
 </script>
 
-{#each placements as { code, x, y, alignBottom } (code.position + code.url + code.title)}
+{#each placements as { code, x, y } (keyOf(code))}
     <SceneQrCode
         path={code.url}
         title={code.title}
         placement={{ x, y, width: codeWidth }}
         {z}
-        {alignBottom}
+        onaspect={(aspect) => aspects[keyOf(code)] = aspect}
     />
 {/each}

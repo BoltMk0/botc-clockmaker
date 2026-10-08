@@ -37,18 +37,19 @@
         title,
         placement,
         z = 0.05,
-        alignBottom = false
+        onaspect
     }: {
         path: string;
         title: string;
+        /** `y` is the card's vertical centre. */
         placement: { x: number; y: number; width: number };
         z?: number;
-        // When true, `placement.y` is the card's bottom edge rather than its
-        // vertical centre - cards' heights vary with title length, so a
-        // shared bottom edge (see SceneQrCodes.svelte's isBottomAligned)
-        // requires shifting the mesh centre up by half its own height
-        // instead of just placing it at `placement.y`.
-        alignBottom?: boolean;
+        /**
+         * Called with the card's height/width once it's drawn. Cards are
+         * taller the more lines their title wraps to, so SceneQrCodes needs
+         * this to stack them without overlapping.
+         */
+        onaspect?: (aspect: number) => void;
     } = $props();
 
     const url = $derived(new URL(path, page.url.origin).href);
@@ -96,6 +97,7 @@
         // canvas would (QR_SIZE is already inset by PADDING on each side).
         canvas.height = titleHeight + QR_SIZE + PADDING;
         canvasAspect = canvas.height / canvas.width;
+        onaspect?.(canvasAspect);
 
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
@@ -143,11 +145,10 @@
 
     const planeWidth = $derived(placement.width);
     const planeHeight = $derived(planeWidth * canvasAspect);
-    const centerY = $derived(alignBottom ? placement.y + planeHeight / 2 : placement.y);
 </script>
 
 {#if ready}
-    <T.Mesh position={[placement.x, centerY, z]}>
+    <T.Mesh position={[placement.x, placement.y, z]}>
         <T.PlaneGeometry args={[planeWidth, planeHeight]} />
         <T.MeshBasicMaterial map={texture} transparent depthWrite={false} />
     </T.Mesh>
