@@ -1,6 +1,5 @@
 <script lang="ts">
     import { invalidateAll } from '$app/navigation';
-    import TopNavbar from '$lib/components/TopNavbar.svelte';
     import PlusIcon from '$lib/components/PlusIcon.svelte';
     import BookIcon from '$lib/components/BookIcon.svelte';
     import TownSquareIcon from '$lib/components/TownSquareIcon.svelte';
@@ -122,9 +121,14 @@
 
 </script>
 
-<TopNavbar/>
-
 <div class="play">
+  <div class="column">
+  <a class="back-link" href="/" target="_self">
+    <svg width={24} height={24} viewBox="0 0 24 24" style="fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;">
+        <path d="M15 5l-7 7 7 7" />
+    </svg>
+    Back
+  </a>
   <div class="card">
     <header class="card-header">
         <h1>Play</h1>
@@ -213,8 +217,9 @@
         {/if}
 
     </div>
+  </div>
 
-    <section class="tools">
+  <section class="card tools">
         <h2>Tools</h2>
         <div class="extra-links">
             {#if data.games.length > 0}
@@ -222,7 +227,7 @@
             {/if}
             <a class="button-style" href="/admin/mixer">Audio Mixer</a>
         </div>
-    </section>
+  </section>
   </div>
 </div>
 
@@ -241,7 +246,7 @@
         width: 100%;
         height: 100%;
         box-sizing: border-box;
-        padding: 90px 1.5rem 1.5rem;
+        padding: 1rem 1.5rem 1.5rem;
         overflow: auto;
         display: flex;
         justify-content: center;
@@ -249,9 +254,32 @@
         color: var(--theme-on-bg);
     }
 
-    .card {
+    /* Holds the back link and the card, so the link lines up with the card's left edge. */
+    .column {
         width: 100%;
         max-width: 42rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .back-link {
+        align-self: flex-start;
+        display: flex;
+        align-items: center;
+        gap: 0.2em;
+        font-size: large;
+        color: var(--theme-on-bg);
+        text-decoration: none;
+        opacity: 0.8;
+    }
+
+    .back-link:hover {
+        opacity: 1;
+    }
+
+    .card {
+        width: 100%;
         padding: 1.5rem;
         box-sizing: border-box;
         background-color: var(--theme-bg-secondary);
@@ -512,17 +540,9 @@
         opacity: 0.7;
     }
 
-    .tools {
-        margin-top: 1.25rem;
-        padding: 1rem;
-        border: 1px solid var(--theme-bg-tertiary);
-        border-radius: 10px;
-        background-color: var(--theme-bg);
-    }
-
     .tools h2 {
-        margin: 0 0 0.75rem;
-        font-size: 1.05rem;
+        margin: 0 0 1rem;
+        font-size: 1.25rem;
         color: var(--theme-on-bg);
     }
 
