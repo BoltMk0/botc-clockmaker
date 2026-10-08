@@ -41,9 +41,12 @@
 
 <div class="scripts-overview-main">
     <div class="overview-content padded">
-        <div style="display: flex; align-items: center; justify-content: center; gap: 0.6em;">
-            <div style="width: 1.5em; height: 1.5em; border-radius: 50%; background-color: {data.script.hue};"></div>
-            <h2 style="margin: 0; font-size: 2.2rem;">{data.script.name}</h2>
+        <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 0.6em;">
+            <a class="button-style" href="/settings/scripts" style="justify-self: start;">← Back</a>
+            <div style="display: flex; align-items: center; gap: 0.6em;">
+                <div style="width: 1.5em; height: 1.5em; border-radius: 50%; background-color: {data.script.hue};"></div>
+                <h2 style="margin: 0; font-size: 2.2rem;">{data.script.name}</h2>
+            </div>
         </div>
         <div class="panel">
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -51,6 +54,7 @@
                 <div style="display: flex; gap: 0.5em;">
                     <a class="button-style" href="/settings/scripts/{data.script.id}/presets">Presets</a>
                     <a class="button-style" href="/settings/scripts/{data.script.id}/characters">Edit Characters</a>
+                    <a class="button-style" href="/api/scripts/{data.script.id}/export" download>Export</a>
                 </div>
             </div>
             <div class="panel-scroll">

@@ -1,5 +1,10 @@
-import { redirect, type Handle } from "@sveltejs/kit";
+import { redirect, type Handle, type ServerInit } from "@sveltejs/kit";
 import { isValidSessionToken, SESSION_COOKIE } from "$lib/auth/server/auth";
+import { migrateCharacterIds } from "$lib/resources/server/migrateCharacterIds";
+
+export const init: ServerInit = () => {
+    migrateCharacterIds();
+};
 
 const PUBLIC_PREFIXES = ['/feedback', '/login', '/script', '/_app/'];
 const PUBLIC_PATHS = ['/favicon.ico', '/favicon.png', '/robots.txt'];

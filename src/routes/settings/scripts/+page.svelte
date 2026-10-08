@@ -25,6 +25,8 @@
 
     let deleteActionContent: string | undefined = $state();
 
+    let importError: { error: string, problems?: string[] } | null = $state(null);
+
 </script>
 
 
@@ -109,6 +111,20 @@
         font-size: 0.8em;
         opacity: 0.7;
     }
+
+    .import-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.7em;
+        max-width: 32em;
+    }
+    .import-error {
+        color: var(--theme-error);
+    }
+    .import-error ul {
+        margin: 0.3em 0 0;
+        padding-left: 1.2em;
+    }
 </style>
 
 <div style="display: flex; justify-content: center; align-items: flex-start; height: 100%; width: 100%; box-sizing: border-box; padding: 1.5rem; overflow-y: auto;">
@@ -119,6 +135,40 @@
         <h2>Scripts</h2>
         <div style="display: flex; gap: 0.5em;">
         <a class="button-style" href="scripts/scraper">Wiki Scraper</a>
+        <CustomOverlay title="Import Script" buttonTitle="Import">
+            <form class="import-form" action="?/importScript" method="POST" enctype="multipart/form-data" use:enhance={()=>{
+                importError = null;
+                return async ({result}) => {
+                    switch(result.type){
+                        case 'success':
+                            goto(`/settings/scripts/${result.data!.id}`);
+                            break;
+                        case 'failure':
+                            importError = { error: `${result.data?.error || 'Unknown error'}`, problems: result.data?.problems as string[] | undefined };
+                            break;
+                        case 'error':
+                            importError = { error: `${result.error}` };
+                            break;
+                    }
+                }
+            }}>
+                <div>Choose a script JSON file, as made by the official Script Tool. Characters already here are matched by name; any it describes in full that are missing are created.</div>
+                <input type="file" name="file" accept=".json,application/json" required/>
+                {#if importError}
+                    <div class="import-error">
+                        {importError.error}
+                        {#if importError.problems}
+                            <ul>
+                                {#each importError.problems as problem}
+                                    <li>{problem}</li>
+                                {/each}
+                            </ul>
+                        {/if}
+                    </div>
+                {/if}
+                <button class="button-style" type="submit">Import</button>
+            </form>
+        </CustomOverlay>
         <CustomOverlay title="Create New Script" buttonTitle="+">
             <form action="?/createScript" method="POST" use:enhance={()=>{
                 return async ({result}) => {
@@ -179,12 +229,6 @@
                         <div class="script-name">{script.name}</div>
                         <div class="script-subtitle">{script.characters.length} character{script.characters.length === 1 ? '' : 's'}</div>
                     </div>
-                    <button class="button-style" onclick={()=>selectScript(script.id)}>
-                        Edit
-                    </button>
-                    <a class="button-style" href="/settings/scripts/{script.id}/presets" onclick={(e)=>e.stopPropagation()}>
-                        Presets
-                    </a>
                     <div onclick={(e)=>e.stopPropagation()} role="presentation">
                     <CustomOverlay title="Confirm Delete" buttonTitle="Delete">
                         <form action="?/deleteScript" method="POST" use:enhance={()=>{

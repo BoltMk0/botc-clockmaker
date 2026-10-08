@@ -41,6 +41,11 @@ export function slugify(name: string): string {
         .replace(/^-+|-+$/g, "");
 }
 
+/** A character's id, in the form the official script format uses: its name in lowercase letters and digits only ("Fang Gu" -> "fanggu"). */
+export function characterIdFromName(name: string): string {
+    return name.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
 
 /** The stored form of a typed resource name (for audio asset libraries): lowercase, spaces as underscores. */
 export function resourceNameSlug(name: string): string {

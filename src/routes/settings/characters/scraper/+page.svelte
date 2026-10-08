@@ -2,7 +2,7 @@
     import CharacterThumb from "$lib/components/CharacterThumb.svelte";
     import type { Character, CharacterCategory } from "$lib/resources/common/gameData";
     import { ALL_CHARACTER_CATEGORIES } from "$lib/resources/common/gameData";
-    import { slugify } from "$lib/resources/common/util";
+    import { characterIdFromName } from "$lib/resources/common/util";
     import type { CharacterScrapeResult, WikiCharacterListing } from "$lib/scraper/common/types";
     import { writable } from "svelte/store";
 
@@ -24,7 +24,7 @@
     );
 
     function thumbCharacter(category: CharacterCategory, name: string): Character {
-        return { id: slugify(name), name, category, rules: '', player_count: 1, wakes_first_night: false, wakes_other_nights: false, defaultFirstNightOrder: null, defaultOtherNightOrder: null, reminderTokens: [] };
+        return { id: characterIdFromName(name), name, category, rules: '', player_count: 1, wakes_first_night: false, wakes_other_nights: false, defaultFirstNightOrder: null, defaultOtherNightOrder: null, reminderTokens: [] };
     }
 
     let progress = writable(0);

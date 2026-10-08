@@ -83,7 +83,7 @@
 
 <div class="presets-main padded">
     <div class="presets-header">
-        <a class="button-style" href="/settings/scripts">← Back</a>
+        <a class="button-style" href="/settings/scripts/{data.script.id}">← Back</a>
         <div style="display: flex; align-items: center; gap: 0.6em;">
             <div style="width: 1.5em; height: 1.5em; border-radius: 50%; background-color: {data.script.hue};"></div>
             <h2 style="margin: 0; font-size: 2.2rem;">{data.script.name} Presets</h2>

@@ -1,4 +1,5 @@
 import { createScript, deleteScript, listScriptsWithCharacters } from "$lib/resources/server/scripts";
+import { importScriptFromSchema, ScriptImportError } from "$lib/resources/server/scriptImport";
 import { fail } from "@sveltejs/kit";
 
 export async function load() {
@@ -21,6 +22,29 @@ export const actions = {
         } catch (err) {
             console.error(err);
             return fail(400, { success: false, error: 'Failed to create script' });
+        }
+    },
+    importScript: async ({ request }) => {
+        const formData = await request.formData();
+        const file = formData.get('file');
+        if (!(file instanceof File) || file.size === 0) {
+            return fail(400, { success: false, error: 'Choose a script file to import' });
+        }
+        let json: unknown;
+        try {
+            json = JSON.parse(await file.text());
+        } catch {
+            return fail(400, { success: false, error: 'The file is not valid JSON' });
+        }
+        try {
+            const script = importScriptFromSchema(json, file.name.replace(/\.json$/i, ''));
+            return { success: true, id: script.id };
+        } catch (err) {
+            if (err instanceof ScriptImportError) {
+                return fail(400, { success: false, error: 'The script was not imported', problems: err.problems });
+            }
+            console.error(err);
+            return fail(500, { success: false, error: 'Failed to import script' });
         }
     },
     deleteScript: async ({ request }) => {

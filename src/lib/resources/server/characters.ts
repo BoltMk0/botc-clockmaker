@@ -1,6 +1,6 @@
 import { v7 } from "uuid";
 import { JSONMultiResourceManager } from "./jsonResourceManager";
-import { slugify } from "../common/util";
+import { characterIdFromName } from "../common/util";
 import {
     isCharacter,
     type Character,
@@ -20,6 +20,12 @@ export function getCharacterByName(name: string): Character | null {
     return CHARACTERS_MANAGER.values.find(c => c.name === name) ?? null;
 }
 
+// Matches regardless of case, spacing and punctuation, e.g. "Lil' Monsta" and "Lil Monsta".
+export function findCharacterByLooseName(name: string): Character | null {
+    const id = characterIdFromName(name);
+    return CHARACTERS_MANAGER.values.find(c => characterIdFromName(c.name) === id) ?? null;
+}
+
 export function getCharacterById(id: string): Character | null {
     return CHARACTERS_MANAGER.get(id) ?? null;
 }
@@ -29,7 +35,10 @@ export function listCharactersByCategory(category: CharacterCategory): Character
 }
 
 export function addCharacter(character: NewCharacter): Character {
-    const id = slugify(character.name);
+    const id = characterIdFromName(character.name);
+    if (!id) {
+        throw new Error(`A character's name must contain at least one letter or number`);
+    }
     if (CHARACTERS_MANAGER.get(id)) {
         throw new Error(`A character with the name "${character.name}" already exists`);
     }
