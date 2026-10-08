@@ -93,6 +93,8 @@
     }
 
     .channel-strip-group-main {
+        /* Fill the rest of the group's height, so the strips grow with the tallest one in the mixer row (e.g. Spotify) */
+        flex: 1;
         width: fit-content;
         display: flex;
         flex-direction: row;

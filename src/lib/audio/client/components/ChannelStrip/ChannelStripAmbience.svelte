@@ -50,7 +50,8 @@
     </div>
 {/snippet}
 
-<div style="position: relative;">
+<!-- Flex, so the strip stretches to this wrapper's (stretched) height rather than sitting at its natural height -->
+<div style="position: relative; display: flex;">
 
     <ChannelStrip
         audioTrack={track}
