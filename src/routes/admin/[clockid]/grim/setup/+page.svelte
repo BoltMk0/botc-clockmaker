@@ -470,7 +470,7 @@
             <div class="section preset-list">
                 <div class="script-picker-header">
                     <h2 style="margin: 0;">Presets for {builder.playerCount} players</h2>
-                    <a class="button-style" href="/settings/scripts/{builder.script.id}">Manage Presets</a>
+                    <a class="button-style" href="/settings/scripts/{builder.script.id}/presets">Manage Presets</a>
                 </div>
                 {#if loadingPresets}
                     <div style="opacity: 0.6;">Loading…</div>

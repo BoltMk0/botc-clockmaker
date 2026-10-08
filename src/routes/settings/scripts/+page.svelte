@@ -182,6 +182,9 @@
                     <button class="button-style" onclick={()=>selectScript(script.id)}>
                         Edit
                     </button>
+                    <a class="button-style" href="/settings/scripts/{script.id}/presets" onclick={(e)=>e.stopPropagation()}>
+                        Presets
+                    </a>
                     <div onclick={(e)=>e.stopPropagation()} role="presentation">
                     <CustomOverlay title="Confirm Delete" buttonTitle="Delete">
                         <form action="?/deleteScript" method="POST" use:enhance={()=>{

@@ -72,7 +72,7 @@
                 })
             });
             if (!response.ok) throw new Error(`${response.status}`);
-            goto(`/settings/scripts/${initial.script.id}`);
+            goto(`/settings/scripts/${initial.script.id}/presets`);
         } catch (er) {
             alert(`Failed to save preset: ${er}`);
         } finally {
@@ -160,7 +160,7 @@
 {:else}
 <div class="editor-main">
     <div class="editor-header">
-        <a href="/settings/scripts/{initial.script.id}" class="button-style">← Back</a>
+        <a href="/settings/scripts/{initial.script.id}/presets" class="button-style">← Back</a>
         <h1 style="margin: 0; font-size: 1.2em;">Edit preset</h1>
         <span style="opacity: 0.6;">{initial.script.name}</span>
         <div class="editor-steps">
