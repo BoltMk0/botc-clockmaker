@@ -106,7 +106,8 @@
 
     <div class="panel">
         <h2>General</h2>
-        <table>
+        <div class="data-table-scroll">
+        <table class="data-table">
             <tbody>
                 <tr>
                     <td>Preset Name</td>
@@ -114,11 +115,13 @@
                 </tr>
             </tbody>
         </table>
+        </div>
     </div>
 
     <div class="panel">
         <h2>Sound Effects</h2>
-        <table>
+        <div class="data-table-scroll">
+        <table class="data-table">
             <thead>
                 <tr>
                     <th style="width: fit-content;">Event</th>
@@ -164,6 +167,7 @@
                 </tr>
             </tbody>
         </table>
+        </div>
         <p class="hint">Balance, gain and pan apply on top of each game's own mixer channel.</p>
     </div>
 
@@ -215,27 +219,6 @@
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: var(--theme-on-bg-secondary);
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    th {
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--theme-on-bg-secondary);
-        text-align: left;
-        padding: 0 0.5rem 0.5rem;
-    }
-
-    td {
-        padding: 0.6rem 0.5rem;
-        text-align: left;
-        border-top: 1px solid var(--theme-bg-tertiary);
     }
 
     td > div:nth-child(2), .no-sound, .hint {

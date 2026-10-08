@@ -289,8 +289,8 @@
     <h2>Clock SFX</h2>
 </div>
 <p class="description">The final and reminder bell sounds a game's clock rings. Each game picks one of these in its settings; new games use the first.</p>
-<div class="table-container">
-<table>
+<div class="data-table-scroll">
+<table class="data-table">
     <tbody>
         <tr>
             <th>Name</th>
@@ -328,8 +328,8 @@
     </div>
     <AudioPreviewPlayer bind:this={list.player} url={list.previewId ? `/api/resources/${list.previewId}` : null} loop={list.options.loop}/>
 </div>
-<div class="table-container">
-<table>
+<div class="data-table-scroll">
+<table class="data-table">
     <tbody>
         <tr>
             <th></th>
@@ -411,8 +411,8 @@
     <button class="save" disabled={!dirty} onclick={save}>Save changes</button>
 </div>
 <p class="description">Albums and playlists shown on the Spotify strip in the mixer. Clicking one starts it playing straight away. In Spotify, use Share &rarr; Copy link and paste it here.<br/>A day/night preset has a list for each phase: it plays the one for the current phase, and crossfades to a random track from the other whenever the games go from day to night or back.</p>
-<div class="table-container">
-<table>
+<div class="data-table-scroll">
+<table class="data-table">
     <tbody>
         <tr>
             <th>Name</th>
@@ -702,36 +702,6 @@
         margin: 0;
         font-size: 1.5rem;
         color: var(--theme-on-bg);
-    }
-
-    .table-container {
-        padding: 1rem;
-        border: 1px solid var(--theme-bg-tertiary);
-        border-radius: 10px;
-        background-color: var(--theme-bg);
-        overflow-x: auto;
-    }
-
-    table {
-        width: 100%;
-        background-color: var(--theme-bg);
-        color: var(--theme-on-bg);
-        border-collapse: collapse;
-    }
-
-    th {
-        background-color: var(--theme-bg-tertiary);
-        color: var(--theme-on-bg-tertiary);
-        padding: 0.4em 0.6em;
-    }
-
-    td {
-        padding: 0.3em 0.5em;
-        border-top: 1px solid var(--theme-bg-tertiary);
-    }
-
-    tr:nth-child(even) td {
-        background-color: var(--theme-bg-secondary);
     }
 
     input, button {

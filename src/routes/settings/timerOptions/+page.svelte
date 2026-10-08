@@ -52,8 +52,8 @@
     <button class="save" disabled={!dirty} onclick={save}>Save changes</button>
 </div>
 <p class="description">Sets the timer options across all games.</p>
-<div class="table-container">
-<table>
+<div class="data-table-scroll">
+<table class="data-table">
     <tbody>
         <tr>
             <th rowspan="2">Label</th>
@@ -133,36 +133,6 @@
         margin: 0;
         font-size: 1.5rem;
         color: var(--theme-on-bg);
-    }
-
-    .table-container {
-        padding: 1rem;
-        border: 1px solid var(--theme-bg-tertiary);
-        border-radius: 10px;
-        background-color: var(--theme-bg);
-        overflow-x: auto;
-    }
-
-    table {
-        width: 100%;
-        background-color: var(--theme-bg);
-        color: var(--theme-on-bg);
-        border-collapse: collapse;
-    }
-
-    th {
-        background-color: var(--theme-bg-tertiary);
-        color: var(--theme-on-bg-tertiary);
-        padding: 0.4em 0.6em;
-    }
-
-    td {
-        padding: 0.3em 0.5em;
-        border-top: 1px solid var(--theme-bg-tertiary);
-    }
-
-    tr:nth-child(even) td {
-        background-color: var(--theme-bg-secondary);
     }
 
     input, button {

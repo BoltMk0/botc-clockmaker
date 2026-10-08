@@ -83,3 +83,31 @@
     all: unset;
     cursor: pointer;
 }
+/* Settings data tables. Wrap in .data-table-scroll, so wide tables scroll sideways instead of stretching their panel.
+   Neither row colour matches the panels (--theme-bg-secondary) they sit on. */
+.data-table-scroll {
+    overflow-x: auto;
+    border-radius: 8px;
+}
+
+.data-table {
+    width: 100%;
+    color: var(--theme-on-bg);
+    border-collapse: collapse;
+}
+
+.data-table th {
+    background-color: var(--theme-bg-tertiary);
+    color: var(--theme-on-bg-tertiary);
+    padding: 0.4em 0.6em;
+}
+
+.data-table td {
+    padding: 0.3em 0.5em;
+    background-color: var(--theme-bg);
+    border-top: 1px solid var(--theme-bg-tertiary);
+}
+
+.data-table tr:nth-child(even) td {
+    background-color: color-mix(in srgb, var(--theme-bg) 50%, var(--theme-bg-secondary));
+}
