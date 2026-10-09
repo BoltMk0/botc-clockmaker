@@ -4,6 +4,24 @@ import { isQrPosition, type QrPosition } from "$lib/resources/common/qrCodes";
 
 const STORAGE_KEY = "appSettings";
 
+export const NOW_PLAYING_MODES = ['off', 'popup', 'on'] as const;
+export type NowPlayingMode = typeof NOW_PLAYING_MODES[number];
+export const NOW_PLAYING_MODE_LABELS: Record<NowPlayingMode, string> = { off: 'Off', popup: 'Popup', on: 'On' };
+
+export const NOW_PLAYING_POSITIONS = ['top', 'top-right', 'bottom', 'bottom-left', 'bottom-right'] as const;
+export type NowPlayingPosition = typeof NOW_PLAYING_POSITIONS[number];
+export const NOW_PLAYING_POSITION_LABELS: Record<NowPlayingPosition, string> = {
+    top: 'Top', 'top-right': 'Top right', bottom: 'Bottom', 'bottom-left': 'Bottom left', 'bottom-right': 'Bottom right'
+};
+
+function isNowPlayingMode(value: unknown): value is NowPlayingMode {
+    return (NOW_PLAYING_MODES as readonly unknown[]).includes(value);
+}
+
+function isNowPlayingPosition(value: unknown): value is NowPlayingPosition {
+    return (NOW_PLAYING_POSITIONS as readonly unknown[]).includes(value);
+}
+
 interface AppSettingsState {
     displayMode: FullDisplayMode;
     autoSize: boolean;
@@ -16,6 +34,10 @@ interface AppSettingsState {
     qrAutoSize: boolean;
     /** Multiplies the default QR code size, when qrAutoSize is off. */
     qrScale: number;
+    /** Whether the town square shows the Spotify track playing (title, artist and album art): never, popping up when a track starts, or all the time. */
+    nowPlayingMode: NowPlayingMode;
+    /** Where on the screen it shows. */
+    nowPlayingPosition: NowPlayingPosition;
 }
 
 const DEFAULT_STATE: AppSettingsState = {
@@ -26,7 +48,9 @@ const DEFAULT_STATE: AppSettingsState = {
     showQRCodes: false,
     scriptQrPosition: null,
     qrAutoSize: true,
-    qrScale: 1
+    qrScale: 1,
+    nowPlayingMode: 'popup',
+    nowPlayingPosition: 'top'
 };
 
 
@@ -54,6 +78,8 @@ class AppSettingsModel {
     scriptQrPosition: QrPosition | null = $state(DEFAULT_STATE.scriptQrPosition);
     qrAutoSize: boolean = $state(DEFAULT_STATE.qrAutoSize);
     qrScale: number = $state(DEFAULT_STATE.qrScale);
+    nowPlayingMode: NowPlayingMode = $state(DEFAULT_STATE.nowPlayingMode);
+    nowPlayingPosition: NowPlayingPosition = $state(DEFAULT_STATE.nowPlayingPosition);
 
     /** How much to scale QR codes by, relative to their default size. */
     get qrSizeScale(): number {
@@ -78,7 +104,9 @@ class AppSettingsModel {
                         showQRCodes: this.showQRCodes,
                         scriptQrPosition: this.scriptQrPosition,
                         qrAutoSize: this.qrAutoSize,
-                        qrScale: this.qrScale
+                        qrScale: this.qrScale,
+                        nowPlayingMode: this.nowPlayingMode,
+                        nowPlayingPosition: this.nowPlayingPosition
                     };
                     this.saveState(state);
                 });
@@ -136,6 +164,8 @@ class AppSettingsModel {
             }
             this.qrAutoSize = parsedValue.qrAutoSize ?? this.qrAutoSize;
             this.qrScale = parsedValue.qrScale ?? this.qrScale;
+            if (isNowPlayingMode(parsedValue.nowPlayingMode)) this.nowPlayingMode = parsedValue.nowPlayingMode;
+            if (isNowPlayingPosition(parsedValue.nowPlayingPosition)) this.nowPlayingPosition = parsedValue.nowPlayingPosition;
         } catch(e) {
             console.error("Failed to parse stored app settings", e);
         }

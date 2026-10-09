@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import HSlider from "$lib/audio/client/components/HSlider.svelte";
-    import { appSettings } from "$lib/model/client/appSettings.svelte";
+    import { appSettings, NOW_PLAYING_MODES, NOW_PLAYING_MODE_LABELS, NOW_PLAYING_POSITIONS, NOW_PLAYING_POSITION_LABELS } from "$lib/model/client/appSettings.svelte";
     import type { ClocktowerModel } from "$lib/model/common/ClocktowerModel";
     import SiteQRCode from "./SiteQRCode.svelte";
     import { page } from "$app/state";
@@ -281,6 +281,28 @@
                 </div>
             </div>
         </div>
+        {#if townSquare}
+        <div class="navbar-settings-pane stacked-pane">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: smaller; text-align: center;">Now Playing</div>
+                <select bind:value={appSettings.nowPlayingMode} aria-label="Now playing">
+                    {#each NOW_PLAYING_MODES as mode}
+                        <option value={mode}>{NOW_PLAYING_MODE_LABELS[mode]}</option>
+                    {/each}
+                </select>
+            </div>
+            {#if appSettings.nowPlayingMode !== 'off'}
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: smaller; text-align: center;">Position</div>
+                <select bind:value={appSettings.nowPlayingPosition} aria-label="Now playing position">
+                    {#each NOW_PLAYING_POSITIONS as position}
+                        <option value={position}>{NOW_PLAYING_POSITION_LABELS[position]}</option>
+                    {/each}
+                </select>
+            </div>
+            {/if}
+        </div>
+        {/if}
         <div class="navbar-settings-pane stacked-pane">
             <div style="display: flex; justify-content: space-between;">
                 <div style="font-size: smaller; text-align: center;">Show Custom QR</div>

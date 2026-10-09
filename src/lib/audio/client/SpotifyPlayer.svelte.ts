@@ -7,7 +7,17 @@ const VOLUME_SEND_DELAY_MS = 80;
 const PLAYER_NAME = 'Clocktower Mixer';
 
 // Just the parts of the Spotify Web Playback SDK we use.
-type SpotifySDKTrack = { name: string, artists: { name: string }[] };
+type SpotifySDKImage = { url: string, width?: number | null, height?: number | null };
+type SpotifySDKTrack = { name: string, artists: { name: string }[], album?: { images?: SpotifySDKImage[] } };
+
+/** Smallest album image that's still big enough to look sharp in the now playing toast (or the biggest there is). */
+const ALBUM_ART_MIN_PX = 128;
+
+function pickAlbumArt(images: SpotifySDKImage[] | undefined): string | null {
+    if (!images || images.length === 0) return null;
+    const sized = [...images].sort((a, b) => (a.width ?? 0) - (b.width ?? 0));
+    return (sized.find(i => (i.width ?? 0) >= ALBUM_ART_MIN_PX) ?? sized[sized.length - 1]).url;
+}
 type SpotifySDKState = { paused: boolean, context?: { uri: string | null }, track_window: { current_track: SpotifySDKTrack } };
 type SpotifySDKPlayer = {
     connect(): Promise<boolean>;
@@ -176,6 +186,7 @@ export class SpotifyPlayer {
             playing: !state.paused,
             title: track?.name ?? '',
             artist: track?.artists?.map(a => a.name).join(', ') ?? '',
+            imageUrl: pickAlbumArt(track?.album?.images),
             contextUri: state.context?.uri ?? null
         };
     }

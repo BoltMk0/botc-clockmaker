@@ -28,15 +28,26 @@ export async function PUT({ request }) {
         if (typeof body.deviceId === 'string') {
             await spotify.hostReady(body.clientId, body.deviceId);
         }
-        const playback = body.playback;
+        const playback = body.playback as any;
         if (playback !== undefined && playback !== null && (typeof playback !== 'object'
-            || typeof (playback as any).playing !== 'boolean'
-            || typeof (playback as any).title !== 'string'
-            || typeof (playback as any).artist !== 'string'
-            || ((playback as any).contextUri !== null && typeof (playback as any).contextUri !== 'string'))) {
+            || typeof playback.playing !== 'boolean'
+            || typeof playback.title !== 'string'
+            || typeof playback.artist !== 'string'
+            || (playback.imageUrl != null && typeof playback.imageUrl !== 'string')
+            || (playback.contextUri !== null && typeof playback.contextUri !== 'string'))) {
             return error(400, { message: 'Invalid playback' });
         }
-        spotify.hostReport(body.clientId, { playback: playback as any });
+        // Rebuilt from the checked fields, so nothing else gets passed on to every client
+        spotify.hostReport(body.clientId, {
+            playback: playback == null ? playback : {
+                playing: playback.playing,
+                title: playback.title,
+                artist: playback.artist,
+                // Only ever shown as an <img>, but still only https links
+                imageUrl: typeof playback.imageUrl === 'string' && playback.imageUrl.startsWith('https://') ? playback.imageUrl : null,
+                contextUri: playback.contextUri
+            }
+        });
     } catch (e) {
         return error(409, { message: e instanceof Error ? e.message : String(e) });
     }

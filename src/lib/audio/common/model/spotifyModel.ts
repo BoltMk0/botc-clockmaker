@@ -2,6 +2,8 @@ export type SpotifyPlaybackModel = {
     playing: boolean;
     title: string;
     artist: string;
+    /** The track's album art (a Spotify CDN https URL), if it has any. */
+    imageUrl: string | null;
     /** URI of the album/playlist being played from, if any. */
     contextUri: string | null;
 };

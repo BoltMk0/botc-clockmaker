@@ -8,6 +8,7 @@
     import { AudioEngine } from '$lib/audio/client/AudioEngine.svelte';
     import { SpotifyPlayer } from '$lib/audio/client/SpotifyPlayer.svelte';
     import SiteQRCode from '$lib/components/SiteQRCode.svelte';
+    import NowPlayingToast from '$lib/audio/client/components/NowPlayingToast.svelte';
     import { appSettings } from '$lib/model/client/appSettings.svelte.js';
     import type { QrCode } from '$lib/resources/server/qrCodes';
     import { QR_POSITIONS, scriptQrCode } from '$lib/resources/common/qrCodes';
@@ -83,6 +84,7 @@
 {/if}
 
 <SideMenu townSquare clock={model} {audioEngine} ambienceResources={data.ambienceResources} {spotify} spotifyPresets={data.spotifyPresets}/>
+<NowPlayingToast {spotify}/>
 
 {#if shownQrCodes.length > 0 && appSettings.displayMode !== 'clocktower3d'}
 {#each QR_POSITIONS as pos}
