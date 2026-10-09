@@ -2,6 +2,7 @@ import type { AmbienceEngineModel } from "$lib/audio/common/model/ambienceEngine
 import type { AmbienceTrackModel } from "$lib/audio/common/model/ambienceTrackModel";
 import type { AudioDimModel } from "$lib/audio/common/model/audioDimModel";
 import type { TimeOfDayTrimModel } from "$lib/audio/common/model/timeOfDayTrimModel";
+import type { MixerMastersModel } from "$lib/audio/common/model/mixerMastersModel";
 import type { AudioResourceTrackModel } from "$lib/audio/common/model/audioResourceTrackModel";
 import type { StingEngineModel } from "$lib/audio/common/model/stingEngineModel";
 import type { SpotifyModel } from "$lib/audio/common/model/spotifyModel";
@@ -55,7 +56,7 @@ export type SpotifyUpdateMessage = WSMessageBase & {
     model: SpotifyModel
 };
 
-/** Sets the Spotify host's player volume locally (0..1, dim and trim included). Only the named host acts on it. */
+/** Sets the Spotify host's player volume locally (0..1, master gain, dim and trim included). Only the named host acts on it. */
 export type SpotifyDeviceVolumeMessage = WSMessageBase & {
     type: 'spotifyDeviceVolume',
     hostClientId: string,
@@ -70,6 +71,11 @@ export type AudioDimUpdateMessage = WSMessageBase & {
 export type TimeOfDayTrimUpdateMessage = WSMessageBase & {
     type: 'timeOfDayTrimUpdate',
     model: TimeOfDayTrimModel
+};
+
+export type MixerMastersUpdateMessage = WSMessageBase & {
+    type: 'mixerMastersUpdate',
+    model: MixerMastersModel
 };
 
 export type StingEngineUpdateMessage = WSMessageBase & {
@@ -101,6 +107,7 @@ export type WSMessage =
     |SpotifyDeviceVolumeMessage
     |AudioDimUpdateMessage
     |TimeOfDayTrimUpdateMessage
+    |MixerMastersUpdateMessage
     |StingEngineUpdateMessage
     |StingTrackUpdateMessage
     |StingTriggerMessage

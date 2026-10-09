@@ -1,6 +1,7 @@
 import type { Clocktower } from "$lib/model/client/Clocktower.svelte";
 import { combineTimesOfDay, type TimeOfDay } from "$lib/model/client/types";
 import { TimeOfDayTrim } from "./TimeOfDayTrim.svelte";
+import { MixerMasters } from "./MixerMasters.svelte";
 import type { TimeOfDayTrimModel } from "../common/model/timeOfDayTrimModel";
 import { AmbienceEngine } from "../../audio/client/AmbienceEngine.svelte";
 import type { AmbienceEngineModel } from "../common/model/ambienceEngineModel";
@@ -25,15 +26,17 @@ const TIME_OF_DAY_TRIM_KNOB_TIME_CONSTANT_S = 0.03;
 export class AudioEngine implements AudioTrackBase {
     #context: AudioContext;
 
-    #model: AudioTrackModel = $state({gain: 1.0, pan: 0.0})
+    // Both master faders (this one and the clocks/sting one) are shared across every client; only the mutes are local.
+    #masters = new MixerMasters();
     #gainNode: GainNode;
-    // Per-phase trim on top of the master fader. Unlike the fader, shared across every client (like the dim).
+    // Per-phase trim on top of the master fader, also shared (like the dim).
     #timeOfDayTrim = new TimeOfDayTrim();
     #timeOfDayNode: GainNode;
     // (Spotify can't go through #timeOfDayNode; the server applies the trim to its volume instead - see SpotifyHelper.)
     #dimNode: GainNode; // After the master fader, so dimming never fights the user's gain
     #dim: AudioDim|null = null;
     #stopEffects: (()=>void)|null = null;
+    #stopMasterSync: ()=>void;
     #muted = $state(false);
     #analyser: AnalyserNode;
 
@@ -41,7 +44,6 @@ export class AudioEngine implements AudioTrackBase {
     // in the UI, with its own fader - rather than sharing the main one with ambience/Spotify. It feeds
     // #sfxOutputNode straight to the destination instead of #dimNode, so the shared "dim" (grim dim
     // button) only ever affects Music & Ambience, never SFX.
-    #clocksMasterModel: AudioTrackModel = $state({gain: 1.0, pan: 0.0})
     #clocksMasterBus: AudioTrack;
     #sfxOutputNode: GainNode;
 
@@ -72,7 +74,15 @@ export class AudioEngine implements AudioTrackBase {
         }
         this.#analyser = this.#context.createAnalyser();
         this.#timeOfDayNode.connect(this.#analyser);
-        this.#clocksMasterBus = new AudioTrack(this.#clocksMasterModel, this.#sfxOutputNode, 'Clocks & Sting Master');
+        // The bus reads and writes its fader through the shared masters (it follows the model's changes itself)
+        const masters = this.#masters;
+        const clocksMasterModel: AudioTrackModel = {
+            get gain(){ return masters.model.clocksGain; },
+            set gain(value: number){ masters.set('clocksGain', value); },
+            get pan(){ return masters.model.clocksPan; },
+            set pan(value: number){ masters.set('clocksPan', value); }
+        };
+        this.#clocksMasterBus = new AudioTrack(clocksMasterModel, this.#sfxOutputNode, 'Clocks & Sting Master');
         console.log("Connection", clocks.length, "clocks")
         this.#clockAudioTracks = clocks.map(c=>c.connectAudio(this.#clocksMasterBus.input));
         if(this.#silent) this.#clockAudioTracks.forEach(t=>t.silent = true);
@@ -87,6 +97,10 @@ export class AudioEngine implements AudioTrackBase {
             this.muted = localStorage.getItem(MUTE_STORAGE_KEY) === '1';
         } catch { /* storage unavailable */ }
         this.#clocksMasterBus.persistMute('master.clocks');
+        // Follow the shared master fader when it's moved from another client
+        this.#stopMasterSync = $effect.root(()=>{
+            $effect(()=>{ this.#gainNode.gain.value = this.#muted ? 0 : this.#masters.model.mainGain; });
+        });
         if(!this.#silent){
             // Follow the shared dim (a silent client plays nothing, so has nothing to dim)
             const dim = this.#dim = new AudioDim();
@@ -152,17 +166,17 @@ export class AudioEngine implements AudioTrackBase {
     get muted(){ return this.#muted; }
     set muted(value: boolean){
         this.#muted = value;
-        this.#gainNode.gain.value = value ? 0 : this.#model.gain;
+        this.#gainNode.gain.value = value ? 0 : this.gain;
         try {
             if(value) localStorage.setItem(MUTE_STORAGE_KEY, '1');
             else localStorage.removeItem(MUTE_STORAGE_KEY);
         } catch { /* storage unavailable; mute just won't persist */ }
     }
 
-    get gain(){ return this.#model.gain; }
+    get gain(){ return this.#masters.model.mainGain; }
     set gain(value: number){
-        this.#model.gain = Math.max(0, value);
-        this.#gainNode.gain.value = this.#muted ? 0 : this.#model.gain;
+        this.#masters.set('mainGain', value);
+        this.#gainNode.gain.value = this.#muted ? 0 : this.gain;
     }
 
     /** Shared per-phase trim (dB) applied on top of the master fader. */
@@ -182,6 +196,8 @@ export class AudioEngine implements AudioTrackBase {
             clock.close();
         }
         this.#stopEffects?.();
+        this.#stopMasterSync();
+        this.#masters.close();
         this.#dim?.close();
         this.#timeOfDayTrim.close();
         this.#ambienceEngine?.close();

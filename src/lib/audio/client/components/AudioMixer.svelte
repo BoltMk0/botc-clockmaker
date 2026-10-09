@@ -191,12 +191,11 @@
             <ChannelStripGroupAmbience engine={audioEngine.ambienceEngine} timeOfDay={audioEngine.timeOfDay} resources={ambienceResources} onTitleClick={()=>{audioEngine?.ambienceEngine?.togglePlayPause()}} style="--theme-slider-accent: #FAA;" title={ambienceEngineTitle}/>
             {/if}
             {#if spotify}
-            <!-- Spotify plays in the SDK's own iframe, so it can't be routed through the master bus: it gets the
-                 master gain applied to its own volume commands instead (see ChannelStripSpotify) so the master
-                 fader still controls it, just via Spotify's own volume API rather than a Web Audio gain node -
-                 it's still one of this mixer's own channels, not a separate thing, so it sits in the same row.
-                 MASTER stays the rightmost strip, so this goes just before it rather than after. -->
-            <ChannelStripSpotify {spotify} presets={spotifyPresets} masterGain={audioEngine.gain} style="--theme-slider-accent: #AFA;"/>
+            <!-- Spotify plays in the SDK's own iframe, so it can't be routed through the master bus: the server
+                 applies the shared master gain to the volume it sends the player instead (see SpotifyHelper), so
+                 the master fader still controls it - it's still one of this mixer's own channels, not a separate
+                 thing, so it sits in the same row. MASTER stays the rightmost strip, so this goes just before it. -->
+            <ChannelStripSpotify {spotify} presets={spotifyPresets} style="--theme-slider-accent: #AFA;"/>
             {/if}
             {#snippet timeOfDayTrims()}
                 <div class="time-of-day-trims">

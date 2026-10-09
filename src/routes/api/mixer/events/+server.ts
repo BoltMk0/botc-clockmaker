@@ -6,6 +6,7 @@ import { getStingEngineHelperInstance, type StingEngineHelper } from '$lib/model
 import { getSpotifyHelperInstance, type SpotifyHelper } from '$lib/model/server/Spotify/SpotifyHelper.js';
 import { getAudioDimHelperInstance, type AudioDimHelper } from '$lib/model/server/AudioDim/AudioDimHelper.js';
 import { getTimeOfDayTrimHelperInstance, type TimeOfDayTrimHelper } from '$lib/model/server/TimeOfDayTrim/TimeOfDayTrimHelper.js';
+import { getMixerMastersHelperInstance, type MixerMastersHelper } from '$lib/model/server/MixerMasters/MixerMastersHelper.js';
 import { SSEClientManager } from '../../../events/sseClientManager';
 
 export type emit_cb = (eventName: string, data: string) => Unsafe<void, Error>;
@@ -24,7 +25,8 @@ class MixerListener extends SSEClientManager {
         readonly stingEngine: StingEngineHelper,
         readonly spotify: SpotifyHelper,
         readonly audioDim: AudioDimHelper,
-        readonly timeOfDayTrim: TimeOfDayTrimHelper
+        readonly timeOfDayTrim: TimeOfDayTrimHelper,
+        readonly mixerMasters: MixerMastersHelper
     ) {
         super();
         ambienceEngine.on('engineUpdate', (model) => this.broadcast({ type: 'ambienceEngineUpdate', model }));
@@ -37,6 +39,7 @@ class MixerListener extends SSEClientManager {
         spotify.on('deviceVolume', (hostClientId, volume) => this.broadcast({ type: 'spotifyDeviceVolume', hostClientId, volume }));
         audioDim.on('update', (model) => this.broadcast({ type: 'audioDimUpdate', model }));
         timeOfDayTrim.on('update', (model) => this.broadcast({ type: 'timeOfDayTrimUpdate', model }));
+        mixerMasters.on('update', (model) => this.broadcast({ type: 'mixerMastersUpdate', model }));
     }
 }
 
@@ -49,7 +52,8 @@ function getManager() {
             getStingEngineHelperInstance(),
             getSpotifyHelperInstance(),
             getAudioDimHelperInstance(),
-            getTimeOfDayTrimHelperInstance()
+            getTimeOfDayTrimHelperInstance(),
+            getMixerMastersHelperInstance()
         );
     }
     return mixerListenerInstance;
@@ -74,6 +78,7 @@ export function POST() {
                     if (deviceVolume) send({ type: 'spotifyDeviceVolume', ...deviceVolume });
                     send({ type: 'audioDimUpdate', model: mgr.audioDim.model });
                     send({ type: 'timeOfDayTrimUpdate', model: mgr.timeOfDayTrim.model });
+                    send({ type: 'mixerMastersUpdate', model: mgr.mixerMasters.model });
                 });
                 return () => {
                     unregisterClient();

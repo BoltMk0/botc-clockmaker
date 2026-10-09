@@ -4,6 +4,7 @@ import type { SpotifyControlAction, SpotifyModel, SpotifyPlaybackModel } from "$
 import { DIM_FADE_MS, type AudioDimModel } from "$lib/audio/common/model/audioDimModel";
 import { getAudioDimHelperInstance } from "../AudioDim/AudioDimHelper";
 import { getTimeOfDayTrimHelperInstance } from "../TimeOfDayTrim/TimeOfDayTrimHelper";
+import { getMixerMastersHelperInstance } from "../MixerMasters/MixerMastersHelper";
 import { adaptivePresetUriFor, isAdaptivePresetContext, isSameSpotifyContext, isSpotifyContextUri, isSpotifyAdaptivePreset, type SpotifyAdaptivePreset } from "$lib/audio/common/spotifyPreset";
 import { JSONSingletonResourceManager } from "$lib/resources/server/jsonResourceManager";
 import { getSpotifyPresets } from "$lib/resources/server/spotifyPresets";
@@ -64,7 +65,7 @@ export class SpotifyHelper extends EventEmitter {
     #trimTimeOfDay: TimeOfDay;
     #trimToken = 0;
     #trimRamping = false;
-    /** The volume (0..1, dim and trim included) last sent to the host's player. */
+    /** The volume (0..1, master gain, dim and trim included) last sent to the host's player. */
     #deviceVolume: number | null = null;
 
     constructor() {
@@ -93,11 +94,13 @@ export class SpotifyHelper extends EventEmitter {
             this.applyLevelChange('time-of-day trim');
         });
 
+        getMixerMastersHelperInstance().on('update', () => this.applyLevelChange('master gain'));
+
         const phaseTimer = setInterval(() => this.checkPhase(), PHASE_CHECK_INTERVAL_MS);
         phaseTimer.unref?.();
     }
 
-    /** Re-sends the volume after the dim or trim changes - unless a fade is under way, which applies it itself. */
+    /** Re-sends the volume after the master gain, dim or trim changes - unless a fade is under way, which applies it itself. */
     private applyLevelChange(what: string) {
         const deviceId = this.#hostDeviceId;
         if (deviceId === null || this.#switching || this.#trimRamping) return;
@@ -269,7 +272,7 @@ export class SpotifyHelper extends EventEmitter {
         this.#hostLastSeen = Date.now();
         this.#hostDeviceId = deviceId;
         await this.api('PUT', '/me/player', { device_ids: [deviceId], play: false });
-        // The SDK starts at the volume without the dim or trim
+        // The SDK starts at the volume without the master gain, dim or trim
         this.#deviceVolume = null;
         await this.setDeviceVolume(`device_id=${encodeURIComponent(deviceId)}`, this.#volume);
         this.changed();
@@ -563,16 +566,16 @@ export class SpotifyHelper extends EventEmitter {
         }
     }
 
-    /** Multiplier from the shared dim and the current time-of-day trim, applied to every volume we send. */
+    /** Multiplier from the shared master fader, dim and current time-of-day trim, applied to every volume we send. */
     private levelFactor() {
-        return Math.pow(10, (this.#dimDb + this.#trimDb) / 20);
+        return getMixerMastersHelperInstance().model.mainGain * Math.pow(10, (this.#dimDb + this.#trimDb) / 20);
     }
 
     /**
      * Sets the host player's volume. Rather than through Spotify's Web API (a round trip to Spotify, rate limited), this
      * goes straight to the host over the mixer events stream, and its SDK player sets the volume locally (see
      * SpotifyPlayer) - quick and cheap enough for fine fade steps.
-     * @param volume The level the user chose (0..100); the dim and trim are applied here so callers needn't think about them.
+     * @param volume The level the user chose (0..100); the master gain, dim and trim are applied here so callers needn't think about them.
      */
     private async setDeviceVolume(_device: string, volume: number) {
         const hostClientId = this.#hostClientId;
