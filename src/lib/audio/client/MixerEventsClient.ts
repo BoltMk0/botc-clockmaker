@@ -15,19 +15,44 @@ import { SSEClient } from "../../model/client/util/sseClient.svelte";
 
 type Listener = (msg: WSMessage) => void;
 
+/**
+ * Messages that each carry a channel's whole state, so the latest one is all a newcomer needs. The server only sends
+ * the current state when the connection opens, so without replaying these, anything subscribing once the connection
+ * is already up (e.g. the grim's clock controls popup, after the grim itself connected) would never hear it until
+ * the next change. The ambience/sting engines aren't here: their track updates are deltas on top of the engine
+ * snapshot, so an old snapshot alone could be staler than the page data those engines start from.
+ */
+const REPLAYED_TYPES = new Set<WSMessage['type']>([
+    'spotifyUpdate', 'spotifyDeviceVolume', 'audioDimUpdate', 'timeOfDayTrimUpdate', 'mixerMastersUpdate'
+]);
+
 let client: SSEClient | null = null;
 let listeners: Set<Listener> | null = null;
+let latest: Map<WSMessage['type'], WSMessage> | null = null;
 
 export function subscribeMixerEvents(listener: Listener): () => void {
-    if (!client || !listeners) {
+    if (!client || !listeners || !latest) {
         const activeListeners = listeners = new Set<Listener>();
+        const latestMessages = latest = new Map();
         client = new SSEClient('/api/mixer/events', (msg) => {
+            if (REPLAYED_TYPES.has(msg.type)) latestMessages.set(msg.type, msg);
             for (const l of [...activeListeners]) l(msg);
         });
     }
     listeners.add(listener);
 
     let unsubscribed = false;
+    // Catch up on the current state. After the subscriber has finished setting up, as it's usually still in its constructor.
+    const replay = [...latest.values()];
+    if (replay.length > 0) {
+        queueMicrotask(() => {
+            for (const msg of replay) {
+                if (unsubscribed) return;
+                listener(msg);
+            }
+        });
+    }
+
     return () => {
         if (unsubscribed) return;
         unsubscribed = true;
@@ -36,6 +61,7 @@ export function subscribeMixerEvents(listener: Listener): () => void {
             client?.close();
             client = null;
             listeners = null;
+            latest = null;
         }
     };
 }
