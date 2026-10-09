@@ -14,6 +14,8 @@
     import { Clocktower } from "$lib/model/client/Clocktower.svelte.js";
     import FullDisplay from "$lib/components/FullDisplay/FullDisplay.svelte";
     import { onMount } from "svelte";
+    import { fly } from "svelte/transition";
+    import { cubicIn, cubicOut } from "svelte/easing";
     import ClockSetter from "$lib/components/ClockSetter.svelte";
     import type { CanvasToolType } from "$lib/components/DrawableCanvas2/types.js";
     import AnotatableViewV2 from "$lib/components/DrawableCanvas2/AnotatableViewV2.svelte";
@@ -787,8 +789,22 @@
         pointerStartToken = token;
     }
 
+    // A toast saying why a token won't move, when one is dragged while they're locked
+    const LOCKED_TOAST_MS = 1800;
+    let lockedToastVisible = $state(false);
+    let lockedToastTimer: ReturnType<typeof setTimeout> | null = null;
+    function showLockedToast() {
+        lockedToastVisible = true;
+        if (lockedToastTimer !== null) clearTimeout(lockedToastTimer);
+        lockedToastTimer = setTimeout(() => { lockedToastVisible = false; lockedToastTimer = null; }, LOCKED_TOAST_MS);
+    }
+    $effect(() => () => { if (lockedToastTimer !== null) clearTimeout(lockedToastTimer); });
+
     function actuallyStartBoardDrag(e: PointerEvent, token: PlacedToken) {
-        if (tokensLocked) return;
+        if (tokensLocked) {
+            showLockedToast();
+            return;
+        }
         if(!boardEl) return;
 
         const character = script?.characters.find(c => c.id === token.characterId) ?? null;
@@ -1750,6 +1766,30 @@
     }
 
     /* Absolute, not fixed: mobile browsers tint their toolbars from fixed elements at the screen edge. */
+    .locked-toast {
+        position: absolute;
+        /* Below the sidebar's top button row, which it would cover on a narrow screen */
+        top: 68px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.75);
+        color: white;
+        font-weight: bold;
+        white-space: nowrap;
+        pointer-events: none;
+    }
+
+    .locked-toast svg {
+        width: 20px;
+        height: 20px;
+        fill: currentColor;
+    }
+
     /* Chrome that gets out of the way while a token or reminder is being dragged. */
     .drag-hidden {
         opacity: 0 !important;
@@ -1976,6 +2016,15 @@
         {/if}
     </div>
 
+    {#if lockedToastVisible}
+    <div class="locked-toast" role="status" style="z-index: {z_indecies.ui + 40};"
+        in:fly={{ y: -24, opacity: 0, duration: 300, easing: cubicOut }}
+        out:fly={{ y: -24, opacity: 0, duration: 250, easing: cubicIn }}>
+        <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2z"/></svg>
+        <span>Grimoire Tokens Locked</span>
+    </div>
+    {/if}
+
     <div class="sidebar" class:drag-hidden={isDraggingAnything} style="z-index: {z_indecies.ui};">
         <div class="sidebar-top-row">
         <!-- Collapse / expand the sidebar -->
@@ -2064,6 +2113,12 @@
         <!-- Communications: things to show a player -->
         <button class="sidebar-btn" class:active={commsView !== null} onclick={() => commsView = 'menu'} title="Communications">
             <svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM6.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0zM10.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0zM14.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0z"/></svg>
+        </button>
+
+        <!-- Hide the grim behind a blank page, e.g. before leaving the device unattended. Replaces this page in the
+             history, so the browser's back button doesn't bring it back up (and Unhide does the same the other way). -->
+        <button class="sidebar-btn" onclick={() => {saveGrimoire().then(()=>goto(`/admin/${data.clockid}/grim/hidden`, { replaceState: true }))} } title="Hide grimoire">
+            <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>
         </button>
         </div>
 
