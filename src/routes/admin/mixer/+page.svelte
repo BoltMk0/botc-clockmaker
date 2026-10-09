@@ -71,5 +71,12 @@
            container has to be its own horizontal scroller that allows it. */
         overflow-x: auto;
         touch-action: pan-x pan-y;
+        /* At least the whole screen's height (the layout's scroller is), so a swipe anywhere scrolls it - not just
+           on the mixer itself. The mixer stays centred in it, as it was before. */
+        min-height: 100%;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
 </style>
