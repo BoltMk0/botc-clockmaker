@@ -299,7 +299,8 @@ export class SpotifyHelper extends EventEmitter {
             case 'playContext':
                 if (!isSpotifyContextUri(command.uri)) throw new Error('Invalid album/playlist');
                 this.clearAdaptivePreset();
-                await this.playContext(command.uri, device);
+                if (this.isLoadedContext(command.uri)) await this.resumeLoadedContext(device);
+                else await this.playContext(command.uri, device);
                 break;
             case 'playAdaptivePreset':
                 await this.playAdaptivePreset(command.presetId, device);
@@ -333,16 +334,15 @@ export class SpotifyHelper extends EventEmitter {
         const timeOfDay = getBOTCTClockInstanceManager().timeOfDay;
         const ownUri = preset.phaseUris[timeOfDay];
         const current = this.#playback?.contextUri;
-        // Already loaded (just paused) with this phase's list - or with any of its lists, if this phase has none to
-        // switch to: carry on where it left off
-        const resume = this.#adaptivePresetId === presetId && isAdaptivePresetContext(preset, current) &&
-            (ownUri === null || isSameSpotifyContext(current, ownUri));
         const uri = ownUri ?? adaptivePresetUriFor(preset, timeOfDay);
+        // Already loaded (just paused) with this phase's list - or with any of its lists, if this phase has none to
+        // switch to: carry on where it left off. Likewise if another preset already has the same list loaded.
+        const resume = (this.#adaptivePresetId === presetId && isAdaptivePresetContext(preset, current) &&
+            (ownUri === null || isSameSpotifyContext(current, ownUri))) || this.isLoadedContext(uri);
         this.#adaptivePresetId = presetId;
         this.#phaseTimeOfDay = timeOfDay;
         if (resume) {
-            await this.api('PUT', `/me/player/play?${device}`);
-            this.changed();
+            await this.resumeLoadedContext(device);
         } else {
             await this.playContext(uri, device);
         }
@@ -465,6 +465,20 @@ export class SpotifyHelper extends EventEmitter {
     }
 
     // ---- Switching playlists ----
+
+    /** Whether `uri` is the album/playlist already loaded in the player, or being switched to. */
+    private isLoadedContext(uri: string) {
+        return isSameSpotifyContext(this.#pendingContextUri ?? this.#playback?.contextUri, uri);
+    }
+
+    /**
+     * Picking a preset whose album/playlist is already loaded: carries on with it rather than fading out and restarting
+     * the same list. A switch already under way to it starts playback itself.
+     */
+    private async resumeLoadedContext(device: string) {
+        if (!this.#switching && !this.#playback?.playing) await this.api('PUT', `/me/player/play?${device}`);
+        this.changed();
+    }
 
     /**
      * Switches to a new album/playlist: fades the old one out (over `fadeOutMs`), then starts the new one at full volume.
