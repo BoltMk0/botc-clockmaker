@@ -2,13 +2,21 @@ import { getBOTCTClockInstanceManager, InstanceNotFoundError } from '$lib/model/
 import { getTimerOptions } from '$lib/resources/server/timerOptions';
 import { error } from '@sveltejs/kit';
 
-export async function load({params}){
+// Where the back link goes instead of the game's town square, e.g. /play. Only same-site paths, so a shared link
+// can't send people off to another site. (Browsers read "//x" and "/\x" as links to the site x.)
+function backUrlFrom(url: URL): string | null {
+    const backUrl = url.searchParams.get('backUrl');
+    return backUrl && /^\/(?![/\\])/.test(backUrl) ? backUrl : null;
+}
+
+export async function load({params, url}){
     try {
         const model = getBOTCTClockInstanceManager().getInstance(params.clockid).model;
         return {
             model,
             teamName: model.config.teamName ?? model.clock.clockId,
-            timerOptions: getTimerOptions()
+            timerOptions: getTimerOptions(),
+            backUrl: backUrlFrom(url)
         }
     } catch (er) {
         if (er instanceof InstanceNotFoundError) {

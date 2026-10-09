@@ -29,11 +29,11 @@
     <title>{data.teamName} Remote</title>
 </svelte:head>
 
-<a class="back-link" href="/townsquare/{data.model.clock.clockId}" target="_self">
+<a class="back-link" href={data.backUrl ?? `/townsquare/${data.model.clock.clockId}`} target="_self">
     <svg width={28} height={28} viewBox="0 0 24 24" style="fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;">
         <path d="M15 5l-7 7 7 7" />
     </svg>
-    Town Square
+    {data.backUrl ? 'Back' : 'Town Square'}
 </a>
 
 <div class="remote-page">

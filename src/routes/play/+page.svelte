@@ -163,7 +163,7 @@
             {/if}
         </div>
         <div class="card-buttons">
-            <a class="card-button" href="/admin/{id}/remote" aria-label="Open remote" title="Remote">
+            <a class="card-button" href="/admin/{id}/remote?backUrl=/play" aria-label="Open remote" title="Remote">
                 <RemoteIcon size={24}/>
             </a>
             <button class="card-button delete-game" onclick={() => deleteGame(instance)} aria-label="Delete game" title="Delete">

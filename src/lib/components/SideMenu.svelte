@@ -239,9 +239,9 @@
     <div style="display: grid; gap: 10px;">
         {#if townSquare}
         <div class="navbar-settings-pane stacked-pane">
-            <a class="button-style link-button" href="/play" target="_self">Back to Play</a>
+            <a class="button-style link-button" href="/" target="_self">Home</a>
             {#if clock}
-            <a class="button-style link-button" href="/admin/{clock.id}/remote" target="_blank" rel="noopener">Open Clock Remote ↗</a>
+            <a class="button-style link-button" href="/admin/{clock.id}/remote" target="_self">Open Clock Remote</a>
             {/if}
             {#if audioEngine}
             <button class="button-style" style="width: 100%; font-size: large; padding: 0.5em 1em;" onclick={() => { showMixer = true; visible = false; }}>
