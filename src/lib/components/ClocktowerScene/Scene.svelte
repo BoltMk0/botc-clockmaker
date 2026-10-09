@@ -106,21 +106,6 @@
     // rest of the scene still eases across gently. Same exponential smoothing,
     // just a higher rate constant (~0.33s settling vs ~0.67s).
     let handsProgress = $state(untrack(() => progress));
-    useTask((delta) => {
-        // Re-seed instantly on large jumps (e.g. switching clocks / resetting)
-        // instead of animating across the whole dial.
-        if (Math.abs(progress - smoothProgress) > 0.5) {
-            smoothProgress = progress;
-        } else {
-            smoothProgress += (progress - smoothProgress) * Math.min(1, delta * 1.5);
-        }
-
-        if (Math.abs(progress - handsProgress) > 0.5) {
-            handsProgress = progress;
-        } else {
-            handsProgress += (progress - handsProgress) * Math.min(1, delta * 10);
-        }
-    });
 
     // Same "current time" math as the 2D clocktower display's ClockFace.svelte:
     // the minutes left on the countdown, as a continuously wrapping fraction
@@ -128,7 +113,51 @@
     // clock instead of just tracking the whole game's start-to-end arc once.
     // Not rounded to whole seconds - keeping it continuous lets the hands
     // sweep smoothly instead of ticking once per second.
-    const minutesRemaining = $derived((totalTime * (1 - handsProgress)) / 60);
+    function minutesRemainingAt(p: number) { return (totalTime * (1 - p)) / 60; }
+    // The hands' positions, in turns (the minute hand goes round once a minute, the hour hand once every 12)
+    let minuteHand = $state(untrack(() => minutesRemainingAt(progress)));
+    let hourHand = $state(untrack(() => minutesRemainingAt(progress) / 12));
+
+    // A big jump - a new timer set up (its length changing, or going from
+    // night back to the start of the day), or the phase changed by hand -
+    // is too far for the smoothing above to look right, so it's a timed
+    // transition instead: everything eases across together over this long.
+    const JUMP_TRANSITION_S = 1;
+    let jump: { elapsed: number, fromProgress: number, fromMinute: number, fromHour: number } | null = null;
+    let lastTotalTime = untrack(() => totalTime);
+    const easeInOutCubic = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    /** The shortest way round to a hand position `delta` turns away, so the hands never spin round and round to get there. */
+    const shortestTurn = (delta: number) => delta - Math.round(delta);
+
+    useTask((delta) => {
+        if (jump === null && (Math.abs(progress - smoothProgress) > 0.5 || totalTime !== lastTotalTime)) {
+            jump = { elapsed: 0, fromProgress: smoothProgress, fromMinute: minuteHand, fromHour: hourHand };
+        }
+        lastTotalTime = totalTime;
+
+        if (jump !== null) {
+            // Eases towards the live target, so a tick during the transition is folded in
+            jump.elapsed += delta;
+            const t = Math.min(1, jump.elapsed / JUMP_TRANSITION_S);
+            const e = easeInOutCubic(t);
+            const targetMinute = minutesRemainingAt(progress);
+            smoothProgress = jump.fromProgress + (progress - jump.fromProgress) * e;
+            minuteHand = jump.fromMinute + shortestTurn(targetMinute - jump.fromMinute) * e;
+            hourHand = jump.fromHour + shortestTurn(targetMinute / 12 - jump.fromHour) * e;
+            if (t >= 1) {
+                jump = null;
+                handsProgress = progress;
+                minuteHand = targetMinute;
+                hourHand = targetMinute / 12;
+            }
+            return;
+        }
+
+        smoothProgress += (progress - smoothProgress) * Math.min(1, delta * 1.5);
+        handsProgress += (progress - handsProgress) * Math.min(1, delta * 10);
+        minuteHand = minutesRemainingAt(handsProgress);
+        hourHand = minuteHand / 12;
+    });
 </script>
 
 <OrthoCamera {visibleHeight} />
@@ -161,8 +190,8 @@
 />
 
 <ClockHands
-    minuteHandProgress={minutesRemaining}
-    hourHandProgress={minutesRemaining / 12}
+    minuteHandProgress={minuteHand}
+    hourHandProgress={hourHand}
     {towerPlaneHeight}
     horizontalOffset={scaledHorizontalOffset}
     {verticalOffset}
