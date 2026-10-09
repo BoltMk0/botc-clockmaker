@@ -217,7 +217,12 @@
     }
     // Board token size in board px; the zoom does the fitting to the screen.
     const tokenSize = BOARD_TOKEN_SIZE;
-    const reminderTokenSize = $derived(Math.round(tokenSize * 0.5));
+    const reminderTokenSize = $derived(Math.round(tokenSize * 0.56));
+    // The reminders in a token's popup: smaller than on the board, in columns as tall as the name/buttons beside them
+    const popupReminderSize = $derived(Math.round(tokenSize * 0.35));
+    const POPUP_REMINDER_GAP = 4;
+    let popupMetaHeight = $state(0);
+    const popupReminderRows = $derived(Math.max(1, Math.floor((popupMetaHeight + POPUP_REMINDER_GAP) / (popupReminderSize + POPUP_REMINDER_GAP))));
     // Phone-width screen (set from a media query on mount); same breakpoint as the full-screen tray CSS.
     let isMobile = $state(false);
     // Slightly smaller in the full-screen phone tray so more tokens fit per row.
@@ -1642,8 +1647,8 @@
         transform: translate(-50%, 0);
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 6px 10px;
+        gap: 8px;
+        padding: 10px 12px;
         background: rgba(0, 0, 0, 0.85);
         border-radius: 10px;
         white-space: nowrap;
@@ -1656,10 +1661,13 @@
         display: flex;
         flex-direction: column;
         align-items: stretch;
-        gap: 6px;
+        gap: 8px;
     }
+    /* As wide as the name box and buttons above it, never wider: the width of 0 keeps the text from widening the
+       popup, and the min-width then fills it out to the column's full width. */
     .popup-rules {
-        max-width: 160px;
+        width: 0;
+        min-width: 100%;
         white-space: normal;
         color: #e5e7eb;
         font-size: 0.75em;
@@ -1675,18 +1683,22 @@
     }
     .popup-toggles {
         display: flex;
-        gap: 4px;
+        gap: 6px;
         align-items: center;
     }
+    /* The popup's font scales with the tokens, so the name box and buttons get a minimum height too: big enough to
+       tap however small the tokens are. */
     .popup-toggle {
         background: #1f2937;
         color: #e5e7eb;
         border: 1px solid #4b5563;
         border-radius: 6px;
-        padding: 4px 10px;
+        padding: 0.6em 1em;
+        min-height: 40px;
         font-size: 0.8em;
         font-weight: 600;
         cursor: pointer;
+        touch-action: manipulation;
     }
     .popup-toggle.dead {
         background: #3a1515;
@@ -1703,7 +1715,8 @@
         color: #e5e7eb;
         border: 1px solid #4b5563;
         border-radius: 6px;
-        padding: 4px 8px;
+        padding: 0.5em 0.7em;
+        min-height: 40px;
         font-size: 0.85em;
         width: 100%;
         box-sizing: border-box;
@@ -1713,6 +1726,14 @@
         align-self: stretch;
         background: rgba(255, 255, 255, 0.18);
         margin: 2px 2px;
+    }
+
+    /* A grid rather than a wrapping flex column, which browsers don't widen properly for the extra columns */
+    .reminder-popup-tokens {
+        display: grid;
+        grid-auto-flow: column;
+        align-self: center;
+        align-items: center;
     }
 
     .reminder-popup-token {
@@ -2340,7 +2361,7 @@
                 {#if activeToken}
                     {@const activeChar = script?.characters.find(c => c.id === activeCharacterId)}
                     {@const sideRole = isSideRoleCategory(activeChar?.category)}
-                    <div class="popup-meta">
+                    <div class="popup-meta" bind:clientHeight={popupMetaHeight}>
                         {#if !sideRole}
                         <input
                             type="text"
@@ -2382,13 +2403,17 @@
                     <div class="popup-divider"></div>
                 {/if}
                 {#if activeCharacterId !== null}
-                    {#each reminderCache[activeCharacterId] ?? [] as rToken (rToken.id)}
-                        <div class="reminder-popup-token" onpointerdown={(e) => startDragReminderFromPopup(e, rToken)}>
-                            <ReminderTokenView data={rToken} characterId={activeCharacterId} size="{reminderTokenSize}px"/>
-                        </div>
-                    {/each}
                     {#if (reminderCache[activeCharacterId] ?? []).length === 0}
                         <span style="color: #999; font-size: 0.8em; padding: 4px;">No reminders</span>
+                    {:else}
+                        <!-- Down in columns, starting a new column once one is as tall as the controls beside it -->
+                        <div class="reminder-popup-tokens" style="grid-template-rows: repeat({popupReminderRows}, auto); gap: {POPUP_REMINDER_GAP}px;">
+                            {#each reminderCache[activeCharacterId] ?? [] as rToken (rToken.id)}
+                                <div class="reminder-popup-token" onpointerdown={(e) => startDragReminderFromPopup(e, rToken)}>
+                                    <ReminderTokenView data={rToken} characterId={activeCharacterId} size="{popupReminderSize}px"/>
+                                </div>
+                            {/each}
+                        </div>
                     {/if}
                 {/if}
             </div>
