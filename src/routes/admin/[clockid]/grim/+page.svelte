@@ -182,6 +182,15 @@
     let viewTx = $state(0);
     let viewTy = $state(0);
     let activeCanvasLayerIndex = $state<number>(0); // Set on mount by AnotatableView, source of truth for active layer index
+    // Only pen strokes are stored (the eraser removes strokes rather than adding its own), so any stroke can be undone.
+    const activeLayerHasStrokes = $derived((canvasLayers[activeCanvasLayerIndex]?.strokes.length ?? 0) > 0);
+
+    function undoLastPenStroke() {
+        const layer = canvasLayers[activeCanvasLayerIndex];
+        if (!layer || layer.strokes.length === 0) return;
+        layer.strokes.pop();
+        rescheduleSaveGrimoire();
+    }
 
     let sidebarOpen = $state(false);
     let audioDim: AudioDim|null = $state(null); // Created on mount: it opens a connection to the server
@@ -1833,6 +1842,13 @@
         background: rgba(80, 140, 255, 0.7);
     }
 
+    /* Just left of the save status in the top right, centred on the same line (it's 36px tall to this 44px). */
+    .undo-stroke-btn {
+        position: absolute;
+        top: 4px;
+        right: 52px;
+    }
+
     .sidebar-btn.delete-grim-btn {
         color: #ff7b7b;
     }
@@ -1982,6 +1998,13 @@
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/></svg>
         {/if}
     </div>
+
+    {#if activeLayerHasStrokes}
+    <!-- Undo the active layer's last pen stroke -->
+    <button class="sidebar-btn undo-stroke-btn" class:drag-hidden={isDraggingAnything} style="z-index: {z_indecies.ui};" onclick={undoLastPenStroke} title="Undo last pen stroke" aria-label="Undo last pen stroke">
+        <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+    </button>
+    {/if}
 
     <div class="sidebar" class:drag-hidden={isDraggingAnything} style="z-index: {z_indecies.ui};">
         <div class="sidebar-top-row">
@@ -2213,7 +2236,7 @@
         {/if}
     </div>
 
-    <AnotatableViewV2 ongesturestart={cancelPendingBoardTap} onresetview={fitView} bind:viewScale bind:viewTx bind:viewTy idleGestures={!dragging && !draggingReminder} idleIgnore=".sidebar button, .grimoire-footer, .reminder-popup, [role='dialog']" idlePanIgnore=".board-token, .board-reminder, button, a, input, [role='dialog']" tool={editing ? activeTool : null} penTool={lastPenTool} eraserTool={penEraserTool} onchange={rescheduleSaveGrimoire} layers={canvasLayers} activeLayerIndex={activeCanvasLayerIndex} canvasStyle="z-index: {z_indecies.canvas};">
+    <AnotatableViewV2 ongesturestart={cancelPendingBoardTap} onresetview={fitView} bind:viewScale bind:viewTx bind:viewTy idleGestures={!dragging && !draggingReminder} idleIgnore=".sidebar button, .undo-stroke-btn, .grimoire-footer, .reminder-popup, [role='dialog']" idlePanIgnore=".board-token, .board-reminder, button, a, input, [role='dialog']" tool={editing ? activeTool : null} penTool={lastPenTool} eraserTool={penEraserTool} onchange={rescheduleSaveGrimoire} layers={canvasLayers} activeLayerIndex={activeCanvasLayerIndex} canvasStyle="z-index: {z_indecies.canvas};">
 
     <div class="grimoire-board" bind:this={boardEl}>
         {#each ALIGNMENT_RING_FACTORS as factor}
