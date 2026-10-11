@@ -20,6 +20,7 @@
         gap: 1em;
         text-align: center;
         overflow-y: auto;
+        background: #121212;
     }
 
     .close-btn {
@@ -30,7 +31,8 @@
         height: 36px;
         border-radius: 50%;
         border: none;
-        background: rgba(0, 0, 0, 0.6);
+        /* Light, so it shows against the dark page. */
+        background: rgba(255, 255, 255, 0.15);
         color: white;
         font-size: 1.1em;
         line-height: 1;
