@@ -13,6 +13,8 @@
         activeLayerIndex: number;
         layers: CanvasLayer[];
         tool: CanvasToolType | null;
+        /** When no tool is active, a stylus still draws with this tool (on the active layer), anywhere outside idleIgnore. */
+        penTool?: CanvasToolType | null;
         /** When no tool is active: allow two-finger pinch/pan (and two-finger tap to reset) anywhere on screen. */
         idleGestures?: boolean;
         /** Touches starting inside an element matching this selector are ignored by the idle gestures. */
@@ -35,6 +37,7 @@
         activeLayerIndex,
         layers = $bindable<CanvasLayer[]>([]),
         tool = $bindable<CanvasToolType|null>(null),
+        penTool = null,
         idleGestures = true,
         idleIgnore = '',
         idlePanIgnore = '',
@@ -542,14 +545,17 @@
         if (!currentStroke) return;
 
         event.preventDefault();
-        const next = getPos(event);
-        const points = currentStroke.points;
+        extendStroke(currentStroke, getPos(event));
+    }
+
+    function extendStroke(stroke: CanvasStroke, next: CanvasPoint) {
+        const points = stroke.points;
         const prev = points[points.length - 1];
         points.push(next);
-        if (currentStroke.tool.type === 'eraser') {
-            eraseAlongPath(prev, next, currentStroke.tool.width);
+        if (stroke.tool.type === 'eraser') {
+            eraseAlongPath(prev, next, stroke.tool.width);
         } else {
-            drawSegment(prev, next, currentStroke);
+            drawSegment(prev, next, stroke);
             onchange?.();
         }
     }
@@ -649,6 +655,31 @@
         ongesturestart?.();
     }
 
+    ////// IDLE (NO TOOL) STYLUS DRAWING //////
+    // A pen is never a pan/pinch pointer, so with no tool active it draws with penTool instead. The canvas
+    // ignores pointer events while idle, so the stroke is tracked from the window listeners like the gestures.
+    let idlePenStroke: { id: number; stroke: CanvasStroke } | null = null;
+
+    function idlePenDown(event: PointerEvent): boolean {
+        if (event.pointerType !== 'pen' || event.button !== 0) return false; // the pen's eraser end/barrel button are left alone
+        if (!idleActive() || !penTool || !activeLayer || !ctx) return false;
+        if (idleIgnore && (event.target as Element | null)?.closest?.(idleIgnore)) return false;
+        const start = getPos(event);
+        let stroke: CanvasStroke = { points: [start], tool: penTool };
+        if (penTool.type === 'eraser') {
+            eraseAlongPath(start, start, penTool.width);
+        } else {
+            activeLayer.strokes.push(stroke);
+            // The layers are reactive state, so the array holds a proxied copy; extend that one or the
+            // added points never reach the saved stroke.
+            stroke = activeLayer.strokes[activeLayer.strokes.length - 1];
+            drawDot(start, stroke);
+            onchange?.();
+        }
+        idlePenStroke = { id: event.pointerId, stroke };
+        return true;
+    }
+
     function onIdleClick(event: MouseEvent) {
         if (idleGesturing || Date.now() < idleSuppressClickUntil) {
             event.preventDefault();
@@ -657,6 +688,12 @@
     }
 
     function onIdlePointerDown(event: PointerEvent) {
+        // The pen draws instead of reaching the tokens beneath; while it's down, a resting palm is ignored too.
+        if (idlePenStroke !== null || idlePenDown(event)) {
+            event.stopPropagation();
+            event.preventDefault();
+            return;
+        }
         if (event.pointerType === 'touch') {
             // A fresh touch owns its own click: the click trailing the previous gesture has already fired,
             // so drop the suppression (and any stuck gesture flag if no fingers are actually down).
@@ -679,6 +716,12 @@
     }
 
     function onIdlePointerMove(event: PointerEvent) {
+        if (idlePenStroke?.id === event.pointerId) {
+            extendStroke(idlePenStroke.stroke, getPos(event));
+            event.stopPropagation();
+            event.preventDefault();
+            return;
+        }
         if (!idleTouches.has(event.pointerId)) return;
         if (!idleActive()) { idleTouches.clear(); idlePrevMid = null; idlePan = null; idleGesturing = false; return; }
         const pos = idlePos(event);
@@ -719,6 +762,12 @@
     }
 
     function onIdlePointerEnd(event: PointerEvent) {
+        if (idlePenStroke?.id === event.pointerId) {
+            idlePenStroke = null;
+            idleSuppressClickUntil = Date.now() + 400; // lifting the pen must not count as a tap on a token
+            event.stopPropagation();
+            return;
+        }
         if (!idleTouches.delete(event.pointerId)) return;
         if (idlePan?.id === event.pointerId) idlePan = null;
         if (idleGesturing) {
