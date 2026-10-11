@@ -293,6 +293,8 @@
     $effect(() => {
         if (activeTool.type === 'pen') lastPenTool = activeTool;
     });
+    // The stylus's side button toggles it to the eraser.
+    const penEraserTool = tools.find(t => t.type === 'eraser') ?? null;
 
 
     // CLOCK CONNECTION - always the clock this grim lives under, no manual picker
@@ -2211,7 +2213,7 @@
         {/if}
     </div>
 
-    <AnotatableViewV2 ongesturestart={cancelPendingBoardTap} onresetview={fitView} bind:viewScale bind:viewTx bind:viewTy idleGestures={!dragging && !draggingReminder} idleIgnore=".sidebar button, .grimoire-footer, .reminder-popup, [role='dialog']" idlePanIgnore=".board-token, .board-reminder, button, a, input, [role='dialog']" tool={editing ? activeTool : null} penTool={lastPenTool} onchange={rescheduleSaveGrimoire} layers={canvasLayers} activeLayerIndex={activeCanvasLayerIndex} canvasStyle="z-index: {z_indecies.canvas};">
+    <AnotatableViewV2 ongesturestart={cancelPendingBoardTap} onresetview={fitView} bind:viewScale bind:viewTx bind:viewTy idleGestures={!dragging && !draggingReminder} idleIgnore=".sidebar button, .grimoire-footer, .reminder-popup, [role='dialog']" idlePanIgnore=".board-token, .board-reminder, button, a, input, [role='dialog']" tool={editing ? activeTool : null} penTool={lastPenTool} eraserTool={penEraserTool} onchange={rescheduleSaveGrimoire} layers={canvasLayers} activeLayerIndex={activeCanvasLayerIndex} canvasStyle="z-index: {z_indecies.canvas};">
 
     <div class="grimoire-board" bind:this={boardEl}>
         {#each ALIGNMENT_RING_FACTORS as factor}

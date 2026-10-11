@@ -6,6 +6,7 @@
     interface Props {
         tool: CanvasToolType|null;
         penTool?: CanvasToolType|null;
+        eraserTool?: CanvasToolType|null;
         style?: string;
         canvasStyle?: string;
         exportedDimensions?: { width: number, height: number };
@@ -26,6 +27,7 @@
     let {
         tool,
         penTool = null,
+        eraserTool = null,
         style,
         canvasStyle,
         exportedDimensions,
@@ -74,7 +76,7 @@
     <div class="content-wrapper" style="transform: translate({viewTx}px, {viewTy}px) scale({viewScale});">
         {@render children?.()}
     </div>
-    <DrawableCanvas2 {onchange} bind:viewTx bind:viewTy bind:viewScale {tool} {penTool} {idleGestures} {idleIgnore} {idlePanIgnore} {ongesturestart} {onresetview} {canvasStyle} {exportedDimensions} {layers} {activeLayerIndex}/>
+    <DrawableCanvas2 {onchange} bind:viewTx bind:viewTy bind:viewScale {tool} {penTool} {eraserTool} {idleGestures} {idleIgnore} {idlePanIgnore} {ongesturestart} {onresetview} {canvasStyle} {exportedDimensions} {layers} {activeLayerIndex}/>
 </div>
 
 
