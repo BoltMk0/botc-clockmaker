@@ -1,6 +1,7 @@
 <script lang="ts">
     import { browser } from '$app/environment';
     import { onDestroy, onMount } from 'svelte';
+    import RubberIcon from '$lib/components/RubberIcon.svelte';
     import { type CanvasLayer, type CanvasPoint, type CanvasStroke, type CanvasToolType } from './types';
 
     const MIN_SCALE = 0.2;
@@ -13,7 +14,11 @@
         activeLayerIndex: number;
         layers: CanvasLayer[];
         tool: CanvasToolType | null;
-        /** When no tool is active: allow two-finger pinch/pan (and two-finger tap to reset) anywhere on screen. */
+        /** When no tool is active, a stylus still draws with this tool (on the active layer), anywhere outside idleIgnore. */
+        penTool?: CanvasToolType | null;
+        /** The stylus's side button toggles it to this tool (its eraser end always uses it), in or out of draw mode. */
+        eraserTool?: CanvasToolType | null;
+        /** When no tool is active: allow two-finger pinch/pan (and two-finger double tap to reset) anywhere on screen. */
         idleGestures?: boolean;
         /** Touches starting inside an element matching this selector are ignored by the idle gestures. */
         idleIgnore?: string;
@@ -21,7 +26,7 @@
         idlePanIgnore?: string;
         /** Called when an idle two-finger gesture begins, so the host can cancel any tap/drag the first finger started. */
         ongesturestart?: () => void;
-        /** Overrides what an idle two-finger tap does (default: back to 1x, unpanned). */
+        /** Overrides what an idle two-finger double tap does (default: back to 1x, unpanned). */
         onresetview?: () => void;
         viewScale: number;
         viewTx: number;
@@ -35,6 +40,8 @@
         activeLayerIndex,
         layers = $bindable<CanvasLayer[]>([]),
         tool = $bindable<CanvasToolType|null>(null),
+        penTool = null,
+        eraserTool = null,
         idleGestures = true,
         idleIgnore = '',
         idlePanIgnore = '',
@@ -77,6 +84,8 @@
     // Where each finger was when the second one landed, so a slow pinch still counts as movement.
     let twoFingerStartPos = new Map<number, CanvasPoint>();
     const TWO_FINGER_TAP_MAX_MS = 300;
+    // Longest gap between two two-finger taps (from the first lifting to the second landing) for a double tap.
+    const TWO_FINGER_DOUBLE_TAP_GAP_MS = 200;
     // How far (px) any one finger may stray from where it landed and still count as a tap.
     const TWO_FINGER_TAP_MOVE_THRESHOLD = 8;
 
@@ -242,9 +251,9 @@
         pendingTouch = null;
     }
 
-    function beginStroke(pointerId: number, start: CanvasPoint, isTouch = false) {
+    function beginStroke(pointerId: number, start: CanvasPoint, isTouch = false, strokeTool = tool) {
         if (!ctx) return;
-        if(!tool) return;
+        if(!strokeTool) return;
         cancelPendingTouch();
 
         activePointerId = pointerId;
@@ -258,11 +267,11 @@
 
         currentStroke = {
             points: [start],
-            tool
+            tool: strokeTool
         };
 
         // Eraser strokes are not stored — they remove other strokes via hit-testing.
-        if (tool?.type !== 'eraser') {
+        if (strokeTool.type !== 'eraser') {
             if(!activeLayer) return;
             activeLayer.strokes.push(currentStroke);
             onchange?.();
@@ -479,7 +488,7 @@
 
         // Mouse/pen input: start immediately.
         event.preventDefault();
-        beginStroke(event.pointerId, start);
+        beginStroke(event.pointerId, start, false, penEraserFor(event) ?? tool);
         if (currentStroke) {
             drawDot(start, currentStroke);
         }
@@ -542,14 +551,17 @@
         if (!currentStroke) return;
 
         event.preventDefault();
-        const next = getPos(event);
-        const points = currentStroke.points;
+        extendStroke(currentStroke, getPos(event));
+    }
+
+    function extendStroke(stroke: CanvasStroke, next: CanvasPoint) {
+        const points = stroke.points;
         const prev = points[points.length - 1];
         points.push(next);
-        if (currentStroke.tool.type === 'eraser') {
-            eraseAlongPath(prev, next, currentStroke.tool.width);
+        if (stroke.tool.type === 'eraser') {
+            eraseAlongPath(prev, next, stroke.tool.width);
         } else {
-            drawSegment(prev, next, currentStroke);
+            drawSegment(prev, next, stroke);
             onchange?.();
         }
     }
@@ -621,6 +633,8 @@
     let idleStart = 0;
     let idleMoved = false;
     let idleStartPos = new Map<number, CanvasPoint>();
+    // When the last idle two-finger tap lifted (0 if the last two-finger gesture wasn't a tap).
+    let idleLastTapEnd = 0;
     // True from the moment a second finger joins until every finger is lifted (plus a short tail to swallow the trailing click).
     let idleGesturing = false;
     // Single-finger pan candidate (a touch that started on empty space); `active` once it has moved past the threshold.
@@ -649,6 +663,82 @@
         ongesturestart?.();
     }
 
+    ////// STYLUS SIDE BUTTON TOGGLES THE ERASER //////
+    // Pressing a pen's side button while it hovers switches the stylus between drawing and erasing; an icon
+    // beside the hovering pen shows when it's erasing. (Chrome on Android, at least, reports the S Pen's button only on
+    // hover moves - touching down with it held sends nothing - so it can't act as a hold-to-erase.) A pen's
+    // eraser end, where reported, always erases. Tapping with the side button opens a context menu; swallow it.
+    const PEN_ERASER_BUTTONS = 32;
+    let penEraserOn = $state(false);
+    let penHoverButtons = 0;
+    // Where the pen hovers, for the eraser icon; cleared on contact and once the pen leaves hover range.
+    let penCursor = $state<{ x: number; y: number } | null>(null);
+    let penCursorHideTimer: ReturnType<typeof setTimeout> | undefined;
+    // A hovering pen sends moves constantly from hand jitter, so a lull means it's gone (if pointerout didn't say).
+    const PEN_CURSOR_IDLE_MS = 500;
+    const stylusTool = $derived(penEraserOn && eraserTool ? eraserTool : tool ?? penTool);
+
+    function penEraserFor(event: PointerEvent): CanvasToolType | null {
+        if (event.pointerType !== 'pen' || !eraserTool) return null;
+        return penEraserOn || event.buttons & PEN_ERASER_BUTTONS ? eraserTool : null;
+    }
+
+    function onPenMove(event: PointerEvent) {
+        if (event.pointerType !== 'pen') return;
+        const overBoard = !!ctx && (tool !== null || idleActive())
+            && !(idleIgnore && (event.target as Element | null)?.closest?.(idleIgnore));
+        if (event.pressure > 0) { // touching, not hovering; only hover moves carry the side button
+            hidePenCursor();
+            return;
+        }
+        penCursor = overBoard && eraserTool ? { x: event.clientX, y: event.clientY } : null;
+        clearTimeout(penCursorHideTimer);
+        if (penCursor) penCursorHideTimer = setTimeout(hidePenCursor, PEN_CURSOR_IDLE_MS);
+        if (eraserTool && event.buttons !== 0 && penHoverButtons === 0) penEraserOn = !penEraserOn;
+        penHoverButtons = event.buttons;
+    }
+
+    function hidePenCursor() {
+        clearTimeout(penCursorHideTimer);
+        penCursor = null;
+    }
+
+    function onPenOut(event: PointerEvent) {
+        if (event.pointerType === 'pen' && event.relatedTarget === null) hidePenCursor(); // left hover range
+    }
+
+    function onContextMenu(event: MouseEvent) {
+        if ((event as PointerEvent).pointerType === 'pen' || penHoverButtons !== 0) event.preventDefault();
+    }
+
+    ////// IDLE (NO TOOL) STYLUS DRAWING //////
+    // A pen is never a pan/pinch pointer, so with no tool active it draws with penTool instead. The canvas
+    // ignores pointer events while idle, so the stroke is tracked from the window listeners like the gestures.
+    let idlePenStroke: { id: number; stroke: CanvasStroke } | null = null;
+
+    function idlePenDown(event: PointerEvent): boolean {
+        if (event.pointerType !== 'pen') return false;
+        const penEraser = penEraserFor(event);
+        if (event.button !== 0 && !penEraser) return false;
+        const strokeTool = penEraser ?? penTool;
+        if (!idleActive() || !strokeTool || !activeLayer || !ctx) return false;
+        if (idleIgnore && (event.target as Element | null)?.closest?.(idleIgnore)) return false;
+        const start = getPos(event);
+        let stroke: CanvasStroke = { points: [start], tool: strokeTool };
+        if (strokeTool.type === 'eraser') {
+            eraseAlongPath(start, start, strokeTool.width);
+        } else {
+            activeLayer.strokes.push(stroke);
+            // The layers are reactive state, so the array holds a proxied copy; extend that one or the
+            // added points never reach the saved stroke.
+            stroke = activeLayer.strokes[activeLayer.strokes.length - 1];
+            drawDot(start, stroke);
+            onchange?.();
+        }
+        idlePenStroke = { id: event.pointerId, stroke };
+        return true;
+    }
+
     function onIdleClick(event: MouseEvent) {
         if (idleGesturing || Date.now() < idleSuppressClickUntil) {
             event.preventDefault();
@@ -657,6 +747,13 @@
     }
 
     function onIdlePointerDown(event: PointerEvent) {
+        if (event.pointerType === 'pen') hidePenCursor();
+        // The pen draws instead of reaching the tokens beneath; while it's down, a resting palm is ignored too.
+        if (idlePenStroke !== null || idlePenDown(event)) {
+            event.stopPropagation();
+            event.preventDefault();
+            return;
+        }
         if (event.pointerType === 'touch') {
             // A fresh touch owns its own click: the click trailing the previous gesture has already fired,
             // so drop the suppression (and any stuck gesture flag if no fingers are actually down).
@@ -679,6 +776,12 @@
     }
 
     function onIdlePointerMove(event: PointerEvent) {
+        if (idlePenStroke?.id === event.pointerId) {
+            extendStroke(idlePenStroke.stroke, getPos(event));
+            event.stopPropagation();
+            event.preventDefault();
+            return;
+        }
         if (!idleTouches.has(event.pointerId)) return;
         if (!idleActive()) { idleTouches.clear(); idlePrevMid = null; idlePan = null; idleGesturing = false; return; }
         const pos = idlePos(event);
@@ -719,6 +822,12 @@
     }
 
     function onIdlePointerEnd(event: PointerEvent) {
+        if (idlePenStroke?.id === event.pointerId) {
+            idlePenStroke = null;
+            idleSuppressClickUntil = Date.now() + 400; // lifting the pen must not count as a tap on a token
+            event.stopPropagation();
+            return;
+        }
         if (!idleTouches.delete(event.pointerId)) return;
         if (idlePan?.id === event.pointerId) idlePan = null;
         if (idleGesturing) {
@@ -729,8 +838,18 @@
             }
         }
         if (idleTouches.size < 2 && idlePrevMid !== null) {
-            // A quick two-finger tap resets the view.
-            if (!idleMoved && Date.now() - idleStart < TWO_FINGER_TAP_MAX_MS) (onresetview ?? resetView)();
+            // A quick two-finger double tap resets the view.
+            const now = Date.now();
+            if (!idleMoved && now - idleStart < TWO_FINGER_TAP_MAX_MS) {
+                if (idleStart - idleLastTapEnd < TWO_FINGER_DOUBLE_TAP_GAP_MS) {
+                    (onresetview ?? resetView)();
+                    idleLastTapEnd = 0;
+                } else {
+                    idleLastTapEnd = now;
+                }
+            } else {
+                idleLastTapEnd = 0;
+            }
             idlePrevMid = null;
         }
     }
@@ -781,6 +900,7 @@
 
     onDestroy(() => {
         cancelPendingTouch();
+        clearTimeout(penCursorHideTimer);
         if (browser && typeof window !== 'undefined') {
             window.removeEventListener('resize', resizeCanvasAndRedraw);
             window.removeEventListener('wheel', onIdleWheel);
@@ -791,11 +911,19 @@
 
 <svelte:window
     onpointerdowncapture={onIdlePointerDown}
-    onpointermovecapture={onIdlePointerMove}
+    onpointermovecapture={(event) => { onPenMove(event); onIdlePointerMove(event); }}
+    onpointeroutcapture={onPenOut}
     onpointerupcapture={onIdlePointerEnd}
     onpointercancelcapture={onIdlePointerEnd}
     onclickcapture={onIdleClick}
+    oncontextmenucapture={onContextMenu}
 />
+
+{#if penCursor && stylusTool?.type === 'eraser'}
+    <div class="pen-cursor" style="left: {penCursor.x}px; top: {penCursor.y}px;" aria-hidden="true">
+        <RubberIcon color="#f5b7c5" style="width: 100%; height: 100%;" />
+    </div>
+{/if}
 
 <div class="canvas-wrapper"
     aria-hidden="{tool === null}"
@@ -819,6 +947,17 @@
 </div>
 
 <style>
+    /* Sits up and to the right of the pen tip, clear of the line being drawn. */
+    .pen-cursor {
+        position: fixed;
+        width: 20px;
+        height: 20px;
+        transform: translate(6px, -26px);
+        pointer-events: none;
+        z-index: 100000;
+        filter: drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000);
+    }
+
 
     .canvas-wrapper {
         position: absolute;

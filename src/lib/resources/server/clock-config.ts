@@ -3,7 +3,7 @@ import type { LegacyResourceMapping } from "$lib/common/config";
 import { isClocktowerModel, type ClocktowerModel } from "$lib/model/common/ClocktowerModel";
 import { migrateLegacyClockSfx } from "./clock-sfx-presets";
 import { JSONMultiResourceManager } from "./jsonResourceManager";
-import { listResources, getResourceData } from "./resources";
+import { listResources, getResourceData, deleteResource } from "./resources";
 
 /**
  * Upgrades, in place, a saved model from before clock SFX presets (when each clock picked its own bells via
@@ -46,22 +46,26 @@ function isClocktowerModelMigrating(data: unknown): data is ClocktowerModel {
 export const CLOCK_CONFIG_MANAGER = new JSONMultiResourceManager<ClocktowerModel>(
     'clock-config',
     isClocktowerModelMigrating,
-    (m) => m.clock.clockId
+    (m) => m.clock.clockId,
+    true // A game save that fails to load is deleted
 );
 
-// One-time migration from the old flat-file clockconfig resources, so existing clock instances aren't lost.
-if (CLOCK_CONFIG_MANAGER.values.length === 0) {
-    for (const resource of listResources('clockconfig')) {
-        const data = getResourceData(resource);
-        if (!data) continue;
-        try {
-            const model = JSON.parse(data.toString('utf-8'));
-            if (isClocktowerModelMigrating(model)) {
+// One-time migration from the old flat-file clockconfig resources, so existing clock instances aren't lost. Each
+// old file is deleted once it's been handled (migrated or not), so deleted games can't be migrated back.
+for (const resource of listResources('clockconfig')) {
+    const data = getResourceData(resource);
+    try {
+        const model = data && JSON.parse(data.toString('utf-8'));
+        if (isClocktowerModelMigrating(model)) {
+            if (!CLOCK_CONFIG_MANAGER.get(model.clock.clockId)) {
                 CLOCK_CONFIG_MANAGER.add(model);
                 console.log(`Migrated legacy clock config for instance ${model.clock.clockId}`);
             }
-        } catch (e) {
-            console.warn(`Failed to migrate legacy clock config resource ${resource.id}`, e);
+        } else {
+            console.warn(`Legacy clock config resource ${resource.id} is invalid. Deleting it.`);
         }
+    } catch (e) {
+        console.warn(`Failed to migrate legacy clock config resource ${resource.id}. Deleting it.`, e);
     }
+    deleteResource(resource);
 }

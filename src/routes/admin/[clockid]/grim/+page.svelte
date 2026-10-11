@@ -184,6 +184,15 @@
     let viewTx = $state(0);
     let viewTy = $state(0);
     let activeCanvasLayerIndex = $state<number>(0); // Set on mount by AnotatableView, source of truth for active layer index
+    // Only pen strokes are stored (the eraser removes strokes rather than adding its own), so any stroke can be undone.
+    const activeLayerHasStrokes = $derived((canvasLayers[activeCanvasLayerIndex]?.strokes.length ?? 0) > 0);
+
+    function undoLastPenStroke() {
+        const layer = canvasLayers[activeCanvasLayerIndex];
+        if (!layer || layer.strokes.length === 0) return;
+        layer.strokes.pop();
+        rescheduleSaveGrimoire();
+    }
 
     let sidebarOpen = $state(false);
     let audioDim: AudioDim|null = $state(null); // Created on mount: it opens a connection to the server
@@ -295,6 +304,13 @@
 
     let activeToolIndex = $state<number>(0);
     let activeTool = $derived(tools[activeToolIndex]);
+    // A stylus draws even outside draw mode, with the last pen picked (never the eraser).
+    let lastPenTool = $state<CanvasToolType>(tools[0]);
+    $effect(() => {
+        if (activeTool.type === 'pen') lastPenTool = activeTool;
+    });
+    // The stylus's side button toggles it to the eraser.
+    const penEraserTool = tools.find(t => t.type === 'eraser') ?? null;
 
 
     // CLOCK CONNECTION - always the clock this grim lives under, no manual picker
@@ -1118,7 +1134,7 @@
         inset: 0;
         overflow: hidden;
         overscroll-behavior: none;
-        background-color: #000;
+        background-color: #121212;
         /* All touch gestures (pinch/pan/drag) are handled in JS; stop the browser zooming or scrolling the page. */
         touch-action: none;
     }
@@ -1887,6 +1903,13 @@
         background: rgba(80, 140, 255, 0.7);
     }
 
+    /* Just left of the save status in the top right, centred on the same line (it's 36px tall to this 44px). */
+    .undo-stroke-btn {
+        position: absolute;
+        top: 4px;
+        right: 52px;
+    }
+
     .sidebar-btn.delete-grim-btn {
         color: #ff7b7b;
     }
@@ -2036,6 +2059,13 @@
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/></svg>
         {/if}
     </div>
+
+    {#if activeLayerHasStrokes}
+    <!-- Undo the active layer's last pen stroke -->
+    <button class="sidebar-btn undo-stroke-btn" class:drag-hidden={isDraggingAnything} style="z-index: {z_indecies.ui};" onclick={undoLastPenStroke} title="Undo last pen stroke" aria-label="Undo last pen stroke">
+        <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+    </button>
+    {/if}
 
     {#if lockedToastVisible}
     <div class="locked-toast" role="status" style="z-index: {z_indecies.ui + 40};"
@@ -2282,7 +2312,7 @@
         {/if}
     </div>
 
-    <AnotatableViewV2 ongesturestart={cancelPendingBoardTap} onresetview={fitView} bind:viewScale bind:viewTx bind:viewTy idleGestures={!dragging && !draggingReminder} idleIgnore=".sidebar button, .grimoire-footer, .reminder-popup, [role='dialog']" idlePanIgnore=".board-token, .board-reminder, button, a, input, [role='dialog']" tool={editing ? activeTool : null} onchange={rescheduleSaveGrimoire} layers={canvasLayers} activeLayerIndex={activeCanvasLayerIndex} canvasStyle="z-index: {z_indecies.canvas};">
+    <AnotatableViewV2 ongesturestart={cancelPendingBoardTap} onresetview={fitView} bind:viewScale bind:viewTx bind:viewTy idleGestures={!dragging && !draggingReminder} idleIgnore=".sidebar button, .undo-stroke-btn, .grimoire-footer, .reminder-popup, [role='dialog']" idlePanIgnore=".board-token, .board-reminder, button, a, input, [role='dialog']" tool={editing ? activeTool : null} penTool={lastPenTool} eraserTool={penEraserTool} onchange={rescheduleSaveGrimoire} layers={canvasLayers} activeLayerIndex={activeCanvasLayerIndex} canvasStyle="z-index: {z_indecies.canvas};">
 
     <div class="grimoire-board" bind:this={boardEl}>
         {#each ALIGNMENT_RING_FACTORS as factor}
@@ -2345,7 +2375,7 @@
         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 2em; text-shadow: 0 0 10px rgba(0,0,0,0.7); z-index: {z_indecies.clock}; pointer-events: none;">
             {#if clockClient}
             <div style="position: relative; width: {tokenSize * CLOCK_SCALE + 35}px; height: {tokenSize * CLOCK_SCALE + 35}px; margin: 0 auto;">
-                <FullDisplay model={clockClient} size={tokenSize * CLOCK_SCALE} displayMode='original'/>
+                <FullDisplay model={clockClient} size={tokenSize * CLOCK_SCALE} displayMode='original' showInstructions={false}/>
                 <button class="no-button-style" aria-label="Clock controls" style="position: absolute; top: 25%; left: 25%; width: 50%; height: 50%; border-radius: 50%; pointer-events: auto;" onclick={()=>showTimerOptions = true}></button>
             </div>
             {/if}
