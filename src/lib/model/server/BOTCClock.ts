@@ -16,6 +16,9 @@ export class BOTCTClock extends EventEmitter {
 
     private configSaveTimeout: NodeJS.Timeout | null = null;
 
+    /** Set once the game is deleted, so nothing still holding it can save it back. */
+    #closed = false;
+
     #emissionTimeouts: Map<string|symbol, ReturnType<typeof setTimeout>> = new Map();
 
     /** Fires when the running timer runs out, to turn the day to dusk. */
@@ -99,10 +102,12 @@ export class BOTCTClock extends EventEmitter {
     }
 
     private scheduleSave(){
+        if(this.#closed) return;
         if(this.configSaveTimeout){
             clearTimeout(this.configSaveTimeout);
         }
         this.configSaveTimeout = setTimeout(()=>{
+            if(this.#closed) return;
             CLOCK_CONFIG_MANAGER.add(this.#model);
             console.log("Config auto-saved for instance", this.id);
             this.configSaveTimeout = null;
@@ -226,6 +231,7 @@ export class BOTCTClock extends EventEmitter {
 
     /** Stops pending timers, so a freed clock doesn't fire (or save itself back) later. */
     close(){
+        this.#closed = true;
         if(this.#expiryTimeout !== null) clearTimeout(this.#expiryTimeout);
         if(this.configSaveTimeout !== null) clearTimeout(this.configSaveTimeout);
         this.#expiryTimeout = null;

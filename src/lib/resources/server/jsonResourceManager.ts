@@ -24,7 +24,9 @@ export class JSONMultiResourceManager<T> {
     constructor(
         readonly identifier: string,
         private readonly validator?: (obj: unknown) => obj is T,
-        getId?: (t: T) => string
+        getId?: (t: T) => string,
+        /** Delete saved files that fail to load, rather than leaving them on disk. */
+        private readonly deleteInvalid = false
     ) {
         this.#getId = getId ?? ((t: T) => (t as Identifiable).id);
         this.#dirpath = join(RESOURCE_DATA_DIR, identifier);
@@ -48,7 +50,12 @@ export class JSONMultiResourceManager<T> {
                 values.push(this.#loadOne(fpath));
             } catch (e) {
                 if (e instanceof ValidationFailedError || e instanceof SyntaxError) {
-                    console.warn(`Failed to load ${this.identifier} from ${fpath}. Ignoring.`, e);
+                    if (this.deleteInvalid) {
+                        console.warn(`Failed to load ${this.identifier} from ${fpath}. Deleting it.`, e);
+                        unlinkSync(fpath);
+                    } else {
+                        console.warn(`Failed to load ${this.identifier} from ${fpath}. Ignoring.`, e);
+                    }
                 } else {
                     throw e;
                 }

@@ -43,10 +43,6 @@ class ClockInstanceManager extends EventEmitter {
             this.instances.set(model.clock.clockId, instance);
             console.log(`Loaded BOTCTClock instance with id: ${model.clock.clockId} from config.`);
         }
-        if(!this.hasInstance('default')){
-            const {id, instance} = this.newInstance('default');
-            console.log("Created default BOTCTClock instance with id: default");
-        }
     }
 
     listInstances(): ClocktowerModel[] {
@@ -110,12 +106,10 @@ class ClockInstanceManager extends EventEmitter {
     freeInstance(id: string) {
         console.log(`Freeing BOTCTClock instance with id: ${id}`);
         const instance = this.getInstance(id);
-        if (instance) {
-            instance.close();
-            this.emit('instanceFreed', id);
-        }
-        CLOCK_CONFIG_MANAGER.delete(id);
+        instance.close();
         this.instances.delete(id);
+        CLOCK_CONFIG_MANAGER.delete(id);
+        this.emit('instanceFreed', id);
     }
 
     on(event: 'instanceCreated', listener: (id: string, instance: BOTCTClock) => void): this;
