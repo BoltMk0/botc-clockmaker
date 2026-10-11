@@ -18,7 +18,7 @@
         penTool?: CanvasToolType | null;
         /** The stylus's side button toggles it to this tool (its eraser end always uses it), in or out of draw mode. */
         eraserTool?: CanvasToolType | null;
-        /** When no tool is active: allow two-finger pinch/pan (and two-finger tap to reset) anywhere on screen. */
+        /** When no tool is active: allow two-finger pinch/pan (and two-finger double tap to reset) anywhere on screen. */
         idleGestures?: boolean;
         /** Touches starting inside an element matching this selector are ignored by the idle gestures. */
         idleIgnore?: string;
@@ -26,7 +26,7 @@
         idlePanIgnore?: string;
         /** Called when an idle two-finger gesture begins, so the host can cancel any tap/drag the first finger started. */
         ongesturestart?: () => void;
-        /** Overrides what an idle two-finger tap does (default: back to 1x, unpanned). */
+        /** Overrides what an idle two-finger double tap does (default: back to 1x, unpanned). */
         onresetview?: () => void;
         viewScale: number;
         viewTx: number;
@@ -84,6 +84,8 @@
     // Where each finger was when the second one landed, so a slow pinch still counts as movement.
     let twoFingerStartPos = new Map<number, CanvasPoint>();
     const TWO_FINGER_TAP_MAX_MS = 300;
+    // Longest gap between two two-finger taps (from the first lifting to the second landing) for a double tap.
+    const TWO_FINGER_DOUBLE_TAP_GAP_MS = 200;
     // How far (px) any one finger may stray from where it landed and still count as a tap.
     const TWO_FINGER_TAP_MOVE_THRESHOLD = 8;
 
@@ -631,6 +633,8 @@
     let idleStart = 0;
     let idleMoved = false;
     let idleStartPos = new Map<number, CanvasPoint>();
+    // When the last idle two-finger tap lifted (0 if the last two-finger gesture wasn't a tap).
+    let idleLastTapEnd = 0;
     // True from the moment a second finger joins until every finger is lifted (plus a short tail to swallow the trailing click).
     let idleGesturing = false;
     // Single-finger pan candidate (a touch that started on empty space); `active` once it has moved past the threshold.
@@ -834,8 +838,18 @@
             }
         }
         if (idleTouches.size < 2 && idlePrevMid !== null) {
-            // A quick two-finger tap resets the view.
-            if (!idleMoved && Date.now() - idleStart < TWO_FINGER_TAP_MAX_MS) (onresetview ?? resetView)();
+            // A quick two-finger double tap resets the view.
+            const now = Date.now();
+            if (!idleMoved && now - idleStart < TWO_FINGER_TAP_MAX_MS) {
+                if (idleStart - idleLastTapEnd < TWO_FINGER_DOUBLE_TAP_GAP_MS) {
+                    (onresetview ?? resetView)();
+                    idleLastTapEnd = 0;
+                } else {
+                    idleLastTapEnd = now;
+                }
+            } else {
+                idleLastTapEnd = 0;
+            }
             idlePrevMid = null;
         }
     }
