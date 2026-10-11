@@ -16,13 +16,16 @@
         models = [],
         displayMode = undefined,
         showClockNames = undefined,
-        size=undefined
+        size=undefined,
+        showInstructions = true
     } : {
         model: Clocktower;
         models?: Clocktower[];
         showClockNames?: boolean;
         displayMode?: FullDisplayMode;
         size?: number;
+        /** Shows the bell/reminder messages ("The end of the day is approaching..." etc.) over the clock. */
+        showInstructions?: boolean;
     } = $props();
 
     let otherClockNotificationPresent: boolean = $state(false);
@@ -161,9 +164,11 @@
         </div>
     {/if}
 
+    {#if showInstructions}
     <div class="instruction-text-container" style="opacity: {showInstructionText ? "1" : "0"}; font-size: 3.5vw;">
         <div class="instruction-text">
             {instructionText}
         </div>
     </div>
+    {/if}
 </div>

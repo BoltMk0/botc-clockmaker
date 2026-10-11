@@ -2299,7 +2299,7 @@
         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 2em; text-shadow: 0 0 10px rgba(0,0,0,0.7); z-index: {z_indecies.clock}; pointer-events: none;">
             {#if clockClient}
             <div style="position: relative; width: {tokenSize * CLOCK_SCALE + 35}px; height: {tokenSize * CLOCK_SCALE + 35}px; margin: 0 auto;">
-                <FullDisplay model={clockClient} size={tokenSize * CLOCK_SCALE} displayMode='original'/>
+                <FullDisplay model={clockClient} size={tokenSize * CLOCK_SCALE} displayMode='original' showInstructions={false}/>
                 <button class="no-button-style" aria-label="Clock controls" style="position: absolute; top: 25%; left: 25%; width: 50%; height: 50%; border-radius: 50%; pointer-events: auto;" onclick={()=>showTimerOptions = true}></button>
             </div>
             {/if}
