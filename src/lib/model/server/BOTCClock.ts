@@ -101,6 +101,11 @@ export class BOTCTClock extends EventEmitter {
         return this.#model.clock.time.serverStartTime !== null;
     }
 
+    /** Whether the countdown is running and hasn't run out yet (a clock that has run out still counts as running until it's stopped). */
+    get countingDown(){
+        return this.running && this.#expiryTimeout !== null;
+    }
+
     private scheduleSave(){
         if(this.#closed) return;
         if(this.configSaveTimeout){

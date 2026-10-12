@@ -55,12 +55,13 @@ class ClockInstanceManager extends EventEmitter {
     }
 
     /**
-     * Whether any game's countdown is running: started, and still in the day. (Once it runs out it's dusk, though the
-     * clock still counts as running until it's stopped; paused, it isn't running.)
+     * Whether any game's countdown is running: started, not yet run out, and still in the day. (A clock that has run out
+     * still counts as running until it's stopped, so going from night back to day by hand mustn't count; paused, it
+     * isn't running.)
      */
     get countdownRunning(): boolean {
         for(const instance of this.instances.values()){
-            if(instance.running && instance.timeOfDay === 'day') return true;
+            if(instance.countingDown && instance.timeOfDay === 'day') return true;
         }
         return false;
     }
