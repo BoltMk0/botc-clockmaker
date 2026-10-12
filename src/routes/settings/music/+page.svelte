@@ -11,7 +11,7 @@
     import PlayIcon from "$lib/audio/client/components/PlayIcon.svelte";
     import PauseIcon from "$lib/audio/client/components/PauseIcon.svelte";
     import MusicPreviewPlayer from "$lib/audio/client/components/MusicPreviewPlayer.svelte";
-    import { MusicLevelling } from "$lib/audio/client/MusicLevelling.svelte";
+    import { MusicSettings } from "$lib/audio/client/MusicSettings.svelte";
     import { levellingGainDb } from "$lib/audio/common/model/musicModel";
     import SpotifyPresetsEditor from "$lib/components/SpotifyPresetsEditor.svelte";
     import { getAcceptedExtensionsForResourceType } from "$lib/resources/common/types";
@@ -158,12 +158,12 @@
     let queue: string[] = $state([]);
     const playingTrack = $derived(playingId === null ? null : tracksById.get(playingId) ?? null);
     /** The loudness levelling settings (set on the Audio settings page), applied here as on the music player. */
-    let levelling = $state<MusicLevelling | null>(null);
+    let musicSettings = $state<MusicSettings | null>(null);
     onMount(() => {
-        const l = levelling = new MusicLevelling();
-        return () => l.close();
+        const settings = musicSettings = new MusicSettings();
+        return () => settings.close();
     });
-    const playingGainDb = $derived(levelling && playingTrack ? levellingGainDb(levelling.model, playingTrack.loudness) : 0);
+    const playingGainDb = $derived(musicSettings && playingTrack ? levellingGainDb(musicSettings.levelling, playingTrack.loudness) : 0);
 
     async function play(track: MusicTrack, from: MusicTrack[]) {
         playingId = track.id;

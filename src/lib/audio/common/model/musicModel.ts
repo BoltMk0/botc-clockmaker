@@ -21,6 +21,21 @@ export type MusicLevellingModel = {
     targetLufs: number;
 };
 
+/** Crossfading: a track that ends is overlapped with the next one from its playlist, rather than played back to back. */
+export type MusicCrossfadeModel = {
+    enabled: boolean;
+    /** How long the two overlap. */
+    seconds: number;
+};
+
+export const DEFAULT_MUSIC_CROSSFADE: MusicCrossfadeModel = { enabled: false, seconds: 6 };
+export const MIN_CROSSFADE_SECONDS = 1;
+export const MAX_CROSSFADE_SECONDS = 30;
+
+export function clampCrossfadeSeconds(seconds: number): number {
+    return Math.round(Math.min(MAX_CROSSFADE_SECONDS, Math.max(MIN_CROSSFADE_SECONDS, seconds)) * 10) / 10;
+}
+
 export const DEFAULT_MUSIC_LEVELLING: MusicLevellingModel = { enabled: false, targetLufs: -24 };
 export const MIN_LEVELLING_TARGET_LUFS = -40;
 export const MAX_LEVELLING_TARGET_LUFS = -10;
@@ -46,7 +61,7 @@ export function musicLevellingGainDb(model: Pick<MusicModel, 'levelling' | 'trac
  * Server-wide state of the uploaded-music player, shared by every mixer client. The server decides what plays; the
  * host client (the one device the sound comes out of) follows it: whenever `loadId` changes it fades out what it had
  * (over `fadeMs`, if it was playing) and starts `track` from the top, and otherwise it plays or pauses (fading out over
- * `fadeMs` to pause) to match `playing`.
+ * `fadeMs` to pause) to match `playing`. A change marked `crossfading` instead overlaps the two tracks over `fadeMs`.
  */
 export type MusicModel = {
     /** The mixer client running the player, if any. */
@@ -59,6 +74,8 @@ export type MusicModel = {
     playing: boolean;
     /** How long the host should fade out for to make the latest change (0 for a track that just ended). */
     fadeMs: number;
+    /** Whether the latest change of track is a crossfade into the playlist's next track (over fadeMs), not a fade-out. */
+    crossfading: boolean;
     /** The preset playing (or paused), if any. */
     presetId: string | null;
     /** The preset being switched to, while the old one fades out. */
@@ -68,6 +85,7 @@ export type MusicModel = {
     /** The preset to switch to at the next change of the games' phase, if one's been picked. */
     scheduledPresetId: string | null;
     levelling: MusicLevellingModel;
+    crossfade: MusicCrossfadeModel;
 };
 
 export type MusicControlAction =
@@ -85,5 +103,9 @@ export const MAX_MUSIC_GAIN = Math.pow(10, 12 / 20);
 /** -6 dB. */
 export const DEFAULT_MUSIC_GAIN = 0.5;
 
-/** What the host reports about the track it's playing. */
-export type MusicHostEvent = 'ended' | 'error';
+/**
+ * What the host reports about the track it's playing: that it ended, wouldn't play, or (with crossfading on) is
+ * close enough to its end for the next track to start crossfading in.
+ */
+export type MusicHostEvent = 'ended' | 'error' | 'crossfade';
+export const MUSIC_HOST_EVENTS: readonly MusicHostEvent[] = ['ended', 'error', 'crossfade'];
