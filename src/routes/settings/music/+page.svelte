@@ -13,7 +13,7 @@
     import MusicPreviewPlayer from "$lib/audio/client/components/MusicPreviewPlayer.svelte";
     import SpotifyPresetsEditor from "$lib/components/SpotifyPresetsEditor.svelte";
     import { getAcceptedExtensionsForResourceType } from "$lib/resources/common/types";
-    import { formatMusicDuration, musicNameKey, MUSIC_NUMBER_MAX, MUSIC_TEXT_MAX_LENGTH, type MusicAlbum, type MusicLibrary, type MusicPlaylist, type MusicTrack, type MusicTrackDetails } from "$lib/audio/common/musicLibrary";
+    import { formatMusicDuration, musicNameKey, MUSIC_LOUDNESS_MAX, MUSIC_LOUDNESS_MIN, MUSIC_NUMBER_MAX, MUSIC_TEXT_MAX_LENGTH, type MusicAlbum, type MusicLibrary, type MusicPlaylist, type MusicTrack, type MusicTrackDetails } from "$lib/audio/common/musicLibrary";
 
     let { data }: { data: { library: MusicLibrary, musicPresets: MusicPreset[] } } = $props();
 
@@ -115,10 +115,10 @@
         .sort((a, b) => compareNames(a.artist, b.artist) || compareNames(a.title, b.title)));
 
     /**
-     * The artists expanded in the Artists view (all of them are while searching). Kept here rather than left to the
-     * <details> elements, which would otherwise close again whenever the library reloads after a change.
+     * The artists collapsed in the Artists view (all start expanded, and all are while searching). Kept here rather than left to the
+     * <details> elements, which would otherwise reopen whenever the library reloads after a change.
      */
-    const expandedArtists = new SvelteSet<string>();
+    const collapsedArtists = new SvelteSet<string>();
 
     type ArtistGroup = { key: string, name: string, albums: AlbumGroup[], singles: MusicTrack[] };
 
@@ -235,7 +235,10 @@
 
     /** The track whose details form is open, and the values typed so far (numbers as typed, so they can be blank). */
     let detailsId: string | null = $state(null);
-    let detailsDraft = $state({ title: '', artist: '', album: '', year: '', trackNumber: '' });
+    let detailsDraft = $state<{ title: string, artist: string, album: string, year: string | number | null, trackNumber: string | number | null, loudness: string | number | null }>(
+        { title: '', artist: '', album: '', year: '', trackNumber: '', loudness: '' });
+    /** The loudness as the form opened with it, so it's only sent if changed (one not yet measured stays queued). */
+    let detailsLoudness = '';
     let saving = $state(false);
 
     function toggleDetails(track: MusicTrack) {
@@ -250,12 +253,23 @@
             artist: track.artist,
             album: albumOf(track)?.title ?? '',
             year: track.year?.toString() ?? '',
-            trackNumber: track.trackNumber?.toString() ?? ''
+            trackNumber: track.trackNumber?.toString() ?? '',
+            loudness: detailsLoudness = track.loudness?.toString() ?? ''
         };
     }
 
-    function parseNumber(text: string): number | null {
-        const n = parseInt(text.trim(), 10);
+    function parseLoudness(value: string | number | null): number | null {
+        const n = parseFloat(fieldText(value));
+        return isNaN(n) ? null : Math.min(Math.max(MUSIC_LOUDNESS_MIN, n), MUSIC_LOUDNESS_MAX);
+    }
+
+    /** A number field's value as text: it starts as text, but once typed in, Svelte binds it as a number (or null when cleared). */
+    function fieldText(value: string | number | null): string {
+        return value === null ? '' : String(value).trim();
+    }
+
+    function parseNumber(value: string | number | null): number | null {
+        const n = parseInt(fieldText(value), 10);
         return isNaN(n) ? null : Math.min(Math.max(0, n), MUSIC_NUMBER_MAX);
     }
 
@@ -267,6 +281,7 @@
             year: parseNumber(detailsDraft.year),
             trackNumber: parseNumber(detailsDraft.trackNumber)
         };
+        if (fieldText(detailsDraft.loudness) !== detailsLoudness) details.loudness = parseLoudness(detailsDraft.loudness);
         saving = true;
         try {
             const r = await sendJson(`/api/music/tracks/${encodeURIComponent(track.id)}`, 'PATCH', details);
@@ -737,6 +752,9 @@
                             <input type="number" min="0" max={MUSIC_NUMBER_MAX} bind:value={detailsDraft.year}/></label>
                         <label class="details-field narrow"><span>Track #</span>
                             <input type="number" min="0" max={MUSIC_NUMBER_MAX} bind:value={detailsDraft.trackNumber}/></label>
+                        <label class="details-field narrow" title="Integrated loudness, measured when the track was uploaded. Loudness levelling turns the track up or down from this; blank, it isn't levelled."><span>Loudness (LUFS)</span>
+                            <input type="number" min={MUSIC_LOUDNESS_MIN} max={MUSIC_LOUDNESS_MAX} step="0.1" bind:value={detailsDraft.loudness}
+                                placeholder={track.loudness === undefined ? 'Measuring...' : 'Unknown'}/></label>
                         <div class="details-actions">
                             <button type="button" onclick={() => detailsId = null}>Cancel</button>
                             <button type="submit" class="save" disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
@@ -852,8 +870,8 @@
         <p class="empty">Nothing matches "{search}".</p>
     {:else if view === 'artists'}
         {#each artistGroups as group (group.key)}
-            <details class="artist-group" open={searching || artistGroups.length === 1 || expandedArtists.has(group.key)}
-                ontoggle={(e) => { if (!searching) { if (e.currentTarget.open) expandedArtists.add(group.key); else expandedArtists.delete(group.key); } }}>
+            <details class="artist-group" open={searching || !collapsedArtists.has(group.key)}
+                ontoggle={(e) => { if (!searching) { if (e.currentTarget.open) collapsedArtists.delete(group.key); else collapsedArtists.add(group.key); } }}>
                 <summary>
                     <span class="artist-name">{group.name || 'Unknown Artist'}</span>
                     <span class="artist-sub">{[group.albums.length > 0 ? `${group.albums.length} album${group.albums.length === 1 ? '' : 's'}` : null, trackCount(group.albums.reduce((n, a) => n + a.tracks.length, 0) + group.singles.length)].filter(Boolean).join(' · ')}</span>

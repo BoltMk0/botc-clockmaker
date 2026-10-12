@@ -1,4 +1,4 @@
-import type { MusicControlAction, MusicHostEvent, MusicModel, MusicTrackPlaybackModel } from "$lib/audio/common/model/musicModel";
+import { musicLevellingGainDb, type MusicControlAction, type MusicHostEvent, type MusicModel, type MusicTrackPlaybackModel } from "$lib/audio/common/model/musicModel";
 import { subscribeMixerEvents } from "./MixerEventsClient";
 
 const HEARTBEAT_MS = 5000;
@@ -9,6 +9,8 @@ const FADE_IN_S = 0.05;
 const VOLUME_TIME_CONSTANT_S = 0.05;
 /** Points in the fade-out's equal-power curve. */
 const FADE_CURVE_POINTS = 64;
+/** Time constant of the loudness levelling easing to a new level mid-track (levelling switched, or the track measured). */
+const LEVEL_TIME_CONSTANT_S = 0.5;
 
 /** crypto.randomUUID is unavailable outside secure contexts (e.g. plain-http LAN access). */
 function newClientId() {
@@ -20,7 +22,8 @@ function newClientId() {
  * comes out of that device); every client, host included, sees the shared state over SSE and controls it through the
  * server, which decides what plays (see MusicHelper). The host follows the model: it plays through an <audio> element
  * routed into its mixer's Music & Ambience master bus, so the master fader, dim and time-of-day trim apply as they do
- * to the ambience, and does the fades itself on a gain node.
+ * to the ambience, and does the fades itself on a gain node. Loudness levelling is a further, hidden gain ahead of
+ * that, set for each track as it starts.
  */
 export class MusicPlayer {
     readonly clientId = newClientId();
@@ -35,6 +38,9 @@ export class MusicPlayer {
     #unsubscribeEvents: () => void;
     #audio: HTMLAudioElement | null = null;
     #source: MediaElementAudioSourceNode | null = null;
+    #levelNode: GainNode | null = null;
+    /** The levelling gain last set, so it's only moved when that changes. */
+    #levelGain = 1;
     #fadeNode: GainNode | null = null;
     #volumeNode: GainNode | null = null;
     #heartbeat: ReturnType<typeof setInterval> | null = null;
@@ -98,14 +104,17 @@ export class MusicPlayer {
             const audio = new Audio();
             audio.preload = 'auto';
             const source = context.createMediaElementSource(audio);
+            const levelNode = context.createGain();
+            this.#levelGain = 1;
             const fadeNode = context.createGain();
             const volumeNode = context.createGain();
             volumeNode.gain.value = (this.model?.volume ?? 50) / 100;
-            source.connect(fadeNode).connect(volumeNode).connect(this.#output);
+            source.connect(levelNode).connect(fadeNode).connect(volumeNode).connect(this.#output);
             audio.addEventListener('ended', () => this.report('ended'));
             audio.addEventListener('error', () => { if (audio.getAttribute('src')) this.report('error'); });
             this.#audio = audio;
             this.#source = source;
+            this.#levelNode = levelNode;
             this.#fadeNode = fadeNode;
             this.#volumeNode = volumeNode;
             this.#heartbeat = setInterval(() => this.put({}).catch(e => this.failHosting(e)), HEARTBEAT_MS);
@@ -145,9 +154,10 @@ export class MusicPlayer {
             this.#audio.load();
         }
         this.#source?.disconnect();
+        this.#levelNode?.disconnect();
         this.#fadeNode?.disconnect();
         this.#volumeNode?.disconnect();
-        this.#audio = this.#source = this.#fadeNode = this.#volumeNode = null;
+        this.#audio = this.#source = this.#levelNode = this.#fadeNode = this.#volumeNode = null;
         this.#targetLoadId = null;
         this.#targetPlaying = false;
         this.#blocked = false;
@@ -189,6 +199,8 @@ export class MusicPlayer {
             }
             return;
         }
+        // Mid-track (not while fading over to the next one, which gets its own level as it starts)
+        if (model.loadId === this.#targetLoadId) this.setLevel(LEVEL_TIME_CONSTANT_S);
         if (model.loadId === this.#targetLoadId && playing === this.#targetPlaying) return;
         const token = ++this.#transition;
         const audible = this.#targetPlaying && !audio.paused;
@@ -214,6 +226,7 @@ export class MusicPlayer {
         if (!audio) return;
         audio.pause();
         audio.src = url;
+        this.setLevel(0);
         this.setFade(1, 0);
         if (play) this.startElement();
     }
@@ -243,6 +256,19 @@ export class MusicPlayer {
         param.setValueCurveAtTime(curve, now, durationMs / 1000);
         await new Promise(resolve => setTimeout(resolve, durationMs));
         return token === this.#transition;
+    }
+
+    /** Sets the levelling gain the model calls for: straight away, or easing to it with the given time constant. */
+    private setLevel(timeConstantS: number) {
+        const node = this.#levelNode;
+        if (!node || !this.model) return;
+        const gain = Math.pow(10, musicLevellingGainDb(this.model) / 20);
+        if (timeConstantS > 0 && gain === this.#levelGain) return;
+        this.#levelGain = gain;
+        const now = node.context.currentTime;
+        node.gain.cancelScheduledValues(now);
+        if (timeConstantS <= 0) node.gain.setValueAtTime(gain, now);
+        else node.gain.setTargetAtTime(gain, now, timeConstantS);
     }
 
     private setFade(value: number, rampS: number) {

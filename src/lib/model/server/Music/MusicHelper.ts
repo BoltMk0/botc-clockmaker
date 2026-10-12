@@ -1,10 +1,12 @@
 import { EventEmitter } from "node:events";
-import type { MusicControlAction, MusicHostEvent, MusicModel, MusicTrackPlaybackModel } from "$lib/audio/common/model/musicModel";
+import { clampLevellingTarget, DEFAULT_MUSIC_LEVELLING, type MusicControlAction, type MusicHostEvent, type MusicLevellingModel, type MusicModel, type MusicTrackPlaybackModel } from "$lib/audio/common/model/musicModel";
 import { adaptiveMusicPlaylistFor, isMusicAdaptivePreset, isMusicCountdownPreset, musicPresetPlaylistIds, type MusicAdaptivePreset, type MusicCountdownPreset, type MusicPreset } from "$lib/audio/common/musicPreset";
 import type { CountdownPhase } from "$lib/audio/common/spotifyPreset";
 import type { TimeOfDay } from "$lib/model/client/types";
 import { getMusicAlbum, getMusicPlaylist, getMusicTrack } from "$lib/resources/server/musicLibrary";
 import { getMusicPresets } from "$lib/resources/server/musicPresets";
+import { musicLoudnessEvents } from "$lib/resources/server/musicLoudness";
+import { JSONSingletonResourceManager } from "$lib/resources/server/jsonResourceManager";
 import { getBOTCTClockInstanceManager } from "../model";
 import { getSpotifyHelperInstance } from "../Spotify/SpotifyHelper";
 import { MusicShuffle } from "./MusicShuffle";
@@ -22,6 +24,13 @@ const SKIP_FADE_MS = 600;
 const PAUSE_FADE_MS = 300;
 /** How often to check the games' phase. */
 const PHASE_CHECK_INTERVAL_MS = 250;
+
+function isMusicLevellingModel(value: unknown): value is MusicLevellingModel {
+    return typeof value === 'object' && value !== null && typeof (value as MusicLevellingModel).enabled === 'boolean' &&
+        typeof (value as MusicLevellingModel).targetLufs === 'number';
+}
+
+const LEVELLING_MANAGER = new JSONSingletonResourceManager<MusicLevellingModel>('music_levelling', isMusicLevellingModel);
 
 /**
  * Runs the uploaded-music player: one mixer client hosts it (the sound comes out of that device, through its mixer's
@@ -54,9 +63,16 @@ export class MusicHelper extends EventEmitter {
     /** Tracks in a row that failed to play, so a playlist of broken files stops rather than spinning through them. */
     #failures = 0;
     #shuffle = new MusicShuffle();
+    #levelling: MusicLevellingModel = { ...DEFAULT_MUSIC_LEVELLING, ...LEVELLING_MANAGER.value };
 
     constructor() {
         super();
+        // A track measured (one just uploaded) or set by hand while it's loaded is levelled by that from then on
+        musicLoudnessEvents.on('changed', (trackId: string, loudness: number | null) => {
+            if (this.#track?.trackId !== trackId) return;
+            this.#track = { ...this.#track, loudness };
+            this.changed();
+        });
         this.#lastTimeOfDay = getBOTCTClockInstanceManager().timeOfDay;
         const phaseTimer = setInterval(() => this.checkPhase(), PHASE_CHECK_INTERVAL_MS);
         phaseTimer.unref?.();
@@ -78,7 +94,8 @@ export class MusicHelper extends EventEmitter {
             presetId: this.#presetId,
             pendingPresetId: this.#pendingPresetId,
             presetSilent: this.#silenced,
-            scheduledPresetId: this.#scheduledPresetId
+            scheduledPresetId: this.#scheduledPresetId,
+            levelling: { ...this.#levelling }
         };
     }
 
@@ -205,6 +222,23 @@ export class MusicHelper extends EventEmitter {
             default:
                 throw new Error('Unknown action');
         }
+    }
+
+    /** Validates and applies a patch to the loudness levelling settings ({ enabled?, targetLufs? }). Throws on an invalid field. */
+    updateLevelling(patch: Record<string, unknown>) {
+        const levelling = { ...this.#levelling };
+        if (patch.enabled !== undefined) {
+            if (typeof patch.enabled !== 'boolean') throw new Error('Invalid enabled');
+            levelling.enabled = patch.enabled;
+        }
+        if (patch.targetLufs !== undefined) {
+            if (typeof patch.targetLufs !== 'number' || !isFinite(patch.targetLufs)) throw new Error('Invalid targetLufs');
+            levelling.targetLufs = clampLevellingTarget(patch.targetLufs);
+        }
+        if (levelling.enabled === this.#levelling.enabled && levelling.targetLufs === this.#levelling.targetLufs) return;
+        this.#levelling = levelling;
+        LEVELLING_MANAGER.save(levelling);
+        this.changed();
     }
 
     // ---- Presets ----
@@ -407,7 +441,8 @@ export class MusicHelper extends EventEmitter {
             artist: track.artist,
             album: album?.title ?? '',
             imageUrl: album?.artwork ? `/api/resources/${album.artwork}` : null,
-            url: `/api/resources/${track.file}`
+            url: `/api/resources/${track.file}`,
+            loudness: track.loudness ?? null
         };
         this.#loadId++;
         this.#playing = true;

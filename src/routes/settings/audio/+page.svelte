@@ -4,6 +4,8 @@
     import { onMount, tick } from "svelte";
     import { AudioDim } from "$lib/audio/client/AudioDim.svelte";
     import { DEFAULT_DIM_AMOUNT_DB, MAX_DIM_AMOUNT_DB, MIN_DIM_AMOUNT_DB } from "$lib/audio/common/model/audioDimModel";
+    import { MusicLevelling } from "$lib/audio/client/MusicLevelling.svelte";
+    import { DEFAULT_MUSIC_LEVELLING, MAX_LEVELLING_TARGET_LUFS, MIN_LEVELLING_TARGET_LUFS } from "$lib/audio/common/model/musicModel";
     import { CLOCK_SFX_SLOT_LABELS, CLOCK_SFX_SLOT_TIMES_OF_DAY, CLOCK_SFX_SLOTS, type ClockSfxPreset } from "$lib/audio/common/clockSfxPreset";
     import { goto, invalidateAll } from "$app/navigation";
     import { getAcceptedExtensionsForResourceType, type Resource } from "$lib/resources/common/types";
@@ -20,7 +22,7 @@
      */
     type AssetResource = Resource & { size: number | null, metadata?: AudioAssetMetadata, title?: string };
 
-    let { data }: { data: { clockSfxPresets: ClockSfxPreset[], ambienceResources: AssetResource[], stingResources: AssetResource[] } } = $props();
+    let { data }: { data: { clockSfxPresets: ClockSfxPreset[], ambienceResources: AssetResource[], stingResources: AssetResource[], musicLoudness: { measured: number, total: number } } } = $props();
 
     // ---- Audio asset libraries (ambience, stings) ----
 
@@ -256,10 +258,18 @@
     let audioDim: AudioDim | null = $state(null); // Created on mount: it opens a connection to the server
     /** The dim slider's position while it's being dragged, before it's sent. */
     let draggingDimDb: number | null = $state(null);
+    let musicLevelling = $state<MusicLevelling | null>(null);
+    /** The levelling target slider's position while it's being dragged, before it's sent. */
+    let draggingTargetLufs: number | null = $state(null);
+    const levellingTarget = $derived(draggingTargetLufs ?? musicLevelling?.targetLufs ?? DEFAULT_MUSIC_LEVELLING.targetLufs);
 
     onMount(() => {
         audioDim = new AudioDim();
-        return () => audioDim?.close();
+        musicLevelling = new MusicLevelling();
+        return () => {
+            audioDim?.close();
+            musicLevelling?.close();
+        };
     });
 
 </script>
@@ -280,6 +290,26 @@
         oninput={(e) => draggingDimDb = e.currentTarget.valueAsNumber}
         onchange={(e) => { if (audioDim) audioDim.amountDb = e.currentTarget.valueAsNumber; draggingDimDb = null; }}/>
     <span class="option-value">-{draggingDimDb ?? audioDim?.amountDb ?? DEFAULT_DIM_AMOUNT_DB} dB</span>
+</label>
+<label class="option">
+    <input type="checkbox" checked={musicLevelling?.enabled ?? DEFAULT_MUSIC_LEVELLING.enabled} disabled={!musicLevelling}
+        onchange={(e) => { if (musicLevelling) musicLevelling.enabled = e.currentTarget.checked; }}/>
+    <span class="option-name">Loudness Levelling</span>
+</label>
+<p class="description option-description">
+    Turns each uploaded music track up or down so they all play at about the same loudness (not Spotify).
+    {#if data.musicLoudness.measured < data.musicLoudness.total}
+        {data.musicLoudness.measured} of {data.musicLoudness.total} tracks measured so far; the rest play as they are until they're measured.
+    {/if}
+</p>
+<label class="option">
+    <span class="option-name">Target loudness</span>
+    <input class="dim-slider" type="range" min={MIN_LEVELLING_TARGET_LUFS} max={MAX_LEVELLING_TARGET_LUFS} step={1}
+        value={levellingTarget}
+        disabled={!musicLevelling || !musicLevelling.enabled}
+        oninput={(e) => draggingTargetLufs = e.currentTarget.valueAsNumber}
+        onchange={(e) => { if (musicLevelling) musicLevelling.targetLufs = e.currentTarget.valueAsNumber; draggingTargetLufs = null; }}/>
+    <span class="option-value">{levellingTarget} LUFS</span>
 </label>
 </div>
 
@@ -687,6 +717,14 @@
 
     .option-name {
         font-weight: bold;
+    }
+
+    .option + .option {
+        margin-top: 1em;
+    }
+
+    .description.option-description {
+        margin: 0.25em 0 0.75em;
     }
 
     .dim-slider {

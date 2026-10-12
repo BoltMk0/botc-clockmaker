@@ -16,6 +16,11 @@ export type MusicTrack = {
     trackNumber: number | null;
     /** Length in seconds, if it could be read from the file. */
     duration: number | null;
+    /**
+     * Integrated loudness in LUFS, measured by the loudness worker: absent until it's been measured, and null if it
+     * couldn't be (an unreadable or silent file).
+     */
+    loudness?: number | null;
 };
 
 export type MusicAlbum = {
@@ -48,6 +53,8 @@ export type MusicTrackDetails = {
     album: string;
     year: number | null;
     trackNumber: number | null;
+    /** Its integrated loudness in LUFS, set by hand (null for unknown: it isn't levelled). Left out, it's unchanged. */
+    loudness?: number | null;
 };
 
 export type MusicAlbumDetails = {
@@ -58,6 +65,9 @@ export type MusicAlbumDetails = {
 /** Longest text kept for any one field. */
 export const MUSIC_TEXT_MAX_LENGTH = 1000;
 export const MUSIC_NUMBER_MAX = 9999;
+/** The range a track's loudness may be set to by hand, in LUFS. */
+export const MUSIC_LOUDNESS_MIN = -70;
+export const MUSIC_LOUDNESS_MAX = 0;
 
 function isText(value: unknown): value is string {
     return typeof value === 'string' && value.length <= MUSIC_TEXT_MAX_LENGTH;
@@ -75,7 +85,8 @@ export function isMusicTrack(value: unknown): value is MusicTrack {
     if (!isObject(value)) return false;
     return typeof value.id === 'string' && typeof value.file === 'string' && isText(value.title) && isText(value.artist) &&
         (value.albumId === null || typeof value.albumId === 'string') && isOptionalNumber(value.year) &&
-        isOptionalNumber(value.trackNumber) && (value.duration === null || (typeof value.duration === 'number' && value.duration >= 0));
+        isOptionalNumber(value.trackNumber) && (value.duration === null || (typeof value.duration === 'number' && value.duration >= 0)) &&
+        (value.loudness === undefined || value.loudness === null || (typeof value.loudness === 'number' && isFinite(value.loudness)));
 }
 
 export function isMusicAlbum(value: unknown): value is MusicAlbum {
@@ -92,7 +103,9 @@ export function isMusicPlaylist(value: unknown): value is MusicPlaylist {
 
 export function isMusicTrackDetails(value: unknown): value is MusicTrackDetails {
     if (!isObject(value)) return false;
-    return isText(value.title) && isText(value.artist) && isText(value.album) && isOptionalNumber(value.year) && isOptionalNumber(value.trackNumber);
+    return isText(value.title) && isText(value.artist) && isText(value.album) && isOptionalNumber(value.year) && isOptionalNumber(value.trackNumber) &&
+        (value.loudness === undefined || value.loudness === null ||
+            (typeof value.loudness === 'number' && value.loudness >= MUSIC_LOUDNESS_MIN && value.loudness <= MUSIC_LOUDNESS_MAX));
 }
 
 export function isMusicAlbumDetails(value: unknown): value is MusicAlbumDetails {

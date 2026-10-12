@@ -10,7 +10,33 @@ export type MusicTrackPlaybackModel = {
     imageUrl: string | null;
     /** The audio file. */
     url: string;
+    /** Its integrated loudness in LUFS, if it's been measured (see MusicTrack.loudness). */
+    loudness: number | null;
 };
+
+/** Loudness levelling: each uploaded track is turned up or down so it plays at about the same loudness as the rest. */
+export type MusicLevellingModel = {
+    enabled: boolean;
+    /** The loudness every track is brought to, in LUFS. */
+    targetLufs: number;
+};
+
+export const DEFAULT_MUSIC_LEVELLING: MusicLevellingModel = { enabled: false, targetLufs: -24 };
+export const MIN_LEVELLING_TARGET_LUFS = -40;
+export const MAX_LEVELLING_TARGET_LUFS = -10;
+/** The most a quiet track is turned up, so a near-silent one isn't blown up into its noise floor. */
+export const MAX_LEVELLING_BOOST_DB = 12;
+
+export function clampLevellingTarget(lufs: number): number {
+    return Math.round(Math.min(MAX_LEVELLING_TARGET_LUFS, Math.max(MIN_LEVELLING_TARGET_LUFS, lufs)));
+}
+
+/** The hidden gain (dB) the host applies to the loaded track: none while levelling is off, or the track's unmeasured. */
+export function musicLevellingGainDb(model: Pick<MusicModel, 'levelling' | 'track'>): number {
+    const loudness = model.track?.loudness ?? null;
+    if (!model.levelling.enabled || loudness === null) return 0;
+    return Math.min(MAX_LEVELLING_BOOST_DB, model.levelling.targetLufs - loudness);
+}
 
 /**
  * Server-wide state of the uploaded-music player, shared by every mixer client. The server decides what plays; the
@@ -37,6 +63,7 @@ export type MusicModel = {
     presetSilent: boolean;
     /** The preset to switch to at the next change of the games' phase, if one's been picked. */
     scheduledPresetId: string | null;
+    levelling: MusicLevellingModel;
 };
 
 export type MusicControlAction =

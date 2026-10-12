@@ -121,7 +121,7 @@ export async function addMusicTrack(filename: string, data: Buffer): Promise<Mus
 /**
  * Updates a track's details. Its album is by title: a track keeps the album it's on while the title still matches it
  * (so retitling a track on a compilation doesn't split it off), and otherwise moves to that album by its artist,
- * made if need be. An album left with no tracks goes.
+ * made if need be. An album left with no tracks goes. Its loudness is only changed if the details give one.
  */
 export function updateMusicTrack(id: string, details: MusicTrackDetails): MusicTrack {
     const track = TRACKS.get(id);
@@ -139,10 +139,17 @@ export function updateMusicTrack(id: string, details: MusicTrackDetails): MusicT
         artist,
         albumId,
         year: optionalNumber(details.year),
-        trackNumber: optionalNumber(details.trackNumber)
+        trackNumber: optionalNumber(details.trackNumber),
+        ...(details.loudness === undefined ? {} : { loudness: details.loudness === null ? null : Math.round(details.loudness * 10) / 10 })
     } satisfies MusicTrack);
     if (track.albumId !== albumId) pruneAlbum(track.albumId);
     return updated;
+}
+
+/** Records a track's measured loudness (null if it couldn't be measured). Does nothing if the track's gone since. */
+export function setMusicTrackLoudness(id: string, loudness: number | null) {
+    const track = TRACKS.get(id);
+    if (track) TRACKS.add({ ...track, loudness } satisfies MusicTrack);
 }
 
 /** Deletes a track and its file, taking it out of every playlist. An album left with no tracks goes. */
