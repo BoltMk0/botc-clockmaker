@@ -31,11 +31,15 @@ export function clampLevellingTarget(lufs: number): number {
     return Math.round(Math.min(MAX_LEVELLING_TARGET_LUFS, Math.max(MIN_LEVELLING_TARGET_LUFS, lufs)));
 }
 
-/** The hidden gain (dB) the host applies to the loaded track: none while levelling is off, or the track's unmeasured. */
+/** The hidden gain (dB) levelling applies to a track of this loudness: none while it's off, or the track's unmeasured. */
+export function levellingGainDb(levelling: MusicLevellingModel, loudness: number | null | undefined): number {
+    if (!levelling.enabled || loudness === null || loudness === undefined) return 0;
+    return Math.min(MAX_LEVELLING_BOOST_DB, levelling.targetLufs - loudness);
+}
+
+/** The hidden gain (dB) the host applies to the loaded track. */
 export function musicLevellingGainDb(model: Pick<MusicModel, 'levelling' | 'track'>): number {
-    const loudness = model.track?.loudness ?? null;
-    if (!model.levelling.enabled || loudness === null) return 0;
-    return Math.min(MAX_LEVELLING_BOOST_DB, model.levelling.targetLufs - loudness);
+    return levellingGainDb(model.levelling, model.track?.loudness);
 }
 
 /**
@@ -47,8 +51,8 @@ export function musicLevellingGainDb(model: Pick<MusicModel, 'levelling' | 'trac
 export type MusicModel = {
     /** The mixer client running the player, if any. */
     hostClientId: string | null;
-    /** Volume 0..100. */
-    volume: number;
+    /** The strip's fader, as a linear gain (0..MAX_MUSIC_GAIN). */
+    gain: number;
     track: MusicTrackPlaybackModel | null;
     /** Bumped for every track started, so starting the same track again (a one-track playlist) still restarts it. */
     loadId: number;
@@ -74,7 +78,12 @@ export type MusicControlAction =
     | { action: 'playPreset', presetId: string }
     /** Switches to the preset at the next change of the games' phase (null cancels). */
     | { action: 'schedulePreset', presetId: string | null }
-    | { action: 'volume', volume: number };
+    | { action: 'gain', gain: number };
+
+/** The strip's fader tops out at +12 dB, as the ambience tracks' do. */
+export const MAX_MUSIC_GAIN = Math.pow(10, 12 / 20);
+/** -6 dB. */
+export const DEFAULT_MUSIC_GAIN = 0.5;
 
 /** What the host reports about the track it's playing. */
 export type MusicHostEvent = 'ended' | 'error';

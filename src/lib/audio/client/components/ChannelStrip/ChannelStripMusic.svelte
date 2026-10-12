@@ -2,6 +2,9 @@
     import { untrack } from "svelte";
     import AudioMixerText from "./AudioMixerText.svelte";
     import VSlider from "../VSlider.svelte";
+    import VLoudnessMeter from "../VLoudnessMeter.svelte";
+    import { FADER_MAX_DB, FADER_MIN_DB, formatGain } from "../util";
+    import { DEFAULT_MUSIC_GAIN } from "$lib/audio/common/model/musicModel";
     import PlayIcon from "../PlayIcon.svelte";
     import PauseIcon from "../PauseIcon.svelte";
     import type { MusicPlayer } from "../../MusicPlayer.svelte";
@@ -28,23 +31,24 @@
     } = $props();
 
     const model = $derived(music.model);
-    let volume = $state(untrack(() => model?.volume ?? 50));
-    // When this strip last sent a volume. Echoes of earlier values from a drag's coalesced sends can arrive
-    // while it's still moving, so remote volume changes are ignored for a moment afterwards.
-    let lastLocalVolumeChange = 0;
-    const REMOTE_VOLUME_GRACE_MS = 1000;
-    function setVolume(value: number) {
-        volume = value;
-        lastLocalVolumeChange = Date.now();
-        music.setVolume(Math.round(value));
+    /** The fader, as a linear gain (shown in dB, like the ambience tracks'). */
+    let gain = $state(untrack(() => model?.gain ?? DEFAULT_MUSIC_GAIN));
+    // When this strip last sent a gain. Echoes of earlier values from a drag's coalesced sends can arrive
+    // while it's still moving, so remote gain changes are ignored for a moment afterwards.
+    let lastLocalGainChange = 0;
+    const REMOTE_GAIN_GRACE_MS = 1000;
+    function setGain(value: number) {
+        gain = value;
+        lastLocalGainChange = Date.now();
+        music.setGain(value);
     }
     $effect(() => {
-        // Follows volume changes made elsewhere (another mixer)
-        const remote = model?.volume;
+        // Follows gain changes made elsewhere (another mixer)
+        const remote = model?.gain;
         if (remote === undefined) return;
         untrack(() => {
-            if (Date.now() - lastLocalVolumeChange < REMOTE_VOLUME_GRACE_MS) return;
-            volume = remote;
+            if (Date.now() - lastLocalGainChange < REMOTE_GAIN_GRACE_MS) return;
+            gain = remote;
         });
     });
 
@@ -158,9 +162,15 @@
         <AudioMixerText onclick={()=>music.previous()} style={CENTER} title="Previous track">&#9198;</AudioMixerText>
         <AudioMixerText onclick={()=>music.next()} style={CENTER} title="Next track">&#9197;</AudioMixerText>
     </div>
-    <AudioMixerText>Vol<br/>{Math.round(volume)}%</AudioMixerText>
+    <AudioMixerText>Gain<br/>{formatGain(gain)}</AudioMixerText>
+    <!-- Laid out as in ChannelStripGain. The meter only shows on the device playing the music. -->
     <div class="volume">
-        <VSlider value={volume} min={0} max={100} step={1} onchange={setVolume}/>
+        <div class="fader">
+            <VSlider value={gain} min={FADER_MIN_DB} max={FADER_MAX_DB} step={1} logarithmic onchange={setGain}/>
+        </div>
+        {#if music.analyser}
+        <VLoudnessMeter analyserNode={music.analyser}/>
+        {/if}
     </div>
     {#if music.error}<div class="error">{music.error}</div>{/if}
 </div>
@@ -267,6 +277,12 @@
         height: 216px; /* matches the gain slider area in ChannelStripGain */
         padding: 8px 6px;
         box-sizing: border-box;
+        display: flex;
+        align-items: stretch;
+    }
+
+    .fader {
+        flex: 1;
         display: flex;
         justify-content: center;
         align-items: stretch;

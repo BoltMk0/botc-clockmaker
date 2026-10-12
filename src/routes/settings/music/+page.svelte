@@ -1,6 +1,6 @@
 <script lang="ts">
     import { invalidateAll } from "$app/navigation";
-    import { tick, untrack } from "svelte";
+    import { onMount, tick, untrack } from "svelte";
     import { SvelteSet } from "svelte/reactivity";
     import TimeOfDayIcon from "$lib/assets/timeOfDayIcon.svelte";
     import { TIME_OF_DAY_LABELS, TIMES_OF_DAY, type TimeOfDay } from "$lib/model/client/types";
@@ -11,6 +11,8 @@
     import PlayIcon from "$lib/audio/client/components/PlayIcon.svelte";
     import PauseIcon from "$lib/audio/client/components/PauseIcon.svelte";
     import MusicPreviewPlayer from "$lib/audio/client/components/MusicPreviewPlayer.svelte";
+    import { MusicLevelling } from "$lib/audio/client/MusicLevelling.svelte";
+    import { levellingGainDb } from "$lib/audio/common/model/musicModel";
     import SpotifyPresetsEditor from "$lib/components/SpotifyPresetsEditor.svelte";
     import { getAcceptedExtensionsForResourceType } from "$lib/resources/common/types";
     import { formatMusicDuration, musicNameKey, MUSIC_LOUDNESS_MAX, MUSIC_LOUDNESS_MIN, MUSIC_NUMBER_MAX, MUSIC_TEXT_MAX_LENGTH, type MusicAlbum, type MusicLibrary, type MusicPlaylist, type MusicTrack, type MusicTrackDetails } from "$lib/audio/common/musicLibrary";
@@ -155,6 +157,13 @@
     /** What the playing track was started from (its album, a playlist...), which "next" and "previous" go through. */
     let queue: string[] = $state([]);
     const playingTrack = $derived(playingId === null ? null : tracksById.get(playingId) ?? null);
+    /** The loudness levelling settings (set on the Audio settings page), applied here as on the music player. */
+    let levelling = $state<MusicLevelling | null>(null);
+    onMount(() => {
+        const l = levelling = new MusicLevelling();
+        return () => l.close();
+    });
+    const playingGainDb = $derived(levelling && playingTrack ? levellingGainDb(levelling.model, playingTrack.loudness) : 0);
 
     async function play(track: MusicTrack, from: MusicTrack[]) {
         playingId = track.id;
@@ -239,6 +248,8 @@
         { title: '', artist: '', album: '', year: '', trackNumber: '', loudness: '' });
     /** The loudness as the form opened with it, so it's only sent if changed (one not yet measured stays queued). */
     let detailsLoudness = '';
+    /** The track whose loudness is being measured again, if any. */
+    let remeasuringId: string | null = $state(null);
     let saving = $state(false);
 
     function toggleDetails(track: MusicTrack) {
@@ -290,6 +301,22 @@
             await invalidateAll();
         } finally {
             saving = false;
+        }
+    }
+
+    /** Measures the track's loudness again, filling the field with it (it's recorded straight away, so needn't be saved). */
+    async function remeasureLoudness(track: MusicTrack) {
+        remeasuringId = track.id;
+        try {
+            const r = await fetch(`/api/music/tracks/${encodeURIComponent(track.id)}/loudness`, { method: 'POST' });
+            if (!r.ok) return await failed(r, 'measure the loudness');
+            const { loudness } = await r.json() as { loudness: number | null };
+            const text = loudness?.toString() ?? '';
+            if (detailsId === track.id) detailsDraft.loudness = detailsLoudness = text;
+            if (loudness === null) alert(`The loudness of "${track.title}" couldn't be measured (is it silent, or unreadable?)`);
+            await invalidateAll();
+        } finally {
+            remeasuringId = null;
         }
     }
 
@@ -714,6 +741,12 @@
     </button>
 {/snippet}
 
+{#snippet loudnessCell(track: MusicTrack)}
+    <td class="loudness-cell" title={track.loudness === undefined ? 'Loudness not measured yet' : track.loudness === null ? "Loudness couldn't be measured" : 'Loudness'}>
+        {#if track.loudness === undefined}…{:else if track.loudness === null}–{:else}{track.loudness.toFixed(1)} LUFS{/if}
+    </td>
+{/snippet}
+
 {#snippet trackRows(tracks: MusicTrack[], options: { numbers?: boolean, artist?: boolean | ((t: MusicTrack) => boolean), album?: boolean })}
     {#each tracks as track (track.id)}
         {@const showArtist = typeof options.artist === 'function' ? options.artist(track) : options.artist}
@@ -721,13 +754,14 @@
         <tr class="track-row" class:selected={playingId === track.id} onclick={() => togglePlay(track, tracks)}>
             <td class="play-cell">{@render playButton(track, tracks)}</td>
             {#if options.numbers}<td class="number-cell">{track.trackNumber ?? ''}</td>{/if}
+            <td class="duration-cell">{formatMusicDuration(track.duration)}</td>
             <td class="title-cell">
                 <span class="track-title">{track.title}</span>
                 {#if showArtist || options.album}
                     <span class="track-sub">{[showArtist ? (track.artist || 'Unknown Artist') : null, options.album ? album?.title : null].filter(Boolean).join(' · ')}</span>
                 {/if}
             </td>
-            <td class="duration-cell">{formatMusicDuration(track.duration)}</td>
+            {@render loudnessCell(track)}
             <td class="row-actions">
                 <button class="icon-button add-menu-trigger" class:active={addMenuFor(track)} onclick={(e) => openAddMenu(e, [track], track.title)}
                     aria-label="Add {track.title} to a playlist" aria-haspopup="dialog" aria-expanded={addMenuFor(track)} title="Add to playlist">
@@ -740,7 +774,7 @@
         </tr>
         {#if detailsId === track.id}
             <tr class="details-row">
-                <td colspan={options.numbers ? 5 : 4}>
+                <td colspan={options.numbers ? 6 : 5}>
                     <form class="details-form" onsubmit={(e) => { e.preventDefault(); saveDetails(track); }}>
                         <label class="details-field wide"><span>Title</span>
                             <input type="text" maxlength={MUSIC_TEXT_MAX_LENGTH} bind:value={detailsDraft.title} required/></label>
@@ -753,8 +787,14 @@
                         <label class="details-field narrow"><span>Track #</span>
                             <input type="number" min="0" max={MUSIC_NUMBER_MAX} bind:value={detailsDraft.trackNumber}/></label>
                         <label class="details-field narrow" title="Integrated loudness, measured when the track was uploaded. Loudness levelling turns the track up or down from this; blank, it isn't levelled."><span>Loudness (LUFS)</span>
-                            <input type="number" min={MUSIC_LOUDNESS_MIN} max={MUSIC_LOUDNESS_MAX} step="0.1" bind:value={detailsDraft.loudness}
-                                placeholder={track.loudness === undefined ? 'Measuring...' : 'Unknown'}/></label>
+                            <span class="loudness-input">
+                                <input type="number" min={MUSIC_LOUDNESS_MIN} max={MUSIC_LOUDNESS_MAX} step="0.1" bind:value={detailsDraft.loudness}
+                                    placeholder={track.loudness === undefined || remeasuringId === track.id ? 'Measuring...' : 'Unknown'}
+                                    disabled={remeasuringId === track.id}/>
+                                <button type="button" class="icon-button remeasure-button" class:spinning={remeasuringId === track.id}
+                                    disabled={remeasuringId !== null} onclick={() => remeasureLoudness(track)}
+                                    aria-label="Re-measure the loudness" title="Re-measure the loudness">↻</button>
+                            </span></label>
                         <div class="details-actions">
                             <button type="button" onclick={() => detailsId = null}>Cancel</button>
                             <button type="submit" class="save" disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
@@ -983,11 +1023,12 @@
                                     ondragend={onPlaylistDragEnd}
                                     onclick={() => togglePlay(track, openPlaylistTracks)}>
                                     <td class="play-cell">{@render playButton(track, openPlaylistTracks)}</td>
+                                    <td class="duration-cell">{formatMusicDuration(track.duration)}</td>
                                     <td class="title-cell">
                                         <span class="track-title">{track.title}</span>
                                         <span class="track-sub">{track.artist || 'Unknown Artist'}</span>
                                     </td>
-                                    <td class="duration-cell">{formatMusicDuration(track.duration)}</td>
+                                    {@render loudnessCell(track)}
                                     <td class="row-actions">
                                         <button class="icon-button" disabled={i === 0} onclick={(e) => { e.stopPropagation(); movePlaylistTrack(playlist, i, -1); }} aria-label="Move {track.title} up" title="Move up">
                                             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M7.4 15.4 12 10.8l4.6 4.6L18 14l-6-6-6 6z"/></svg>
@@ -1142,7 +1183,7 @@
             <button class="skip" onclick={() => step(-1)} disabled={queueIndex <= 0} aria-label="Previous track" title="Previous">
                 <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
             </button>
-            <div class="player"><MusicPreviewPlayer bind:this={player} url={playingTrack ? `/api/resources/${playingTrack.file}` : null} onended={() => step(1)}/></div>
+            <div class="player"><MusicPreviewPlayer bind:this={player} url={playingTrack ? `/api/resources/${playingTrack.file}` : null} gainDb={playingGainDb} onended={() => step(1)}/></div>
             <button class="skip" onclick={() => step(1)} disabled={queueIndex < 0 || queueIndex >= queue.length - 1} aria-label="Next track" title="Next">
                 <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
             </button>
@@ -1722,15 +1763,20 @@
         font-weight: bold;
     }
 
-    td.play-cell, td.number-cell, td.duration-cell {
+    td.play-cell, td.number-cell, td.duration-cell, td.loudness-cell {
         width: 1px; /* Shrink to the content */
         white-space: nowrap;
         font-variant-numeric: tabular-nums;
     }
 
-    td.number-cell, td.duration-cell {
+    td.number-cell, td.duration-cell, td.loudness-cell {
         text-align: right;
         opacity: 0.8;
+    }
+
+    td.loudness-cell {
+        font-size: 0.85em;
+        opacity: 0.6;
     }
 
     button.play-button {
@@ -1802,6 +1848,30 @@
     .details-field input {
         width: 100%;
         box-sizing: border-box;
+    }
+
+    .loudness-input {
+        display: flex;
+        gap: 0.3em;
+    }
+
+    .loudness-input input {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .remeasure-button {
+        flex: none;
+        width: 2.2em;
+        line-height: 1;
+    }
+
+    .remeasure-button.spinning {
+        animation: remeasure-spin 1s linear infinite;
+    }
+
+    @keyframes remeasure-spin {
+        to { transform: rotate(360deg); }
     }
 
     .details-actions {

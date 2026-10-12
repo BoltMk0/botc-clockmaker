@@ -1,4 +1,4 @@
-import { musicLevellingGainDb, type MusicControlAction, type MusicHostEvent, type MusicModel, type MusicTrackPlaybackModel } from "$lib/audio/common/model/musicModel";
+import { DEFAULT_MUSIC_GAIN, musicLevellingGainDb, type MusicControlAction, type MusicHostEvent, type MusicModel, type MusicTrackPlaybackModel } from "$lib/audio/common/model/musicModel";
 import { subscribeMixerEvents } from "./MixerEventsClient";
 
 const HEARTBEAT_MS = 5000;
@@ -33,6 +33,8 @@ export class MusicPlayer {
     model = $state<MusicModel | null>(null);
     error = $state<string | null>(null);
     starting = $state(false);
+    /** Meters what the host plays, after the strip's fader (null unless this client is the host). */
+    analyser = $state.raw<AnalyserNode | null>(null);
 
     readonly #output: AudioNode | null;
     #unsubscribeEvents: () => void;
@@ -44,8 +46,8 @@ export class MusicPlayer {
     #fadeNode: GainNode | null = null;
     #volumeNode: GainNode | null = null;
     #heartbeat: ReturnType<typeof setInterval> | null = null;
-    #volumeTimer: ReturnType<typeof setTimeout> | null = null;
-    #pendingVolume: number | null = null;
+    #gainTimer: ReturnType<typeof setTimeout> | null = null;
+    #pendingGain: number | null = null;
     /** The track and play state the host is on, or moving to (null before the first). */
     #targetLoadId: number | null = null;
     #targetPlaying = false;
@@ -108,8 +110,10 @@ export class MusicPlayer {
             this.#levelGain = 1;
             const fadeNode = context.createGain();
             const volumeNode = context.createGain();
-            volumeNode.gain.value = (this.model?.volume ?? 50) / 100;
+            volumeNode.gain.value = this.model?.gain ?? DEFAULT_MUSIC_GAIN;
             source.connect(levelNode).connect(fadeNode).connect(volumeNode).connect(this.#output);
+            const analyser = context.createAnalyser();
+            volumeNode.connect(analyser); // Side branch; the analyser has no output
             audio.addEventListener('ended', () => this.report('ended'));
             audio.addEventListener('error', () => { if (audio.getAttribute('src')) this.report('error'); });
             this.#audio = audio;
@@ -117,6 +121,7 @@ export class MusicPlayer {
             this.#levelNode = levelNode;
             this.#fadeNode = fadeNode;
             this.#volumeNode = volumeNode;
+            this.analyser = analyser;
             this.#heartbeat = setInterval(() => this.put({}).catch(e => this.failHosting(e)), HEARTBEAT_MS);
             window.addEventListener('pagehide', this.#releaseOnLeave);
             document.addEventListener('pointerdown', this.#retryOnGesture);
@@ -157,7 +162,8 @@ export class MusicPlayer {
         this.#levelNode?.disconnect();
         this.#fadeNode?.disconnect();
         this.#volumeNode?.disconnect();
-        this.#audio = this.#source = this.#levelNode = this.#fadeNode = this.#volumeNode = null;
+        this.analyser?.disconnect();
+        this.#audio = this.#source = this.#levelNode = this.#fadeNode = this.#volumeNode = this.analyser = null;
         this.#targetLoadId = null;
         this.#targetPlaying = false;
         this.#blocked = false;
@@ -186,7 +192,7 @@ export class MusicPlayer {
         const model = this.model;
         const audio = this.#audio, fadeNode = this.#fadeNode, volumeNode = this.#volumeNode;
         if (!model || !audio || !fadeNode || !volumeNode) return;
-        volumeNode.gain.setTargetAtTime(model.volume / 100, volumeNode.context.currentTime, VOLUME_TIME_CONSTANT_S);
+        volumeNode.gain.setTargetAtTime(model.gain, volumeNode.context.currentTime, VOLUME_TIME_CONSTANT_S);
 
         const track = model.track;
         const playing = model.playing && track !== null;
@@ -296,16 +302,16 @@ export class MusicPlayer {
     /** Switches to a preset at the next change of the games' phase rather than now (null cancels). */
     schedulePreset(presetId: string | null) { this.control({ action: 'schedulePreset', presetId }); }
 
-    /** @param volume 0..100. Rapid calls (a slider drag) are coalesced. */
-    setVolume(volume: number) {
-        this.#pendingVolume = volume;
-        if (this.model) this.model.volume = volume;
-        if (this.#volumeTimer !== null) return;
-        this.#volumeTimer = setTimeout(() => {
-            this.#volumeTimer = null;
-            const v = this.#pendingVolume;
-            this.#pendingVolume = null;
-            if (v !== null) this.control({ action: 'volume', volume: v });
+    /** @param gain Linear. Rapid calls (a fader drag) are coalesced. */
+    setGain(gain: number) {
+        this.#pendingGain = gain;
+        if (this.model) this.model.gain = gain;
+        if (this.#gainTimer !== null) return;
+        this.#gainTimer = setTimeout(() => {
+            this.#gainTimer = null;
+            const v = this.#pendingGain;
+            this.#pendingGain = null;
+            if (v !== null) this.control({ action: 'gain', gain: v });
         }, VOLUME_SEND_DELAY_MS);
     }
 
@@ -329,7 +335,7 @@ export class MusicPlayer {
 
     close() {
         if (this.isHost || this.#audio) this.stopHosting();
-        if (this.#volumeTimer !== null) clearTimeout(this.#volumeTimer);
+        if (this.#gainTimer !== null) clearTimeout(this.#gainTimer);
         this.#unsubscribeEvents();
     }
 }

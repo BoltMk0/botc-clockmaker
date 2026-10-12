@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { clampLevellingTarget, DEFAULT_MUSIC_LEVELLING, type MusicControlAction, type MusicHostEvent, type MusicLevellingModel, type MusicModel, type MusicTrackPlaybackModel } from "$lib/audio/common/model/musicModel";
+import { clampLevellingTarget, DEFAULT_MUSIC_GAIN, DEFAULT_MUSIC_LEVELLING, MAX_MUSIC_GAIN, type MusicControlAction, type MusicHostEvent, type MusicLevellingModel, type MusicModel, type MusicTrackPlaybackModel } from "$lib/audio/common/model/musicModel";
 import { adaptiveMusicPlaylistFor, isMusicAdaptivePreset, isMusicCountdownPreset, musicPresetPlaylistIds, type MusicAdaptivePreset, type MusicCountdownPreset, type MusicPreset } from "$lib/audio/common/musicPreset";
 import type { CountdownPhase } from "$lib/audio/common/spotifyPreset";
 import type { TimeOfDay } from "$lib/model/client/types";
@@ -43,7 +43,7 @@ export class MusicHelper extends EventEmitter {
     #hostClientId: string | null = null;
     #hostLastSeen = 0;
     #hostCheckTimer: ReturnType<typeof setInterval> | null = null;
-    #volume = 50;
+    #gain = DEFAULT_MUSIC_GAIN;
     #track: MusicTrackPlaybackModel | null = null;
     #loadId = 0;
     #playing = false;
@@ -86,7 +86,7 @@ export class MusicHelper extends EventEmitter {
     get model(): MusicModel {
         return {
             hostClientId: this.#hostClientId,
-            volume: this.#volume,
+            gain: this.#gain,
             track: this.#track,
             loadId: this.#loadId,
             playing: this.#playing,
@@ -213,9 +213,9 @@ export class MusicHelper extends EventEmitter {
                 this.#scheduledPresetId = command.presetId;
                 this.changed();
                 break;
-            case 'volume': {
-                if (typeof command.volume !== 'number' || isNaN(command.volume)) throw new Error('Invalid volume');
-                this.#volume = Math.round(Math.min(100, Math.max(0, command.volume)));
+            case 'gain': {
+                if (typeof command.gain !== 'number' || isNaN(command.gain)) throw new Error('Invalid gain');
+                this.#gain = Math.min(MAX_MUSIC_GAIN, Math.max(0, command.gain));
                 this.changed();
                 break;
             }
