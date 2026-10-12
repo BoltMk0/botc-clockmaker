@@ -2,7 +2,7 @@
 // https://github.com/ThePandemoniumInstitute/botc-release/blob/main/script-schema.json
 // A script is a flat list: an optional `_meta` entry, then each character either as just its id (official
 // characters) or in full (homebrew).
-import { isValidCharacterCategory, type CharacterCategory, type ScriptWithCharacters } from "./gameData";
+import { isValidCharacterCategory, rulesWithSetup, type CharacterCategory, type ScriptWithCharacters } from "./gameData";
 
 export type SchemaTeam = 'townsfolk' | 'outsider' | 'minion' | 'demon' | 'traveller' | 'fabled' | 'loric';
 
@@ -10,7 +10,9 @@ export type SchemaCharacter = {
     id: string;
     name: string;
     team: SchemaTeam;
+    // Ends with the setup note in brackets, e.g. "[+2 Outsiders]", when the character changes setup.
     ability: string;
+    setup?: boolean;
     // Wake priority on the night; 0 means the character doesn't wake.
     firstNight?: number;
     otherNight?: number;
@@ -62,7 +64,8 @@ export function scriptToSchema(script: ScriptWithCharacters): SchemaScriptItem[]
         id: c.id,
         name: c.name,
         team: teamFromCategory(c.category),
-        ability: c.rules,
+        ability: rulesWithSetup(c),
+        setup: !!c.setup,
         firstNight: c.firstNightOrder ?? 0,
         otherNight: c.otherNightOrder ?? 0,
         reminders: c.reminderTokens.map(t => t.text)

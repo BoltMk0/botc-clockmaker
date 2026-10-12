@@ -1,4 +1,4 @@
-import type { CharacterCategory, NewCharacter } from "$lib/resources/common/gameData";
+import { splitSetupFromRules, type CharacterCategory, type NewCharacter } from "$lib/resources/common/gameData";
 import { addCharacter, addReminderToken, getCharacterByName, updateCharacter } from "$lib/resources/server/characters";
 import { getCharacterImageResource } from "$lib/resources/server/character-images";
 import { scrapeIcon } from "./char_icon_scraper";
@@ -118,15 +118,17 @@ export async function scrapeCharacter(category: CharacterCategory, name: string,
     console.log("Scraping character data", name);
     try {
         const html = await fetchWikiPage(wikiPath);
-        const rules = extractRulesText(html);
-        if (!rules) {
+        const abilityText = extractRulesText(html);
+        if (!abilityText) {
             return { status: 'error', error: 'Could not find ability text on wiki page' };
         }
+        const { rules, setup } = splitSetupFromRules(abilityText);
 
         const newCharacter: NewCharacter = {
             name,
             category,
             rules,
+            setup,
             player_count: 1,
             ...guessWakePattern(rules),
             ...await scrapeDefaultNightOrder(name)

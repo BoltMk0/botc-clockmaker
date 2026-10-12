@@ -3,6 +3,7 @@ import { JSONMultiResourceManager } from "./jsonResourceManager";
 import { characterIdFromName } from "../common/util";
 import {
     isCharacter,
+    splitSetupFromRules,
     type Character,
     type CharacterCategory,
     type NewCharacter,
@@ -11,6 +12,13 @@ import {
 } from "../common/gameData";
 
 export const CHARACTERS_MANAGER = new JSONMultiResourceManager<Character>('characters', isCharacter);
+
+// Characters saved before setup had its own field carry it at the end of their rules, e.g. "[+2 Outsiders]".
+for (const character of [...CHARACTERS_MANAGER.values]) {
+    if (character.setup === undefined) {
+        CHARACTERS_MANAGER.add({ ...character, ...splitSetupFromRules(character.rules) });
+    }
+}
 
 export function listCharacters(): Character[] {
     return [...CHARACTERS_MANAGER.values].sort((a, b) => a.name.localeCompare(b.name));

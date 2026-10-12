@@ -1,6 +1,6 @@
 import { characterIdFromName, slugify } from "../common/util";
 import { categoryFromTeam, isSchemaMeta } from "../common/scriptSchema";
-import type { Character, NewCharacter, Script } from "../common/gameData";
+import { rulesWithSetup, splitSetupFromRules, type Character, type NewCharacter, type Script } from "../common/gameData";
 import { addCharacter, addReminderToken, findCharacterByLooseName, getCharacterById } from "./characters";
 import { createScript, getScriptById, setScriptCharacters, type ScriptCharacterInput } from "./scripts";
 
@@ -129,8 +129,8 @@ function planCharacter(item: unknown, problems: string[], unknownIds: string[]):
 
     const existing: Character | null = findCharacterByLooseName(name);
     if (existing) {
-        if (!sameAbility(existing.rules, ability)) {
-            problems.push(`"${name}" clashes with the existing character "${existing.name}": its ability is "${ability}", but the existing character's is "${existing.rules}".`);
+        if (!sameAbility(rulesWithSetup(existing), ability)) {
+            problems.push(`"${name}" clashes with the existing character "${existing.name}": its ability is "${ability}", but the existing character's is "${rulesWithSetup(existing)}".`);
             return null;
         }
         return { fileId, characterId: existing.id };
@@ -156,7 +156,7 @@ function planCharacter(item: unknown, problems: string[], unknownIds: string[]):
         newCharacter: {
             name,
             category,
-            rules: ability,
+            ...splitSetupFromRules(ability),
             player_count: 1,
             wakes_first_night: firstNight !== null,
             wakes_other_nights: otherNight !== null,

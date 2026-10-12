@@ -496,6 +496,10 @@
                                 <td><textarea name="rules" style="height: 5em;" placeholder="Rules Text" bind:value={selectedCharacter.rules}></textarea></td>
                             </tr>
                             <tr>
+                                <th>Setup</th>
+                                <td><input name="setup" type="text" placeholder="e.g. +2 Outsiders (leave empty if it doesn't change setup)" bind:value={selectedCharacter.setup} /></td>
+                            </tr>
+                            <tr>
                                 <th>Other</th>
                                 <td>
                                     <div class="field-group">

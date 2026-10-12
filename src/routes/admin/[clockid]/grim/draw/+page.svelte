@@ -207,6 +207,10 @@
         opacity: 0.85;
     }
 
+    .setup-text {
+        font-weight: 600;
+    }
+
     .name-row {
         display: flex;
         --name-row-height: 3em;
@@ -303,6 +307,9 @@
                         <CharacterToken {character} size="160px" norules />
                     </div>
                     <div class="rules-text">{character.rules}</div>
+                    {#if character.setup}
+                        <div class="rules-text setup-text">[{character.setup}]</div>
+                    {/if}
                 {:else}
                     <div>Unknown character</div>
                 {/if}

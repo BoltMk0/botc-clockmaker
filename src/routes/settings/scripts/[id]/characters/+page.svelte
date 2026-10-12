@@ -270,6 +270,13 @@
         overflow: hidden;
     }
 
+    .character-row-setup {
+        font-size: 0.8em;
+        font-weight: 600;
+        opacity: 0.85;
+        line-height: 1.25;
+    }
+
     .character-category-column-main {
         height: 100%;
         overflow: hidden;
@@ -442,6 +449,9 @@
                                 <div class="character-row-body">
                                     <div class="character-row-name">{character.name}</div>
                                     <div class="character-row-rules">{character.rules}</div>
+                                    {#if character.setup}
+                                        <div class="character-row-setup">[{character.setup}]</div>
+                                    {/if}
                                 </div>
                                 <span class="category-badge category-{character.category}">{captialiseString(character.category)}</span>
                             </button>
@@ -476,6 +486,9 @@
                                         <div class="character-row-body">
                                             <div class="character-row-name">{character.name}</div>
                                             <div class="character-row-rules">{character.rules}</div>
+                                            {#if character.setup}
+                                                <div class="character-row-setup">[{character.setup}]</div>
+                                            {/if}
                                         </div>
                                     </button>
                                 </div>
@@ -509,6 +522,9 @@
                                 <div class="character-row-body">
                                     <div class="character-row-name">{character.name}</div>
                                     <div class="character-row-rules">{character.rules}</div>
+                                    {#if character.setup}
+                                        <div class="character-row-setup">[{character.setup}]</div>
+                                    {/if}
                                 </div>
                             </button>
                         </div>
@@ -538,6 +554,9 @@
                                 <div class="character-row-body">
                                     <div class="character-row-name">{character.name}</div>
                                     <div class="character-row-rules">{character.rules}</div>
+                                    {#if character.setup}
+                                        <div class="character-row-setup">[{character.setup}]</div>
+                                    {/if}
                                 </div>
                             </button>
                         </div>

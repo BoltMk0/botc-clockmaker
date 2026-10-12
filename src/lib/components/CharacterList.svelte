@@ -1,6 +1,6 @@
 <script lang="ts">
     import CharacterThumb from '$lib/components/CharacterThumb.svelte';
-    import { ALL_CHARACTER_CATEGORIES, CHARACTER_CATEGORY_COLORS, type Character, type CharacterCategory } from '$lib/resources/common/gameData.js';
+    import { ALL_CHARACTER_CATEGORIES, CHARACTER_CATEGORY_COLORS, type Character, type CharacterCategory, rulesWithSetup } from '$lib/resources/common/gameData.js';
 
     let {
         characters,
@@ -16,12 +16,15 @@
         onremove,
         countOf = c => (isSelected(c) ? 1 : 0),
         grouped = true,
+        fullRules = false,
         categoryOrder = ['demon', 'minion', 'outsider', 'townsfolk', 'traveler', 'loric', 'fabled']
     }: {
         /** The categories to show, in order. */
         categoryOrder?: CharacterCategory[];
         /** Set to false to show every character in one grid, still in category order, with no category headings. */
         grouped?: boolean;
+        /** Show each character's whole ability rather than cutting it off after two lines. */
+        fullRules?: boolean;
         characters: Character[];
         searchQuery?: string;
         /** Show category headers with zero characters (only while not searching). */
@@ -118,7 +121,10 @@
     <div class="character-text">
         <div class="character-name">{character.name}</div>
         {#if character.rules}
-            <div class="character-rules">{character.rules}</div>
+            <div class="character-rules" class:full={fullRules}>{character.rules}</div>
+        {/if}
+        {#if character.setup}
+            <div class="character-setup">[{character.setup}]</div>
         {/if}
     </div>
 {/snippet}
@@ -148,7 +154,7 @@
                             this={href ? 'a' : (onpick || tapMode) ? 'button' : 'div'}
                             class="character-card"
                             class:tap={tapMode}
-                            title={character.rules || undefined}
+                            title={rulesWithSetup(character) || undefined}
                             class:interactive={!!href || !!onpick || tapMode}
                             class:multi={!!onadd && !tapMode}
                             class:selected
@@ -444,6 +450,15 @@
         -webkit-line-clamp: 2;
         line-clamp: 2;
         overflow: hidden;
+    }
+    .character-rules.full {
+        display: block;
+    }
+    .character-setup {
+        font-size: 0.8em;
+        font-weight: 600;
+        opacity: 0.85;
+        line-height: 1.25;
     }
     .character-name {
         font-weight: 600;

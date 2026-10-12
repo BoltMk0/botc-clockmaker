@@ -14,12 +14,15 @@ export async function PATCH({ params, request }) {
     const body = await request.json().catch(() => null);
     if (!body) return json({ error: 'Invalid JSON body' }, { status: 400 });
 
-    const { name, category, rules } = body;
+    const { name, category, rules, setup } = body;
+    if (setup !== undefined && typeof setup !== 'string') {
+        return json({ error: 'setup must be a string' }, { status: 400 });
+    }
     if (category !== undefined && !VALID_CATEGORIES.includes(category)) {
         return json({ error: `Invalid category. Must be one of: ${VALID_CATEGORIES.join(', ')}` }, { status: 400 });
     }
 
-    const character = updateCharacter(params.id, { name, category, rules });
+    const character = updateCharacter(params.id, { name, category, rules, setup: setup?.trim() });
     if (!character) return json({ error: 'Character not found' }, { status: 404 });
     return json(character);
 }

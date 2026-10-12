@@ -1702,6 +1702,9 @@
     .popup-rules-text {
         opacity: 0.85;
     }
+    .setup-text {
+        font-weight: 600;
+    }
     .popup-toggles {
         display: flex;
         gap: 6px;
@@ -2444,6 +2447,9 @@
                             <div class="popup-rules">
                                 <div class="popup-rules-name">{activeChar.name}</div>
                                 <div class="popup-rules-text">{activeChar.rules}</div>
+                                {#if activeChar.setup}
+                                    <div class="popup-rules-text setup-text">[{activeChar.setup}]</div>
+                                {/if}
                             </div>
                         {/if}
                     </div>
@@ -2654,6 +2660,9 @@
                     <div class="overlay-category">{oc.category}</div>
                     {#if oc.rules}
                         <div class="overlay-rules">{oc.rules}</div>
+                    {/if}
+                    {#if oc.setup}
+                        <div class="overlay-rules setup-text">[{oc.setup}]</div>
                     {/if}
                 {:else if activeToken}
                     <div class="overlay-name dumbledore-font">{activeToken.playerName || 'Player'}</div>

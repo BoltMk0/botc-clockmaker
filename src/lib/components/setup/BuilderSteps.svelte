@@ -113,6 +113,7 @@
     <div class="section plain step-scroll">
         <CharacterList
             characters={builder.script.characters}
+            fullRules
             headingSuffix={category => `${builder.chosenCharacters.filter(c => c.category === category).length} selected`}
             countOf={c => builder.countOf(c.id)}
             onadd={c => builder.addCharacter(c.id)}
@@ -144,6 +145,7 @@
             <div style="opacity: 0.6; font-style: italic; margin-bottom: 0.5em;">Faded characters are already in play.</div>
             <CharacterList
                 characters={builder.script.characters}
+                fullRules
                 categoryOrder={['townsfolk', 'outsider', 'minion', 'demon']}
                 isSelected={c => builder.bluffSets[builder.activeBluffSet]?.includes(c.id) ?? false}
                 onpick={c => builder.toggleBluff(c.id)}

@@ -40,6 +40,11 @@ export const actions = {
             return fail(400, {error: 'Rules must be a string' });
         }
 
+        const setup = formData.get('setup');
+        if (typeof setup !== 'string') {
+            return fail(400, {error: 'Setup must be a string' });
+        }
+
         const wakes_first_night = formData.get('wakes_first_night') === 'on';
         const wakes_other_nights = formData.get('wakes_other_nights') === 'on';
         const counts_as_player = formData.get('counts_as_player') === 'on';
@@ -52,7 +57,7 @@ export const actions = {
         const defaultFirstNightOrder = parseNightOrderField(formData.get('defaultFirstNightOrder'));
         const defaultOtherNightOrder = parseNightOrderField(formData.get('defaultOtherNightOrder'));
 
-        const character = updateCharacter(id, {name, category, rules, wakes_first_night, wakes_other_nights, player_count: playerCountNumber, defaultFirstNightOrder, defaultOtherNightOrder});
+        const character = updateCharacter(id, {name, category, rules, setup: setup.trim(), wakes_first_night, wakes_other_nights, player_count: playerCountNumber, defaultFirstNightOrder, defaultOtherNightOrder});
 
         if(!character){
             return fail(404, {error: 'Character not found'});

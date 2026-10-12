@@ -29,6 +29,9 @@ export type Character = {
     name: string;
     category: CharacterCategory;
     rules: string;
+    // How the character changes setup, without the brackets the wiki and scripts print it in, e.g.
+    // "+2 Outsiders" for the Baron. Empty when it doesn't change setup.
+    setup: string;
     player_count: number;
     wakes_first_night: boolean;
     wakes_other_nights: boolean;
@@ -41,6 +44,17 @@ export type Character = {
 };
 
 export type NewCharacter = Omit<Character, 'id' | 'reminderTokens'>;
+
+/** Splits a trailing "[...]" setup note off ability text, as the wiki and scripts print it, e.g. "There are extra Outsiders in play. [+2 Outsiders]". */
+export function splitSetupFromRules(text: string): { rules: string; setup: string } {
+    const match = text.match(/^([\s\S]*?)\s*\[([^\[\]]*)\]\s*$/);
+    return match ? { rules: match[1].trim(), setup: match[2].trim() } : { rules: text.trim(), setup: '' };
+}
+
+/** Ability text with the setup note put back on the end in brackets, the way scripts print it. */
+export function rulesWithSetup(character: Pick<Character, 'rules' | 'setup'>): string {
+    return character.setup ? `${character.rules} [${character.setup}]` : character.rules;
+}
 
 export type ScriptCharacterEntry = {
     characterId: string;
@@ -144,6 +158,8 @@ export function isCharacter(obj: any): obj is Character {
         typeof obj.name === "string" &&
         typeof obj.category === "string" && isValidCharacterCategory(obj.category) &&
         typeof obj.rules === "string" &&
+        // Absent on characters saved before setup was split out of the rules; characters.ts fills it in.
+        (obj.setup === undefined || typeof obj.setup === "string") &&
         typeof obj.player_count === "number" && isFinite(obj.player_count) && obj.player_count >= 0 &&
         typeof obj.wakes_first_night === "boolean" &&
         typeof obj.wakes_other_nights === "boolean" &&

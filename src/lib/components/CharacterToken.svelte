@@ -138,6 +138,9 @@
                 <div class="token-name dumbledore-font">{character.name}</div>
                 {#if !norules}    
                 <div class="token-rules">{character.rules}</div>
+                {#if character.setup}
+                <div class="token-rules token-setup">[{character.setup}]</div>
+                {/if}
                 {/if}
             </div>
         </div>
@@ -234,6 +237,10 @@
         font-size: calc(var(--token-size) / 14);
         line-height: 1.2;
         opacity: 0.65;
+    }
+
+    .token-setup {
+        font-weight: 600;
     }
 
     .curved-name {

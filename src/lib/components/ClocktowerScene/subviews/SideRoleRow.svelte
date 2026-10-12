@@ -172,7 +172,8 @@
         ctx.textAlign = "left";
         ctx.shadowColor = TEXT_SHADOW_COLOR;
 
-        const rulesText = character.rules?.trim() ?? "";
+        // The setup note goes on its own line under the ability.
+        const rulesText = [character.rules?.trim(), character.setup ? `[${character.setup}]` : ""].filter(Boolean).join("\n");
         const hasRules = rulesText.length > 0;
         const gap = hasRules ? height * TITLE_RULES_GAP_FRACTION : 0;
 

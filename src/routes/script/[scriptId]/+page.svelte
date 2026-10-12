@@ -79,6 +79,9 @@
                 {#if character.rules}
                     <div class="character-rules">{character.rules}</div>
                 {/if}
+                {#if character.setup}
+                    <div class="character-rules character-setup">[{character.setup}]</div>
+                {/if}
             </div>
         </button>
     </li>
@@ -311,6 +314,10 @@
         font-size: 0.85em;
         line-height: 1.3;
         opacity: 0.85;
+    }
+
+    .character-setup {
+        font-weight: 600;
     }
 
     .empty {

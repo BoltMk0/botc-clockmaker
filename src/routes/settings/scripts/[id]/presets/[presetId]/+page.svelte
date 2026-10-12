@@ -197,7 +197,7 @@
             {:else}
                 <div class="section plain">
                     <h2 style="margin-top: 0;">Characters</h2>
-                    <CharacterList characters={builder.chosenCharacters} />
+                    <CharacterList characters={builder.chosenCharacters} fullRules />
                 </div>
             {/if}
             <div class="section plain">
@@ -207,7 +207,7 @@
                 {:else}
                     {#each builder.bluffSets as set, i}
                         <h3>Set {i + 1}</h3>
-                        <CharacterList characters={set.map(id => builder.charById.get(id)).filter(c => !!c)} grouped={false} />
+                        <CharacterList characters={set.map(id => builder.charById.get(id)).filter(c => !!c)} grouped={false} fullRules />
                     {/each}
                 {/if}
             </div>

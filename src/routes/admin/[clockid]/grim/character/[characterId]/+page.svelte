@@ -78,6 +78,10 @@
         opacity: 0.9;
         white-space: pre-line;
     }
+
+    .description.setup {
+        font-weight: 600;
+    }
 </style>
 
 <div class="character-view">
@@ -91,4 +95,7 @@
     <h1 class="dumbledore-font">{data.character.name}</h1>
     <div class="category">{data.character.category}</div>
     <div class="description">{data.character.rules}</div>
+    {#if data.character.setup}
+        <div class="description setup">[{data.character.setup}]</div>
+    {/if}
 </div>
