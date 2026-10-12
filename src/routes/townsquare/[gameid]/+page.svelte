@@ -1,5 +1,6 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, untrack } from 'svelte';
+    import { invalidateAll } from '$app/navigation';
     import FullDisplay from '$lib/components/FullDisplay/FullDisplay.svelte';
     import SideMenu from '$lib/components/SideMenu.svelte';
     import type { PageData } from './$types';
@@ -56,12 +57,43 @@
         ...(script && appSettings.scriptQrPosition ? [scriptQrCode(script, appSettings.scriptQrPosition)] : []),
     ]);
 
+    // When the audio engine is turned off in the menu, nothing plays here (or loads) and the mixer only acts as a remote.
+    let audioSetUpFor: boolean|null = null; // Whether the audio was last set up enabled; null before it first is
+    let audioGeneration = 0;
+
+    async function setUpAudio(clock: Clocktower, enabled: boolean, refresh: boolean){
+        const generation = ++audioGeneration;
+        tearDownAudio();
+        // The mixer's shared state may have moved on since the page loaded
+        if(refresh) await invalidateAll();
+        if(generation !== audioGeneration) return; // Toggled again while refreshing
+        const remoteOnly = !enabled;
+        audioEngine = new AudioEngine([clock], data.ambienceEngineModel, data.stingEngineModel, { silent: remoteOnly });
+        spotify = new SpotifyPlayer({ remoteOnly });
+        music = new MusicPlayer({ remoteOnly, output: audioEngine.input });
+    }
+
+    function tearDownAudio(){
+        music?.close(); // Before the engine: it plays through the engine's audio context
+        audioEngine?.close();
+        spotify?.close();
+        music = null;
+        audioEngine = null;
+        spotify = null;
+    }
+
+    $effect(() => {
+        const enabled = appSettings.audioEngineEnabled;
+        if(!model || enabled === audioSetUpFor) return;
+        const refresh = audioSetUpFor !== null;
+        audioSetUpFor = enabled;
+        const clock = model;
+        untrack(() => setUpAudio(clock, enabled, refresh));
+    });
+
     onMount(() => {
         if(!browser) return;
         model = new Clocktower(data.model);
-        audioEngine = new AudioEngine([model], data.ambienceEngineModel, data.stingEngineModel);
-        spotify = new SpotifyPlayer();
-        music = new MusicPlayer({ output: audioEngine.input });
 
         // Browsers only let an AudioContext run following a genuine user gesture,
         // so resume it on the first interaction with the page.
@@ -73,9 +105,8 @@
         }).catch(() => {});
         return ()=>{
             document.removeEventListener('pointerdown', resumeAudio);
-            music?.close(); // Before the engine: it plays through the engine's audio context
-            audioEngine?.close();
-            spotify?.close();
+            audioGeneration++; // Drops a set up still waiting on its refresh
+            tearDownAudio();
             model?.close();
         }
     });

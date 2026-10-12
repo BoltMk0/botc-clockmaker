@@ -16,7 +16,7 @@
     import { QR_POSITIONS, QR_POSITION_LABELS } from "$lib/resources/common/qrCodes";
 
     // In the town square the menu has no page links: a back button to /play, a link to the clock's remote (when given a clock),
-    // the audio mixer and the display settings.
+    // the audio mixer (a remote only, with the audio engine turned off) and the display settings.
     // Pass the page's audio engine (and its ambience resources / spotify and music players) so the mixer button can show the full mixer for it.
     let {
         townSquare = false,
@@ -201,6 +201,13 @@
     .mixer-close-button {
         position: fixed;
     }
+
+    .remote-only-note {
+        text-align: center;
+        font-size: 0.85em;
+        opacity: 0.6;
+        margin-bottom: 8px;
+    }
 </style>
 
 <button aria-label="Menu" class="no-button-style hamburger" onclick={()=>{visible = true;}} style="position: absolute; top: 10px; left: 10px;">
@@ -251,9 +258,15 @@
             {/if}
             {#if audioEngine}
             <button class="button-style" style="width: 100%; font-size: large; padding: 0.5em 1em;" onclick={() => { showMixer = true; visible = false; }}>
-                Audio Mixer
+                {appSettings.audioEngineEnabled ? 'Audio Mixer' : 'Mixer Remote'}
             </button>
             {/if}
+            <div style="display: flex; justify-content: space-between;" title="When off, no sound plays on this device and the mixer only acts as a remote">
+                <div style="font-size: smaller; text-align: center;">Audio Engine</div>
+                <div style="display: flex; gap: 0.5em; align-items: center; font-size: 18px;">
+                    <input name="audioengine" type="checkbox" bind:checked={appSettings.audioEngineEnabled}/>
+                </div>
+            </div>
         </div>
         {/if}
         <div class="navbar-settings-pane stacked-pane">
@@ -363,6 +376,9 @@
     <div class="mixer-overlay">
         <button class="close-button mixer-close-button" onclick={() => { showMixer = false; }}>X</button>
         <div class="mixer-overlay-scroll">
+            {#if townSquare && !appSettings.audioEngineEnabled}
+            <div class="remote-only-note">Remote only: no sound plays on this device.</div>
+            {/if}
             <AudioMixer {audioEngine} {ambienceResources} spotify={spotify ?? undefined} {spotifyPresets} music={music ?? undefined} {musicPresets}/>
         </div>
     </div>

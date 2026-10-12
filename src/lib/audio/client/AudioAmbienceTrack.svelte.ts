@@ -25,10 +25,12 @@ export class AudioAmbienceTrack extends AudioTrack {
     /** Called with the changed fields whenever the user edits this track locally (used to sync to the server). */
     onLocalChange: ((patch: AmbienceTrackPatch)=>void)|null = null;
 
+    /** @param options.silent Never plays, so its audio is never fetched either. */
     constructor(
         model: AmbienceTrackModel,
         outputNode: AudioNode,
-        title: string
+        title: string,
+        options: {silent?: boolean} = {}
     ) {
         super(model, outputNode, title);
         this.#model = model;
@@ -38,7 +40,7 @@ export class AudioAmbienceTrack extends AudioTrack {
         this.#fadeNode.gain.value = 0;
         this.#fadeNode.connect(this.input);
 
-        this.#stopEffects = $effect.root(()=>{
+        this.#stopEffects = options.silent ? ()=>{} : $effect.root(()=>{
             $effect(()=>{
                 const id = this.#model.loadedResourceId;
                 this.load(id);

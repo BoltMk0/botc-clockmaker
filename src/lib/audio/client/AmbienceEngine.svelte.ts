@@ -40,7 +40,7 @@ export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
         super(
             model,
             outputNode, '',
-            (model: AmbienceTrackModel, outputNode: AudioNode, index: number)=>new AudioAmbienceTrack(model, outputNode, `Track ${index + 1}`)
+            (model: AmbienceTrackModel, outputNode: AudioNode, index: number)=>new AudioAmbienceTrack(model, outputNode, `Track ${index + 1}`, options)
         );
         this.#model = model;
         this.#timeOfDay = timeOfDay;
@@ -139,7 +139,7 @@ export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
         this.#model.tracks.push(model);
         const index = this.#model.tracks.length - 1;
         // Pass the reactive proxy the model array now holds, not the plain object pushed into it
-        const track = new AudioAmbienceTrack(this.#model.tracks[index], this.input, `Track ${index + 1}`);
+        const track = new AudioAmbienceTrack(this.#model.tracks[index], this.input, `Track ${index + 1}`, {silent: this.#silent});
         this.tracks.push(track);
         this.setupTrack(track, index);
     }

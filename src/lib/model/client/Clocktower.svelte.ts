@@ -171,9 +171,9 @@ export class Clocktower extends EventEmitter<ClocktowerEvents> {
         }
     }
 
-    connectAudio(outputNode: AudioNode): AudioClockTrack{
+    connectAudio(outputNode: AudioNode, options: {silent?: boolean} = {}): AudioClockTrack{
         this.disconnectAudio();
-        this.#audioTrack = new AudioClockTrack(this.#model.clock.clockId, this.#model.audio, this.#model.config.teamName ?? "", outputNode);
+        this.#audioTrack = new AudioClockTrack(this.#model.clock.clockId, this.#model.audio, this.#model.config.teamName ?? "", outputNode, options);
         // Syncs the mixer's clock channel strip (gain/pan/balance) to every other connected mixer.
         this.#audioTrack.onLocalChange = ()=>this.scheduleAudioSend();
         return this.#audioTrack;

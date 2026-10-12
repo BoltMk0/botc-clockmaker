@@ -57,7 +57,7 @@ export class AudioEngine implements AudioTrackBase {
 
     /**
      * @param options.silent Nothing ever plays on this client: the output isn't connected, ambience never starts and
-     *   bells never ring. The mixer controls still work, editing the shared state for other clients.
+     *   bells never ring, and none of their audio is loaded. The mixer controls still work, editing the shared state for other clients.
      */
     constructor(clocks: Clocktower[], ambienceEngineModel?: AmbienceEngineModel, stingEngineModel?: StingEngineModel, options: {silent?: boolean} = {}){
         this.#silent = options.silent ?? false;
@@ -84,8 +84,7 @@ export class AudioEngine implements AudioTrackBase {
         };
         this.#clocksMasterBus = new AudioTrack(clocksMasterModel, this.#sfxOutputNode, 'Clocks & Sting Master');
         console.log("Connection", clocks.length, "clocks")
-        this.#clockAudioTracks = clocks.map(c=>c.connectAudio(this.#clocksMasterBus.input));
-        if(this.#silent) this.#clockAudioTracks.forEach(t=>t.silent = true);
+        this.#clockAudioTracks = clocks.map(c=>c.connectAudio(this.#clocksMasterBus.input, {silent: this.#silent}));
         // With several games each in their own phase, the earliest wins: it's day if any game is in daytime.
         this.#timeOfDay = $derived(combineTimesOfDay(clocks.map(clock=>clock.timeOfDay)));
         this.#timeOfDayNode.gain.value = this.timeOfDayGain;
