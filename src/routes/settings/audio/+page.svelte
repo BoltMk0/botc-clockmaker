@@ -192,9 +192,15 @@
         }
     }
 
-    /** The artist, shown under an asset's name (its title); empty if it has none. */
-    function creditLine(metadata: AudioAssetMetadata | undefined) {
-        return metadata?.artist.trim() ?? '';
+    /** "Title - Artist" for an asset with metadata (just the title if it has no artist), otherwise its name. */
+    function headline(res: AssetResource) {
+        const artist = res.metadata?.artist.trim();
+        return artist ? `${displayName(res)} - ${artist}` : displayName(res);
+    }
+
+    /** Only web links are made clickable; anything else typed in the link field is shown as plain text. */
+    function isWebLink(link: string) {
+        return /^https?:\/\//i.test(link);
     }
 
     const acceptedAudioExtensions = getAcceptedExtensionsForResourceType('ambience').join(',');
@@ -473,7 +479,16 @@
                             }}/>
                     {:else}
                         <div class="asset-name">
-                            <span>{displayName(res)}{#if creditLine(res.metadata)}<span class="asset-credit">{creditLine(res.metadata)}</span>{/if}<span class="asset-meta-inline">{containerType(res)} · {formatFileSize(res.size)}</span></span>
+                            <span><span class="asset-headline">{headline(res)}</span>
+                                {#if res.metadata && (res.metadata.link || res.metadata.license)}
+                                    {@const link = res.metadata.link.trim()}
+                                    {@const license = res.metadata.license.trim()}
+                                    <!-- Second line: where it's from, and its license -->
+                                    <span class="asset-credit">
+                                        {#if link && isWebLink(link)}<a href={link} target="_blank" rel="noopener noreferrer" onclick={(e) => e.stopPropagation()}>{link}</a>{:else}{link}{/if}{#if license}{link ? ' ' : ''}({license}){/if}
+                                    </span>
+                                {/if}
+                                <span class="asset-meta-inline">{containerType(res)} · {formatFileSize(res.size)}</span></span>
                             {#if !list.options.metadata}
                                 <button class="edit-button" onclick={(e) => { e.stopPropagation(); list.startEdit(res); }}
                                     aria-label="Rename {displayName(res)}" title="Rename"><PencilIcon size={16}/></button>
@@ -710,6 +725,10 @@
         opacity: 0.7;
     }
 
+    .asset-credit a {
+        color: inherit;
+    }
+
     button.icon-button.details-button:hover, button.icon-button.details-button.active {
         border-color: var(--theme-highlight);
         color: inherit;
@@ -760,8 +779,9 @@
         gap: 0.5em;
     }
 
-    tr.asset-row.selected td {
-        background-color: var(--theme-bg-tertiary);
+    /* The asset loaded in the preview player: its name in the app's highlight colour */
+    tr.asset-row.selected .asset-headline {
+        color: var(--theme-highlight);
     }
 
     /* Looks like the other "+" buttons; it's a label so clicking it opens the (hidden) file picker. */
