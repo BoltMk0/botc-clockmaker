@@ -1,5 +1,5 @@
 import { fail } from "@sveltejs/kit";
-import type { Actions } from "./$types";
+import type { Actions, PageServerLoad } from "./$types";
 import { sendEmail } from "$lib/resources/server/mailer";
 import { env } from "$env/dynamic/private";
 import { writeFileSync } from "fs";
@@ -8,6 +8,14 @@ import { FEEDBACK_DIR } from "$lib/resources/server/feedback";
 const MAX_LEN = 5000;
 const WINDOW_MS = 60_000;
 const MAX_PER_WINDOW = 3;
+
+/** The original deployment's Turnstile widget, used when TURNSTILE_SITE_KEY isn't set. */
+const DEFAULT_TURNSTILE_SITE_KEY = "0x4AAAAAAEk55R9-W9ZS1kzr";
+
+// Read at runtime, so self-hosters can use their own Turnstile widget without rebuilding the image
+export const load: PageServerLoad = () => ({
+    siteKey: env.TURNSTILE_SITE_KEY || DEFAULT_TURNSTILE_SITE_KEY
+});
 
 const hits = new Map<string, number[]>();
 

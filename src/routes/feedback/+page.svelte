@@ -3,11 +3,10 @@
     import { onMount } from "svelte";
     import type { SubmitFunction } from "@sveltejs/kit";
 
-    const SITEKEY = "0x4AAAAAAEk55R9-W9ZS1kzr";
     const TURNSTILE_SRC =
         "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 
-    let { form } = $props();
+    let { data, form } = $props();
 
     let text = $state("");
     let submitting = $state(false);
@@ -64,7 +63,7 @@
                     return;
                 }
                 widgetId = window.turnstile.render(turnstileEl, {
-                    sitekey: SITEKEY,
+                    sitekey: data.siteKey,
                     action: "feedback",
                     appearance: "always",
                     retry: "auto",
