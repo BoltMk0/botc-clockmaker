@@ -15,9 +15,11 @@
         onBackFromPlayers?: () => void;
         /** Hides the back buttons, for pages that provide their own. */
         hideBack?: boolean;
+        /** Hides the back and next buttons under each step, for pages that provide their own. */
+        hideFooter?: boolean;
     }
 
-    let { builder, step, navigate, afterPlayers = 'tokens', beforeTokens = 'players', afterBluffs = 'summary', onBackFromPlayers, hideBack = false }: Props = $props();
+    let { builder, step, navigate, afterPlayers = 'tokens', beforeTokens = 'players', afterBluffs = 'summary', onBackFromPlayers, hideBack = false, hideFooter = false }: Props = $props();
 
     // The player categories show how many of the expected number are chosen; travellers, loric and fabled have no expected number.
     const COUNT_KEYS: Partial<Record<CharacterCategory, keyof PresetBuilder['expectedCounts']>> = {
@@ -134,10 +136,12 @@
             onremove={c => builder.removeCharacter(c.id)}
         />
     </div>
+    {#if !hideFooter}
     <div class="footer-actions">
         {#if !hideBack}<button class="button-style" onclick={() => navigate(beforeTokens)}>← Back</button>{:else}<span></span>{/if}
         <button class="button-style highlight" disabled={!builder.hasEnoughTokens} onclick={() => navigate('bluffs')}>Next →</button>
     </div>
+    {/if}
 </div>
 {:else if step === 'bluffs' && builder.script}
 <div class="step-layout">
@@ -167,9 +171,11 @@
             />
         {/if}
     </div>
+    {#if !hideFooter}
     <div class="footer-actions">
         {#if !hideBack}<button class="button-style" onclick={() => navigate('tokens')}>← Back</button>{:else}<span></span>{/if}
         <button class="button-style highlight" disabled={!builder.bluffsValid} onclick={() => navigate(afterBluffs)}>Next →</button>
     </div>
+    {/if}
 </div>
 {/if}

@@ -49,6 +49,28 @@
         }
     }
 
+    const stepIndex = $derived(STEPS.findIndex(([key]) => key === step));
+
+    // Whether the current step is done, so the header's Next button can move on from it.
+    const canContinue = $derived(
+        step === 'players' ? builder.playerCount !== null
+        : step === 'tokens' ? builder.hasEnoughTokens
+        : step === 'bluffs' ? builder.bluffsValid
+        : false
+    );
+
+    function goBack() {
+        if (stepIndex <= 0) {
+            goto(`/settings/scripts/${initial!.script.id}/presets`);
+        } else {
+            step = STEPS[stepIndex - 1][0];
+        }
+    }
+
+    function goNext() {
+        if (canContinue && stepIndex < STEPS.length - 1) step = STEPS[stepIndex + 1][0];
+    }
+
     function goBackToStep(target: string) {
         if (target === step) return;
         if (target !== 'players' && builder.playerCount === null) return;
@@ -95,8 +117,13 @@
 
     .editor-header {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         gap: 1em;
+    }
+
+    .editor-next {
+        margin-left: auto;
     }
 
     .editor-steps {
@@ -144,14 +171,6 @@
         background: none;
         padding: 0;
     }
-
-    /* Outside the scrolling body, so it stays in view at the bottom of the page. */
-    .footer-actions {
-        display: flex;
-        justify-content: space-between;
-        gap: 1em;
-        flex-shrink: 0;
-    }
 </style>
 
 {#if !initial}
@@ -162,7 +181,7 @@
 {:else}
 <div class="editor-main">
     <div class="editor-header">
-        <a href="/settings/scripts/{initial.script.id}/presets" class="button-style">← Back</a>
+        <button class="button-style" onclick={goBack}>← Back</button>
         <h1 style="margin: 0; font-size: 1.2em;">Edit preset</h1>
         <span style="opacity: 0.6;">{initial.script.name}</span>
         <div class="editor-steps">
@@ -170,6 +189,13 @@
                 {#if i > 0}<span>›</span>{/if}
                 <button class:active={step === key} onclick={() => goBackToStep(key)}>{i + 1}. {label}</button>
             {/each}
+        </div>
+        <div class="editor-next">
+            {#if step === 'summary'}
+                <button class="button-style highlight" disabled={saving || builder.playerCount === null || !builder.isSorted} onclick={save}>Save</button>
+            {:else}
+                <button class="button-style highlight" disabled={!canContinue} onclick={goNext}>Next →</button>
+            {/if}
         </div>
     </div>
 
@@ -216,15 +242,10 @@
                 {builder}
                 {step}
                 navigate={(s) => step = s}
+                hideFooter
             />
         {/if}
     </div>
 
-    {#if step === 'summary'}
-        <div class="footer-actions">
-            <button class="button-style" onclick={() => step = 'bluffs'}>← Back</button>
-            <button class="button-style highlight" disabled={saving || builder.playerCount === null || !builder.isSorted} onclick={save}>Save</button>
-        </div>
-    {/if}
 </div>
 {/if}
