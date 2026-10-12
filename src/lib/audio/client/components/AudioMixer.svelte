@@ -10,7 +10,9 @@
     import type { AudioEngine } from "../AudioEngine.svelte";
     import type { SpotifyPlayer } from "../SpotifyPlayer.svelte";
     import type { SpotifyPreset } from "$lib/audio/common/spotifyPreset";
-    import ChannelStripSpotify from "./ChannelStrip/ChannelStripSpotify.svelte";
+    import ChannelStripPlayer from "./ChannelStrip/ChannelStripPlayer.svelte";
+    import type { MusicPlayer } from "../MusicPlayer.svelte";
+    import type { MusicPreset } from "$lib/audio/common/musicPreset";
     import Knob from "./Knob.svelte";
     import { TIME_OF_DAY_TRIM_RANGE_DB } from "$lib/audio/common/model/timeOfDayTrimModel";
     import { TIME_OF_DAY_LABELS, TIMES_OF_DAY, type TimeOfDay } from "$lib/model/client/types";
@@ -22,12 +24,16 @@
         audioEngine,
         ambienceResources,
         spotify = undefined,
-        spotifyPresets = []
+        spotifyPresets = [],
+        music = undefined,
+        musicPresets = []
     }: {
         audioEngine: AudioEngine
         ambienceResources: AmbienceResource[];
         spotify?: SpotifyPlayer;
         spotifyPresets?: SpotifyPreset[];
+        music?: MusicPlayer;
+        musicPresets?: MusicPreset[];
     } = $props();
 
     // The trim being adjusted, shown in a bubble at the top of the screen (the knobs are small, and a finger covers them)
@@ -190,12 +196,14 @@
             {/snippet}
             <ChannelStripGroupAmbience engine={audioEngine.ambienceEngine} timeOfDay={audioEngine.timeOfDay} resources={ambienceResources} onTitleClick={()=>{audioEngine?.ambienceEngine?.togglePlayPause()}} style="--theme-slider-accent: #FAA;" title={ambienceEngineTitle}/>
             {/if}
-            {#if spotify}
-            <!-- Spotify plays in the SDK's own iframe, so it can't be routed through the master bus: the server
-                 applies the shared master gain to the volume it sends the player instead (see SpotifyHelper), so
-                 the master fader still controls it - it's still one of this mixer's own channels, not a separate
-                 thing, so it sits in the same row. MASTER stays the rightmost strip, so this goes just before it. -->
-            <ChannelStripSpotify {spotify} presets={spotifyPresets} style="--theme-slider-accent: #AFA;"/>
+            {#if spotify || music}
+            <!-- The music strip, shared by Spotify and the uploaded-music player (whichever is running). Spotify plays
+                 in the SDK's own iframe, so it can't be routed through the master bus: the server applies the shared
+                 master gain to the volume it sends the player instead (see SpotifyHelper), so the master fader still
+                 controls it; the music player's host plays through the master bus itself. Either way it's one of this
+                 mixer's own channels, so it sits in the same row. MASTER stays the rightmost strip, so this goes just
+                 before it. -->
+            <ChannelStripPlayer {spotify} {music} {spotifyPresets} {musicPresets} style="--theme-slider-accent: #AFA;"/>
             {/if}
             {#snippet timeOfDayTrims()}
                 <div class="time-of-day-trims">

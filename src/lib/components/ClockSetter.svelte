@@ -13,6 +13,7 @@
     import TimeOfDayIcon from "$lib/assets/timeOfDayIcon.svelte";
     import { AudioDim } from "$lib/audio/client/AudioDim.svelte";
     import { SpotifyPlayer } from "$lib/audio/client/SpotifyPlayer.svelte";
+    import { MusicPlayer } from "$lib/audio/client/MusicPlayer.svelte";
     import { DEFAULT_DIM_AMOUNT_DB } from "$lib/audio/common/model/audioDimModel";
 
 
@@ -40,13 +41,18 @@
         const model = (spotify as SpotifyPlayer|null)?.model;
         return !!model?.hostClientId && model.hostReady;
     });
+    // Or the uploaded-music player, which runs in Spotify's place
+    let music: MusicPlayer|null = $state(null);
+    const musicActive = $derived((music as MusicPlayer|null)?.active === true);
 
     onMount(() => {
         audioDim = new AudioDim();
         spotify = new SpotifyPlayer({ remoteOnly: true });
+        music = new MusicPlayer({ remoteOnly: true });
         return () => {
             audioDim?.close();
             spotify?.close();
+            music?.close();
         };
     });
 
@@ -250,7 +256,7 @@
                     <div>DIM</div>
                     <div class="dim-amount">{audioDim?.dimmed ? `-${audioDim.amountDb}` : 0} dB</div>
                 </button>
-                <button class="button-container-button" onclick={() => spotify?.next()} disabled={!spotifyActive} title="Skip Spotify track" aria-label="Skip Spotify track">
+                <button class="button-container-button" onclick={() => spotifyActive ? spotify?.next() : music?.next()} disabled={!spotifyActive && !musicActive} title={musicActive ? 'Skip music track' : 'Skip Spotify track'} aria-label={musicActive ? 'Skip music track' : 'Skip Spotify track'}>
                     <svg class="button-icon-img" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
                 </button>
                 <button class="button-container-button ring-bell-btn" onclick={onBell}>

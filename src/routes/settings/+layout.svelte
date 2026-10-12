@@ -9,6 +9,7 @@
         '/settings/customMessages',
         '/settings/qrCodes',
         '/settings/audio',
+        '/settings/music',
         '/settings/rulesSlides',
         '/settings/feedback',
         '/settings/password'

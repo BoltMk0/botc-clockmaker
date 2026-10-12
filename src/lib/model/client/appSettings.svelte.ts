@@ -34,7 +34,7 @@ interface AppSettingsState {
     qrAutoSize: boolean;
     /** Multiplies the default QR code size, when qrAutoSize is off. */
     qrScale: number;
-    /** Whether the town square shows the Spotify track playing (title, artist and album art): never, popping up when a track starts, or all the time. */
+    /** Whether the town square shows the track playing (on Spotify or the music player) (title, artist and album art): never, popping up when a track starts, or all the time. */
     nowPlayingMode: NowPlayingMode;
     /** Where on the screen it shows. */
     nowPlayingPosition: NowPlayingPosition;

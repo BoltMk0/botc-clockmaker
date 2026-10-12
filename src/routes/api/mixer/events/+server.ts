@@ -4,6 +4,7 @@ import { error } from '@sveltejs/kit';
 import { getAmbienceEngineHelperInstance, type AmbienceEngineHelper } from '$lib/model/server/AmbienceEngine/AmbienceEngineHelper.js';
 import { getStingEngineHelperInstance, type StingEngineHelper } from '$lib/model/server/StingEngine/StingEngineHelper.js';
 import { getSpotifyHelperInstance, type SpotifyHelper } from '$lib/model/server/Spotify/SpotifyHelper.js';
+import { getMusicHelperInstance, type MusicHelper } from '$lib/model/server/Music/MusicHelper.js';
 import { getAudioDimHelperInstance, type AudioDimHelper } from '$lib/model/server/AudioDim/AudioDimHelper.js';
 import { getTimeOfDayTrimHelperInstance, type TimeOfDayTrimHelper } from '$lib/model/server/TimeOfDayTrim/TimeOfDayTrimHelper.js';
 import { getMixerMastersHelperInstance, type MixerMastersHelper } from '$lib/model/server/MixerMasters/MixerMastersHelper.js';
@@ -13,7 +14,7 @@ export type emit_cb = (eventName: string, data: string) => Unsafe<void, Error>;
 
 /**
  * One shared SSE connection carrying every "global" (not per-clock) mixer channel - ambience engine,
- * sting engine, Spotify and audio dim - which each used to open their own long-lived SSE connection.
+ * sting engine, Spotify, the music player and audio dim - which each used to open their own long-lived SSE connection.
  * Combined with one connection per clock, that could add up past the browser's ~6-connections-per-origin
  * limit and starve every stream on the page (and on any other tab sharing the origin). Messages are
  * demuxed client-side by their own `type` field, same as the clock route already does for its several
@@ -24,6 +25,7 @@ class MixerListener extends SSEClientManager {
         readonly ambienceEngine: AmbienceEngineHelper,
         readonly stingEngine: StingEngineHelper,
         readonly spotify: SpotifyHelper,
+        readonly music: MusicHelper,
         readonly audioDim: AudioDimHelper,
         readonly timeOfDayTrim: TimeOfDayTrimHelper,
         readonly mixerMasters: MixerMastersHelper
@@ -37,6 +39,7 @@ class MixerListener extends SSEClientManager {
         stingEngine.on('trigger', (slot) => this.broadcast({ type: 'stingTrigger', slot }));
         spotify.on('update', (model) => this.broadcast({ type: 'spotifyUpdate', model }));
         spotify.on('deviceVolume', (hostClientId, volume) => this.broadcast({ type: 'spotifyDeviceVolume', hostClientId, volume }));
+        music.on('update', (model) => this.broadcast({ type: 'musicUpdate', model }));
         audioDim.on('update', (model) => this.broadcast({ type: 'audioDimUpdate', model }));
         timeOfDayTrim.on('update', (model) => this.broadcast({ type: 'timeOfDayTrimUpdate', model }));
         mixerMasters.on('update', (model) => this.broadcast({ type: 'mixerMastersUpdate', model }));
@@ -51,6 +54,7 @@ function getManager() {
             getAmbienceEngineHelperInstance(),
             getStingEngineHelperInstance(),
             getSpotifyHelperInstance(),
+            getMusicHelperInstance(),
             getAudioDimHelperInstance(),
             getTimeOfDayTrimHelperInstance(),
             getMixerMastersHelperInstance()
@@ -76,6 +80,7 @@ export function POST() {
                     // A host reconnecting may have missed volume changes while it was away
                     const deviceVolume = mgr.spotify.deviceVolume;
                     if (deviceVolume) send({ type: 'spotifyDeviceVolume', ...deviceVolume });
+                    send({ type: 'musicUpdate', model: mgr.music.model });
                     send({ type: 'audioDimUpdate', model: mgr.audioDim.model });
                     send({ type: 'timeOfDayTrimUpdate', model: mgr.timeOfDayTrim.model });
                     send({ type: 'mixerMastersUpdate', model: mgr.mixerMasters.model });

@@ -28,7 +28,7 @@ export type SpotifyModel = {
      * changes (or for a countdown playlist, when the countdown starts or stops).
      */
     adaptivePresetId: string | null;
-    /** Whether that's a countdown playlist paused for a silent spell (it starts again by itself). */
+    /** Whether that's paused for a silent spell, a time it has no list for (it starts again by itself). */
     adaptivePresetSilent: boolean;
     /** The preset to switch to at the next change of the games' phase, if one's been picked. */
     scheduledPresetId: string | null;

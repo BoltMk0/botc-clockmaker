@@ -6,6 +6,7 @@ import type { MixerMastersModel } from "$lib/audio/common/model/mixerMastersMode
 import type { AudioResourceTrackModel } from "$lib/audio/common/model/audioResourceTrackModel";
 import type { StingEngineModel } from "$lib/audio/common/model/stingEngineModel";
 import type { SpotifyModel } from "$lib/audio/common/model/spotifyModel";
+import type { MusicModel } from "$lib/audio/common/model/musicModel";
 import type { ClocktowerAudioTrackModel } from "$lib/audio/common/model/clocktowerAudioTrackModel.svelte";
 import type { ClockSfxSlot } from "$lib/audio/common/clockSfxPreset";
 import type { ClocktowerModel } from "$lib/model/common/ClocktowerModel";
@@ -63,6 +64,11 @@ export type SpotifyDeviceVolumeMessage = WSMessageBase & {
     volume: number
 };
 
+export type MusicUpdateMessage = WSMessageBase & {
+    type: 'musicUpdate',
+    model: MusicModel
+};
+
 export type AudioDimUpdateMessage = WSMessageBase & {
     type: 'audioDimUpdate',
     model: AudioDimModel
@@ -105,6 +111,7 @@ export type WSMessage =
     |AmbienceTrackRemovedMessage
     |SpotifyUpdateMessage
     |SpotifyDeviceVolumeMessage
+    |MusicUpdateMessage
     |AudioDimUpdateMessage
     |TimeOfDayTrimUpdateMessage
     |MixerMastersUpdateMessage

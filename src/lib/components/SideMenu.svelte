@@ -10,19 +10,23 @@
     import type { AmbienceResource } from "$lib/common/ambience";
     import type { SpotifyPlayer } from "$lib/audio/client/SpotifyPlayer.svelte";
     import type { SpotifyPreset } from "$lib/audio/common/spotifyPreset";
+    import type { MusicPlayer } from "$lib/audio/client/MusicPlayer.svelte";
+    import type { MusicPreset } from "$lib/audio/common/musicPreset";
     import type { Clocktower } from "$lib/model/client/Clocktower.svelte";
     import { QR_POSITIONS, QR_POSITION_LABELS } from "$lib/resources/common/qrCodes";
 
     // In the town square the menu has no page links: a back button to /play, a link to the clock's remote (when given a clock),
     // the audio mixer and the display settings.
-    // Pass the page's audio engine (and its ambience resources / spotify player) so the mixer button can show the full mixer for it.
+    // Pass the page's audio engine (and its ambience resources / spotify and music players) so the mixer button can show the full mixer for it.
     let {
         townSquare = false,
         clock = null,
         audioEngine = null,
         ambienceResources = [],
         spotify = null,
-        spotifyPresets = []
+        spotifyPresets = [],
+        music = null,
+        musicPresets = []
     }: {
         townSquare?: boolean;
         clock?: Clocktower | null;
@@ -30,6 +34,8 @@
         ambienceResources?: AmbienceResource[];
         spotify?: SpotifyPlayer | null;
         spotifyPresets?: SpotifyPreset[];
+        music?: MusicPlayer | null;
+        musicPresets?: MusicPreset[];
     } = $props();
 
     let visible = $state(false);
@@ -357,7 +363,7 @@
     <div class="mixer-overlay">
         <button class="close-button mixer-close-button" onclick={() => { showMixer = false; }}>X</button>
         <div class="mixer-overlay-scroll">
-            <AudioMixer {audioEngine} {ambienceResources} spotify={spotify ?? undefined} {spotifyPresets}/>
+            <AudioMixer {audioEngine} {ambienceResources} spotify={spotify ?? undefined} {spotifyPresets} music={music ?? undefined} {musicPresets}/>
         </div>
     </div>
 {/if}

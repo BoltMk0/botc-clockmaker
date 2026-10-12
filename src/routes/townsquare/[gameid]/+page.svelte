@@ -7,6 +7,7 @@
     import { Clocktower } from '$lib/model/client/Clocktower.svelte';
     import { AudioEngine } from '$lib/audio/client/AudioEngine.svelte';
     import { SpotifyPlayer } from '$lib/audio/client/SpotifyPlayer.svelte';
+    import { MusicPlayer } from '$lib/audio/client/MusicPlayer.svelte';
     import SiteQRCode from '$lib/components/SiteQRCode.svelte';
     import NowPlayingToast from '$lib/audio/client/components/NowPlayingToast.svelte';
     import { appSettings } from '$lib/model/client/appSettings.svelte.js';
@@ -18,6 +19,7 @@
     let model: Clocktower|null = $state(null);
     let audioEngine: AudioEngine|null = $state(null);
     let spotify: SpotifyPlayer|null = $state(null);
+    let music: MusicPlayer|null = $state(null);
     let qrCodes: QrCode[] = $state([]);
     // The game's script, for the script QR. Starts from the page load and is polled while the QR is shown here,
     // so it follows the grimoire being set up or ended. The 3D display polls the grim itself (see ClocktowerScene).
@@ -59,6 +61,7 @@
         model = new Clocktower(data.model);
         audioEngine = new AudioEngine([model], data.ambienceEngineModel, data.stingEngineModel);
         spotify = new SpotifyPlayer();
+        music = new MusicPlayer({ output: audioEngine.input });
 
         // Browsers only let an AudioContext run following a genuine user gesture,
         // so resume it on the first interaction with the page.
@@ -70,6 +73,7 @@
         }).catch(() => {});
         return ()=>{
             document.removeEventListener('pointerdown', resumeAudio);
+            music?.close(); // Before the engine: it plays through the engine's audio context
             audioEngine?.close();
             spotify?.close();
             model?.close();
@@ -83,8 +87,8 @@
 <FullDisplay model={model}/>
 {/if}
 
-<SideMenu townSquare clock={model} {audioEngine} ambienceResources={data.ambienceResources} {spotify} spotifyPresets={data.spotifyPresets}/>
-<NowPlayingToast {spotify}/>
+<SideMenu townSquare clock={model} {audioEngine} ambienceResources={data.ambienceResources} {spotify} spotifyPresets={data.spotifyPresets} {music} musicPresets={data.musicPresets}/>
+<NowPlayingToast {spotify} {music}/>
 
 {#if shownQrCodes.length > 0 && appSettings.displayMode !== 'clocktower3d'}
 {#each QR_POSITIONS as pos}

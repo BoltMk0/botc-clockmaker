@@ -3,6 +3,7 @@
     import { cubicIn, cubicOut } from "svelte/easing";
     import { untrack } from "svelte";
     import type { SpotifyPlayer } from "../SpotifyPlayer.svelte";
+    import type { MusicPlayer } from "../MusicPlayer.svelte";
     import type { SpotifyPlaybackModel } from "$lib/audio/common/model/spotifyModel";
     import Marquee from "./Marquee.svelte";
     import { appSettings } from "$lib/model/client/appSettings.svelte";
@@ -10,11 +11,14 @@
     /** How long the popup stays up. */
     const SHOW_MS = 6000;
 
-    let { spotify }: { spotify: SpotifyPlayer | null } = $props();
+    let { spotify, music = null }: { spotify: SpotifyPlayer | null, music?: MusicPlayer | null } = $props();
+
+    /** The track of whichever player is running (only one runs at a time: they share the mixer's music strip). */
+    const currentPlayback = $derived(music?.active ? music.playback : spotify?.playback ?? null);
 
     type Shown = { key: string, title: string, artist: string, imageUrl: string | null };
 
-    function toShown(playback: SpotifyPlaybackModel): Shown {
+    function toShown(playback: Pick<SpotifyPlaybackModel, 'title' | 'artist' | 'imageUrl'>): Shown {
         return { key: `${playback.title}\n${playback.artist}`, title: playback.title, artist: playback.artist, imageUrl: playback.imageUrl ?? null };
     }
 
@@ -33,7 +37,7 @@
     }
 
     $effect(() => {
-        const playback = spotify?.playback;
+        const playback = currentPlayback;
         if (!playback) return;
         const key = toShown(playback).key;
         if (lastKey === undefined) { lastKey = key; lastPlaying = playback.playing; return; }
@@ -59,7 +63,7 @@
         switch (appSettings.nowPlayingMode) {
             case 'popup': return popup;
             case 'on': {
-                const playback = spotify?.playback;
+                const playback = currentPlayback;
                 return playback?.playing && playback.title ? toShown(playback) : null;
             }
             default: return null;

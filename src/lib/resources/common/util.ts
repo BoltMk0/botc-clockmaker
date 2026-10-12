@@ -62,7 +62,8 @@ export function prettifyResourceType(type: ResourceType): string {
         case "sting": return "Audio Stings";
         case "clockconfig": return "Clock Config";
         case 'appconfig': return "App Config";
-        case 'rules-slide': return "Rules Slides"
+        case 'rules-slide': return "Rules Slides";
+        case 'albumart': return "Album Artwork"
         default: return type;
     }
 }

@@ -3,6 +3,7 @@ import { getStingEngineHelperInstance } from "$lib/model/server/StingEngine/Stin
 import { getBOTCTClockInstanceManager } from "$lib/model/server/model";
 import { listAmbienceResources } from "$lib/resources/server/ambience-resources";
 import { getSpotifyPresets } from "$lib/resources/server/spotifyPresets";
+import { getMusicPresets } from "$lib/resources/server/musicPresets";
 
 export async function load(){
     const manager = getBOTCTClockInstanceManager();
@@ -11,5 +12,6 @@ export async function load(){
     const ambienceEngineModel = getAmbienceEngineHelperInstance().model
     const stingEngineModel = getStingEngineHelperInstance().model
     const spotifyPresets = getSpotifyPresets();
-    return {instances, ambienceResources, ambienceEngineModel, stingEngineModel, spotifyPresets};
+    const musicPresets = getMusicPresets();
+    return {instances, ambienceResources, ambienceEngineModel, stingEngineModel, spotifyPresets, musicPresets};
 }

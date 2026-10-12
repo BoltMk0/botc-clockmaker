@@ -3,7 +3,7 @@ import { SSEClient } from "../../model/client/util/sseClient.svelte";
 
 /**
  * Shared SSE connection for every "global" (not per-clock) mixer channel - ambience engine, sting engine,
- * Spotify, audio dim - each of which used to open its own connection via its own SSEClient. That's one
+ * Spotify, the music player, audio dim - each of which used to open its own connection via its own SSEClient. That's one
  * more long-lived connection per feature, which combined with one connection per clock could exhaust the
  * browser's ~6-connections-per-origin limit and start starving every stream (on this tab and any other tab
  * sharing the origin). All four now share this single `/api/mixer/events` connection instead, demuxed by
@@ -23,7 +23,7 @@ type Listener = (msg: WSMessage) => void;
  * snapshot, so an old snapshot alone could be staler than the page data those engines start from.
  */
 const REPLAYED_TYPES = new Set<WSMessage['type']>([
-    'spotifyUpdate', 'spotifyDeviceVolume', 'audioDimUpdate', 'timeOfDayTrimUpdate', 'mixerMastersUpdate'
+    'spotifyUpdate', 'spotifyDeviceVolume', 'musicUpdate', 'audioDimUpdate', 'timeOfDayTrimUpdate', 'mixerMastersUpdate'
 ]);
 
 let client: SSEClient | null = null;

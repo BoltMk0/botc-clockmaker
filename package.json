@@ -34,6 +34,7 @@
 	"dependencies": {
 		"@threlte/core": "^8.6.0",
 		"@threlte/extras": "^9.21.1",
+		"music-metadata": "^12.1.1",
 		"nodemailer": "^9.1.1",
 		"qrcode": "^1.5.4",
 		"sharp": "^0.35.4",

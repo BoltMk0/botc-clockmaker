@@ -25,7 +25,6 @@
 
     const model = $derived(spotify.model);
     let volume = $state(untrack(() => model?.volume ?? 50));
-    const active = $derived(model !== null && model.hostClientId !== null);
     // When this strip last sent a volume. Echoes of earlier values from a drag's coalesced sends can arrive
     // while it's still moving, so remote volume changes are ignored for a moment afterwards.
     let lastLocalVolumeChange = 0;
@@ -47,12 +46,12 @@
     /**
      * Whether `uri` is one of the preset's albums/playlists. An adaptive (or countdown) playlist only counts while it's the
      * one selected; a plain one only while no adaptive playlist is, so the two kinds can share a playlist without both
-     * lighting up. A countdown playlist waiting out a silent spell counts whatever's loaded.
+     * lighting up. An adaptive (or countdown) playlist waiting out a silent spell counts whatever's loaded.
      */
     function presetMatches(preset: SpotifyPreset, uri: string | null | undefined) {
         if (isSpotifyFollowingPreset(preset)) {
             if (model?.adaptivePresetId !== preset.id) return false;
-            return isAdaptivePresetContext(preset, uri) || (isSpotifyCountdownPreset(preset) && model.adaptivePresetSilent);
+            return isAdaptivePresetContext(preset, uri) || model.adaptivePresetSilent;
         }
         return !model?.adaptivePresetId && isSameSpotifyContext(uri, preset.uri);
     }
@@ -94,8 +93,7 @@
     onkeydown={(ev)=>{ if(ev.key === 'Escape') menuOpen = false; }}
 />
 
-{#if model?.configured}
-{#if active}
+{#if model}
 <div class="channel-strip-main spotify-strip" style={style}>
     <AudioMixerText onclick={()=>menuOpen = !menuOpen} style="margin-bottom: 5px;" title={spotify.isHost ? 'Playing from this device. Click for controls' : 'Playing from another device. Click for controls'}>Spotify</AudioMixerText>
     {#if menuOpen}
@@ -134,23 +132,23 @@
                 {@const playing = current && spotify.playback?.playing === true}
                 {@const pending = presetMatches(preset, model.pendingContextUri)}
                 {@const kind = presetKind(preset)}
-                {@const waiting = current && isSpotifyCountdownPreset(preset) && model.adaptivePresetSilent}
+                {@const waiting = current && isSpotifyFollowingPreset(preset) && model.adaptivePresetSilent}
                 {@const scheduled = model.scheduledPresetId === preset.id}
                 <AudioMixerText
                     onclick={()=>clickPreset(preset, current, playing)}
                     style="{PRESET_ROW} {pending ? PENDING_PRESET : current ? CURRENT_PRESET : scheduled ? SCHEDULED_PRESET : ''}"
-                    title={pending ? `Loading ${preset.name}${kind}` : scheduled ? `${preset.name}${kind} plays at the next phase change. Tap again to switch now` : !current && spotify.playback?.playing ? `Play ${preset.name}${kind} at the next phase change (tap twice to switch now)` : waiting ? `${preset.name}${kind}: silent until the countdown starts or night falls` : playing ? `Pause ${preset.name}${kind}` : current ? `Resume ${preset.name}${kind}` : `Play ${preset.name}${kind}`}>
+                    title={pending ? `Loading ${preset.name}${kind}` : scheduled ? `${preset.name}${kind} plays at the next phase change. Tap again to switch now` : !current && spotify.playback?.playing ? `Play ${preset.name}${kind} at the next phase change (tap twice to switch now)` : waiting ? `${preset.name}${kind}: silent until ${isSpotifyCountdownPreset(preset) ? 'the countdown starts or night falls' : 'a phase with a list'}` : playing ? `Pause ${preset.name}${kind}` : current ? `Resume ${preset.name}${kind}` : `Play ${preset.name}${kind}`}>
                     <span class="preset-icon">
                         <!-- (Component names are the other way round: PlayIcon draws the pause bars, PauseIcon the triangle.) -->
                         {#if playing}<PlayIcon size={10}/>{:else}<PauseIcon size={10}/>{/if}
                     </span>
                     <span class="preset-name">{preset.name}</span>
                     {#if isSpotifyAdaptivePreset(preset)}
-                        <!-- The phases whose list is loaded, or every phase with a list when none is -->
+                        <!-- The phase whose list is loaded (none while silent), or every phase with a list when it isn't playing -->
                         <span class="preset-icon">
                             {#each TIMES_OF_DAY as phase}
                                 {@const uri = preset.phaseUris[phase]}
-                                {#if uri !== null && (!current || isSameSpotifyContext(spotify.playback?.contextUri, uri))}<TimeOfDayIcon timeOfDay={phase} size={10}/>{/if}
+                                {#if uri !== null && (!current || (!waiting && isSameSpotifyContext(spotify.playback?.contextUri, uri)))}<TimeOfDayIcon timeOfDay={phase} size={10}/>{/if}
                             {/each}
                         </span>
                     {:else if isSpotifyCountdownPreset(preset)}
@@ -177,23 +175,6 @@
     {/if}
     {#if spotify.error}<div class="error">{spotify.error}</div>{/if}
 </div>
-{:else if !model.authorized}
-<!-- The whole dashed area is the click target (not just the text), so it's easy to hit. -->
-<a class="channel-strip-main empty clickable" style={style} href="/api/spotify/auth" data-sveltekit-reload>
-    <div class="empty-text">+<br/>Link<br/>Spotify</div>
-    {#if spotify.error}<div class="error">{spotify.error}</div>{/if}
-</a>
-{:else if !spotify.canHost}
-<div class="channel-strip-main empty" style={style}>
-    <div class="empty-text">Spotify<br/>player not<br/>running</div>
-    {#if spotify.error}<div class="error">{spotify.error}</div>{/if}
-</div>
-{:else}
-<button class="channel-strip-main empty clickable" style={style} onclick={()=>spotify.startHosting()} disabled={spotify.starting}>
-    <div class="empty-text">{#if spotify.starting}Starting…{:else}+<br/>Spotify<br/>player{/if}</div>
-    {#if spotify.error}<div class="error">{spotify.error}</div>{/if}
-</button>
-{/if}
 {/if}
 
 <style>
@@ -209,37 +190,6 @@
         flex-direction: column;
         font-family: 'Courier New', Courier, monospace;
         color: #ccc;
-    }
-
-    .channel-strip-main.empty {
-        background-color: transparent;
-        border: 4px dashed #777;
-        box-shadow: none;
-        justify-content: center;
-        align-items: stretch;
-        /* Resets when this is rendered as a <button>/<a> (the clickable cases) rather than a plain <div>. */
-        font: inherit;
-        text-align: inherit;
-        text-decoration: none;
-        color: inherit;
-        cursor: default;
-    }
-
-    .channel-strip-main.empty.clickable {
-        cursor: pointer;
-    }
-
-    .channel-strip-main.empty.clickable:hover:not(:disabled) {
-        border-color: #aaa;
-    }
-
-    .channel-strip-main.empty.clickable .empty-text {
-        color: #ccc;
-    }
-
-    .channel-strip-main.empty:disabled {
-        cursor: default;
-        opacity: 0.7;
     }
 
     .starting {
@@ -335,15 +285,6 @@
         font-size: 0.7em;
         color: #999;
     }
-
-    .empty-text {
-        text-align: center;
-        color: #999;
-        font-weight: bold;
-        font-size: 0.8em;
-        padding: 8px 0;
-    }
-
 
     .error {
         margin-top: 6px;

@@ -6,6 +6,7 @@
     import { Clocktower } from '$lib/model/client/Clocktower.svelte.js';
     import { AudioEngine } from '$lib/audio/client/AudioEngine.svelte.js';
     import { SpotifyPlayer } from '$lib/audio/client/SpotifyPlayer.svelte.js';
+    import { MusicPlayer } from '$lib/audio/client/MusicPlayer.svelte.js';
     import SiteQRCode from '$lib/components/SiteQRCode.svelte';
     import NowPlayingToast from '$lib/audio/client/components/NowPlayingToast.svelte';
     import { appSettings } from '$lib/model/client/appSettings.svelte.js';
@@ -18,12 +19,14 @@
     const clocks = $derived(browser ? data.instances.map(i=>new Clocktower(i)): undefined);
     let audioEngine: AudioEngine|null = $state(null);
     let spotify: SpotifyPlayer|null = $state(null);
+    let music: MusicPlayer|null = $state(null);
     let qrCodes: QrCode[] = $state([]);
 
     onMount(() => {
         if(browser && clocks){
             audioEngine = new AudioEngine(clocks, data.ambienceEngineModel, data.stingEngineModel);
             spotify = new SpotifyPlayer();
+            music = new MusicPlayer({ output: audioEngine.input });
         }
 
         // Browsers only let an AudioContext run following a genuine user gesture,
@@ -38,6 +41,7 @@
         return ()=>{
             console.log("Closing...");
             document.removeEventListener('pointerdown', resumeAudio);
+            music?.close(); // Before the engine: it plays through the engine's audio context
             audioEngine?.close();
             spotify?.close();
             if(clocks){
@@ -56,8 +60,8 @@
     {/each}
 </div>
 
-<SideMenu townSquare {audioEngine} ambienceResources={data.ambienceResources} {spotify} spotifyPresets={data.spotifyPresets}/>
-<NowPlayingToast {spotify}/>
+<SideMenu townSquare {audioEngine} ambienceResources={data.ambienceResources} {spotify} spotifyPresets={data.spotifyPresets} {music} musicPresets={data.musicPresets}/>
+<NowPlayingToast {spotify} {music}/>
 
 {#if appSettings.showQRCodes && qrCodes.length > 0}
 <div class="qr-codes-panel left">

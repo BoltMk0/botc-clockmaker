@@ -11,6 +11,7 @@
     import { AudioDim } from '$lib/audio/client/AudioDim.svelte';
     import { DEFAULT_DIM_AMOUNT_DB } from '$lib/audio/common/model/audioDimModel';
     import { SpotifyPlayer } from '$lib/audio/client/SpotifyPlayer.svelte';
+    import { MusicPlayer } from '$lib/audio/client/MusicPlayer.svelte';
     import { Clocktower } from "$lib/model/client/Clocktower.svelte.js";
     import FullDisplay from "$lib/components/FullDisplay/FullDisplay.svelte";
     import { onMount } from "svelte";
@@ -202,6 +203,8 @@
         const model = spotify?.model;
         return !!model?.hostClientId && model.hostReady;
     });
+    let music: MusicPlayer|null = $state(null); // Remote-only, likewise, for the uploaded-music player
+    const musicActive = $derived((music as MusicPlayer|null)?.active === true);
     let audioMenuOpen = $state(false);
     let audioMenuEl: HTMLElement|undefined = $state();
     let showStingPopup = $state(false);
@@ -1059,6 +1062,7 @@
         clockClient = new Clocktower(data.model);
         audioDim = new AudioDim();
         spotify = new SpotifyPlayer({ remoteOnly: true });
+        music = new MusicPlayer({ remoteOnly: true });
         fitView();
 
         // Refit the zoom when the screen space changes (rotation, window resize). Only the board's layout size is
@@ -1088,6 +1092,7 @@
             clockClient?.close();
             audioDim?.close();
             spotify?.close();
+            music?.close();
         }
     });
 
@@ -2091,7 +2096,7 @@
             {/if}
         </button>
 
-        <!-- Audio menu: dim, Spotify, sting, mixer -->
+        <!-- Audio menu: dim, Spotify (or the music player), sting, mixer -->
         <div class="audio-menu" bind:this={audioMenuEl}>
             <button class="sidebar-btn" class:active={audioMenuOpen} onclick={() => {
                 audioMenuOpen = !audioMenuOpen;
@@ -2126,6 +2131,18 @@
                     {/if}
                 </button>
                 <button class="sidebar-btn" onclick={() => spotify?.next()} title="Skip Spotify track">
+                    <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                </button>
+                {:else if music && musicActive}
+                <!-- Or the music player's, which runs in Spotify's place -->
+                <button class="sidebar-btn" class:active={music.playing} onclick={() => music?.togglePlayPause()} title={music.playing ? 'Pause music' : 'Play music'}>
+                    {#if music.playing}
+                        <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                    {:else}
+                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    {/if}
+                </button>
+                <button class="sidebar-btn" onclick={() => music?.next()} title="Skip music track">
                     <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
                 </button>
                 {/if}

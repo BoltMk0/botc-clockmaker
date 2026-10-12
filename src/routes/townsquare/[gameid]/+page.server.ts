@@ -5,6 +5,7 @@ import { listAmbienceResources } from '$lib/resources/server/ambience-resources'
 import { get_grimoire_state_history_resource_for_clock } from '$lib/resources/server/grimoire-state';
 import { getScriptById } from '$lib/resources/server/scripts';
 import { getSpotifyPresets } from '$lib/resources/server/spotifyPresets';
+import { getMusicPresets } from '$lib/resources/server/musicPresets';
 import { error } from '@sveltejs/kit';
 
 
@@ -16,6 +17,7 @@ export async function load({params}){
         const ambienceEngineModel = getAmbienceEngineHelperInstance().model;
         const stingEngineModel = getStingEngineHelperInstance().model;
         const spotifyPresets = getSpotifyPresets();
+        const musicPresets = getMusicPresets();
         const grim = get_grimoire_state_history_resource_for_clock(params.gameid);
         const hasGrim = grim !== null;
         const scriptRecord = grim?.scriptId ? getScriptById(grim.scriptId) : null;
@@ -27,6 +29,7 @@ export async function load({params}){
             ambienceEngineModel,
             stingEngineModel,
             spotifyPresets,
+            musicPresets,
             hasGrim,
             script
         }

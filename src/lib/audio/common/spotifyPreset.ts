@@ -10,7 +10,7 @@ export type SpotifySinglePreset = {
 
 /**
  * An adaptive playlist: follows the games' phase, playing that phase's album/playlist and switching over when the phase
- * changes. A phase may have none, in which case whatever was playing carries on through it.
+ * changes. A phase may have none, in which case it's silent through it, picking up again when a phase with one comes.
  */
 export type SpotifyAdaptivePreset = {
     id: string;
@@ -88,19 +88,6 @@ export function migrateLegacySpotifyPreset(data: any) {
     data.phaseUris = { day: data.dayUri ?? null, dusk: data.nightUri ?? null, night: data.nightUri ?? null };
     delete data.dayUri;
     delete data.nightUri;
-}
-
-/**
- * The list an adaptive playlist plays when started in `timeOfDay`: that phase's own, or if it has none, the one that
- * would have carried on into it from the phases before.
- */
-export function adaptivePresetUriFor(preset: SpotifyAdaptivePreset, timeOfDay: TimeOfDay): string {
-    const start = TIMES_OF_DAY.indexOf(timeOfDay);
-    for (let i = 0; i < TIMES_OF_DAY.length; i++) {
-        const uri = preset.phaseUris[TIMES_OF_DAY[(start - i + TIMES_OF_DAY.length) % TIMES_OF_DAY.length]];
-        if (uri !== null) return uri;
-    }
-    throw new Error(`Ambient adaptive playlist "${preset.name}" has no lists`);
 }
 
 /** Whether `uri` is one of an adaptive (or countdown) playlist's lists. */

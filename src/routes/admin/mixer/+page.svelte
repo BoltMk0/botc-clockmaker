@@ -9,12 +9,14 @@
     import { AmbienceEngine } from '$lib/audio/client/AmbienceEngine.svelte';
     import { AudioEngine } from '$lib/audio/client/AudioEngine.svelte';
     import { SpotifyPlayer } from '$lib/audio/client/SpotifyPlayer.svelte';
+    import { MusicPlayer } from '$lib/audio/client/MusicPlayer.svelte';
 
     let { data }: { data: PageData } = $props();
 
     let clocks: Clocktower[]|null = $state(null);
     let audioEngine: AudioEngine|null = $state(null);
     let spotify: SpotifyPlayer|null = $state(null);
+    let music: MusicPlayer|null = $state(null);
     /** ?remote_only: this client only controls the shared mixer; nothing plays on it. */
     let remoteOnly = $state(false);
 
@@ -27,6 +29,7 @@
 
             audioEngine = new AudioEngine(clocks, data.ambienceEngineModel, data.stingEngineModel, {silent: remoteOnly});
             spotify = new SpotifyPlayer({remoteOnly});
+            music = new MusicPlayer({remoteOnly, output: audioEngine.input});
 
             // Browsers only let an AudioContext run following a genuine user gesture,
             // so resume it on the first interaction with the page.
@@ -36,6 +39,7 @@
             return ()=>{
                 document.removeEventListener('pointerdown', resumeAudio);
                 clocks?.forEach(c=>c.close());
+                music?.close(); // Before the engine: it plays through the engine's audio context
                 audioEngine?.close();
                 spotify?.close();
             }
@@ -51,7 +55,7 @@
     {#if remoteOnly}
     <div class="remote-only-note">Remote only: no sound plays on this device.</div>
     {/if}
-    <AudioMixer {audioEngine} ambienceResources={data.ambienceResources} spotify={spotify ?? undefined} spotifyPresets={data.spotifyPresets}/>
+    <AudioMixer {audioEngine} ambienceResources={data.ambienceResources} spotify={spotify ?? undefined} spotifyPresets={data.spotifyPresets} music={music ?? undefined} musicPresets={data.musicPresets}/>
 </div>
 {/if}
 
