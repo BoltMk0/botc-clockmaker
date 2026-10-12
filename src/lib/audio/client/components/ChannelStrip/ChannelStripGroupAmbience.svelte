@@ -3,7 +3,7 @@
     import ChannelStrip from './ChannelStrip.svelte';
     import AudioMixerText from './AudioMixerText.svelte';
     import ChannelStripAmbience from './ChannelStripAmbience.svelte';
-    import type { Resource } from '$lib/resources/common/types';
+    import type { AmbienceResource } from '$lib/common/ambience';
     import type { AmbienceEngine } from '../../AmbienceEngine.svelte';
     import type { TimeOfDay } from '$lib/model/client/types';
     import { MAX_AMBIENCE_TRACKS } from '$lib/audio/common/model/ambienceEngineModel';
@@ -21,7 +21,7 @@
     }: {
         title?: Snippet|string;
         engine: AmbienceEngine;
-        resources: Resource[];
+        resources: AmbienceResource[];
         timeOfDay: TimeOfDay;
         onTitleClick?: ()=>void;
         onChildTitleClick?: (index: number)=>void;
@@ -46,7 +46,7 @@
         <div class="channel-strip-group-audio-tracks-container">
             <!-- Keyed by track, so removing one doesn't hand its strip's state (e.g. an open picker) to the next -->
             {#each engine.tracks as audioTrack, i (audioTrack)}
-                <ChannelStripAmbience {timeOfDay} track={audioTrack} title={resources.find(r=>r.id === audioTrack.loadedResourceId)?.name ?? '(empty)'} resources={resources} onTitleClick={()=>{onChildTitleClick?.(i);}} onRemove={()=>engine.removeTrack(i)}/>
+                <ChannelStripAmbience {timeOfDay} track={audioTrack} title={resources.find(r=>r.id === audioTrack.loadedResourceId)?.title ?? '(empty)'} resources={resources} onTitleClick={()=>{onChildTitleClick?.(i);}} onRemove={()=>engine.removeTrack(i)}/>
             {/each}
         </div>
         {#if engine.tracks.length < MAX_AMBIENCE_TRACKS}

@@ -7,7 +7,7 @@
     import { page } from "$app/state";
     import type { AudioEngine } from "$lib/audio/client/AudioEngine.svelte";
     import AudioMixer from "$lib/audio/client/components/AudioMixer.svelte";
-    import type { Resource } from "$lib/resources/common/types";
+    import type { AmbienceResource } from "$lib/common/ambience";
     import type { SpotifyPlayer } from "$lib/audio/client/SpotifyPlayer.svelte";
     import type { SpotifyPreset } from "$lib/audio/common/spotifyPreset";
     import type { Clocktower } from "$lib/model/client/Clocktower.svelte";
@@ -27,7 +27,7 @@
         townSquare?: boolean;
         clock?: Clocktower | null;
         audioEngine?: AudioEngine | null;
-        ambienceResources?: Resource[];
+        ambienceResources?: AmbienceResource[];
         spotify?: SpotifyPlayer | null;
         spotifyPresets?: SpotifyPreset[];
     } = $props();

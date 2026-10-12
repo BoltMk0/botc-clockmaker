@@ -14,9 +14,13 @@
     import PlayIcon from "$lib/audio/client/components/PlayIcon.svelte";
     import PauseIcon from "$lib/audio/client/components/PauseIcon.svelte";
     import PencilIcon from "$lib/components/PencilIcon.svelte";
+    import { AUDIO_ASSET_METADATA_MAX_LENGTH, emptyAudioAssetMetadata, type AudioAssetMetadata } from "$lib/audio/common/audioAssetMetadata";
 
-    /** An audio asset, with its file size in bytes (null if it couldn't be read). */
-    type AssetResource = Resource & { size: number | null };
+    /**
+     * An audio asset, with its file size in bytes (null if it couldn't be read), and where it keeps metadata, that and
+     * the name to show for it (the metadata title, or the tidied filename).
+     */
+    type AssetResource = Resource & { size: number | null, metadata?: AudioAssetMetadata, title?: string };
 
     let { data }: { data: { clockSfxPresets: ClockSfxPreset[], ambienceResources: AssetResource[], stingResources: AssetResource[] } } = $props();
 
@@ -28,8 +32,25 @@
         loop: boolean,
         addLabel: string,
         emptyText: string,
-        deleteWarning: string
+        deleteWarning: string,
+        /**
+         * Whether each asset has editable metadata (title, artist, link, license). Its title is then the name shown, edited
+         * in the metadata form, so the file itself can't be renamed in place.
+         */
+        metadata: boolean
     };
+
+    /** The name shown for an asset: its title where it keeps metadata, otherwise its tidied filename. */
+    function displayName(res: AssetResource) {
+        return res.title ?? prettifyResourceName(res.name);
+    }
+
+    const METADATA_INPUTS: { field: keyof AudioAssetMetadata, label: string, placeholder: string, type: string }[] = [
+        { field: 'title', label: 'Title', placeholder: 'Track title', type: 'text' },
+        { field: 'artist', label: 'Artist', placeholder: 'Artist', type: 'text' },
+        { field: 'link', label: 'Link', placeholder: 'https://... (optional)', type: 'url' },
+        { field: 'license', label: 'License', placeholder: 'e.g. Attribution 4.0', type: 'text' }
+    ];
 
     /** One library's list: a single preview player, plus uploading, renaming and deleting. */
     class AudioAssetList {
@@ -39,6 +60,10 @@
         /** The asset whose name is being edited, and the name typed so far. */
         editingId: string | null = $state(null);
         nameDraft = $state('');
+        /** The asset whose metadata form is open, and the values typed so far. */
+        detailsId: string | null = $state(null);
+        detailsDraft: AudioAssetMetadata = $state(emptyAudioAssetMetadata());
+        savingDetails = $state(false);
 
         uploading = $state(false);
         readonly options: AudioAssetListOptions;
@@ -118,19 +143,58 @@
             }
             const { id } = await r.json();
             if (this.previewId === res.id) this.previewId = id;
+            if (this.detailsId === res.id) this.detailsId = id;
             await invalidateAll();
         }
 
-        async delete(res: Resource) {
-            if (!confirm(`Delete "${prettifyResourceName(res.name)}"? ${this.options.deleteWarning} This cannot be undone.`)) return;
+        /** Opens the asset's metadata form, or closes it if it's already open (dropping unsaved changes). */
+        toggleDetails(res: AssetResource) {
+            if (this.detailsId === res.id) {
+                this.detailsId = null;
+                return;
+            }
+            this.detailsId = res.id;
+            // An asset with no title shows its filename, so start from that rather than an empty box
+            this.detailsDraft = { ...(res.metadata ?? emptyAudioAssetMetadata()) };
+            if (!this.detailsDraft.title) this.detailsDraft.title = displayName(res);
+        }
+
+        async saveDetails(res: AssetResource) {
+            this.savingDetails = true;
+            try {
+                const r = await fetch(`/api/audioAssets/${encodeURIComponent(res.id)}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ metadata: this.detailsDraft }),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (!r.ok) {
+                    const message = await r.json().then(j => j.message).catch(() => r.statusText);
+                    alert(`Failed to save details (${r.status}): ${message}`);
+                    return;
+                }
+                this.detailsId = null;
+                await invalidateAll();
+            } finally {
+                this.savingDetails = false;
+            }
+        }
+
+        async delete(res: AssetResource) {
+            if (!confirm(`Delete "${displayName(res)}"? ${this.options.deleteWarning} This cannot be undone.`)) return;
             const r = await fetch(`/api/audioAssets/${encodeURIComponent(res.id)}`, { method: 'DELETE' });
             if (!r.ok) {
                 alert(`Failed to delete (${r.status})`);
                 return;
             }
             if (this.previewId === res.id) this.previewId = null;
+            if (this.detailsId === res.id) this.detailsId = null;
             await invalidateAll();
         }
+    }
+
+    /** The artist, shown under an asset's name (its title); empty if it has none. */
+    function creditLine(metadata: AudioAssetMetadata | undefined) {
+        return metadata?.artist.trim() ?? '';
     }
 
     const acceptedAudioExtensions = getAcceptedExtensionsForResourceType('ambience').join(',');
@@ -159,7 +223,8 @@
         loop: true,
         addLabel: '+ Ambience Asset',
         emptyText: 'No ambience assets uploaded.',
-        deleteWarning: 'Any ambience track playing it will be emptied.'
+        deleteWarning: 'Any ambience track playing it will be emptied.',
+        metadata: true
     });
     const stingAssets = new AudioAssetList({
         type: 'sting',
@@ -167,7 +232,8 @@
         loop: false,
         addLabel: '+ Sting Asset',
         emptyText: 'No audio stings uploaded.',
-        deleteWarning: 'A sting slot holding it will be re-armed with another one.'
+        deleteWarning: 'A sting slot holding it will be re-armed with another one.',
+        metadata: false
     });
 
     function createClockSfxPreset() {
@@ -331,7 +397,7 @@
     <div class="asset-now-playing">
         {#if list.previewId}
             {@const res = list.resources.find(r => r.id === list.previewId)}
-            {res ? prettifyResourceName(res.name) : ''}
+            {res ? displayName(res) : ''}
         {:else}
             Nothing selected
         {/if}
@@ -354,7 +420,7 @@
                 <td class="play-cell">
                     <!-- (Component names are the other way round: PlayIcon draws the pause bars, PauseIcon the triangle.) -->
                     <button class="play-button" onclick={(e) => { e.stopPropagation(); list.togglePlay(res); }}
-                        aria-label="{rowPlaying ? 'Pause' : 'Play'} {prettifyResourceName(res.name)}" title={rowPlaying ? 'Pause' : 'Play'}>
+                        aria-label="{rowPlaying ? 'Pause' : 'Play'} {displayName(res)}" title={rowPlaying ? 'Pause' : 'Play'}>
                         {#if rowPlaying}<PlayIcon size={18}/>{:else}<PauseIcon size={18}/>{/if}
                     </button>
                 </td>
@@ -370,18 +436,44 @@
                             }}/>
                     {:else}
                         <div class="asset-name">
-                            <span>{prettifyResourceName(res.name)}<span class="asset-meta-inline">{containerType(res)} · {formatFileSize(res.size)}</span></span>
-                            <button class="edit-button" onclick={(e) => { e.stopPropagation(); list.startEdit(res); }}
-                                aria-label="Rename {prettifyResourceName(res.name)}" title="Rename"><PencilIcon size={16}/></button>
+                            <span>{displayName(res)}{#if creditLine(res.metadata)}<span class="asset-credit">{creditLine(res.metadata)}</span>{/if}<span class="asset-meta-inline">{containerType(res)} · {formatFileSize(res.size)}</span></span>
+                            {#if !list.options.metadata}
+                                <button class="edit-button" onclick={(e) => { e.stopPropagation(); list.startEdit(res); }}
+                                    aria-label="Rename {displayName(res)}" title="Rename"><PencilIcon size={16}/></button>
+                            {/if}
                         </div>
                     {/if}
                 </td>
                 <td class="asset-meta">{containerType(res)}</td>
                 <td class="asset-meta">{formatFileSize(res.size)}</td>
                 <td class="row-actions">
-                    <button class="icon-button" onclick={(e) => { e.stopPropagation(); list.delete(res); }} aria-label="Delete {prettifyResourceName(res.name)}" title="Delete"><BinIcon size={18}/></button>
+                    {#if list.options.metadata}
+                        <button class="icon-button details-button" class:active={list.detailsId === res.id} onclick={(e) => { e.stopPropagation(); list.toggleDetails(res); }}
+                            aria-label="Details for {displayName(res)}" aria-expanded={list.detailsId === res.id} title="Track details">
+                            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="11" y="10.5" width="2" height="7" rx="1" fill="currentColor"/><circle cx="12" cy="7.5" r="1.3" fill="currentColor"/></svg>
+                        </button>
+                    {/if}
+                    <button class="icon-button" onclick={(e) => { e.stopPropagation(); list.delete(res); }} aria-label="Delete {displayName(res)}" title="Delete"><BinIcon size={18}/></button>
                 </td>
             </tr>
+            {#if list.detailsId === res.id}
+                <tr class="details-row">
+                    <td colspan="5">
+                        <form class="details-form" onsubmit={(e) => { e.preventDefault(); list.saveDetails(res); }}>
+                            {#each METADATA_INPUTS as input}
+                                <label class="details-field">
+                                    <span>{input.label}</span>
+                                    <input type={input.type} placeholder={input.placeholder} maxlength={AUDIO_ASSET_METADATA_MAX_LENGTH} bind:value={list.detailsDraft[input.field]}/>
+                                </label>
+                            {/each}
+                            <div class="details-actions">
+                                <button type="button" onclick={() => list.detailsId = null}>Cancel</button>
+                                <button type="submit" class="save" disabled={list.savingDetails}>{list.savingDetails ? 'Saving...' : 'Save'}</button>
+                            </div>
+                        </form>
+                    </td>
+                </tr>
+            {/if}
         {:else}
             <tr><td colspan="5" class="empty">{list.options.emptyText}</td></tr>
         {/each}
@@ -560,6 +652,52 @@
 
     .asset-name > span {
         overflow-wrap: anywhere;
+    }
+
+    .asset-credit {
+        display: block;
+        font-size: 0.85em;
+        opacity: 0.7;
+    }
+
+    button.icon-button.details-button:hover, button.icon-button.details-button.active {
+        border-color: var(--theme-highlight);
+        color: inherit;
+    }
+
+    button.icon-button.details-button {
+        margin-right: 0.3em;
+    }
+
+    tr.details-row td {
+        background-color: var(--theme-bg-tertiary);
+    }
+
+    /* Label above its input, two fields a row where there's room */
+    .details-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(14em, 1fr));
+        gap: 0.6em 1em;
+        padding: 0.3em 0;
+    }
+
+    .details-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2em;
+        font-size: 0.9em;
+    }
+
+    .details-field input {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .details-actions {
+        grid-column: 1 / -1;
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5em;
     }
 
     .asset-row {

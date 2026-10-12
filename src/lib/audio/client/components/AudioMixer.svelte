@@ -1,7 +1,7 @@
 <script lang="ts">
     import ChannelStrip from "./ChannelStrip/ChannelStrip.svelte";
     import ChannelStripGroup from "./ChannelStrip/ChannelStripGroup.svelte";
-    import type { Resource } from "$lib/resources/common/types";
+    import type { AmbienceResource } from "$lib/common/ambience";
     import PlayIcon from "$lib/audio/client/components/PlayIcon.svelte";
     import PauseIcon from "$lib/audio/client/components/PauseIcon.svelte";
     import ChannelStripGroupAmbience from "./ChannelStrip/ChannelStripGroupAmbience.svelte";
@@ -25,7 +25,7 @@
         spotifyPresets = []
     }: {
         audioEngine: AudioEngine
-        ambienceResources: Resource[];
+        ambienceResources: AmbienceResource[];
         spotify?: SpotifyPlayer;
         spotifyPresets?: SpotifyPreset[];
     } = $props();

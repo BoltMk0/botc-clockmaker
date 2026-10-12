@@ -1,5 +1,5 @@
 <script lang="ts" generics="T">
-    import type { Resource } from "$lib/resources/common/types";
+    import type { AmbienceResource } from "$lib/common/ambience";
     import ChannelStrip from "./ChannelStrip.svelte";
     import TimeOfDayIcon from "$lib/assets/timeOfDayIcon.svelte";
     import type { AudioAmbienceTrack } from "../../AudioAmbienceTrack.svelte";
@@ -15,7 +15,7 @@
         onTitleClick = undefined,
         onRemove = undefined
     }: {
-        resources: Resource[];
+        resources: AmbienceResource[];
         track: AudioAmbienceTrack;
         title: string;
         timeOfDay: TimeOfDay;
@@ -69,7 +69,7 @@
         <div class="resource-select-list">
             <button class="button-style" disabled={selectedResourceValue === -1} onclick={()=>{track.loadedResourceId = null; showOverlay = false;}}>None</button>
             {#each resources as resource, i (resource.id)}
-                <button class="button-style" disabled={selectedResourceValue === i} onclick={()=>{track.loadedResourceId = resource.id; showOverlay = false;}}>{resource.name}</button>
+                <button class="button-style" disabled={selectedResourceValue === i} onclick={()=>{track.loadedResourceId = resource.id; showOverlay = false;}}>{resource.title}</button>
             {/each}
             {#if onRemove}
                 <button class="button-style remove-track-btn" onclick={()=>{showOverlay = false; onRemove();}}>Remove ambience track</button>
