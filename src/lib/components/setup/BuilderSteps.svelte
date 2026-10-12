@@ -1,6 +1,7 @@
 <script lang="ts">
     import CharacterList from "$lib/components/CharacterList.svelte";
     import type { PresetBuilder } from "./PresetBuilder.svelte.js";
+    import type { CharacterCategory } from "$lib/resources/common/gameData.js";
 
     interface Props {
         builder: PresetBuilder;
@@ -18,6 +19,19 @@
 
     let { builder, step, navigate, afterPlayers = 'tokens', beforeTokens = 'players', afterBluffs = 'summary', onBackFromPlayers, hideBack = false }: Props = $props();
 
+    // The player categories show how many of the expected number are chosen; travellers, loric and fabled have no expected number.
+    const COUNT_KEYS: Partial<Record<CharacterCategory, keyof PresetBuilder['expectedCounts']>> = {
+        townsfolk: 'townsfolk',
+        outsider: 'outsiders',
+        minion: 'minions',
+        demon: 'demons'
+    };
+
+    function headingSuffix(category: CharacterCategory): string {
+        const selected = builder.chosenCharacters.filter(c => c.category === category).length;
+        const key = COUNT_KEYS[category];
+        return key ? `${selected}/${builder.expectedCounts[key]} selected` : `${selected} selected`;
+    }
 </script>
 
 <style>
@@ -114,7 +128,7 @@
         <CharacterList
             characters={builder.script.characters}
             fullRules
-            headingSuffix={category => `${builder.chosenCharacters.filter(c => c.category === category).length} selected`}
+            headingSuffix={headingSuffix}
             countOf={c => builder.countOf(c.id)}
             onadd={c => builder.addCharacter(c.id)}
             onremove={c => builder.removeCharacter(c.id)}

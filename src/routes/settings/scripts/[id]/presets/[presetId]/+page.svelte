@@ -175,7 +175,7 @@
 
     {#if step === 'tokens'}
         <div class="editor-counts">
-            <CharacterCounts {builder} />
+            <CharacterCounts {builder} reversed />
         </div>
     {/if}
 
