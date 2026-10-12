@@ -22,6 +22,8 @@ const PHASE_SWITCH_FADE_MS = 2000;
 const SKIP_FADE_MS = 600;
 /** Fade-out when paused by hand: just enough not to click. */
 const PAUSE_FADE_MS = 300;
+/** Fade-in when played again by hand after a pause. */
+const RESUME_FADE_MS = 1000;
 /** How often to check the games' phase. */
 const PHASE_CHECK_INTERVAL_MS = 250;
 /** Fade-out when the Spotify player takes over (it starts as this fades, so the two cross). */
@@ -206,7 +208,7 @@ export class MusicHelper extends EventEmitter {
             case 'play':
                 // Played by hand, a silent day & night preset is just playing now
                 this.#silenced = false;
-                if (this.#track) this.resume();
+                if (this.#track) this.resume(RESUME_FADE_MS);
                 else if (this.#presetId) this.playPreset(this.#presetId, FADE_MS);
                 break;
             case 'pause':
@@ -355,7 +357,7 @@ export class MusicHelper extends EventEmitter {
         this.#presetId = presetId;
         this.#phaseKey = phaseKey;
         this.#silenced = false;
-        if (resume) this.resume();
+        if (resume) this.resume(fadeMs);
         else this.switchTo(playlistId, fadeMs, presetId);
     }
 
@@ -374,7 +376,7 @@ export class MusicHelper extends EventEmitter {
             return;
         }
         this.#silenced = false;
-        if (this.isLoaded(playlistId)) this.resume();
+        if (this.isLoaded(playlistId)) this.resume(fadeMs);
         else this.switchTo(playlistId, fadeMs, preset.id);
     }
 
@@ -449,7 +451,7 @@ export class MusicHelper extends EventEmitter {
         if (this.isLoaded(playlistId)) {
             if (!this.#playing) {
                 console.log(`Music: "${preset.name}" resuming for ${phase}`);
-                this.resume();
+                this.resume(PHASE_SWITCH_FADE_MS);
             }
             return;
         }
@@ -534,11 +536,14 @@ export class MusicHelper extends EventEmitter {
         this.changed();
     }
 
-    private resume() {
+    /** @param fadeMs How long to fade in over, if it was paused. */
+    private resume(fadeMs: number) {
         if (!this.#track) return;
-        if (!this.#playing) this.takeOver();
+        if (!this.#playing) {
+            this.takeOver();
+            this.#fadeMs = fadeMs;
+        }
         this.#playing = true;
-        this.#fadeMs = 0;
         this.changed();
     }
 
