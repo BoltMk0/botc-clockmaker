@@ -341,7 +341,11 @@ export class MusicPlayer {
         return token === this.#transition;
     }
 
-    /** Replaces whatever the fade node was doing with the curve (or, given none, silence at once). */
+    /**
+     * Replaces whatever the fade node was doing with the curve (or, given none, silence at once). Drawn as linear ramps
+     * between its points rather than with setValueCurveAtTime: Firefox doesn't cancel a curve already under way, and
+     * then refuses any event during it, so a skip mid-crossfade would throw and leave the player stuck.
+     */
     private scheduleCurve(node: GainNode, curve: Float32Array<ArrayBuffer> | null, durationMs: number) {
         const param = node.gain;
         const now = node.context.currentTime;
@@ -350,7 +354,9 @@ export class MusicPlayer {
             param.setValueAtTime(curve === null ? 0 : curve[curve.length - 1], now);
             return;
         }
-        param.setValueCurveAtTime(curve, now, durationMs / 1000);
+        const step = durationMs / 1000 / (curve.length - 1);
+        param.setValueAtTime(curve[0], now);
+        for (let i = 1; i < curve.length; i++) param.linearRampToValueAtTime(curve[i], now + i * step);
     }
 
     /** Sets the active deck's levelling gain as the model calls for: straight away, or easing to it with the given time constant. */
