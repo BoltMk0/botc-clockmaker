@@ -2086,10 +2086,75 @@
         .tab-bar {
             padding: 0.5rem 0.75rem 0;
         }
+        .tab-bar {
+            gap: 0;
+        }
         .tab-bar button {
             flex: 1;
             justify-content: center;
-            padding: 0.6em 0.5em;
+            gap: 0.35em;
+            padding: 0.6em 0.3em;
+            font-size: 0.9rem;
+        }
+        .tab-count {
+            padding: 0.1em 0.45em;
+        }
+        input.search {
+            flex-basis: 100%;
+        }
+
+        /*
+         * Each track becomes two lines, so the title gets the full width: the play button (and number) down the left,
+         * the title along the top, and the length, loudness and buttons below it.
+         */
+        .track-table, .track-table tbody {
+            display: block;
+        }
+        tr.track-row {
+            display: grid;
+            grid-template-columns: auto auto auto 1fr auto;
+            grid-template-areas:
+                "play number title title title"
+                "play number duration loudness actions";
+            border-top: 1px solid var(--theme-bg-tertiary);
+            background-color: var(--theme-bg);
+        }
+        /* (The row, rather than its cells, carries the striping, as the cells no longer tile it) */
+        tr.track-row:nth-child(even) {
+            background-color: color-mix(in srgb, var(--theme-bg) 50%, var(--theme-bg-secondary));
+        }
+        .track-table tr.track-row td {
+            display: flex;
+            align-items: center;
+            border-top: none;
+            width: auto;
+            background: none;
+        }
+        tr.track-row td.play-cell {
+            grid-area: play;
+        }
+        tr.track-row td.number-cell {
+            grid-area: number;
+            padding-left: 0;
+        }
+        tr.track-row td.title-cell {
+            grid-area: title;
+            display: block;
+            padding-bottom: 0;
+        }
+        tr.track-row td.duration-cell {
+            grid-area: duration;
+            font-size: 0.85em;
+        }
+        tr.track-row td.loudness-cell {
+            grid-area: loudness;
+        }
+        tr.track-row td.row-actions {
+            grid-area: actions;
+            justify-content: flex-end;
+        }
+        tr.details-row, tr.details-row td {
+            display: block;
         }
         .panel {
             padding: 1rem;
