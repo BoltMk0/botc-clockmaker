@@ -4,6 +4,8 @@
     import { onMount, tick } from "svelte";
     import { AudioDim } from "$lib/audio/client/AudioDim.svelte";
     import { DEFAULT_DIM_AMOUNT_DB, MAX_DIM_AMOUNT_DB, MIN_DIM_AMOUNT_DB } from "$lib/audio/common/model/audioDimModel";
+    import { MusicSettings } from "$lib/audio/client/MusicSettings.svelte";
+    import { clampCrossfadeSeconds, clampLevellingTarget, DEFAULT_MUSIC_CROSSFADE, DEFAULT_MUSIC_LEVELLING, MAX_CROSSFADE_SECONDS, MAX_LEVELLING_TARGET_LUFS, MIN_CROSSFADE_SECONDS, MIN_LEVELLING_TARGET_LUFS } from "$lib/audio/common/model/musicModel";
     import { CLOCK_SFX_SLOT_LABELS, CLOCK_SFX_SLOT_TIMES_OF_DAY, CLOCK_SFX_SLOTS, type ClockSfxPreset } from "$lib/audio/common/clockSfxPreset";
     import { goto, invalidateAll } from "$app/navigation";
     import { getAcceptedExtensionsForResourceType, type Resource } from "$lib/resources/common/types";
@@ -20,7 +22,7 @@
      */
     type AssetResource = Resource & { size: number | null, metadata?: AudioAssetMetadata, title?: string };
 
-    let { data }: { data: { clockSfxPresets: ClockSfxPreset[], ambienceResources: AssetResource[], stingResources: AssetResource[] } } = $props();
+    let { data }: { data: { clockSfxPresets: ClockSfxPreset[], ambienceResources: AssetResource[], stingResources: AssetResource[], musicLoudness: { measured: number, total: number } } } = $props();
 
     // ---- Audio asset libraries (ambience, stings) ----
 
@@ -256,11 +258,33 @@
     let audioDim: AudioDim | null = $state(null); // Created on mount: it opens a connection to the server
     /** The dim slider's position while it's being dragged, before it's sent. */
     let draggingDimDb: number | null = $state(null);
+    let musicSettings = $state<MusicSettings | null>(null);
+    const levelling = $derived(musicSettings?.levelling ?? DEFAULT_MUSIC_LEVELLING);
+    const crossfade = $derived(musicSettings?.crossfade ?? DEFAULT_MUSIC_CROSSFADE);
 
     onMount(() => {
         audioDim = new AudioDim();
-        return () => audioDim?.close();
+        musicSettings = new MusicSettings();
+        return () => {
+            audioDim?.close();
+            musicSettings?.close();
+        };
     });
+
+    /**
+     * Commits a number field (on Enter, leaving it, or its arrows): clamped to its range, or put back as it was if it
+     * isn't a number.
+     */
+    function commitNumber(input: HTMLInputElement, current: number, clamp: (n: number) => number, apply: (n: number) => void) {
+        const n = input.valueAsNumber;
+        if (isNaN(n)) {
+            input.value = String(current);
+            return;
+        }
+        const value = clamp(n);
+        input.value = String(value);
+        if (value !== current) apply(value);
+    }
 
 </script>
 
@@ -280,6 +304,39 @@
         oninput={(e) => draggingDimDb = e.currentTarget.valueAsNumber}
         onchange={(e) => { if (audioDim) audioDim.amountDb = e.currentTarget.valueAsNumber; draggingDimDb = null; }}/>
     <span class="option-value">-{draggingDimDb ?? audioDim?.amountDb ?? DEFAULT_DIM_AMOUNT_DB} dB</span>
+</label>
+<label class="option">
+    <input type="checkbox" checked={levelling.enabled} disabled={!musicSettings}
+        onchange={(e) => musicSettings?.updateLevelling({ enabled: e.currentTarget.checked })}/>
+    <span class="option-name">Loudness Levelling</span>
+</label>
+<p class="description option-description">
+    Turns each uploaded music track up or down so they all play at about the same loudness (not Spotify).
+    {#if data.musicLoudness.measured < data.musicLoudness.total}
+        {data.musicLoudness.measured} of {data.musicLoudness.total} tracks measured so far; the rest play as they are until they're measured.
+    {/if}
+</p>
+<label class="option">
+    <span class="option-name">Target loudness</span>
+    <input class="number-input" type="number" min={MIN_LEVELLING_TARGET_LUFS} max={MAX_LEVELLING_TARGET_LUFS} step={1}
+        value={levelling.targetLufs} disabled={!musicSettings || !levelling.enabled}
+        onchange={(e) => commitNumber(e.currentTarget, levelling.targetLufs, clampLevellingTarget, (targetLufs) => musicSettings?.updateLevelling({ targetLufs }))}/>
+    <span>LUFS</span>
+</label>
+<label class="option">
+    <input type="checkbox" checked={crossfade.enabled} disabled={!musicSettings}
+        onchange={(e) => musicSettings?.updateCrossfade({ enabled: e.currentTarget.checked })}/>
+    <span class="option-name">Crossfade</span>
+</label>
+<p class="description option-description">
+    Overlaps each uploaded music track with the next from the same playlist, as it ends or is skipped. Moving to another playlist (such as night turning to day) still fades out first.
+</p>
+<label class="option">
+    <span class="option-name">Crossfade duration</span>
+    <input class="number-input" type="number" min={MIN_CROSSFADE_SECONDS} max={MAX_CROSSFADE_SECONDS} step={0.5}
+        value={crossfade.seconds} disabled={!musicSettings || !crossfade.enabled}
+        onchange={(e) => commitNumber(e.currentTarget, crossfade.seconds, clampCrossfadeSeconds, (seconds) => musicSettings?.updateCrossfade({ seconds }))}/>
+    <span>seconds</span>
 </label>
 </div>
 
@@ -689,6 +746,14 @@
         font-weight: bold;
     }
 
+    .option + .option {
+        margin-top: 1em;
+    }
+
+    .description.option-description {
+        margin: 0.25em 0 0.75em;
+    }
+
     .dim-slider {
         flex: 0 1 16em;
         min-width: 8em;
@@ -696,6 +761,10 @@
         border: none;
         background: transparent;
         accent-color: var(--theme-highlight);
+    }
+
+    .number-input {
+        width: 5em;
     }
 
     .option-value {

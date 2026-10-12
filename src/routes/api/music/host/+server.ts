@@ -1,5 +1,6 @@
 import { getMusicHelperInstance } from '$lib/model/server/Music/MusicHelper';
 import { error } from '@sveltejs/kit';
+import { MUSIC_HOST_EVENTS, type MusicHostEvent } from '$lib/audio/common/model/musicModel';
 
 async function readClientId(request: Request) {
     const body = await request.json().catch(() => null);
@@ -20,11 +21,11 @@ export async function POST({ request }) {
     return new Response();
 }
 
-/** Host heartbeat. Body: { clientId, event?: 'ended' | 'error', loadId? (the track the event is about) } */
+/** Host heartbeat. Body: { clientId, event?: 'ended' | 'error' | 'crossfade', loadId? (the track the event is about) } */
 export async function PUT({ request }) {
     const body = await readClientId(request);
-    const event = body.event;
-    if (event !== undefined && event !== 'ended' && event !== 'error') return error(400, { message: 'Invalid event' });
+    const event = body.event as MusicHostEvent | undefined;
+    if (event !== undefined && !MUSIC_HOST_EVENTS.includes(event)) return error(400, { message: 'Invalid event' });
     if (event !== undefined && typeof body.loadId !== 'number') return error(400, { message: 'Expected the loadId of the track' });
     try {
         getMusicHelperInstance().hostReport(body.clientId, { event, loadId: body.loadId as number | undefined });

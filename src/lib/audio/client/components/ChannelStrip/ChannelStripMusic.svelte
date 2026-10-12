@@ -2,6 +2,9 @@
     import { untrack } from "svelte";
     import AudioMixerText from "./AudioMixerText.svelte";
     import VSlider from "../VSlider.svelte";
+    import VLoudnessMeter from "../VLoudnessMeter.svelte";
+    import { FADER_MAX_DB, FADER_MIN_DB, formatGain } from "../util";
+    import { DEFAULT_MUSIC_GAIN } from "$lib/audio/common/model/musicModel";
     import PlayIcon from "../PlayIcon.svelte";
     import PauseIcon from "../PauseIcon.svelte";
     import type { MusicPlayer } from "../../MusicPlayer.svelte";
@@ -13,38 +16,45 @@
     const NOW_PLAYING_LINE_PX = 14; // Keep in step with .now-playing-text line-height
 
     /**
-     * The mixer's music strip while the uploaded-music player is running - laid out like the Spotify one, which it
-     * shares the strip's place with. The music plays through the Music & Ambience master bus on the host, so the
+     * The mixer's strip for the uploaded-music player while it's running - laid out like the Spotify one, which can run
+     * beside it (starting either fades the other out). The music plays through the Music & Ambience master bus on the host, so the
      * master fader, dim and time-of-day trim apply to it there.
      */
     let {
         music,
         presets = [],
+        /** Whether the Spotify player is playing, so a preset picked here waits for the phase change, as one would mid-music. */
+        otherPlaying = false,
         style = undefined
     }: {
         music: MusicPlayer;
         presets?: MusicPreset[];
+        otherPlaying?: boolean;
         style?: string;
     } = $props();
 
+    /** Either player playing, which a preset picked here takes over from. */
+    const anyPlaying = $derived(music.playing || otherPlaying);
+
     const model = $derived(music.model);
-    let volume = $state(untrack(() => model?.volume ?? 50));
-    // When this strip last sent a volume. Echoes of earlier values from a drag's coalesced sends can arrive
-    // while it's still moving, so remote volume changes are ignored for a moment afterwards.
-    let lastLocalVolumeChange = 0;
-    const REMOTE_VOLUME_GRACE_MS = 1000;
-    function setVolume(value: number) {
-        volume = value;
-        lastLocalVolumeChange = Date.now();
-        music.setVolume(Math.round(value));
+    /** The fader, as a linear gain (shown in dB, like the ambience tracks'). */
+    let gain = $state(untrack(() => model?.gain ?? DEFAULT_MUSIC_GAIN));
+    // When this strip last sent a gain. Echoes of earlier values from a drag's coalesced sends can arrive
+    // while it's still moving, so remote gain changes are ignored for a moment afterwards.
+    let lastLocalGainChange = 0;
+    const REMOTE_GAIN_GRACE_MS = 1000;
+    function setGain(value: number) {
+        gain = value;
+        lastLocalGainChange = Date.now();
+        music.setGain(value);
     }
     $effect(() => {
-        // Follows volume changes made elsewhere (another mixer)
-        const remote = model?.volume;
+        // Follows gain changes made elsewhere (another mixer)
+        const remote = model?.gain;
         if (remote === undefined) return;
         untrack(() => {
-            if (Date.now() - lastLocalVolumeChange < REMOTE_VOLUME_GRACE_MS) return;
-            volume = remote;
+            if (Date.now() - lastLocalGainChange < REMOTE_GAIN_GRACE_MS) return;
+            gain = remote;
         });
     });
 
@@ -53,13 +63,13 @@
     }
 
     /**
-     * The loaded preset just toggles play/pause. Another one, while something's playing, is scheduled to take over at the
-     * next change of phase; tapped again, it switches straight away. With nothing playing, it starts at once (a paused
+     * The loaded preset just toggles play/pause. Another one, while something's playing (here or on Spotify), is
+     * scheduled to take over at the next change of phase; tapped again, it switches straight away. With nothing playing, it starts at once (a paused
      * one carries on where it left off).
      */
     function clickPreset(preset: MusicPreset, current: boolean, playing: boolean) {
         if (playing) music.togglePlayPause();
-        else if (!current && model?.scheduledPresetId !== preset.id && music.playing) music.schedulePreset(preset.id);
+        else if (!current && model?.scheduledPresetId !== preset.id && anyPlaying) music.schedulePreset(preset.id);
         else music.playPreset(preset.id);
     }
 
@@ -96,7 +106,7 @@
             <AudioMixerText onclick={()=>music.next()} style={CENTER} title="Next track">&#9197;</AudioMixerText>
         </div>
         {#if music.isHost}
-        <AudioMixerText onclick={()=>{ menuOpen = false; music.stopHosting(); }} title="Stop the player on this device so another (or Spotify) can take over">Stop player</AudioMixerText>
+        <AudioMixerText onclick={()=>{ menuOpen = false; music.stopHosting(); }} title="Stop the player on this device so another can take over">Stop player</AudioMixerText>
         {:else}
         <div class="remote-note">Playing from another device</div>
         {/if}
@@ -128,7 +138,7 @@
             <AudioMixerText
                 onclick={()=>clickPreset(preset, current, playing)}
                 style="{PRESET_ROW} {pending ? PENDING_PRESET : current ? CURRENT_PRESET : scheduled ? SCHEDULED_PRESET : ''}"
-                title={pending ? `Loading ${preset.name}${kind}` : scheduled ? `${preset.name}${kind} plays at the next phase change. Tap again to switch now` : !current && music.playing ? `Play ${preset.name}${kind} at the next phase change (tap twice to switch now)` : waiting ? `${preset.name}${kind}: silent until the countdown starts or night falls` : playing ? `Pause ${preset.name}${kind}` : current ? `Resume ${preset.name}${kind}` : `Play ${preset.name}${kind}`}>
+                title={pending ? `Loading ${preset.name}${kind}` : scheduled ? `${preset.name}${kind} plays at the next phase change. Tap again to switch now` : !current && anyPlaying ? `Play ${preset.name}${kind} at the next phase change (tap twice to switch now)` : waiting ? `${preset.name}${kind}: silent until the countdown starts or night falls` : playing ? `Pause ${preset.name}${kind}` : current ? `Resume ${preset.name}${kind}` : `Play ${preset.name}${kind}`}>
                 <span class="preset-icon">
                     {#if playing}<PlayIcon size={10}/>{:else}<PauseIcon size={10}/>{/if}
                 </span>
@@ -158,9 +168,15 @@
         <AudioMixerText onclick={()=>music.previous()} style={CENTER} title="Previous track">&#9198;</AudioMixerText>
         <AudioMixerText onclick={()=>music.next()} style={CENTER} title="Next track">&#9197;</AudioMixerText>
     </div>
-    <AudioMixerText>Vol<br/>{Math.round(volume)}%</AudioMixerText>
+    <AudioMixerText>Gain<br/>{formatGain(gain)}</AudioMixerText>
+    <!-- Laid out as in ChannelStripGain. The meter only shows on the device playing the music. -->
     <div class="volume">
-        <VSlider value={volume} min={0} max={100} step={1} onchange={setVolume}/>
+        <div class="fader">
+            <VSlider value={gain} min={FADER_MIN_DB} max={FADER_MAX_DB} step={1} logarithmic onchange={setGain}/>
+        </div>
+        {#if music.analyser}
+        <VLoudnessMeter analyserNode={music.analyser}/>
+        {/if}
     </div>
     {#if music.error}<div class="error">{music.error}</div>{/if}
 </div>
@@ -267,6 +283,12 @@
         height: 216px; /* matches the gain slider area in ChannelStripGain */
         padding: 8px 6px;
         box-sizing: border-box;
+        display: flex;
+        align-items: stretch;
+    }
+
+    .fader {
+        flex: 1;
         display: flex;
         justify-content: center;
         align-items: stretch;

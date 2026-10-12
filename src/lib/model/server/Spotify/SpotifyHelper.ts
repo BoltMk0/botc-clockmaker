@@ -9,7 +9,7 @@ import { isAdaptivePresetContext, isSameSpotifyContext, isSpotifyContextUri, isS
 import { JSONSingletonResourceManager } from "$lib/resources/server/jsonResourceManager";
 import { getSpotifyPresets } from "$lib/resources/server/spotifyPresets";
 import { getBOTCTClockInstanceManager } from "../model";
-import { getMusicHelperInstance } from "../Music/MusicHelper";
+import { getMusicHelperInstance, HANDOVER_FADE_MS } from "../Music/MusicHelper";
 import type { TimeOfDay } from "$lib/model/client/types";
 
 type SpotifyAuth = { refreshToken: string };
@@ -37,6 +37,10 @@ const HOST_CHECK_INTERVAL_MS = 5000;
 /** How often to check the games' phase (for adaptive playlists and the time-of-day trim). */
 const PHASE_CHECK_INTERVAL_MS = 250;
 
+/**
+ * Runs the Spotify player. It runs alongside the uploaded-music player (see MusicHelper), but only one of the two plays
+ * at a time: whichever starts hands the other over, fading it out, and only one of them has a preset scheduled.
+ */
 export class SpotifyHelper extends EventEmitter {
     #hostClientId: string | null = null;
     #hostDeviceId: string | null = null;
@@ -64,6 +68,11 @@ export class SpotifyHelper extends EventEmitter {
     #silenced = false;
     /** The preset to switch to at the next change of the games' phase. */
     #scheduledPresetId: string | null = null;
+    /**
+     * Whether the music player has taken over since this last started something. The playback the host reports lags
+     * the pause, so this, not that, keeps an adaptive playlist from following the phase back into playing meanwhile.
+     */
+    #handedOver = false;
     /**
      * The shared time-of-day trim (on the Music & Ambience master) currently applied to every volume we send, in dB.
      * Applied here rather than by the mixers, so that it and a playlist switch's fades are one ramp, not two fighting.
@@ -218,8 +227,6 @@ export class SpotifyHelper extends EventEmitter {
         if (this.#hostClientId !== null && this.#hostClientId !== clientId) {
             throw new Error('Another client is already running the Spotify player');
         }
-        // The two share the mixer's music strip, so only one runs at a time
-        if (getMusicHelperInstance().model.hostClientId !== null) throw new Error('The music player is running. Stop it first');
         if (this.#hostClientId !== clientId) {
             this.#hostClientId = clientId;
             this.#hostDeviceId = null;
@@ -245,6 +252,7 @@ export class SpotifyHelper extends EventEmitter {
         this.#deviceVolume = null;
         this.clearAdaptivePreset();
         this.#scheduledPresetId = null;
+        this.#handedOver = false;
         if (this.#hostCheckTimer) {
             clearInterval(this.#hostCheckTimer);
             this.#hostCheckTimer = null;
@@ -309,38 +317,52 @@ export class SpotifyHelper extends EventEmitter {
             case 'play':
                 // Played by hand, a silent adaptive (or countdown) playlist is just playing now (and the fade to silence left it at 0)
                 this.#silenced = false;
+                this.takeOver();
                 await this.setDeviceVolume(device, this.#volume);
                 await this.api('PUT', `/me/player/play?${device}`);
                 this.changed();
                 break;
             case 'pause':
                 // Paused by hand, an adaptive (or countdown) playlist stays paused rather than coming back by itself, and nothing
-                // scheduled starts up at the next phase change either
+                // scheduled (on either player) starts up at the next phase change either
                 this.#silenced = false;
                 this.#scheduledPresetId = null;
+                if (this.#playback?.playing) getMusicHelperInstance().clearScheduledPreset();
                 await this.api('PUT', `/me/player/pause?${device}`);
                 this.changed();
                 break;
             case 'playContext':
                 if (!isSpotifyContextUri(command.uri)) throw new Error('Invalid album/playlist');
                 this.clearAdaptivePreset();
-                this.#scheduledPresetId = null; // Picked to play now instead
+                // Picked to play now instead
+                this.#scheduledPresetId = null;
+                getMusicHelperInstance().clearScheduledPreset();
+                this.takeOver();
                 if (this.isLoadedContext(command.uri)) await this.resumeLoadedContext(device);
                 else await this.playContext(command.uri, device);
                 break;
             case 'playAdaptivePreset':
-                this.#scheduledPresetId = null; // Picked to play now instead
+                // Picked to play now instead
+                this.#scheduledPresetId = null;
+                getMusicHelperInstance().clearScheduledPreset();
                 await this.playAdaptivePreset(command.presetId, device);
                 break;
             case 'schedulePreset':
                 if (command.presetId !== null && !getSpotifyPresets().some(p => p.id === command.presetId)) throw new Error('Unknown preset');
+                // Only one preset waits for the phase change, whichever player it's for
+                if (command.presetId !== null) getMusicHelperInstance().clearScheduledPreset();
                 this.#scheduledPresetId = command.presetId;
                 this.changed();
                 break;
             case 'next':
+                // Skipping starts a paused player, which a hand-over or silent spell left at 0
+                this.takeOver();
+                if (!this.#playback?.playing && !this.#switching) await this.setDeviceVolume(device, this.#volume);
                 await this.api('POST', `/me/player/next?${device}`);
                 break;
             case 'previous':
+                this.takeOver();
+                if (!this.#playback?.playing && !this.#switching) await this.setDeviceVolume(device, this.#volume);
                 await this.api('POST', `/me/player/previous?${device}`);
                 break;
             case 'volume': {
@@ -357,6 +379,36 @@ export class SpotifyHelper extends EventEmitter {
         }
     }
 
+    // ---- Sharing with the music player ----
+
+    /**
+     * The music player is taking over: fades out and pauses, as if paused by hand, so an adaptive (or countdown)
+     * playlist doesn't follow the phase back into playing. It stays selected, to carry on with when picked again.
+     */
+    handOver(fadeMs = HANDOVER_FADE_MS) {
+        const deviceId = this.#hostDeviceId;
+        if (deviceId === null) return;
+        this.#handedOver = true;
+        this.#silenced = false;
+        if (!this.#playback?.playing && !this.#switching) return this.changed();
+        console.log('Spotify: the music player is taking over, fading out');
+        this.fadeOutAndPause(`device_id=${encodeURIComponent(deviceId)}`, fadeMs)
+            .catch((e) => console.error('Failed to fade Spotify out for the music player', e));
+    }
+
+    /** Drops the preset scheduled for the next phase change (one's been scheduled, or picked to play now, on the music player). */
+    clearScheduledPreset() {
+        if (this.#scheduledPresetId === null) return;
+        this.#scheduledPresetId = null;
+        this.changed();
+    }
+
+    /** Has the music player fade out, as this starts playing. */
+    private takeOver() {
+        this.#handedOver = false;
+        getMusicHelperInstance().handOver(HANDOVER_FADE_MS);
+    }
+
     // ---- Adaptive playlists ----
 
     /**
@@ -367,6 +419,8 @@ export class SpotifyHelper extends EventEmitter {
     private async playAdaptivePreset(presetId: string, device: string, fadeOutMs = FADE_MS) {
         const preset = getSpotifyPresets().find(p => p.id === presetId);
         if (!preset || !isSpotifyFollowingPreset(preset)) throw new Error('Unknown ambient adaptive or day & night playlist');
+        // Picked, so it takes over even when it starts out silent
+        this.takeOver();
         const key = this.presetKey(preset);
         this.#adaptivePresetId = presetId;
         this.#phaseKey = key;
@@ -430,6 +484,7 @@ export class SpotifyHelper extends EventEmitter {
             return;
         }
         console.log(`Spotify: phase changed, switching to the scheduled preset "${preset.name}"`);
+        this.takeOver();
         const device = `device_id=${encodeURIComponent(deviceId)}`;
         const fail = (e: unknown) => console.error('Failed to switch to the scheduled Spotify preset', e);
         if (isSpotifyFollowingPreset(preset)) {
@@ -465,7 +520,7 @@ export class SpotifyHelper extends EventEmitter {
      */
     private followList(preset: SpotifyFollowingPreset, key: TimeOfDay | CountdownPhase | 'silent'): boolean {
         const deviceId = this.#hostDeviceId;
-        if (deviceId === null || (!this.#playback?.playing && !this.#silenced)) return false;
+        if (deviceId === null || this.#handedOver || (!this.#playback?.playing && !this.#silenced)) return false;
         const device = `device_id=${encodeURIComponent(deviceId)}`;
         const uri = this.presetUriFor(preset, key);
         if (uri === null) {
@@ -500,9 +555,10 @@ export class SpotifyHelper extends EventEmitter {
             if (!await this.fadeOut(device, token, fadeOutMs)) return;
             await this.api('PUT', `/me/player/pause?${device}`);
         } finally {
-            // Left at 0 while paused; resuming brings the level back
+            // Left at 0 while paused; resuming brings the level back. (A switch this cut short leaves nothing pending.)
             if (token === this.#fadeToken) {
                 this.#switching = false;
+                this.#pendingContextUri = null;
                 this.changed();
             }
         }
@@ -633,6 +689,8 @@ export class SpotifyHelper extends EventEmitter {
             if (wasPlaying && !await this.fadeOut(device, token, options.fadeOutMs ?? FADE_MS)) return;
             // Shuffle first, so playback of the new context starts on a random track
             await this.api('PUT', `/me/player/shuffle?state=true&${device}`);
+            // Superseded meanwhile (by a hand-over to the music player, say): don't start it after all
+            if (token !== this.#fadeToken) return;
             await this.api('PUT', `/me/player/play?${device}`, { context_uri: uri });
             if (wasPlaying) {
                 // The play call returns before the player has actually switched, so restoring volume now would let the

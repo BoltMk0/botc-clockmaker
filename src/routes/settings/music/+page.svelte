@@ -1,6 +1,6 @@
 <script lang="ts">
     import { invalidateAll } from "$app/navigation";
-    import { tick, untrack } from "svelte";
+    import { onMount, tick, untrack } from "svelte";
     import { SvelteSet } from "svelte/reactivity";
     import TimeOfDayIcon from "$lib/assets/timeOfDayIcon.svelte";
     import { TIME_OF_DAY_LABELS, TIMES_OF_DAY, type TimeOfDay } from "$lib/model/client/types";
@@ -11,9 +11,11 @@
     import PlayIcon from "$lib/audio/client/components/PlayIcon.svelte";
     import PauseIcon from "$lib/audio/client/components/PauseIcon.svelte";
     import MusicPreviewPlayer from "$lib/audio/client/components/MusicPreviewPlayer.svelte";
+    import { MusicSettings } from "$lib/audio/client/MusicSettings.svelte";
+    import { levellingGainDb } from "$lib/audio/common/model/musicModel";
     import SpotifyPresetsEditor from "$lib/components/SpotifyPresetsEditor.svelte";
     import { getAcceptedExtensionsForResourceType } from "$lib/resources/common/types";
-    import { formatMusicDuration, musicNameKey, MUSIC_NUMBER_MAX, MUSIC_TEXT_MAX_LENGTH, type MusicAlbum, type MusicLibrary, type MusicPlaylist, type MusicTrack, type MusicTrackDetails } from "$lib/audio/common/musicLibrary";
+    import { formatMusicDuration, musicNameKey, MUSIC_LOUDNESS_MAX, MUSIC_LOUDNESS_MIN, MUSIC_NUMBER_MAX, MUSIC_TEXT_MAX_LENGTH, type MusicAlbum, type MusicLibrary, type MusicPlaylist, type MusicTrack, type MusicTrackDetails } from "$lib/audio/common/musicLibrary";
 
     let { data }: { data: { library: MusicLibrary, musicPresets: MusicPreset[] } } = $props();
 
@@ -115,10 +117,10 @@
         .sort((a, b) => compareNames(a.artist, b.artist) || compareNames(a.title, b.title)));
 
     /**
-     * The artists expanded in the Artists view (all of them are while searching). Kept here rather than left to the
-     * <details> elements, which would otherwise close again whenever the library reloads after a change.
+     * The artists collapsed in the Artists view (all start expanded, and all are while searching). Kept here rather than left to the
+     * <details> elements, which would otherwise reopen whenever the library reloads after a change.
      */
-    const expandedArtists = new SvelteSet<string>();
+    const collapsedArtists = new SvelteSet<string>();
 
     type ArtistGroup = { key: string, name: string, albums: AlbumGroup[], singles: MusicTrack[] };
 
@@ -155,6 +157,13 @@
     /** What the playing track was started from (its album, a playlist...), which "next" and "previous" go through. */
     let queue: string[] = $state([]);
     const playingTrack = $derived(playingId === null ? null : tracksById.get(playingId) ?? null);
+    /** The loudness levelling settings (set on the Audio settings page), applied here as on the music player. */
+    let musicSettings = $state<MusicSettings | null>(null);
+    onMount(() => {
+        const settings = musicSettings = new MusicSettings();
+        return () => settings.close();
+    });
+    const playingGainDb = $derived(musicSettings && playingTrack ? levellingGainDb(musicSettings.levelling, playingTrack.loudness) : 0);
 
     async function play(track: MusicTrack, from: MusicTrack[]) {
         playingId = track.id;
@@ -235,7 +244,12 @@
 
     /** The track whose details form is open, and the values typed so far (numbers as typed, so they can be blank). */
     let detailsId: string | null = $state(null);
-    let detailsDraft = $state({ title: '', artist: '', album: '', year: '', trackNumber: '' });
+    let detailsDraft = $state<{ title: string, artist: string, album: string, year: string | number | null, trackNumber: string | number | null, loudness: string | number | null }>(
+        { title: '', artist: '', album: '', year: '', trackNumber: '', loudness: '' });
+    /** The loudness as the form opened with it, so it's only sent if changed (one not yet measured stays queued). */
+    let detailsLoudness = '';
+    /** The track whose loudness is being measured again, if any. */
+    let remeasuringId: string | null = $state(null);
     let saving = $state(false);
 
     function toggleDetails(track: MusicTrack) {
@@ -250,12 +264,23 @@
             artist: track.artist,
             album: albumOf(track)?.title ?? '',
             year: track.year?.toString() ?? '',
-            trackNumber: track.trackNumber?.toString() ?? ''
+            trackNumber: track.trackNumber?.toString() ?? '',
+            loudness: detailsLoudness = track.loudness?.toString() ?? ''
         };
     }
 
-    function parseNumber(text: string): number | null {
-        const n = parseInt(text.trim(), 10);
+    function parseLoudness(value: string | number | null): number | null {
+        const n = parseFloat(fieldText(value));
+        return isNaN(n) ? null : Math.min(Math.max(MUSIC_LOUDNESS_MIN, n), MUSIC_LOUDNESS_MAX);
+    }
+
+    /** A number field's value as text: it starts as text, but once typed in, Svelte binds it as a number (or null when cleared). */
+    function fieldText(value: string | number | null): string {
+        return value === null ? '' : String(value).trim();
+    }
+
+    function parseNumber(value: string | number | null): number | null {
+        const n = parseInt(fieldText(value), 10);
         return isNaN(n) ? null : Math.min(Math.max(0, n), MUSIC_NUMBER_MAX);
     }
 
@@ -267,6 +292,7 @@
             year: parseNumber(detailsDraft.year),
             trackNumber: parseNumber(detailsDraft.trackNumber)
         };
+        if (fieldText(detailsDraft.loudness) !== detailsLoudness) details.loudness = parseLoudness(detailsDraft.loudness);
         saving = true;
         try {
             const r = await sendJson(`/api/music/tracks/${encodeURIComponent(track.id)}`, 'PATCH', details);
@@ -275,6 +301,22 @@
             await invalidateAll();
         } finally {
             saving = false;
+        }
+    }
+
+    /** Measures the track's loudness again, filling the field with it (it's recorded straight away, so needn't be saved). */
+    async function remeasureLoudness(track: MusicTrack) {
+        remeasuringId = track.id;
+        try {
+            const r = await fetch(`/api/music/tracks/${encodeURIComponent(track.id)}/loudness`, { method: 'POST' });
+            if (!r.ok) return await failed(r, 'measure the loudness');
+            const { loudness } = await r.json() as { loudness: number | null };
+            const text = loudness?.toString() ?? '';
+            if (detailsId === track.id) detailsDraft.loudness = detailsLoudness = text;
+            if (loudness === null) alert(`The loudness of "${track.title}" couldn't be measured (is it silent, or unreadable?)`);
+            await invalidateAll();
+        } finally {
+            remeasuringId = null;
         }
     }
 
@@ -461,6 +503,11 @@
 
     function playlistTrackIds(playlist: MusicPlaylist) {
         return pendingMembership[playlist.id] ?? playlist.trackIds;
+    }
+
+    /** How many playlists have the track, counting changes from the popup still saving. */
+    function playlistCountOf(track: MusicTrack) {
+        return data.library.playlists.filter(p => playlistTrackIds(p).includes(track.id)).length;
     }
 
     /** How many of the popup's tracks the playlist has: all, some or none. */
@@ -699,24 +746,37 @@
     </button>
 {/snippet}
 
+{#snippet loudnessCell(track: MusicTrack)}
+    <td class="loudness-cell" title={track.loudness === undefined ? 'Loudness not measured yet' : track.loudness === null ? "Loudness couldn't be measured" : 'Loudness'}>
+        {#if track.loudness === undefined}…{:else if track.loudness === null}–{:else}{track.loudness.toFixed(1)} LUFS{/if}
+    </td>
+{/snippet}
+
 {#snippet trackRows(tracks: MusicTrack[], options: { numbers?: boolean, artist?: boolean | ((t: MusicTrack) => boolean), album?: boolean })}
     {#each tracks as track (track.id)}
         {@const showArtist = typeof options.artist === 'function' ? options.artist(track) : options.artist}
         {@const album = albumOf(track)}
+        {@const inPlaylists = playlistCountOf(track)}
         <tr class="track-row" class:selected={playingId === track.id} onclick={() => togglePlay(track, tracks)}>
             <td class="play-cell">{@render playButton(track, tracks)}</td>
             {#if options.numbers}<td class="number-cell">{track.trackNumber ?? ''}</td>{/if}
+            <td class="duration-cell">{formatMusicDuration(track.duration)}</td>
             <td class="title-cell">
                 <span class="track-title">{track.title}</span>
                 {#if showArtist || options.album}
                     <span class="track-sub">{[showArtist ? (track.artist || 'Unknown Artist') : null, options.album ? album?.title : null].filter(Boolean).join(' · ')}</span>
                 {/if}
             </td>
-            <td class="duration-cell">{formatMusicDuration(track.duration)}</td>
+            {@render loudnessCell(track)}
             <td class="row-actions">
                 <button class="icon-button add-menu-trigger" class:active={addMenuFor(track)} onclick={(e) => openAddMenu(e, [track], track.title)}
-                    aria-label="Add {track.title} to a playlist" aria-haspopup="dialog" aria-expanded={addMenuFor(track)} title="Add to playlist">
-                    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+                    aria-label="Add {track.title} to a playlist" aria-haspopup="dialog" aria-expanded={addMenuFor(track)}
+                    title={inPlaylists > 0 ? `In ${inPlaylists} playlist${inPlaylists === 1 ? '' : 's'}` : 'Add to playlist'}>
+                    {#if inPlaylists > 0}
+                        <svg class="in-playlist-tick" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>
+                    {:else}
+                        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+                    {/if}
                 </button>
                 <button class="icon-button edit-button" class:active={detailsId === track.id} onclick={(e) => { e.stopPropagation(); toggleDetails(track); }}
                     aria-label="Edit {track.title}" aria-expanded={detailsId === track.id} title="Edit details"><PencilIcon size={16}/></button>
@@ -725,7 +785,7 @@
         </tr>
         {#if detailsId === track.id}
             <tr class="details-row">
-                <td colspan={options.numbers ? 5 : 4}>
+                <td colspan={options.numbers ? 6 : 5}>
                     <form class="details-form" onsubmit={(e) => { e.preventDefault(); saveDetails(track); }}>
                         <label class="details-field wide"><span>Title</span>
                             <input type="text" maxlength={MUSIC_TEXT_MAX_LENGTH} bind:value={detailsDraft.title} required/></label>
@@ -737,6 +797,15 @@
                             <input type="number" min="0" max={MUSIC_NUMBER_MAX} bind:value={detailsDraft.year}/></label>
                         <label class="details-field narrow"><span>Track #</span>
                             <input type="number" min="0" max={MUSIC_NUMBER_MAX} bind:value={detailsDraft.trackNumber}/></label>
+                        <label class="details-field narrow" title="Integrated loudness, measured when the track was uploaded. Loudness levelling turns the track up or down from this; blank, it isn't levelled."><span>Loudness (LUFS)</span>
+                            <span class="loudness-input">
+                                <input type="number" min={MUSIC_LOUDNESS_MIN} max={MUSIC_LOUDNESS_MAX} step="0.1" bind:value={detailsDraft.loudness}
+                                    placeholder={track.loudness === undefined || remeasuringId === track.id ? 'Measuring...' : 'Unknown'}
+                                    disabled={remeasuringId === track.id}/>
+                                <button type="button" class="icon-button remeasure-button" class:spinning={remeasuringId === track.id}
+                                    disabled={remeasuringId !== null} onclick={() => remeasureLoudness(track)}
+                                    aria-label="Re-measure the loudness" title="Re-measure the loudness">↻</button>
+                            </span></label>
                         <div class="details-actions">
                             <button type="button" onclick={() => detailsId = null}>Cancel</button>
                             <button type="submit" class="save" disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
@@ -852,8 +921,8 @@
         <p class="empty">Nothing matches "{search}".</p>
     {:else if view === 'artists'}
         {#each artistGroups as group (group.key)}
-            <details class="artist-group" open={searching || artistGroups.length === 1 || expandedArtists.has(group.key)}
-                ontoggle={(e) => { if (!searching) { if (e.currentTarget.open) expandedArtists.add(group.key); else expandedArtists.delete(group.key); } }}>
+            <details class="artist-group" open={searching || !collapsedArtists.has(group.key)}
+                ontoggle={(e) => { if (!searching) { if (e.currentTarget.open) collapsedArtists.delete(group.key); else collapsedArtists.add(group.key); } }}>
                 <summary>
                     <span class="artist-name">{group.name || 'Unknown Artist'}</span>
                     <span class="artist-sub">{[group.albums.length > 0 ? `${group.albums.length} album${group.albums.length === 1 ? '' : 's'}` : null, trackCount(group.albums.reduce((n, a) => n + a.tracks.length, 0) + group.singles.length)].filter(Boolean).join(' · ')}</span>
@@ -965,11 +1034,12 @@
                                     ondragend={onPlaylistDragEnd}
                                     onclick={() => togglePlay(track, openPlaylistTracks)}>
                                     <td class="play-cell">{@render playButton(track, openPlaylistTracks)}</td>
+                                    <td class="duration-cell">{formatMusicDuration(track.duration)}</td>
                                     <td class="title-cell">
                                         <span class="track-title">{track.title}</span>
                                         <span class="track-sub">{track.artist || 'Unknown Artist'}</span>
                                     </td>
-                                    <td class="duration-cell">{formatMusicDuration(track.duration)}</td>
+                                    {@render loudnessCell(track)}
                                     <td class="row-actions">
                                         <button class="icon-button" disabled={i === 0} onclick={(e) => { e.stopPropagation(); movePlaylistTrack(playlist, i, -1); }} aria-label="Move {track.title} up" title="Move up">
                                             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M7.4 15.4 12 10.8l4.6 4.6L18 14l-6-6-6 6z"/></svg>
@@ -1010,7 +1080,7 @@
         <h2>Music Presets</h2>
         <button class="save" disabled={!presetsDirty || savingPresets} onclick={savePresets}>{savingPresets ? 'Saving...' : 'Save changes'}</button>
     </div>
-    <p class="description">Playlists shown on the music strip in the mixer, in place of Spotify's when the music player is running there. Each always plays shuffled, and remembers its place in the shuffle: switching back to a playlist carries on with tracks it hasn't played yet, rather than repeating ones it has, until it's been through them all.<br/>An ambient adaptive playlist has a playlist for each phase: it plays the one for the current phase, and fades out to the next phase's whenever the games' phase changes. Leave a phase empty to keep playing whatever was on through it.<br/>A day &amp; night playlist has a playlist for the day and one for the night. The day one only plays while a game's countdown is running; the rest of the day (the morning before it's started, a pause, and dusk) is silent, and it picks up again by itself when the countdown starts or night falls. Leave one empty to keep that time silent too.</p>
+    <p class="description">Playlists shown on the music player's strip in the mixer, which can run beside Spotify's: only one plays at a time, so picking a preset on either fades the other out (or, while the other is playing, schedules it for the next phase change, as within one player). Each always plays shuffled, and remembers its place in the shuffle: switching back to a playlist carries on with tracks it hasn't played yet, rather than repeating ones it has, until it's been through them all.<br/>An ambient adaptive playlist has a playlist for each phase: it plays the one for the current phase, and fades out to the next phase's whenever the games' phase changes. Leave a phase empty to keep playing whatever was on through it.<br/>A day &amp; night playlist has a playlist for the day and one for the night. The day one only plays while a game's countdown is running; the rest of the day (the morning before it's started, a pause, and dusk) is silent, and it picks up again by itself when the countdown starts or night falls. Leave one empty to keep that time silent too.</p>
     {#if data.library.playlists.length === 0}
         <p class="empty">Make a playlist on the Playlists tab first.</p>
     {/if}
@@ -1124,7 +1194,7 @@
             <button class="skip" onclick={() => step(-1)} disabled={queueIndex <= 0} aria-label="Previous track" title="Previous">
                 <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
             </button>
-            <div class="player"><MusicPreviewPlayer bind:this={player} url={playingTrack ? `/api/resources/${playingTrack.file}` : null} onended={() => step(1)}/></div>
+            <div class="player"><MusicPreviewPlayer bind:this={player} url={playingTrack ? `/api/resources/${playingTrack.file}` : null} gainDb={playingGainDb} onended={() => step(1)}/></div>
             <button class="skip" onclick={() => step(1)} disabled={queueIndex < 0 || queueIndex >= queue.length - 1} aria-label="Next track" title="Next">
                 <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
             </button>
@@ -1704,15 +1774,20 @@
         font-weight: bold;
     }
 
-    td.play-cell, td.number-cell, td.duration-cell {
+    td.play-cell, td.number-cell, td.duration-cell, td.loudness-cell {
         width: 1px; /* Shrink to the content */
         white-space: nowrap;
         font-variant-numeric: tabular-nums;
     }
 
-    td.number-cell, td.duration-cell {
+    td.number-cell, td.duration-cell, td.loudness-cell {
         text-align: right;
         opacity: 0.8;
+    }
+
+    td.loudness-cell {
+        font-size: 0.85em;
+        opacity: 0.6;
     }
 
     button.play-button {
@@ -1784,6 +1859,30 @@
     .details-field input {
         width: 100%;
         box-sizing: border-box;
+    }
+
+    .loudness-input {
+        display: flex;
+        gap: 0.3em;
+    }
+
+    .loudness-input input {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .remeasure-button {
+        flex: none;
+        width: 2.2em;
+        line-height: 1;
+    }
+
+    .remeasure-button.spinning {
+        animation: remeasure-spin 1s linear infinite;
+    }
+
+    @keyframes remeasure-spin {
+        to { transform: rotate(360deg); }
     }
 
     .details-actions {
@@ -1909,6 +2008,10 @@
 
     button.icon-button.add-menu-trigger.active {
         border-color: var(--theme-highlight);
+        color: var(--theme-highlight);
+    }
+
+    .in-playlist-tick {
         color: var(--theme-highlight);
     }
 

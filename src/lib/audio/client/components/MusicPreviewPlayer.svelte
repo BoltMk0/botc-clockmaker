@@ -7,8 +7,9 @@
     /**
      * Plays a music track through an <audio> element, which streams it (with Range requests) rather than decoding the
      * whole file up front as AudioPreviewPlayer does - fine for short loops, too slow and memory-hungry for songs.
+     * `gainDb` turns it up or down (for loudness levelling).
      */
-    let { url, onended }: { url: string | null, onended?: () => void } = $props();
+    let { url, onended, gainDb = 0 }: { url: string | null, onended?: () => void, gainDb?: number } = $props();
 
     let audio: HTMLAudioElement | undefined = $state();
     let paused = $state(true);
@@ -17,6 +18,33 @@
     let loadError: string | null = $state(null);
     /** play() was asked for: carry on playing once the new url has loaded. */
     let wantPlaying = false;
+    /**
+     * Applies gainDb, which can boost as well as cut (beyond what the element's volume can do). Made on the first play,
+     * from the gesture that started it, as browsers only allow audio to start after one.
+     */
+    let context: AudioContext | null = null;
+    let gainNode: GainNode | null = null;
+
+    function ensureGainNode() {
+        if (gainNode || !audio) return;
+        try {
+            context = new AudioContext();
+            gainNode = context.createGain();
+            context.createMediaElementSource(audio).connect(gainNode).connect(context.destination);
+            gainNode.gain.value = Math.pow(10, gainDb / 20);
+        } catch (e) {
+            console.warn("MusicPreviewPlayer - couldn't set up the gain, so it plays unlevelled", e);
+        }
+        context?.resume().catch(() => { });
+    }
+
+    $effect(() => {
+        const gain = Math.pow(10, gainDb / 20);
+        // Eased, rather than stepped, if it changes as a track plays (levelling switched on, or the track measured)
+        if (gainNode) gainNode.gain.setTargetAtTime(gain, gainNode.context.currentTime, 0.1);
+    });
+
+    $effect(() => () => { void context?.close(); });
 
     $effect(() => {
         const next = url;
@@ -36,6 +64,7 @@
     });
 
     function start() {
+        ensureGainNode();
         audio?.play().catch((e) => {
             if (e?.name === 'AbortError') return; // Superseded by another track
             loadError = `Couldn't play: ${e?.message ?? e}`;

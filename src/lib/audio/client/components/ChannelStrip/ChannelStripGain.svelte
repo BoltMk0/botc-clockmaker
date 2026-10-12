@@ -1,6 +1,6 @@
 <script lang="ts">
     import AudioMixerText from "./AudioMixerText.svelte";
-    import { formatGain } from "../util";
+    import { FADER_MAX_DB, FADER_MIN_DB, formatGain } from "../util";
     import VSlider from "../VSlider.svelte";
     import VLoudnessMeter from "../VLoudnessMeter.svelte";
 
@@ -25,7 +25,7 @@
     </AudioMixerText>
     <div style="width: 100%; height: 216px; padding: 8px 6px; box-sizing: border-box; display: flex; align-items: stretch;">
         <div style="flex: 1; display: flex; justify-content: center; align-items: stretch;">
-            <VSlider bind:value={value} min={-60} max={12} step={1} logarithmic onchange={onchange} />
+            <VSlider bind:value={value} min={FADER_MIN_DB} max={FADER_MAX_DB} step={1} logarithmic onchange={onchange} />
         </div>
         {#if analyserNode}
         <VLoudnessMeter {analyserNode}/>

@@ -10,6 +10,8 @@ RUN npm run build
 FROM node:20-alpine AS production
 
 ENV DATA_DIR=/data
+# Measures the music tracks' loudness, for loudness levelling
+RUN apk add --no-cache ffmpeg
 
 WORKDIR /app
 COPY --from=build /app/build ./build

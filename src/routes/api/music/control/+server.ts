@@ -2,7 +2,7 @@ import { getMusicHelperInstance } from '$lib/model/server/Music/MusicHelper';
 import { error } from '@sveltejs/kit';
 
 /**
- * Remote-control the music player: { action: 'play' | 'pause' | 'next' | 'previous' }, { action: 'volume', volume: 0..100 },
+ * Remote-control the music player: { action: 'play' | 'pause' | 'next' | 'previous' }, { action: 'gain', gain } (linear),
  * { action: 'playPreset', presetId } or { action: 'schedulePreset', presetId | null }
  */
 export async function POST({ request }) {

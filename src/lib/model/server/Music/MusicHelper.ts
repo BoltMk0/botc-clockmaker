@@ -1,10 +1,12 @@
 import { EventEmitter } from "node:events";
-import type { MusicControlAction, MusicHostEvent, MusicModel, MusicTrackPlaybackModel } from "$lib/audio/common/model/musicModel";
+import { clampCrossfadeSeconds, clampLevellingTarget, DEFAULT_MUSIC_CROSSFADE, DEFAULT_MUSIC_GAIN, DEFAULT_MUSIC_LEVELLING, MAX_MUSIC_GAIN, type MusicCrossfadeModel, type MusicControlAction, type MusicHostEvent, type MusicLevellingModel, type MusicModel, type MusicTrackPlaybackModel } from "$lib/audio/common/model/musicModel";
 import { adaptiveMusicPlaylistFor, isMusicAdaptivePreset, isMusicCountdownPreset, musicPresetPlaylistIds, type MusicAdaptivePreset, type MusicCountdownPreset, type MusicPreset } from "$lib/audio/common/musicPreset";
 import type { CountdownPhase } from "$lib/audio/common/spotifyPreset";
 import type { TimeOfDay } from "$lib/model/client/types";
 import { getMusicAlbum, getMusicPlaylist, getMusicTrack } from "$lib/resources/server/musicLibrary";
 import { getMusicPresets } from "$lib/resources/server/musicPresets";
+import { musicLoudnessEvents } from "$lib/resources/server/musicLoudness";
+import { JSONSingletonResourceManager } from "$lib/resources/server/jsonResourceManager";
 import { getBOTCTClockInstanceManager } from "../model";
 import { getSpotifyHelperInstance } from "../Spotify/SpotifyHelper";
 import { MusicShuffle } from "./MusicShuffle";
@@ -22,11 +24,28 @@ const SKIP_FADE_MS = 600;
 const PAUSE_FADE_MS = 300;
 /** How often to check the games' phase. */
 const PHASE_CHECK_INTERVAL_MS = 250;
+/** Fade-out when the Spotify player takes over (it starts as this fades, so the two cross). */
+export const HANDOVER_FADE_MS = 2000;
+
+function isMusicLevellingModel(value: unknown): value is MusicLevellingModel {
+    return typeof value === 'object' && value !== null && typeof (value as MusicLevellingModel).enabled === 'boolean' &&
+        typeof (value as MusicLevellingModel).targetLufs === 'number';
+}
+
+const LEVELLING_MANAGER = new JSONSingletonResourceManager<MusicLevellingModel>('music_levelling', isMusicLevellingModel);
+
+function isMusicCrossfadeModel(value: unknown): value is MusicCrossfadeModel {
+    return typeof value === 'object' && value !== null && typeof (value as MusicCrossfadeModel).enabled === 'boolean' &&
+        typeof (value as MusicCrossfadeModel).seconds === 'number';
+}
+
+const CROSSFADE_MANAGER = new JSONSingletonResourceManager<MusicCrossfadeModel>('music_crossfade', isMusicCrossfadeModel);
 
 /**
  * Runs the uploaded-music player: one mixer client hosts it (the sound comes out of that device, through its mixer's
  * Music & Ambience master, so the master fader, dim and time-of-day trim apply there), and every client controls it
- * through here. This decides what plays - shuffling each playlist in an order it remembers its place in, following
+ * through here. It runs alongside the Spotify player, but only one of the two plays at a time: whichever starts hands
+ * the other over, fading it out (see handOver), and only one of them has a preset scheduled. This decides what plays - shuffling each playlist in an order it remembers its place in, following
  * the games' phase for the adaptive and day & night presets, and switching to a scheduled preset at the next phase
  * change - and the host follows the model (see MusicModel), doing the fades itself.
  */
@@ -34,11 +53,12 @@ export class MusicHelper extends EventEmitter {
     #hostClientId: string | null = null;
     #hostLastSeen = 0;
     #hostCheckTimer: ReturnType<typeof setInterval> | null = null;
-    #volume = 50;
+    #gain = DEFAULT_MUSIC_GAIN;
     #track: MusicTrackPlaybackModel | null = null;
     #loadId = 0;
     #playing = false;
     #fadeMs = 0;
+    #crossfading = false;
     #presetId: string | null = null;
     #pendingPresetId: string | null = null;
     #pendingTimer: ReturnType<typeof setTimeout> | null = null;
@@ -54,9 +74,17 @@ export class MusicHelper extends EventEmitter {
     /** Tracks in a row that failed to play, so a playlist of broken files stops rather than spinning through them. */
     #failures = 0;
     #shuffle = new MusicShuffle();
+    #levelling: MusicLevellingModel = { ...DEFAULT_MUSIC_LEVELLING, ...LEVELLING_MANAGER.value };
+    #crossfade: MusicCrossfadeModel = { ...DEFAULT_MUSIC_CROSSFADE, ...CROSSFADE_MANAGER.value };
 
     constructor() {
         super();
+        // A track measured (one just uploaded) or set by hand while it's loaded is levelled by that from then on
+        musicLoudnessEvents.on('changed', (trackId: string, loudness: number | null) => {
+            if (this.#track?.trackId !== trackId) return;
+            this.#track = { ...this.#track, loudness };
+            this.changed();
+        });
         this.#lastTimeOfDay = getBOTCTClockInstanceManager().timeOfDay;
         const phaseTimer = setInterval(() => this.checkPhase(), PHASE_CHECK_INTERVAL_MS);
         phaseTimer.unref?.();
@@ -70,15 +98,18 @@ export class MusicHelper extends EventEmitter {
     get model(): MusicModel {
         return {
             hostClientId: this.#hostClientId,
-            volume: this.#volume,
+            gain: this.#gain,
             track: this.#track,
             loadId: this.#loadId,
             playing: this.#playing,
             fadeMs: this.#fadeMs,
+            crossfading: this.#crossfading,
             presetId: this.#presetId,
             pendingPresetId: this.#pendingPresetId,
             presetSilent: this.#silenced,
-            scheduledPresetId: this.#scheduledPresetId
+            scheduledPresetId: this.#scheduledPresetId,
+            levelling: { ...this.#levelling },
+            crossfade: { ...this.#crossfade }
         };
     }
 
@@ -88,12 +119,10 @@ export class MusicHelper extends EventEmitter {
 
     // ---- Player host (the one client the sound comes out of) ----
 
-    /** Claims the player for a client. Throws if another client holds a live claim, or the Spotify player is running. */
+    /** Claims the player for a client. Throws if another client holds a live claim. */
     claimHost(clientId: string) {
         this.expireStaleHost();
         if (this.#hostClientId !== null && this.#hostClientId !== clientId) throw new Error('Another client is already running the music player');
-        // The two share the mixer's music strip, so only one runs at a time
-        if (getSpotifyHelperInstance().model.hostClientId !== null) throw new Error('The Spotify player is running. Stop it first');
         if (this.#hostClientId !== clientId) {
             this.#hostClientId = clientId;
             this.#hostCheckTimer = setInterval(() => this.expireStaleHost(true), HOST_CHECK_INTERVAL_MS);
@@ -133,13 +162,23 @@ export class MusicHelper extends EventEmitter {
         }
     }
 
-    /** Heartbeat from the host, optionally reporting that the track it was told to play (`loadId`) ended or failed. */
+    /**
+     * Heartbeat from the host, optionally reporting that the track it was told to play (`loadId`) ended or failed, or is
+     * near enough its end to crossfade into the playlist's next track.
+     */
     hostReport(clientId: string, report: { event?: MusicHostEvent, loadId?: number }) {
         if (this.#hostClientId !== clientId) throw new Error('Not the music player host');
         this.#hostLastSeen = Date.now();
         // Only about the track playing now; one from before a switch is old news
         if (report.event === undefined || report.loadId !== this.#loadId || !this.#track) return;
         const playlistId = this.#track.playlistId;
+        if (report.event === 'crossfade') {
+            // (Switched off since, or paused: it'll report the track ending instead)
+            if (!this.#crossfade.enabled || !this.#playing) return;
+            this.#failures = 0;
+            this.startPlaylist(playlistId, this.#crossfade.seconds * 1000, true);
+            return;
+        }
         if (report.event === 'ended') {
             this.#failures = 0;
         } else {
@@ -172,39 +211,108 @@ export class MusicHelper extends EventEmitter {
                 break;
             case 'pause':
                 // Paused by hand, a day & night preset stays paused rather than coming back by itself, and nothing
-                // scheduled starts up at the next phase change either
+                // scheduled (on either player) starts up at the next phase change either
                 this.#silenced = false;
                 this.#scheduledPresetId = null;
+                if (this.#playing) getSpotifyHelperInstance().clearScheduledPreset();
                 this.pause(PAUSE_FADE_MS);
                 break;
+            // Skipping stays in the playlist, so crossfades if that's on
             case 'next':
-                if (this.#track) this.startPlaylist(this.#track.playlistId, SKIP_FADE_MS);
+                if (this.#track) this.startPlaylist(this.#track.playlistId, this.skipFadeMs, this.#crossfade.enabled);
                 break;
             case 'previous': {
                 if (!this.#track) break;
                 const playlistId = this.#track.playlistId;
                 const trackId = this.#shuffle.previous(playlistId, getMusicPlaylist(playlistId)?.trackIds ?? []);
-                if (trackId) this.load(trackId, playlistId, SKIP_FADE_MS);
+                if (trackId) this.load(trackId, playlistId, this.skipFadeMs, this.#crossfade.enabled);
                 break;
             }
             case 'playPreset':
-                this.#scheduledPresetId = null; // Picked to play now instead
+                // Picked to play now instead
+                this.#scheduledPresetId = null;
+                getSpotifyHelperInstance().clearScheduledPreset();
                 this.playPreset(command.presetId, FADE_MS);
                 break;
             case 'schedulePreset':
                 if (command.presetId !== null && !this.findPreset(command.presetId)) throw new Error('Unknown preset');
+                // Only one preset waits for the phase change, whichever player it's for
+                if (command.presetId !== null) getSpotifyHelperInstance().clearScheduledPreset();
                 this.#scheduledPresetId = command.presetId;
                 this.changed();
                 break;
-            case 'volume': {
-                if (typeof command.volume !== 'number' || isNaN(command.volume)) throw new Error('Invalid volume');
-                this.#volume = Math.round(Math.min(100, Math.max(0, command.volume)));
+            case 'gain': {
+                if (typeof command.gain !== 'number' || isNaN(command.gain)) throw new Error('Invalid gain');
+                this.#gain = Math.min(MAX_MUSIC_GAIN, Math.max(0, command.gain));
                 this.changed();
                 break;
             }
             default:
                 throw new Error('Unknown action');
         }
+    }
+
+    /**
+     * The Spotify player is taking over: fades out and pauses, as if paused by hand, so a day & night preset waiting out
+     * a silent spell doesn't start up again by itself. The preset stays loaded, to carry on with when picked again.
+     */
+    handOver(fadeMs = HANDOVER_FADE_MS) {
+        if (this.#hostClientId === null) return;
+        const wasSilenced = this.#silenced;
+        this.#silenced = false;
+        if (this.#playing) this.pause(fadeMs);
+        else if (wasSilenced) this.changed();
+    }
+
+    /** Drops the preset scheduled for the next phase change (one's been scheduled, or picked to play now, on Spotify). */
+    clearScheduledPreset() {
+        if (this.#scheduledPresetId === null) return;
+        this.#scheduledPresetId = null;
+        this.changed();
+    }
+
+    /** Has the Spotify player fade out, as this starts playing. */
+    private takeOver() {
+        getSpotifyHelperInstance().handOver(HANDOVER_FADE_MS);
+    }
+
+    /** Validates and applies a patch to the loudness levelling settings ({ enabled?, targetLufs? }). Throws on an invalid field. */
+    updateLevelling(patch: Record<string, unknown>) {
+        const levelling = { ...this.#levelling };
+        if (patch.enabled !== undefined) {
+            if (typeof patch.enabled !== 'boolean') throw new Error('Invalid enabled');
+            levelling.enabled = patch.enabled;
+        }
+        if (patch.targetLufs !== undefined) {
+            if (typeof patch.targetLufs !== 'number' || !isFinite(patch.targetLufs)) throw new Error('Invalid targetLufs');
+            levelling.targetLufs = clampLevellingTarget(patch.targetLufs);
+        }
+        if (levelling.enabled === this.#levelling.enabled && levelling.targetLufs === this.#levelling.targetLufs) return;
+        this.#levelling = levelling;
+        LEVELLING_MANAGER.save(levelling);
+        this.changed();
+    }
+
+    /** How long a skip takes: the crossfade, if that's on, or otherwise a quick fade-out. */
+    private get skipFadeMs() {
+        return this.#crossfade.enabled ? this.#crossfade.seconds * 1000 : SKIP_FADE_MS;
+    }
+
+    /** Validates and applies a patch to the crossfade settings ({ enabled?, seconds? }). Throws on an invalid field. */
+    updateCrossfade(patch: Record<string, unknown>) {
+        const crossfade = { ...this.#crossfade };
+        if (patch.enabled !== undefined) {
+            if (typeof patch.enabled !== 'boolean') throw new Error('Invalid enabled');
+            crossfade.enabled = patch.enabled;
+        }
+        if (patch.seconds !== undefined) {
+            if (typeof patch.seconds !== 'number' || !isFinite(patch.seconds)) throw new Error('Invalid seconds');
+            crossfade.seconds = clampCrossfadeSeconds(patch.seconds);
+        }
+        if (crossfade.enabled === this.#crossfade.enabled && crossfade.seconds === this.#crossfade.seconds) return;
+        this.#crossfade = crossfade;
+        CROSSFADE_MANAGER.save(crossfade);
+        this.changed();
     }
 
     // ---- Presets ----
@@ -243,6 +351,7 @@ export class MusicHelper extends EventEmitter {
             resume = this.isLoaded(playlistId);
         }
         if (playlistId === null) throw new Error(`"${preset.name}" has no playlist to play`);
+        this.takeOver();
         this.#presetId = presetId;
         this.#phaseKey = phaseKey;
         this.#silenced = false;
@@ -253,6 +362,8 @@ export class MusicHelper extends EventEmitter {
     /** Starts a day & night preset on its playlist for now, or silences the player if now has none. */
     private playCountdownPreset(preset: MusicCountdownPreset, fadeMs: number) {
         const phase = this.countdownPhase();
+        // Picked, so it takes over even when it starts out silent
+        this.takeOver();
         this.#presetId = preset.id;
         this.#phaseKey = phase;
         const playlistId = phase === 'silent' ? null : this.existing(preset.countdownPlaylistIds[phase]);
@@ -382,8 +493,11 @@ export class MusicHelper extends EventEmitter {
         this.#pendingPresetId = null;
     }
 
-    /** Moves on to the playlist's next track in its shuffled order; stops if it has none. */
-    private startPlaylist(playlistId: string, fadeMs: number) {
+    /**
+     * Moves on to the playlist's next track in its shuffled order (crossfading into it, if asked to, rather than fading
+     * out first); stops if it has none.
+     */
+    private startPlaylist(playlistId: string, fadeMs: number, crossfade = false) {
         const trackId = this.#shuffle.next(playlistId, getMusicPlaylist(playlistId)?.trackIds ?? []);
         if (trackId === null) {
             console.warn('Music: the playlist is empty');
@@ -391,14 +505,18 @@ export class MusicHelper extends EventEmitter {
             this.pause(fadeMs);
             return;
         }
-        this.load(trackId, playlistId, fadeMs);
+        this.load(trackId, playlistId, fadeMs, crossfade);
     }
 
-    /** Has the host fade out what it's playing (if anything) and start the track from the top. */
-    private load(trackId: string, playlistId: string, fadeMs: number) {
+    /**
+     * Has the host fade out what it's playing (if anything) and start the track from the top - or, crossfading, start
+     * it while what's playing fades out.
+     */
+    private load(trackId: string, playlistId: string, fadeMs: number, crossfade = false) {
         const track = getMusicTrack(trackId);
         if (!track) return;
         const album = track.albumId === null ? undefined : getMusicAlbum(track.albumId);
+        this.#crossfading = crossfade && this.#playing;
         this.#fadeMs = this.#playing ? fadeMs : 0;
         this.#track = {
             trackId,
@@ -407,15 +525,18 @@ export class MusicHelper extends EventEmitter {
             artist: track.artist,
             album: album?.title ?? '',
             imageUrl: album?.artwork ? `/api/resources/${album.artwork}` : null,
-            url: `/api/resources/${track.file}`
+            url: `/api/resources/${track.file}`,
+            loudness: track.loudness ?? null
         };
         this.#loadId++;
+        if (!this.#playing) this.takeOver();
         this.#playing = true;
         this.changed();
     }
 
     private resume() {
         if (!this.#track) return;
+        if (!this.#playing) this.takeOver();
         this.#playing = true;
         this.#fadeMs = 0;
         this.changed();

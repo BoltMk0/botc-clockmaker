@@ -168,7 +168,11 @@ export class AudioAmbienceTrack extends AudioTrack {
             const angle = (start + remaining * i / (FADE_CURVE_POINTS - 1)) * Math.PI / 2;
             curve[i] = target === 1 ? Math.sin(angle) : Math.cos(angle);
         }
-        param.setValueCurveAtTime(curve, now, FADE_MS / 1000 * remaining);
+        // As ramps between the curve's points rather than setValueCurveAtTime: Firefox doesn't cancel a curve already
+        // under way, and then refuses any event during it, so turning a fade round partway would throw
+        const step = FADE_MS / 1000 * remaining / (FADE_CURVE_POINTS - 1);
+        param.setValueAtTime(curve[0], now);
+        for(let i = 1; i < FADE_CURVE_POINTS; i++) param.linearRampToValueAtTime(curve[i], now + i * step);
     }
 
     /**
