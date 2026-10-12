@@ -1,26 +1,18 @@
-import { deleteResource, findResourceById, getResourceData } from '$lib/resources/server/resources';
+import { deleteResource, findResourceById, getResourceData, getResourceStats } from '$lib/resources/server/resources';
+import { fileResponse } from '$lib/resources/server/fileResponse';
 
-export async function GET({params}){
+export async function GET({params, request}){
     const resource =findResourceById(params.id);
     if (!resource) {
         console.warn(`Resource with id ${params.id} not found`);
         return new Response("Resource not found", { status: 404 });
     }
-    const data = getResourceData(resource);
-    if (!data) {
+    const stats = getResourceStats(resource);
+    if (!stats) {
         console.warn(`Resource ${resource.name} found but data is missing`);
         return new Response("Resource data not found", { status: 404 });
     }
-    // Node Buffer isn't typed as a valid web BodyInit; convert for Response.
-    const bytes = new Uint8Array(data);
-    return new Response(bytes, {
-        headers: {
-            "Content-Type": resource.mimetype,
-            "Content-Disposition": `inline; filename="${resource.name}"`,
-            "Content-Length": String(bytes.byteLength),
-            "Accept-Ranges": "bytes"
-        }
-    });
+    return fileResponse(request, stats, () => getResourceData(resource), resource.mimetype, resource.name);
 }
 
 export async function DELETE({params}){

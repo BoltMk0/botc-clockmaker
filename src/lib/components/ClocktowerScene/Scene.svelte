@@ -1,0 +1,216 @@
+<script lang="ts">
+    import { untrack } from "svelte";
+    import { useTask, useThrelte } from "@threlte/core";
+    import OrthoCamera from "./subviews/OrthoCamera.svelte";
+    import Sky from "./subviews/Sky.svelte";
+    import Clouds from "./subviews/Clouds.svelte";
+    import Sun from "./subviews/Sun.svelte";
+    import Moon from "./subviews/Moon.svelte";
+    import Mist from "./subviews/Mist.svelte";
+    import GameStatsPanel from "./subviews/GameStatsPanel.svelte";
+    import Tower from "./subviews/Tower.svelte";
+    import ClockFace from "./subviews/ClockFace.svelte";
+    import ClockHands from "./subviews/ClockHands.svelte";
+    import OriginMarker from "./subviews/OriginMarker.svelte";
+    import SceneQrCodes from "./subviews/SceneQrCodes.svelte";
+    import { getPlayerCount } from "$lib/common/util";
+    import type { GrimoireStateHistory } from "$lib/resources/common/grimoireState";
+    import type { ScriptWithCharacters } from "$lib/resources/common/gameData";
+    import type { QrCode } from "$lib/resources/server/qrCodes";
+
+    let {
+        progress,
+        totalTime,
+        dayNumber,
+        playerCount,
+        imageUrl,
+        normalMapUrl,
+        origin,
+        visibleHeight,
+        planeHeight,
+        sunArcRadius,
+        sunHeight,
+        sunForwardDistance,
+        showOriginMarker,
+        horizontalOffset,
+        verticalOffset,
+        mistHeightFraction,
+        clockFaceImageUrl,
+        clockFaceNormalMapUrl,
+        hasGrim = false,
+        grimoireState = null,
+        script = null,
+        qrCodes = [],
+        qrScale = 1
+    }: {
+        progress: number;
+        totalTime: number;
+        dayNumber: number;
+        playerCount: number;
+        imageUrl: string;
+        normalMapUrl: string;
+        origin: { x: number; y: number };
+        visibleHeight: number;
+        planeHeight: number;
+        sunArcRadius: number;
+        sunHeight: number;
+        sunForwardDistance: number;
+        showOriginMarker: boolean;
+        horizontalOffset: number;
+        verticalOffset: number;
+        mistHeightFraction: number;
+        clockFaceImageUrl: string;
+        clockFaceNormalMapUrl: string;
+        hasGrim?: boolean;
+        grimoireState?: GrimoireStateHistory | null;
+        script?: ScriptWithCharacters | null;
+        qrCodes?: QrCode[];
+        /** Multiplies the QR codes' default size. */
+        qrScale?: number;
+    } = $props();
+
+    const counts = $derived(getPlayerCount(playerCount));
+
+    // Every element's own size is a fraction of `visibleHeight`, so sizes
+    // already track the screen's height only, never its width. Positioning
+    // (the tower/panel's horizontal offset) is tuned for a design aspect
+    // ratio of visibleHeight * DESIGN_ASPECT wide (see the `horizontalOffset`
+    // notes in ClocktowerScene.svelte and GameStatsPanel.svelte) though, and
+    // on narrower screens the real visible width is less than that - so the
+    // fixed offset pushes the tower and panel past the actual screen edges.
+    // Scaling just the offset down (never up, so normal/wide screens are
+    // untouched) pulls them back toward centre - overlapping each other
+    // rather than running off-screen - without touching either one's size.
+    const DESIGN_ASPECT = 2;
+    const { size } = useThrelte();
+    const layoutScale = $derived(Math.min(1, $size.width / $size.height / DESIGN_ASPECT));
+    // On portrait screens there's no room for the side-by-side layout at
+    // all, so the tower (and everything anchored to it) is centred outright
+    // and GameStatsPanel switches to its stacked portrait layout.
+    const portrait = $derived($size.height > $size.width);
+    const scaledHorizontalOffset = $derived(portrait ? 0 : horizontalOffset * layoutScale);
+    // The tower is also shrunk a little in portrait, to leave more room for
+    // the time/count banners stacked above and below it. The tower, clock
+    // face and hands are all sized off `planeHeight` and anchored on the
+    // clock's centre, so this scales them together around that point.
+    const PORTRAIT_TOWER_SCALE = 0.65;
+    const towerPlaneHeight = $derived(portrait ? planeHeight * PORTRAIT_TOWER_SCALE : planeHeight);
+
+    // Smooth the day-progress value over time instead of snapping the sun
+    // (and everything timed off it) straight to a new position whenever
+    // `progress` ticks. Computed once here and shared, so the sun and moon
+    // never drift out of sync with each other.
+    let smoothProgress = $state(untrack(() => progress));
+    // The clock hands chase the target about twice as fast as the sky/sun/
+    // moon, so a jump in `progress` reads back on the dial quickly while the
+    // rest of the scene still eases across gently. Same exponential smoothing,
+    // just a higher rate constant (~0.33s settling vs ~0.67s).
+    let handsProgress = $state(untrack(() => progress));
+
+    // Same "current time" math as the 2D clocktower display's ClockFace.svelte:
+    // the minutes left on the countdown, as a continuously wrapping fraction
+    // rather than clamped 0-1, so the hands sweep round and round like a real
+    // clock instead of just tracking the whole game's start-to-end arc once.
+    // Not rounded to whole seconds - keeping it continuous lets the hands
+    // sweep smoothly instead of ticking once per second.
+    function minutesRemainingAt(p: number) { return (totalTime * (1 - p)) / 60; }
+    // The hands' positions, in turns (the minute hand goes round once a minute, the hour hand once every 12)
+    let minuteHand = $state(untrack(() => minutesRemainingAt(progress)));
+    let hourHand = $state(untrack(() => minutesRemainingAt(progress) / 12));
+
+    // A big jump - a new timer set up (its length changing, or going from
+    // night back to the start of the day), or the phase changed by hand -
+    // is too far for the smoothing above to look right, so it's a timed
+    // transition instead: everything eases across together over this long.
+    const JUMP_TRANSITION_S = 1;
+    let jump: { elapsed: number, fromProgress: number, fromMinute: number, fromHour: number } | null = null;
+    let lastTotalTime = untrack(() => totalTime);
+    const easeInOutCubic = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    /** The shortest way round to a hand position `delta` turns away, so the hands never spin round and round to get there. */
+    const shortestTurn = (delta: number) => delta - Math.round(delta);
+
+    useTask((delta) => {
+        if (jump === null && (Math.abs(progress - smoothProgress) > 0.5 || totalTime !== lastTotalTime)) {
+            jump = { elapsed: 0, fromProgress: smoothProgress, fromMinute: minuteHand, fromHour: hourHand };
+        }
+        lastTotalTime = totalTime;
+
+        if (jump !== null) {
+            // Eases towards the live target, so a tick during the transition is folded in
+            jump.elapsed += delta;
+            const t = Math.min(1, jump.elapsed / JUMP_TRANSITION_S);
+            const e = easeInOutCubic(t);
+            const targetMinute = minutesRemainingAt(progress);
+            smoothProgress = jump.fromProgress + (progress - jump.fromProgress) * e;
+            minuteHand = jump.fromMinute + shortestTurn(targetMinute - jump.fromMinute) * e;
+            hourHand = jump.fromHour + shortestTurn(targetMinute / 12 - jump.fromHour) * e;
+            if (t >= 1) {
+                jump = null;
+                handsProgress = progress;
+                minuteHand = targetMinute;
+                hourHand = targetMinute / 12;
+            }
+            return;
+        }
+
+        smoothProgress += (progress - smoothProgress) * Math.min(1, delta * 1.5);
+        handsProgress += (progress - handsProgress) * Math.min(1, delta * 10);
+        minuteHand = minutesRemainingAt(handsProgress);
+        hourHand = minuteHand / 12;
+    });
+</script>
+
+<OrthoCamera {visibleHeight} />
+<Sky {smoothProgress} />
+<Clouds {smoothProgress} {visibleHeight} horizontalOffset={scaledHorizontalOffset} />
+<Sun {smoothProgress} arcRadius={sunArcRadius} height={sunHeight} forwardDistance={sunForwardDistance} />
+<Moon {smoothProgress} {visibleHeight} horizontalOffset={scaledHorizontalOffset} />
+<GameStatsPanel
+    day={dayNumber}
+    {progress}
+    {totalTime}
+    {counts}
+    {visibleHeight}
+    horizontalOffset={scaledHorizontalOffset}
+    {portrait}
+    {hasGrim}
+    {grimoireState}
+    {script}
+    {qrCodes}
+    {qrScale}
+/>
+<Tower {imageUrl} {normalMapUrl} {origin} planeHeight={towerPlaneHeight} horizontalOffset={scaledHorizontalOffset} {verticalOffset} />
+<ClockFace
+    imageUrl={clockFaceImageUrl}
+    normalMapUrl={clockFaceNormalMapUrl}
+    {towerPlaneHeight}
+    horizontalOffset={scaledHorizontalOffset}
+    {verticalOffset}
+    {smoothProgress}
+/>
+
+<ClockHands
+    minuteHandProgress={minuteHand}
+    hourHandProgress={hourHand}
+    {towerPlaneHeight}
+    horizontalOffset={scaledHorizontalOffset}
+    {verticalOffset}
+/>
+
+{#if showOriginMarker}
+    <OriginMarker size={towerPlaneHeight} horizontalOffset={scaledHorizontalOffset} {verticalOffset} />
+{/if}
+
+<!-- Sits in front of the tower/clock face/hands but behind the day/count
+     banners - see Mist.svelte's MIST_Z vs GameStatsPanel's PANEL.z. -->
+<Mist {smoothProgress} {visibleHeight} heightFraction={mistHeightFraction} />
+
+{#if qrCodes.length > 0}
+    <!-- In front of both the mist (z=0.1) and the day/count banners
+         (GameStatsPanel's PANEL.z=0.2), so a code always reads clearly at
+         the screen edges, but still well behind the player seat tokens
+         (see PlayerSeats.svelte, z~0.3) - so a seated token drawn over a
+         corner occludes the code there instead of it always winning like
+         the DOM overlay it replaces in this display mode. -->
+    <SceneQrCodes {qrCodes} {visibleHeight} scale={qrScale} z={0.25} />
+{/if}

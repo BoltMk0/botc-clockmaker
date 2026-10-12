@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { doubleTap } from "./doubleTap";
+
 	let {
 		value = $bindable(0),
 		min = 0,
@@ -26,6 +28,13 @@
 		value = v;
 		onchangefinished(value);
 	}
+
+	// Double click/tap resets the slider to 0 (e.g. centred pan).
+	function resetToZero() {
+		value = 0;
+		onchange(value);
+		onchangefinished(value);
+	}
 </script>
 
 <style>
@@ -34,6 +43,8 @@
 	height: 32px;
     box-sizing: border-box;
     accent-color: var(--theme-slider-accent);
+	/* No double-tap-to-zoom, which would otherwise eat the double tap that resets the slider */
+	touch-action: manipulation;
 }
 </style>
 
@@ -45,5 +56,7 @@
 	value={value}
 	oninput={handleInput}
 	onchange={handleChange}
+	ondblclick={resetToZero}
+	use:doubleTap={resetToZero}
 	class="horizontal-slider"
 />

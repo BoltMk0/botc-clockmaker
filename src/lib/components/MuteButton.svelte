@@ -1,12 +1,12 @@
 <script lang="ts">
-    import type { ClocktowerAudioEngine } from "$lib/audio/client/model/AudioEngine.svelte";
+    import type { AudioEngine } from "$lib/audio/client/AudioEngine.svelte";
     import MutedIcon from "./MutedIcon.svelte";
     import UnmutedIcon from "./UnmutedIcon.svelte";
 
     let {
         audioEngine
     }: {
-        audioEngine: ClocktowerAudioEngine;
+        audioEngine: AudioEngine;
     } = $props();
 </script>
 
@@ -25,6 +25,7 @@
         position: fixed;
         right: 1em;
         top: 1em;
+        z-index: 1001; /* stay above the top navbar */
     }
 
     .mute-button-container:hover {

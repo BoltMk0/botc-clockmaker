@@ -1,7 +1,7 @@
 {
-	"name": "botct-clock",
+	"name": "clockmaker",
 	"private": true,
-	"version": "0.2.12",
+	"version": "0.3.9",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
@@ -9,7 +9,9 @@
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"docker:build": "node scripts/docker-build.mjs",
+		"docker:push": "node scripts/build-and-push.mjs"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^7.0.0",
@@ -17,6 +19,9 @@
 		"@sveltejs/kit": "^2.49.1",
 		"@sveltejs/vite-plugin-svelte": "^6.2.1",
 		"@types/node": "^25.0.3",
+		"@types/nodemailer": "^8.0.1",
+		"@types/qrcode": "^1.5.6",
+		"@types/three": "^0.185.4",
 		"@types/uuid": "^10.0.0",
 		"@types/ws": "^8.18.1",
 		"@vite-pwa/sveltekit": "^1.1.0",
@@ -27,7 +32,13 @@
 		"vite": "^7.2.6"
 	},
 	"dependencies": {
-		"mysql2": "^3.20.0",
+		"@threlte/core": "^8.6.0",
+		"@threlte/extras": "^9.21.1",
+		"music-metadata": "^12.1.1",
+		"nodemailer": "^9.1.1",
+		"qrcode": "^1.5.4",
+		"sharp": "^0.35.4",
+		"three": "^0.185.1",
 		"uuid": "^13.0.0",
 		"ws": "^8.18.3"
 	}

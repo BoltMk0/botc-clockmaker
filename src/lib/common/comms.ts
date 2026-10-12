@@ -1,38 +1,121 @@
-import type { AudioParams } from "./AudioParams";
+import type { AmbienceEngineModel } from "$lib/audio/common/model/ambienceEngineModel";
+import type { AmbienceTrackModel } from "$lib/audio/common/model/ambienceTrackModel";
+import type { AudioDimModel } from "$lib/audio/common/model/audioDimModel";
+import type { TimeOfDayTrimModel } from "$lib/audio/common/model/timeOfDayTrimModel";
+import type { MixerMastersModel } from "$lib/audio/common/model/mixerMastersModel";
+import type { AudioResourceTrackModel } from "$lib/audio/common/model/audioResourceTrackModel";
+import type { StingEngineModel } from "$lib/audio/common/model/stingEngineModel";
+import type { SpotifyModel } from "$lib/audio/common/model/spotifyModel";
+import type { MusicModel } from "$lib/audio/common/model/musicModel";
+import type { ClocktowerAudioTrackModel } from "$lib/audio/common/model/clocktowerAudioTrackModel.svelte";
+import type { ClockSfxSlot } from "$lib/audio/common/clockSfxPreset";
+import type { ClocktowerModel } from "$lib/model/common/ClocktowerModel";
 
-export type WSMessage = {
+export type WSMessageBase = {
     type: string;
 };
 
-export type ClockMessage = WSMessage & {
+export type ClockMessage = WSMessageBase & {
     type: 'clock';
-    running: boolean;
-    startTime: number;
-    duration: number;
-    ringBellAfter: number|null;
+    model: ClocktowerModel;
 };
 
-export type DayMessage = WSMessage & {
-    type: 'day';
-    day: number;
-    max: number;
-};
-
-export type SyncMessage = WSMessage & {
+export type SyncMessage = WSMessageBase & {
     type: 'sync';
     serverTime: number;
 };
 
-export type BellRingRequestMessage = WSMessage & {
+export type BellRingRequestMessage = WSMessageBase & {
     type: 'bellRingRequest';
+    bell: ClockSfxSlot;
     atTime?: number;
 };
 
-export type AudioParamsMessage = WSMessage & AudioParams & {
-    type: 'audioParams';
+export type ClockAudioParamsMessage = WSMessageBase & {
+    type: 'clockAudioModel';
+    model: ClocktowerAudioTrackModel;
 };
 
-export type PlayerCountMessage = WSMessage & {
-    type: 'playerCount';
-    playerCount: number;
-}
+export type AmbienceEngineUpdateMessage = WSMessageBase & {
+    type: 'ambienceEngineUpdate',
+    model: AmbienceEngineModel
+};
+
+export type AmbienceTrackUpdateMessage = WSMessageBase & {
+    type: 'ambienceTrackUpdate',
+    index: number;
+    model: AmbienceTrackModel;
+};
+
+export type AmbienceTrackRemovedMessage = WSMessageBase & {
+    type: 'ambienceTrackRemoved',
+    index: number;
+};
+
+export type SpotifyUpdateMessage = WSMessageBase & {
+    type: 'spotifyUpdate',
+    model: SpotifyModel
+};
+
+/** Sets the Spotify host's player volume locally (0..1, master gain, dim and trim included). Only the named host acts on it. */
+export type SpotifyDeviceVolumeMessage = WSMessageBase & {
+    type: 'spotifyDeviceVolume',
+    hostClientId: string,
+    volume: number
+};
+
+export type MusicUpdateMessage = WSMessageBase & {
+    type: 'musicUpdate',
+    model: MusicModel
+};
+
+export type AudioDimUpdateMessage = WSMessageBase & {
+    type: 'audioDimUpdate',
+    model: AudioDimModel
+};
+
+export type TimeOfDayTrimUpdateMessage = WSMessageBase & {
+    type: 'timeOfDayTrimUpdate',
+    model: TimeOfDayTrimModel
+};
+
+export type MixerMastersUpdateMessage = WSMessageBase & {
+    type: 'mixerMastersUpdate',
+    model: MixerMastersModel
+};
+
+export type StingEngineUpdateMessage = WSMessageBase & {
+    type: 'stingEngineUpdate',
+    model: StingEngineModel
+};
+
+export type StingTrackUpdateMessage = WSMessageBase & {
+    type: 'stingTrackUpdate',
+    index: number;
+    model: AudioResourceTrackModel;
+};
+
+/** Broadcast the instant a sting fires, so every client plays whatever it already has loaded in that slot. */
+export type StingTriggerMessage = WSMessageBase & {
+    type: 'stingTrigger',
+    slot: 0 | 1;
+};
+
+export type WSMessage =
+    |ClockMessage
+    |SyncMessage
+    |BellRingRequestMessage
+    |ClockAudioParamsMessage
+    |AmbienceEngineUpdateMessage
+    |AmbienceTrackUpdateMessage
+    |AmbienceTrackRemovedMessage
+    |SpotifyUpdateMessage
+    |SpotifyDeviceVolumeMessage
+    |MusicUpdateMessage
+    |AudioDimUpdateMessage
+    |TimeOfDayTrimUpdateMessage
+    |MixerMastersUpdateMessage
+    |StingEngineUpdateMessage
+    |StingTrackUpdateMessage
+    |StingTriggerMessage
+    ;

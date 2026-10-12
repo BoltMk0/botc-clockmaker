@@ -1,41 +1,86 @@
 <script lang="ts">
-    import { ClockClientModel } from '$lib/model/client/ClockClientModel.js';
     import { onDestroy, onMount } from 'svelte';
     import { browser } from '$app/environment';
-    import { ClocktowerAudioEngine } from '$lib/audio/client/model/AudioEngine.svelte.js';
+    import { page } from '$app/state';
     import AudioMixer from '$lib/audio/client/components/AudioMixer.svelte';
-    import Navbar from '$lib/components/Navbar.svelte';
+    import TopNavbar from '$lib/components/TopNavbar.svelte';
     import type { PageData } from './$types';
-    import MuteButton from '$lib/components/MuteButton.svelte';
+    import { Clocktower } from '$lib/model/client/Clocktower.svelte';
+    import { AmbienceEngine } from '$lib/audio/client/AmbienceEngine.svelte';
+    import { AudioEngine } from '$lib/audio/client/AudioEngine.svelte';
+    import { SpotifyPlayer } from '$lib/audio/client/SpotifyPlayer.svelte';
+    import { MusicPlayer } from '$lib/audio/client/MusicPlayer.svelte';
 
     let { data }: { data: PageData } = $props();
 
-    let clients: ClockClientModel[] = data.instances.map(({id, config, audioParams}) => new ClockClientModel(id, config, audioParams));
-        
+    let clocks: Clocktower[]|null = $state(null);
+    let audioEngine: AudioEngine|null = $state(null);
+    let spotify: SpotifyPlayer|null = $state(null);
+    let music: MusicPlayer|null = $state(null);
+    /** ?remote_only: this client only controls the shared mixer; nothing plays on it. */
+    let remoteOnly = $state(false);
 
-    let audioEngine: ClocktowerAudioEngine|undefined = $state(undefined);
-    let teardown: ()=>void;
+    onMount(() => {
+        if(browser){
+            clocks = data.instances.map(model=>new Clocktower(model));
 
-    onMount(()=>{
-        if(!browser) return;
-        ({audioEngine, teardown} = ClocktowerAudioEngine.createNewEngineForClockClients(clients, data.ambienceResources, {enableParamsTx: true}));
+            const param = page.url.searchParams.get('remote_only');
+            remoteOnly = param !== null && param !== '0' && param !== 'false';
 
-        clients.forEach(c=>c.init());
+            audioEngine = new AudioEngine(clocks, data.ambienceEngineModel, data.stingEngineModel, {silent: remoteOnly});
+            spotify = new SpotifyPlayer({remoteOnly});
+            music = new MusicPlayer({remoteOnly, output: audioEngine.input});
 
-        return ()=>{
-            teardown();
+            // Browsers only let an AudioContext run following a genuine user gesture,
+            // so resume it on the first interaction with the page.
+            const resumeAudio = () => audioEngine?.resume();
+            document.addEventListener('pointerdown', resumeAudio);
+
+            return ()=>{
+                document.removeEventListener('pointerdown', resumeAudio);
+                clocks?.forEach(c=>c.close());
+                music?.close(); // Before the engine: it plays through the engine's audio context
+                audioEngine?.close();
+                spotify?.close();
+            }
         }
-    });
-
-    onDestroy(() => {
-        clients.forEach(client => client.close());
     });
 
 </script>
 
 
-<Navbar/>
-{#if audioEngine}
-<AudioMixer {clients} ambienceResources={data.ambienceResources} audioEngine={audioEngine}/>
-<MuteButton {audioEngine}/>
+<TopNavbar/>
+{#if clocks && audioEngine}
+<div class="mixer-page">
+    {#if remoteOnly}
+    <div class="remote-only-note">Remote only: no sound plays on this device.</div>
+    {/if}
+    <AudioMixer {audioEngine} ambienceResources={data.ambienceResources} spotify={spotify ?? undefined} spotifyPresets={data.spotifyPresets} music={music ?? undefined} musicPresets={data.musicPresets}/>
+</div>
 {/if}
+
+<style>
+    .remote-only-note {
+        text-align: center;
+        font-size: 0.85em;
+        opacity: 0.6;
+        margin-bottom: 8px;
+    }
+
+    .mixer-page {
+        padding-top: 60px; /* clear the absolutely-positioned TopNavbar */
+        width: 100%;
+        box-sizing: border-box;
+        /* The mixer is wider than a phone. The root layout only allows vertical touch panning (pan-y), so this
+           container has to be its own horizontal scroller that allows it. */
+        overflow-x: auto;
+        touch-action: pan-x pan-y;
+        /* At least the whole screen's height (the layout's scroller is), so a swipe anywhere scrolls it - not just
+           on the mixer itself. The mixer stays centred in it, as it was before. */
+        min-height: 100%;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+</style>

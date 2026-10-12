@@ -1,22 +1,28 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import {SvelteKitPWA} from '@vite-pwa/sveltekit';
+import { readFileSync } from 'node:fs';
+
+const { version } = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
 export default defineConfig({
+	define: {
+		__APP_VERSION__: JSON.stringify(version)
+	},
 	plugins: [
 		sveltekit(),
 		SvelteKitPWA({
 			registerType: 'autoUpdate',
 			includeAssets: [],
 			manifest: {
-				name: 'BOTCT Clock',
-				short_name: 'BOTCT Clock',
+				name: 'Clockmaker',
+				short_name: 'Clockmaker',
 				display: 'standalone',
 				start_url: '/',
 				scope: '/',
 				display_override: ['standalone', 'minimal-ui'],
-				background_color: '#121212',
-				description: 'A clock for the BOTCT event',
+				background_color: '#282828',
+				description: 'A clock for BOTCT events',
 				theme_color: '#2d4550',
 				icons: [
 					{
@@ -25,9 +31,20 @@ export default defineConfig({
 						type: 'image/png'
 					},
 					{
-						src: '/icons/appicon_512x512.png',
-						sizes: '512x512',
+						src: '/icons/appicon_192x192.png',
+						sizes: '192x192',
 						type: 'image/png'
+					},
+					{
+						src: '/icons/appicon_256x256.png',
+						sizes: '256x256',
+						type: 'image/png'
+					},
+					{
+						src: '/icons/appicon_192x192.png',
+						sizes: '192x192',
+						type: 'image/png',
+						purpose: 'maskable'
 					}
 				]
 			},
@@ -36,6 +53,10 @@ export default defineConfig({
 			}
 		})
 	],
+	build: {
+		// three.js + threlte make one ~800 kB chunk on their own (only loaded by the 3D clocktower scene), which can't usefully be split further
+		chunkSizeWarningLimit: 1000
+	},
 	preview: {
 		allowedHosts: ['*']
 	},

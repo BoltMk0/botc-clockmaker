@@ -1,0 +1,422 @@
+<script lang="ts">
+    import { T, useThrelte } from "@threlte/core";
+    import TextBanner from "./TextBanner.svelte";
+    import PlayerCountBanner, { type PlayerCounts } from "./PlayerCountBanner.svelte";
+    import Lantern from "./Lantern.svelte";
+    import RopeChain from "./RopeChain.svelte";
+    import PlayerSeats from "./PlayerSeats.svelte";
+    import SideRolesTitle from "./SideRolesTitle.svelte";
+    import SideRoleRow from "./SideRoleRow.svelte";
+    import { filterSeatTokens, sideRoleCharacters } from "$lib/components/playerSeatsLayout";
+    import { LANTERN_GLOW_COLOR } from "../sceneColors";
+    import type { GrimoireStateHistory } from "$lib/resources/common/grimoireState";
+    import type { ScriptWithCharacters } from "$lib/resources/common/gameData";
+    import type { QrCode } from "$lib/resources/server/qrCodes";
+
+    // ---------------------------------------------------------------------
+    // Panel layout - tweak these freely.
+    //
+    // The panel spans the full screen height and is mirrored to the left of
+    // the tower so the tower (shifted right by `horizontalOffset`) and the
+    // panel balance around frame centre. Fractions are of the visible screen
+    // width (x / widths), measured from dead centre.
+    // ---------------------------------------------------------------------
+    const PANEL = {
+        // Horizontal centre of the panel, mirroring the tower's rightward
+        // `horizontalOffset`. 1 = exact mirror; >1 pushes it further left.
+        mirror: 1,
+        // Extra horizontal nudge, as a fraction of screen width (+right).
+        nudgeX: 0,
+        // Full panel width as a fraction of screen width. Individual rows
+        // scale within this via the *_WIDTH_SCALE values below.
+        widthFraction: 0.34,
+        z: 0.2
+    };
+
+    // The player count banner sits apart from the rest of the panel, pinned
+    // to the far right of the actual screen (not mirrored off the tower's
+    // offset like the day banner/lanterns above). Margin is a fraction of
+    // the real visible screen width, measured in from the right edge.
+    // Only used when at least one player is seated (see `hasSeatTokens`
+    // below) - otherwise the count banner stacks directly under the day
+    // banner in the same panel.
+    const COUNT_RIGHT_MARGIN_FRACTION = 0.02;
+
+    // With seated players, the count banner is pinned out to the real screen edge,
+    // well away from the tower the sun/moon lights are aimed at - it can end
+    // up noticeably dimmer than everything else in the shot. A small,
+    // always-on point light parked right in front of it keeps it readable
+    // regardless of time of day or how far off to the side it's sitting.
+    const COUNT_LIGHT_INTENSITY = 2;
+    const COUNT_LIGHT_DISTANCE_SCALE = 1; // relative to the banner's own width
+    const COUNT_LIGHT_Z_FORWARD = 0.9;
+
+    // With seated players, the day/time banner floats at screen-centre height
+    // instead of being centred above the count banner, so the player-seats
+    // view can use the panel's *entire* column (top edge to bottom edge)
+    // rather than just the space left under the banner. The banner then
+    // renders in front of the seats (see DAY_Z_LIFT below) since it now
+    // overlaps them rather than sitting in its own reserved strip above.
+    // The seats view is also given far more width than the (mirrored-panel-
+    // width) banner - it's the main thing on screen at that point, not just
+    // another panel row - centred on the same `panelX` the banner itself
+    // sits on.
+    const SEATS_WIDTH_SCALE = 2.2;
+
+    // The count banner's own texture aspect (width / height), used to turn
+    // its row width into its rendered height so it can be positioned before
+    // the texture has actually loaded. Keep in sync with billboard.png's
+    // real dimensions if that asset changes.
+    const COUNT_BANNER_ASPECT = 687 / 730; // billboard.png
+
+    // Same trick for the day banner, needed to work out its rendered height
+    // so the lanterns hanging off its pole (see below) can be positioned
+    // relative to it.
+    const DAY_BANNER_ASPECT = 2172 / 724; // banner_large_2.png
+
+    // Per-row width, as a fraction of the panel width, so rows can differ in
+    // size if wanted.
+    const DAY_WIDTH_SCALE = 0.75;
+    const COUNT_WIDTH_SCALE = 0.8;
+
+    // How far in front of the day banner the seats view sits when the banner
+    // is floating over it at screen-centre, so tokens always draw on top.
+    const DAY_Z_LIFT = 0.1;
+    // How far behind the day banner itself (but still in front of the
+    // seats, at PANEL.z) the lanterns/ropes hanging off its pole sit.
+    const LANTERN_Z_RECESS = 0.05;
+    // Nudges the day banner up from dead-centre, as a fraction of
+    // `visibleHeight` - the seats view itself stays centred on the full
+    // screen; only the banner floating over it shifts.
+    const DAY_CENTER_LIFT_FRACTION = 0.06;
+
+    // A pair of lanterns hang off the two ends of the day banner's pole
+    // (banner_large.png's rod extends past the cloth on both sides, tipped
+    // with a spearpoint finial), each on a short length of rope. Sizes are
+    // a fraction of the panel width; LANTERN_ASPECT is lantern.png's own
+    // aspect, needed to work out rendered height before the texture loads.
+    const LANTERN_WIDTH_SCALE = 0.32 * 0.6 * 0.55 * 1.3;
+    const LANTERN_ASPECT = 512 / 768; // lantern.png
+    // Shrinks the rendered lantern ~10% without moving its top edge (where
+    // the rope meets it) - see `lanternY` below, which re-derives the centre
+    // from the pre-shrink top edge using this smaller width/height.
+    const LANTERN_SIZE_SCALE = 0.9;
+
+    // Where the pole sits, as a fraction of the day banner's own rendered
+    // height below its top edge, and how far out its ends reach, as a
+    // fraction of the day banner's half-width - both read off
+    // banner_large.png (a 1034x314 image; the rod's centre sits roughly
+    // 20px down, and its spear tips reach almost to the image edges).
+    const POLE_Y_INSET_FRACTION = 0.065;
+    const POLE_EDGE_X_FRACTION = 0.855;
+
+    // Rope length/thickness, relative to the lantern's own width. Shorter
+    // than it once was, so the lanterns hang closer to the panel/pole
+    // instead of dangling well below it.
+    const ROPE_LENGTH_SCALE = 1.8;
+    const ROPE_THICKNESS_SCALE = 0.12;
+    // Nudges the lantern up so its top overlaps the rope's bottom end
+    // (where its ring would attach) instead of just touching it.
+    const LANTERN_ROPE_OVERLAP_SCALE = 0.11;
+
+    // The camera is always centred on world (0,0) and shows `visibleHeight`
+    // world-units vertically, and every size in this panel is a fraction of
+    // `visibleHeight` - so the panel's own size tracks the screen's height
+    // only, never its width. `SCREEN_WIDTH_FACTOR` is just the reference
+    // width (in the same height-relative units) that `widthFraction` below
+    // was tuned against - it does not depend on the real visible width.
+    const SCREEN_WIDTH_FACTOR = 2;
+
+    // Portrait layout (screen taller than wide): the seats view and the
+    // loric/fabled/travellers list are dropped, and the day/time banner and
+    // count banner are centred horizontally - the day banner pinned to the
+    // top of the screen (margin as a fraction of visibleHeight), the count
+    // banner staying at the bottom. Neither banner is allowed wider than
+    // this fraction of the real screen width, so they still fit on narrow
+    // phones.
+    const PORTRAIT_DAY_TOP_MARGIN_FRACTION = 0.03;
+    const PORTRAIT_MAX_WIDTH_FRACTION = 0.9;
+
+    let {
+        day,
+        progress,
+        totalTime,
+        counts,
+        visibleHeight,
+        // The tower's rightward shift; the panel mirrors it to the left so
+        // the scene reads as centred. Same default as ClocktowerScene. This
+        // is the one thing allowed to shrink on narrow screens (see
+        // Scene.svelte) - it only repositions the panel toward centre
+        // (overlapping the tower if needed), it never resizes it.
+        horizontalOffset = visibleHeight * 0.4,
+        // Screen is taller than it is wide - see the PORTRAIT_* notes above.
+        portrait = false,
+        // Whether this game has a virtual grimoire set up - some tables run
+        // without one. Without a grim there's no player-seats view to show,
+        // so the count banner stacks under the day banner in one panel
+        // instead of moving to the right edge; with one, the day banner
+        // floats at screen-centre and the seats view fills the panel's
+        // whole column behind it (see `grimoireState`/`script` below).
+        hasGrim = false,
+        grimoireState = null,
+        script = null,
+        qrCodes = [],
+        qrScale = 1
+    }: {
+        day: number;
+        // Day progress 0..1 and the day's total length in seconds - together
+        // they give the time remaining shown on the top banner.
+        progress: number;
+        totalTime: number;
+        counts: PlayerCounts;
+        visibleHeight: number;
+        horizontalOffset?: number;
+        portrait?: boolean;
+        hasGrim?: boolean;
+        grimoireState?: GrimoireStateHistory | null;
+        script?: ScriptWithCharacters | null;
+        // Used only to nudge the loric/fabled list in from the right edge
+        // when a QR code is anchored near it (see `sideRolesRightMargin`).
+        qrCodes?: QrCode[];
+        qrScale?: number;
+    } = $props();
+
+    // Whether at least one player is actually seated on the board (as
+    // opposed to `hasGrim`, which is true as soon as a grim exists at all,
+    // even one with nobody placed yet) - this, not `hasGrim`, decides
+    // whether the count banner moves out to the side (see `rows` below).
+    const seatTokens = $derived(filterSeatTokens(grimoireState, script));
+    // Seats are never shown in portrait, so the portrait layout wins over
+    // the seated one below. They also need a screen at least
+    // SEATS_MIN_ASPECT wide (width / height) to fit beside the tower -
+    // narrower screens fall back to the stacked no-seats panel.
+    const SEATS_MIN_ASPECT = 3 / 2;
+    const { size } = useThrelte();
+    const hasSeatTokens = $derived(
+        !portrait && $size.width / $size.height >= SEATS_MIN_ASPECT && seatTokens.length > 0
+    );
+
+    // Loric and fabled in the game: a single vertical list at the top-right
+    // rather than seated, each row showing the character's icon plus its
+    // name/rules text (see SideRoleRow.svelte).
+    const sideRoles = $derived(sideRoleCharacters(grimoireState, script));
+    // Margin from the screen's top/right edges, as a fraction of visibleHeight.
+    const SIDE_ROLES_MARGIN_FRACTION = 0.027;
+    // List width (icon + name/rules text), as a fraction of visibleHeight.
+    const SIDE_ROLES_LIST_WIDTH_FRACTION = 0.39;
+    // Each row's height, as a fraction of visibleHeight - shrunk (down to
+    // the min) so a longer list still fits the space below the title.
+    const SIDE_ROLE_ROW_MAX_HEIGHT_FRACTION = 0.15;
+    const SIDE_ROLE_ROW_MIN_HEIGHT_FRACTION = 0.03;
+    const SIDE_ROLE_ROW_GAP_FRACTION = 0.006;
+    const SIDE_ROLES_TITLE_HEIGHT_FRACTION = 0.03;
+    // Extra breathing room between the title and the first row, as a
+    // fraction of visibleHeight - SideRolesTitle's own canvas has little
+    // padding below the glyphs, so without this the first row's background
+    // panel reads as touching (or overlapping) the title text.
+    const SIDE_ROLES_TITLE_GAP_FRACTION = 0.025;
+    const sideRolesTitle = $derived.by(() => {
+        const parts = [
+            sideRoles.some(c => c.category === "loric") && "Loric",
+            sideRoles.some(c => c.category === "fabled") && "Fabled",
+            sideRoles.some(c => c.category === "traveler") && "Travellers"
+        ].filter((p): p is string => !!p);
+        if (parts.length <= 1) return parts[0] ?? "";
+        return `${parts.slice(0, -1).join(", ")} & ${parts[parts.length - 1]}`;
+    });
+
+    // QR codes anchored at the top-right corner or the right edge sit in
+    // (or near) the same space as this list; when any are configured, pull
+    // the list's right edge in by their own width/margin (see
+    // SceneQrCodes.svelte, whose values these mirror) so the two don't overlap.
+    const QR_CODE_WIDTH_FRACTION = 0.12;
+    const QR_CODE_MARGIN_FRACTION = 0.018;
+    const hasRightQrCodes = $derived(
+        qrCodes.some(c => c.position === "top-right" || c.position === "right")
+    );
+    const sideRolesRightMargin = $derived(
+        visibleHeight * SIDE_ROLES_MARGIN_FRACTION +
+        (hasRightQrCodes ? visibleHeight * (QR_CODE_WIDTH_FRACTION * qrScale + QR_CODE_MARGIN_FRACTION) : 0)
+    );
+
+    // Time remaining as M:SS (clamped at 0).
+    const timeLabel = $derived.by(() => {
+        const secs = Math.max(0, Math.round(totalTime * (1 - progress)));
+        const m = Math.floor(secs / 60);
+        const s = secs % 60;
+        return `${m}:${String(s).padStart(2, "0")}`;
+    });
+
+    // The real visible half-width, in the same world units as everything
+    // else here - unlike `screenWidth` below (a fixed design reference used
+    // for tuning fractions), this tracks the actual canvas aspect so the
+    // count banner can be pinned to the real right edge of the screen. See
+    // OrthoCamera.svelte: zoom = size.height / visibleHeight, and 1 world
+    // unit = 1px at zoom 1, so half the real width in world units is
+    // visibleHeight * (size.width / size.height) / 2.
+    const realHalfWidth = $derived(visibleHeight * ($size.width / $size.height) / 2);
+
+    const screenWidth = $derived(visibleHeight * SCREEN_WIDTH_FACTOR);
+    const panelW = $derived.by(() => {
+        const designW = screenWidth * PANEL.widthFraction;
+        if (!portrait) return designW;
+        const maxRowW = realHalfWidth * 2 * PORTRAIT_MAX_WIDTH_FRACTION;
+        return Math.min(designW, maxRowW / Math.max(DAY_WIDTH_SCALE, COUNT_WIDTH_SCALE));
+    });
+    const panelX = $derived(portrait ? 0 : -horizontalOffset * PANEL.mirror + screenWidth * PANEL.nudgeX);
+
+    // The panel spans the full screen height. Without any seated players,
+    // the count banner's bottom edge sits flush with the bottom of the
+    // screen and the day banner is centred in whatever vertical space is
+    // left above it, up to the top edge of the screen - a single stacked
+    // panel. With at least one seated player, the day banner instead floats
+    // at screen-centre height (count banner still pinned to the real right
+    // edge separately - see `countX` below) and the seats view takes the
+    // panel's whole column, top to bottom, underneath it. The camera is
+    // centred on world (0,0) and shows
+    // `visibleHeight` world-units vertically, so the screen's top/bottom
+    // edges sit at +/- visibleHeight / 2.
+    const rows = $derived.by(() => {
+        const dayW = panelW * DAY_WIDTH_SCALE;
+        const dayH = dayW / DAY_BANNER_ASPECT;
+        const countW = panelW * COUNT_WIDTH_SCALE;
+        const countH = countW / COUNT_BANNER_ASPECT;
+
+        const screenTop = visibleHeight / 2;
+        const screenBottom = -visibleHeight / 2;
+
+        let dayY: number;
+        let countX: number;
+        let countY: number;
+        let seatsArea: { x: number; y: number; width: number; height: number } | null = null;
+
+        if (portrait) {
+            dayY = screenTop - visibleHeight * PORTRAIT_DAY_TOP_MARGIN_FRACTION - dayH / 2;
+            countY = screenBottom + countH / 2 - (countH/6);
+            countX = panelX;
+        } else if (hasSeatTokens) {
+            dayY = visibleHeight * DAY_CENTER_LIFT_FRACTION;
+            countY = screenBottom + countH / 2 - (countH/6);
+            countX = realHalfWidth - screenWidth * COUNT_RIGHT_MARGIN_FRACTION - countW / 2;
+
+            seatsArea = {
+                x: panelX,
+                y: 0,
+                width: panelW * SEATS_WIDTH_SCALE,
+                height: visibleHeight
+            };
+        } else {
+            countY = screenBottom + countH / 2 - (countH/6);
+            const countTop = countY + countH / 2;
+            countX = panelX;
+            dayY = (screenTop + countTop) / 2;
+        }
+
+        const dayTop = dayY + dayH / 2;
+
+        // The pole's own y, and how far out (each side) its ends reach.
+        const poleY = dayTop - dayH * POLE_Y_INSET_FRACTION;
+        const poleEdgeX = (dayW / 2) * POLE_EDGE_X_FRACTION;
+
+        // Rope length/thickness and the top edge the lantern hangs from are
+        // all worked out at the pre-shrink width, so shrinking the lantern
+        // itself (LANTERN_SIZE_SCALE) doesn't also shorten the rope or move
+        // where it meets the lantern.
+        const lanternRefW = panelW * LANTERN_WIDTH_SCALE;
+        const ropeLength = lanternRefW * ROPE_LENGTH_SCALE;
+        const ropeThickness = lanternRefW * ROPE_THICKNESS_SCALE;
+        const lanternTopY = poleY - ropeLength;
+        const lanternTopEdgeY = lanternTopY + lanternRefW * LANTERN_ROPE_OVERLAP_SCALE;
+
+        const lanternW = lanternRefW * LANTERN_SIZE_SCALE;
+        const lanternH = lanternW / LANTERN_ASPECT;
+        const lanternY = lanternTopEdgeY - lanternH / 2;
+
+        // The day banner stays at the panel depth; with a grim the seats
+        // view is lifted in front of it (see DAY_Z_LIFT) so tokens overlap it.
+        const dayZ = PANEL.z;
+        // The lanterns/ropes stay just behind the banner itself (rather than
+        // level with it), tucked behind the panel they hang off of.
+        const lanternZ = dayZ - LANTERN_Z_RECESS;
+
+        return {
+            day: { x: panelX, y: dayY, width: dayW },
+            count: { x: countX, y: countY, width: countW },
+            lanterns: [
+                { x: panelX - poleEdgeX, y: lanternY, width: lanternW },
+                { x: panelX + poleEdgeX, y: lanternY, width: lanternW }
+            ],
+            ropes: [
+                { x: panelX - poleEdgeX, topY: poleY, bottomY: lanternTopY, thickness: ropeThickness },
+                { x: panelX + poleEdgeX, topY: poleY, bottomY: lanternTopY, thickness: ropeThickness }
+            ],
+            dayZ,
+            lanternZ,
+            seatsArea
+        };
+    });
+
+</script>
+
+<TextBanner
+    content={timeLabel}
+    subtitle={`Time Remaining`}
+    {visibleHeight}
+    placement={rows.day}
+    z={rows.dayZ}
+/>
+<PlayerCountBanner {counts} {visibleHeight} placement={rows.count} z={PANEL.z} />
+{#if hasSeatTokens}
+    <!-- Only with at least one seated player does the count banner get
+         pinned out to the real screen edge, away from the tower the sun/moon
+         lights are aimed at (see `rows` above) - without one it stacks under
+         the day banner in the main panel, already lit like the rest of it. -->
+    <T.PointLight
+        position={[rows.count.x, rows.count.y, PANEL.z + COUNT_LIGHT_Z_FORWARD]}
+        intensity={COUNT_LIGHT_INTENSITY}
+        distance={rows.count.width * COUNT_LIGHT_DISTANCE_SCALE}
+        color={`rgb(${LANTERN_GLOW_COLOR.r}, ${LANTERN_GLOW_COLOR.g}, ${LANTERN_GLOW_COLOR.b})`}
+        decay={1}
+    />
+{/if}
+{#each rows.ropes as rope, i (i)}
+    <RopeChain {...rope} z={rows.lanternZ} />
+{/each}
+{#each rows.lanterns as lantern, i (i)}
+    <Lantern {visibleHeight} placement={lantern} {progress} z={rows.lanternZ} />
+{/each}
+{#if rows.seatsArea}
+    <PlayerSeats area={rows.seatsArea} {grimoireState} {script} {visibleHeight} z={rows.dayZ + DAY_Z_LIFT} />
+{/if}
+{#if !portrait && hasGrim && sideRoles.length > 0}
+    {@const listWidth = visibleHeight * SIDE_ROLES_LIST_WIDTH_FRACTION}
+    {@const titleH = visibleHeight * SIDE_ROLES_TITLE_HEIGHT_FRACTION}
+    {@const titleGap = visibleHeight * SIDE_ROLES_TITLE_GAP_FRACTION}
+    {@const right = realHalfWidth - sideRolesRightMargin}
+    {@const top = visibleHeight / 2 - visibleHeight * SIDE_ROLES_MARGIN_FRACTION}
+    {@const gap = visibleHeight * SIDE_ROLE_ROW_GAP_FRACTION}
+    {@const maxRowH = visibleHeight * SIDE_ROLE_ROW_MAX_HEIGHT_FRACTION}
+    {@const minRowH = visibleHeight * SIDE_ROLE_ROW_MIN_HEIGHT_FRACTION}
+    {@const availableH = Math.max(0, top + visibleHeight / 2 - titleH - titleGap)}
+    {@const naturalRowH = (availableH - gap * (sideRoles.length - 1)) / sideRoles.length}
+    {@const rowH = Math.max(minRowH, Math.min(maxRowH, naturalRowH))}
+    {@const listX = right - listWidth / 2}
+    <SideRolesTitle
+        text={sideRolesTitle}
+        width={listWidth}
+        anchor={{ x: listX, y: top }}
+        z={PANEL.z}
+    />
+    {#each sideRoles as character, i (character.id)}
+        <SideRoleRow
+            {character}
+            placement={{
+                x: listX,
+                y: top - titleH - titleGap - rowH / 2 - i * (rowH + gap),
+                width: listWidth,
+                height: rowH
+            }}
+            z={PANEL.z}
+        />
+    {/each}
+{/if}

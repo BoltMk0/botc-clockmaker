@@ -1,0 +1,42 @@
+export const QR_POSITIONS = [
+    'top-left', 'top', 'top-right',
+    'left', 'right',
+    'bottom-left', 'bottom', 'bottom-right',
+] as const;
+
+export type QrPosition = typeof QR_POSITIONS[number];
+
+export const DEFAULT_QR_POSITION: QrPosition = 'bottom-left';
+
+export function isQrPosition(value: unknown): value is QrPosition {
+    return typeof value === 'string' && (QR_POSITIONS as readonly string[]).includes(value);
+}
+
+export const QR_POSITION_LABELS: Record<QrPosition, string> = {
+    'top-left': 'Top left',
+    'top': 'Top',
+    'top-right': 'Top right',
+    'left': 'Left',
+    'right': 'Right',
+    'bottom-left': 'Bottom left',
+    'bottom': 'Bottom',
+    'bottom-right': 'Bottom right',
+};
+
+export type QrCode = {
+    url: string;
+    title: string;
+    position: QrPosition;
+};
+
+export function isQrCode(value: unknown): value is QrCode {
+    return typeof value === 'object' && value !== null &&
+        'url' in value && typeof (value as QrCode).url === 'string' &&
+        'title' in value && typeof (value as QrCode).title === 'string' &&
+        'position' in value && isQrPosition((value as QrCode).position);
+}
+
+/** The town square's script QR: links players to the public viewer for the game's script (/script/[id]). */
+export function scriptQrCode(script: { id: string; name: string }, position: QrPosition): QrCode {
+    return { url: `/script/${encodeURIComponent(script.id)}`, title: script.name, position };
+}

@@ -1,0 +1,752 @@
+import { EventEmitter } from "node:events";
+import { env } from "$env/dynamic/private";
+import type { SpotifyControlAction, SpotifyModel, SpotifyPlaybackModel } from "$lib/audio/common/model/spotifyModel";
+import { DIM_FADE_MS, type AudioDimModel } from "$lib/audio/common/model/audioDimModel";
+import { getAudioDimHelperInstance } from "../AudioDim/AudioDimHelper";
+import { getTimeOfDayTrimHelperInstance } from "../TimeOfDayTrim/TimeOfDayTrimHelper";
+import { getMixerMastersHelperInstance } from "../MixerMasters/MixerMastersHelper";
+import { isAdaptivePresetContext, isSameSpotifyContext, isSpotifyContextUri, isSpotifyCountdownPreset, isSpotifyFollowingPreset, type CountdownPhase, type SpotifyFollowingPreset } from "$lib/audio/common/spotifyPreset";
+import { JSONSingletonResourceManager } from "$lib/resources/server/jsonResourceManager";
+import { getSpotifyPresets } from "$lib/resources/server/spotifyPresets";
+import { getBOTCTClockInstanceManager } from "../model";
+import { getMusicHelperInstance } from "../Music/MusicHelper";
+import type { TimeOfDay } from "$lib/model/client/types";
+
+type SpotifyAuth = { refreshToken: string };
+
+function isSpotifyAuth(value: unknown): value is SpotifyAuth {
+    return typeof value === 'object' && value !== null && typeof (value as SpotifyAuth).refreshToken === 'string';
+}
+
+const AUTH_MANAGER = new JSONSingletonResourceManager<SpotifyAuth>('spotify_auth', isSpotifyAuth);
+
+const SCOPES = ['streaming', 'user-read-email', 'user-read-private', 'user-modify-playback-state', 'user-read-playback-state'];
+/** The host reports in every few seconds; if it goes quiet for this long its claim lapses and another client may take over. */
+const HOST_TIMEOUT_MS = 15000;
+/** Fade-out time when switching playlists. */
+const FADE_MS = 1200;
+/** Fade-out time when an adaptive playlist switches to the new phase's list - longer, as it's not something the user just clicked. */
+const PHASE_SWITCH_FADE_MS = 2000;
+/** How long to wait for the player to report the new playlist before giving up and restoring volume anyway. */
+const SWITCH_TIMEOUT_MS = 4000;
+/** Step interval of the volume fades. Steps go straight to the host's player (see setDeviceVolume), not to Spotify, so can be fine. */
+const FADE_STEP_MS = 25;
+/** How long the volume takes to move to the new phase's time-of-day trim - in step with the mixer's own fade. */
+const TRIM_FADE_MS = 3000;
+const HOST_CHECK_INTERVAL_MS = 5000;
+/** How often to check the games' phase (for adaptive playlists and the time-of-day trim). */
+const PHASE_CHECK_INTERVAL_MS = 250;
+
+export class SpotifyHelper extends EventEmitter {
+    #hostClientId: string | null = null;
+    #hostDeviceId: string | null = null;
+    #hostLastSeen = 0;
+    #hostCheckTimer: ReturnType<typeof setInterval> | null = null;
+    #playback: SpotifyPlaybackModel | null = null;
+    #volume = 50;
+    #fadeToken = 0;
+    #pendingContextUri: string | null = null;
+    /** The shared audio dim, applied to every volume we send to Spotify, in dB (0, or ramping to/from -amountDb). */
+    #dimDb = 0;
+    #dimModel: AudioDimModel;
+    #dimToken = 0;
+    #dimRamping = false;
+    /** True while a playlist switch is fading/starting, so a dim change doesn't fight the fade. */
+    #switching = false;
+    /** The adaptive (or countdown) playlist last started, if it's still the thing selected. */
+    #adaptivePresetId: string | null = null;
+    /**
+     * What the selected playlist was last switched for: the phase, for an adaptive playlist, or for a countdown playlist,
+     * which of its lists (or 'silent').
+     */
+    #phaseKey: TimeOfDay | CountdownPhase | 'silent' | null = null;
+    /** Whether an adaptive (or countdown) playlist has paused itself for a silent spell, so resumes by itself when it ends. */
+    #silenced = false;
+    /** The preset to switch to at the next change of the games' phase. */
+    #scheduledPresetId: string | null = null;
+    /**
+     * The shared time-of-day trim (on the Music & Ambience master) currently applied to every volume we send, in dB.
+     * Applied here rather than by the mixers, so that it and a playlist switch's fades are one ramp, not two fighting.
+     */
+    #trimDb: number;
+    /** The phase whose trim #trimDb is at, or ramping towards. */
+    #trimTimeOfDay: TimeOfDay;
+    #trimToken = 0;
+    #trimRamping = false;
+    /** The volume (0..1, master gain, dim and trim included) last sent to the host's player. */
+    #deviceVolume: number | null = null;
+
+    constructor() {
+        super();
+        const dim = getAudioDimHelperInstance();
+        this.#dimModel = dim.model;
+        this.#dimDb = this.targetDimDb();
+        dim.on('update', (model) => {
+            const dimmedChanged = model.dimmed !== this.#dimModel.dimmed;
+            this.#dimModel = model;
+            if (dimmedChanged) {
+                this.rampDim();
+            } else if (!this.#dimRamping) {
+                // The amount being changed is followed straight away (a ramp in progress picks it up as it goes)
+                this.#dimDb = this.targetDimDb();
+                this.applyLevelChange('audio dim');
+            }
+        });
+
+        this.#trimTimeOfDay = getBOTCTClockInstanceManager().timeOfDay;
+        this.#trimDb = this.targetTrimDb();
+        getTimeOfDayTrimHelperInstance().on('update', () => {
+            // A ramp or switch in progress picks the new value up as it goes
+            if (this.#trimRamping || this.#switching) return;
+            this.#trimDb = this.targetTrimDb();
+            this.applyLevelChange('time-of-day trim');
+        });
+
+        getMixerMastersHelperInstance().on('update', () => this.applyLevelChange('master gain'));
+
+        const phaseTimer = setInterval(() => this.checkPhase(), PHASE_CHECK_INTERVAL_MS);
+        phaseTimer.unref?.();
+    }
+
+    /** Re-sends the volume after the master gain, dim or trim changes - unless a fade is under way, which applies it itself. */
+    private applyLevelChange(what: string) {
+        const deviceId = this.#hostDeviceId;
+        if (deviceId === null || this.#switching || this.#trimRamping) return;
+        this.setDeviceVolume(`device_id=${encodeURIComponent(deviceId)}`, this.#volume)
+            .catch((e) => console.error(`Failed to apply ${what} to Spotify`, e));
+    }
+
+    #accessToken: string | null = null;
+    #accessTokenExpiresAt = 0;
+
+    on(eventName: 'update', listener: (model: SpotifyModel) => void): this;
+    /** The host's player should set its volume to this (0..1). */
+    on(eventName: 'deviceVolume', listener: (hostClientId: string, volume: number) => void): this;
+    on(eventName: string | symbol, listener: (...args: any[]) => void): this {
+        return super.on(eventName, listener);
+    }
+
+    get configured() { return !!env.SPOTIFY_CLIENT_ID && !!env.SPOTIFY_CLIENT_SECRET; }
+    get authorized() { return AUTH_MANAGER.value !== null; }
+
+    get model(): SpotifyModel {
+        return {
+            configured: this.configured,
+            authorized: this.authorized,
+            hostClientId: this.#hostClientId,
+            hostReady: this.#hostClientId !== null && this.#hostDeviceId !== null,
+            volume: this.#volume,
+            playback: this.#playback,
+            pendingContextUri: this.#pendingContextUri,
+            adaptivePresetId: this.#adaptivePresetId,
+            adaptivePresetSilent: this.#silenced,
+            scheduledPresetId: this.#scheduledPresetId
+        };
+    }
+
+    private changed() {
+        this.emit('update', this.model);
+    }
+
+    // ---- Account linking (authorization code flow) ----
+
+    authorizeUrl(redirectUri: string, state: string): string {
+        if (!this.configured) throw new Error('Spotify is not configured on the server');
+        const params = new URLSearchParams({
+            response_type: 'code',
+            client_id: env.SPOTIFY_CLIENT_ID!,
+            scope: SCOPES.join(' '),
+            redirect_uri: redirectUri,
+            state
+        });
+        return `https://accounts.spotify.com/authorize?${params}`;
+    }
+
+    async completeAuth(code: string, redirectUri: string) {
+        const body = await this.tokenRequest({ grant_type: 'authorization_code', code, redirect_uri: redirectUri });
+        if (typeof body.refresh_token !== 'string') throw new Error('Spotify did not return a refresh token');
+        AUTH_MANAGER.save({ refreshToken: body.refresh_token });
+        this.storeAccessToken(body);
+        this.changed();
+    }
+
+    private async tokenRequest(params: Record<string, string>) {
+        const basic = Buffer.from(`${env.SPOTIFY_CLIENT_ID}:${env.SPOTIFY_CLIENT_SECRET}`).toString('base64');
+        const res = await fetch('https://accounts.spotify.com/api/token', {
+            method: 'POST',
+            headers: { 'Authorization': `Basic ${basic}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams(params)
+        });
+        if (!res.ok) throw new Error(`Spotify token request failed: ${res.status} ${await res.text()}`);
+        return await res.json();
+    }
+
+    private storeAccessToken(body: { access_token: string, expires_in: number }) {
+        this.#accessToken = body.access_token;
+        this.#accessTokenExpiresAt = Date.now() + body.expires_in * 1000;
+    }
+
+    async getAccessToken(): Promise<string> {
+        if (!this.configured) throw new Error('Spotify is not configured on the server');
+        const auth = AUTH_MANAGER.value;
+        if (!auth) throw new Error('No Spotify account linked');
+        // Refresh a minute early so a token can't expire mid-request
+        if (this.#accessToken === null || Date.now() > this.#accessTokenExpiresAt - 60000) {
+            const body = await this.tokenRequest({ grant_type: 'refresh_token', refresh_token: auth.refreshToken });
+            this.storeAccessToken(body);
+            // Spotify only sometimes rotates the refresh token
+            if (typeof body.refresh_token === 'string' && body.refresh_token !== auth.refreshToken) {
+                AUTH_MANAGER.save({ refreshToken: body.refresh_token });
+            }
+        }
+        return this.#accessToken!;
+    }
+
+    unlink() {
+        this.releaseHostInternal();
+        AUTH_MANAGER.clear();
+        this.#accessToken = null;
+        this.changed();
+    }
+
+    // ---- Player host (the one client that runs the Web Playback SDK) ----
+
+    /** Claims the player for a client. Throws if another client holds a live claim. */
+    claimHost(clientId: string) {
+        if (!this.authorized) throw new Error('No Spotify account linked');
+        this.expireStaleHost();
+        if (this.#hostClientId !== null && this.#hostClientId !== clientId) {
+            throw new Error('Another client is already running the Spotify player');
+        }
+        // The two share the mixer's music strip, so only one runs at a time
+        if (getMusicHelperInstance().model.hostClientId !== null) throw new Error('The music player is running. Stop it first');
+        if (this.#hostClientId !== clientId) {
+            this.#hostClientId = clientId;
+            this.#hostDeviceId = null;
+            this.#playback = null;
+            this.#hostCheckTimer = setInterval(() => this.expireStaleHost(true), HOST_CHECK_INTERVAL_MS);
+            this.#hostCheckTimer.unref?.();
+        }
+        this.#hostLastSeen = Date.now();
+        this.changed();
+    }
+
+    releaseHost(clientId: string) {
+        if (this.#hostClientId !== clientId) return;
+        this.releaseHostInternal();
+        this.changed();
+    }
+
+    private releaseHostInternal() {
+        this.#hostClientId = null;
+        this.#hostDeviceId = null;
+        this.#playback = null;
+        this.#pendingContextUri = null;
+        this.#deviceVolume = null;
+        this.clearAdaptivePreset();
+        this.#scheduledPresetId = null;
+        if (this.#hostCheckTimer) {
+            clearInterval(this.#hostCheckTimer);
+            this.#hostCheckTimer = null;
+        }
+    }
+
+    private expireStaleHost(notify = false) {
+        if (this.#hostClientId !== null && Date.now() - this.#hostLastSeen > HOST_TIMEOUT_MS) {
+            console.log("Spotify host went quiet, releasing", this.#hostClientId);
+            this.releaseHostInternal();
+            if (notify) this.changed();
+        }
+    }
+
+    private assertHost(clientId: string) {
+        if (this.#hostClientId !== clientId) throw new Error('Not the Spotify player host');
+    }
+
+    /** Heartbeat from the host, optionally carrying its latest playback state. */
+    hostReport(clientId: string, report: { playback?: SpotifyPlaybackModel | null }) {
+        this.assertHost(clientId);
+        this.#hostLastSeen = Date.now();
+        if (report.playback !== undefined) {
+            this.#playback = report.playback;
+            // Something else was picked in Spotify itself, so the adaptive playlist is no longer selected
+            const adaptivePreset = this.adaptivePreset();
+            if (adaptivePreset && !this.#switching && report.playback?.playing && report.playback.contextUri &&
+                !isAdaptivePresetContext(adaptivePreset, report.playback.contextUri)) {
+                this.clearAdaptivePreset();
+            }
+            this.changed();
+        }
+    }
+
+    /** The host's SDK player is registered with Spotify: make it the active playback device. */
+    async hostReady(clientId: string, deviceId: string) {
+        this.assertHost(clientId);
+        this.#hostLastSeen = Date.now();
+        this.#hostDeviceId = deviceId;
+        await this.api('PUT', '/me/player', { device_ids: [deviceId], play: false });
+        // The SDK starts at the volume without the master gain, dim or trim
+        this.#deviceVolume = null;
+        await this.setDeviceVolume(`device_id=${encodeURIComponent(deviceId)}`, this.#volume);
+        this.changed();
+    }
+
+    /** Returns a token for the host's SDK. Only the current host may have one. */
+    async hostToken(clientId: string) {
+        this.assertHost(clientId);
+        this.#hostLastSeen = Date.now();
+        return await this.getAccessToken();
+    }
+
+    // ---- Remote control (any client) ----
+
+    async control(command: SpotifyControlAction) {
+        this.expireStaleHost(true);
+        const deviceId = this.#hostDeviceId;
+        if (deviceId === null) throw new Error('The Spotify player is not running');
+        const device = `device_id=${encodeURIComponent(deviceId)}`;
+        switch (command.action) {
+            case 'play':
+                // Played by hand, a silent adaptive (or countdown) playlist is just playing now (and the fade to silence left it at 0)
+                this.#silenced = false;
+                await this.setDeviceVolume(device, this.#volume);
+                await this.api('PUT', `/me/player/play?${device}`);
+                this.changed();
+                break;
+            case 'pause':
+                // Paused by hand, an adaptive (or countdown) playlist stays paused rather than coming back by itself, and nothing
+                // scheduled starts up at the next phase change either
+                this.#silenced = false;
+                this.#scheduledPresetId = null;
+                await this.api('PUT', `/me/player/pause?${device}`);
+                this.changed();
+                break;
+            case 'playContext':
+                if (!isSpotifyContextUri(command.uri)) throw new Error('Invalid album/playlist');
+                this.clearAdaptivePreset();
+                this.#scheduledPresetId = null; // Picked to play now instead
+                if (this.isLoadedContext(command.uri)) await this.resumeLoadedContext(device);
+                else await this.playContext(command.uri, device);
+                break;
+            case 'playAdaptivePreset':
+                this.#scheduledPresetId = null; // Picked to play now instead
+                await this.playAdaptivePreset(command.presetId, device);
+                break;
+            case 'schedulePreset':
+                if (command.presetId !== null && !getSpotifyPresets().some(p => p.id === command.presetId)) throw new Error('Unknown preset');
+                this.#scheduledPresetId = command.presetId;
+                this.changed();
+                break;
+            case 'next':
+                await this.api('POST', `/me/player/next?${device}`);
+                break;
+            case 'previous':
+                await this.api('POST', `/me/player/previous?${device}`);
+                break;
+            case 'volume': {
+                if (typeof command.volume !== 'number' || isNaN(command.volume)) throw new Error('Invalid volume');
+                const volume = Math.round(Math.min(100, Math.max(0, command.volume)));
+                this.#volume = volume;
+                // Mid-switch, the fades follow #volume as they go; setting it on the device now would cut across them
+                if (!this.#switching) await this.setDeviceVolume(device, volume);
+                this.changed();
+                break;
+            }
+            default:
+                throw new Error('Unknown action');
+        }
+    }
+
+    // ---- Adaptive playlists ----
+
+    /**
+     * Starts an adaptive (or countdown) playlist on its list for now - the current phase's, or for a countdown playlist,
+     * the countdown's or the night's - carrying on with it if it's already loaded, and keeps it following the phase from
+     * then on. Now having no list means silence: the player fades out and pauses until a time with a list comes round.
+     */
+    private async playAdaptivePreset(presetId: string, device: string, fadeOutMs = FADE_MS) {
+        const preset = getSpotifyPresets().find(p => p.id === presetId);
+        if (!preset || !isSpotifyFollowingPreset(preset)) throw new Error('Unknown ambient adaptive or day & night playlist');
+        const key = this.presetKey(preset);
+        this.#adaptivePresetId = presetId;
+        this.#phaseKey = key;
+        const uri = this.presetUriFor(preset, key);
+        if (uri === null) {
+            this.#silenced = true;
+            if (this.#playback?.playing) await this.fadeOutAndPause(device, fadeOutMs);
+            else this.changed();
+            return;
+        }
+        this.#silenced = false;
+        if (this.isLoadedContext(uri)) await this.resumeLoadedContext(device);
+        else await this.playContext(uri, device, { fadeOutMs });
+    }
+
+    /** What a following preset's list depends on: the phase, for an adaptive playlist, or the countdown, for a countdown one. */
+    private presetKey(preset: SpotifyFollowingPreset): TimeOfDay | CountdownPhase | 'silent' {
+        return isSpotifyCountdownPreset(preset) ? this.countdownPhase() : getBOTCTClockInstanceManager().timeOfDay;
+    }
+
+    /** The preset's list for that phase (or countdown state), or null for silence. */
+    private presetUriFor(preset: SpotifyFollowingPreset, key: TimeOfDay | CountdownPhase | 'silent'): string | null {
+        if (key === 'silent') return null;
+        return isSpotifyCountdownPreset(preset) ? preset.countdownUris[key as CountdownPhase] : preset.phaseUris[key as TimeOfDay];
+    }
+
+    /** Which of a countdown playlist's lists plays now: day while a countdown runs, night at night, otherwise none. */
+    private countdownPhase(): CountdownPhase | 'silent' {
+        const manager = getBOTCTClockInstanceManager();
+        if (manager.countdownRunning) return 'day';
+        return manager.timeOfDay === 'night' ? 'night' : 'silent';
+    }
+
+    /**
+     * When the games' phase changes, moves the volume to the new phase's time-of-day trim - as part of the adaptive
+     * playlist's switch to the new phase's list, if there is one (fade out, switch, start at the new level), or
+     * otherwise as a fade of its own. A countdown playlist also follows the countdown starting and stopping.
+     */
+    private checkPhase() {
+        const timeOfDay = getBOTCTClockInstanceManager().timeOfDay;
+        // Updated first, so a switch started below comes in at the new phase's trim
+        const phaseChanged = timeOfDay !== this.#trimTimeOfDay;
+        this.#trimTimeOfDay = timeOfDay;
+        // A preset scheduled for the phase change takes over from whatever was following the phase
+        if (phaseChanged && this.#scheduledPresetId !== null) this.applyScheduledPreset();
+        const switching = this.followSelectedPreset();
+        // A switch starts the new playlist at the new phase's trim itself (see playContext)
+        if (phaseChanged && !switching && !this.#switching) this.rampTrim();
+    }
+
+    /**
+     * Switches to the preset scheduled for the phase change, fading over as the adaptive playlists do. Any preset kind:
+     * an adaptive or countdown playlist starts on its list for the new phase, and follows the phase from then on.
+     */
+    private applyScheduledPreset() {
+        const preset = getSpotifyPresets().find(p => p.id === this.#scheduledPresetId);
+        this.#scheduledPresetId = null;
+        const deviceId = this.#hostDeviceId;
+        if (!preset || deviceId === null) {
+            this.changed();
+            return;
+        }
+        console.log(`Spotify: phase changed, switching to the scheduled preset "${preset.name}"`);
+        const device = `device_id=${encodeURIComponent(deviceId)}`;
+        const fail = (e: unknown) => console.error('Failed to switch to the scheduled Spotify preset', e);
+        if (isSpotifyFollowingPreset(preset)) {
+            this.playAdaptivePreset(preset.id, device, PHASE_SWITCH_FADE_MS).catch(fail);
+        } else {
+            this.clearAdaptivePreset();
+            if (this.isLoadedContext(preset.uri)) this.resumeLoadedContext(device).catch(fail);
+            else this.playContext(preset.uri, device, { fadeOutMs: PHASE_SWITCH_FADE_MS }).catch(fail);
+        }
+    }
+
+    /** Has the selected adaptive or countdown playlist follow a change of phase. Returns whether it started a switch. */
+    private followSelectedPreset(): boolean {
+        if (this.#adaptivePresetId === null) return false;
+        const preset = this.adaptivePreset();
+        if (!preset) {
+            // Deleted in settings since it was started
+            this.clearAdaptivePreset();
+            this.changed();
+            return false;
+        }
+        const key = this.presetKey(preset);
+        if (key === this.#phaseKey) return false;
+        this.#phaseKey = key;
+        return this.followList(preset, key);
+    }
+
+    /**
+     * Moves an adaptive (or countdown) playlist on to its list for now: fading out and pausing for a silent spell (a
+     * time with no list), and starting (or resuming) the list when one comes round. One paused by hand is left alone
+     * (starting it again picks the list for then), as is one already on the right list. Returns whether it started a
+     * switch.
+     */
+    private followList(preset: SpotifyFollowingPreset, key: TimeOfDay | CountdownPhase | 'silent'): boolean {
+        const deviceId = this.#hostDeviceId;
+        if (deviceId === null || (!this.#playback?.playing && !this.#silenced)) return false;
+        const device = `device_id=${encodeURIComponent(deviceId)}`;
+        const uri = this.presetUriFor(preset, key);
+        if (uri === null) {
+            if (!this.#playback?.playing) return false;
+            console.log(`Spotify: "${preset.name}" going silent for ${key}`);
+            this.#silenced = true;
+            this.fadeOutAndPause(device, PHASE_SWITCH_FADE_MS)
+                .catch((e) => console.error('Failed to silence Spotify for the preset', e));
+            return true;
+        }
+        this.#silenced = false;
+        if (this.isLoadedContext(uri)) {
+            if (this.#playback?.playing) return false;
+            console.log(`Spotify: "${preset.name}" resuming for ${key}`);
+            this.resumeAtCurrentLevel(device)
+                .catch((e) => console.error('Failed to resume the preset', e));
+            return true;
+        }
+        console.log(`Spotify: "${preset.name}" switching to its ${key} list, ${uri}`);
+        this.playContext(uri, device, { fadeOutMs: PHASE_SWITCH_FADE_MS })
+            .catch((e) => console.error('Failed to switch Spotify playlist for the new phase', e));
+        return true;
+    }
+
+    /** Fades the player out and pauses it (an adaptive or countdown playlist's silent spell). Superseded by a newer switch. */
+    private async fadeOutAndPause(device: string, fadeOutMs = FADE_MS) {
+        const token = ++this.#fadeToken;
+        this.stopTrimRamp();
+        this.#switching = true;
+        this.changed();
+        try {
+            if (!await this.fadeOut(device, token, fadeOutMs)) return;
+            await this.api('PUT', `/me/player/pause?${device}`);
+        } finally {
+            // Left at 0 while paused; resuming brings the level back
+            if (token === this.#fadeToken) {
+                this.#switching = false;
+                this.changed();
+            }
+        }
+    }
+
+    /** Resumes the loaded list, at the current phase's level (a silent spell left the player at 0). */
+    private async resumeAtCurrentLevel(device: string) {
+        this.stopTrimRamp();
+        this.#trimDb = this.targetTrimDb();
+        await this.setDeviceVolume(device, this.#volume);
+        await this.api('PUT', `/me/player/play?${device}`);
+        this.changed();
+    }
+
+    // ---- Audio dim ----
+
+    private targetDimDb() {
+        return this.#dimModel.dimmed ? -this.#dimModel.amountDb : 0;
+    }
+
+    /**
+     * Fades from the current dim to the target, linear in dB, in step with the mixers' own dim fade. Only sends the
+     * volume while nothing else is fading it: a trim ramp or playlist switch reads #dimDb as it goes, so carries it.
+     */
+    private async rampDim() {
+        const token = ++this.#dimToken;
+        const startDb = this.#dimDb;
+        const start = Date.now();
+        this.#dimRamping = true;
+        try {
+            for (; ;) {
+                if (token !== this.#dimToken) return;
+                const t = Math.min(1, (Date.now() - start) / DIM_FADE_MS);
+                this.#dimDb = startDb + (this.targetDimDb() - startDb) * t;
+                this.applyLevelChange('audio dim');
+                if (t >= 1) return;
+                await new Promise(resolve => setTimeout(resolve, FADE_STEP_MS));
+            }
+        } finally {
+            if (token === this.#dimToken) this.#dimRamping = false;
+        }
+    }
+
+    // ---- Time-of-day trim ----
+
+    private targetTrimDb() {
+        return getTimeOfDayTrimHelperInstance().model[this.#trimTimeOfDay];
+    }
+
+    /** Fades from the current trim to the current phase's, linear in dB. Superseded by a newer ramp or a playlist switch. */
+    private async rampTrim() {
+        const token = ++this.#trimToken;
+        const startDb = this.#trimDb;
+        const start = Date.now();
+        this.#trimRamping = true;
+        try {
+            for (; ;) {
+                if (token !== this.#trimToken) return;
+                const t = Math.min(1, (Date.now() - start) / TRIM_FADE_MS);
+                // The target is read as we go, so a knob turned mid-fade is followed
+                const targetDb = this.targetTrimDb();
+                this.#trimDb = startDb + (targetDb - startDb) * t;
+                const deviceId = this.#hostDeviceId;
+                if (deviceId !== null) {
+                    await this.setDeviceVolume(`device_id=${encodeURIComponent(deviceId)}`, this.#volume)
+                        .catch((e) => console.error('Failed to fade Spotify to the time-of-day trim', e));
+                }
+                if (t >= 1) return;
+                await new Promise(resolve => setTimeout(resolve, FADE_STEP_MS));
+            }
+        } finally {
+            if (token === this.#trimToken) this.#trimRamping = false;
+        }
+    }
+
+    /** Stops a trim ramp where it is (a playlist switch takes over from there). */
+    private stopTrimRamp() {
+        this.#trimToken++;
+        this.#trimRamping = false;
+    }
+
+    private adaptivePreset(): SpotifyFollowingPreset | null {
+        if (this.#adaptivePresetId === null) return null;
+        const preset = getSpotifyPresets().find(p => p.id === this.#adaptivePresetId);
+        return preset && isSpotifyFollowingPreset(preset) ? preset : null;
+    }
+
+    private clearAdaptivePreset() {
+        this.#adaptivePresetId = null;
+        this.#phaseKey = null;
+        this.#silenced = false;
+    }
+
+    // ---- Switching playlists ----
+
+    /** Whether `uri` is the album/playlist already loaded in the player, or being switched to. */
+    private isLoadedContext(uri: string) {
+        return isSameSpotifyContext(this.#pendingContextUri ?? this.#playback?.contextUri, uri);
+    }
+
+    /**
+     * Picking a preset whose album/playlist is already loaded: carries on with it rather than fading out and restarting
+     * the same list. A switch already under way to it starts playback itself.
+     */
+    private async resumeLoadedContext(device: string) {
+        if (!this.#switching && !this.#playback?.playing) {
+            // A silent spell leaves the player at 0
+            await this.setDeviceVolume(device, this.#volume);
+            await this.api('PUT', `/me/player/play?${device}`);
+        }
+        this.changed();
+    }
+
+    /**
+     * Switches to a new album/playlist: fades the old one out (over `fadeOutMs`), then starts the new one at full volume.
+     * Spotify only has one active stream, so the two can't overlap. This is the only ramp while it runs: it takes over
+     * from any time-of-day trim fade, and comes back in at the current phase's trim.
+     */
+    private async playContext(uri: string, device: string, options: { fadeOutMs?: number } = {}) {
+        const token = ++this.#fadeToken; // A newer request supersedes this one, including mid-fade
+        const wasPlaying = this.#playback?.playing === true;
+        const before = this.#playback;
+        this.stopTrimRamp(); // The fade out carries on from wherever it had got to
+        this.#pendingContextUri = uri;
+        this.#switching = true;
+        this.changed();
+        try {
+            if (wasPlaying && !await this.fadeOut(device, token, options.fadeOutMs ?? FADE_MS)) return;
+            // Shuffle first, so playback of the new context starts on a random track
+            await this.api('PUT', `/me/player/shuffle?state=true&${device}`);
+            await this.api('PUT', `/me/player/play?${device}`, { context_uri: uri });
+            if (wasPlaying) {
+                // The play call returns before the player has actually switched, so restoring volume now would let the
+                // old track blast back in. Wait until the player reports the new playlist (and a new track).
+                await this.waitForSwitch(uri, before, token);
+                if (token === this.#fadeToken) {
+                    this.#trimDb = this.targetTrimDb();
+                    await this.setDeviceVolume(device, this.#volume);
+                }
+            } else if (token === this.#fadeToken) {
+                this.#trimDb = this.targetTrimDb();
+                await this.setDeviceVolume(device, this.#volume);
+            }
+        } catch (e) {
+            // Don't leave the player silent if we failed after fading out
+            if (token === this.#fadeToken) {
+                this.#trimDb = this.targetTrimDb();
+                await this.setDeviceVolume(device, this.#volume).catch(() => { });
+            }
+            throw e;
+        } finally {
+            // A newer request has already set its own pending playlist, which is not ours to clear
+            if (token === this.#fadeToken) {
+                this.#switching = false;
+                this.#pendingContextUri = null;
+                this.changed();
+            }
+        }
+    }
+
+    /** Resolves once the host reports playback from `uri` on a different track than before, or after a timeout / when superseded. */
+    private waitForSwitch(uri: string, before: SpotifyPlaybackModel | null, token: number) {
+        const switched = () => {
+            const now = this.#playback;
+            if (!now || !isSameSpotifyContext(now.contextUri, uri)) return false;
+            // Re-selecting the playing playlist keeps the context, so the track has to have changed too
+            return !isSameSpotifyContext(before?.contextUri, uri) || now.title !== before?.title;
+        };
+        return new Promise<void>(resolve => {
+            if (switched()) return resolve();
+            const finish = () => {
+                clearTimeout(timer);
+                this.off('update', check);
+                resolve();
+            };
+            const check = () => { if (switched() || token !== this.#fadeToken) finish(); };
+            const timer = setTimeout(finish, SWITCH_TIMEOUT_MS);
+            this.on('update', check);
+        });
+    }
+
+    /**
+     * Equal-power fade of the device volume from the chosen volume down to 0. Follows #volume as it goes, so a volume
+     * change mid-fade is folded in rather than cutting across it. Returns false if superseded by a newer request.
+     */
+    private async fadeOut(device: string, token: number, durationMs: number) {
+        const start = Date.now();
+        for (; ;) {
+            if (token !== this.#fadeToken) return false;
+            const t = Math.min(1, (Date.now() - start) / durationMs);
+            await this.setDeviceVolume(device, this.#volume * Math.cos(t * Math.PI / 2));
+            if (t >= 1) return true;
+            await new Promise(resolve => setTimeout(resolve, FADE_STEP_MS));
+        }
+    }
+
+    /** Multiplier from the shared master fader, dim and current time-of-day trim, applied to every volume we send. */
+    private levelFactor() {
+        return getMixerMastersHelperInstance().model.mainGain * Math.pow(10, (this.#dimDb + this.#trimDb) / 20);
+    }
+
+    /**
+     * Sets the host player's volume. Rather than through Spotify's Web API (a round trip to Spotify, rate limited), this
+     * goes straight to the host over the mixer events stream, and its SDK player sets the volume locally (see
+     * SpotifyPlayer) - quick and cheap enough for fine fade steps.
+     * @param volume The level the user chose (0..100); the master gain, dim and trim are applied here so callers needn't think about them.
+     */
+    private async setDeviceVolume(_device: string, volume: number) {
+        const hostClientId = this.#hostClientId;
+        if (hostClientId === null) return;
+        const effective = Math.min(1, Math.max(0, volume * this.levelFactor() / 100));
+        if (effective === this.#deviceVolume) return;
+        this.#deviceVolume = effective;
+        this.emit('deviceVolume', hostClientId, effective);
+    }
+
+    /** The volume the host's player should currently be at, for a (re)connecting host to pick up. */
+    get deviceVolume(): { hostClientId: string, volume: number } | null {
+        if (this.#hostClientId === null || this.#deviceVolume === null) return null;
+        return { hostClientId: this.#hostClientId, volume: this.#deviceVolume };
+    }
+
+    private async api(method: string, path: string, body?: object) {
+        const token = await this.getAccessToken();
+        const res = await fetch(`https://api.spotify.com/v1${path}`, {
+            method,
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                ...(body ? { 'Content-Type': 'application/json' } : {})
+            },
+            body: body ? JSON.stringify(body) : undefined
+        });
+        // 403 is Spotify's "already playing/paused" style restriction; the end state is what was asked for
+        if (!res.ok && res.status !== 403) {
+            throw new Error(`Spotify API ${method} ${path} failed: ${res.status} ${await res.text()}`);
+        }
+    }
+}
+
+var instance: SpotifyHelper;
+
+export function getSpotifyHelperInstance() {
+    if (instance === undefined) {
+        instance = new SpotifyHelper();
+    }
+    return instance;
+}

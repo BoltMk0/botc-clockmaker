@@ -5,11 +5,17 @@
         title,
         buttonTitle = title,
         visible = $bindable(false),
+        showButton = true,
+        showClose = true,
         children,
     }: {
         title: string;
         buttonTitle?: string;
         visible?: boolean;
+        /** Set to false to open the overlay only through `visible`, with no trigger button. */
+        showButton?: boolean;
+        /** Set to false to hide the title bar's Close button, e.g. when the content has its own Cancel. */
+        showClose?: boolean;
         children?: Snippet;
     } = $props();
 </script>
@@ -55,18 +61,22 @@
     }
 </style>
 
-<button class="button-style" onclick={()=>{visible = true;}}>
-    {buttonTitle}
-</button>
+{#if showButton}
+    <button class="button-style" onclick={()=>{visible = true;}}>
+        {buttonTitle}
+    </button>
+{/if}
 {#if visible}
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div class="overlay-background" onclick={()=>{visible = false;}} role="dialog" tabindex="-1">
         <div onclick={(e) => e.stopPropagation()} class="overlay-window" role="dialog" tabindex="-1">
             <div class="overlay-window-title">
                 <div style="font-size: large; text-align: left; padding: 5px 10px;">{title}</div>
+                {#if showClose}
                 <button onclick={()=>{visible = false;}} class="button-style close-button">
                     Close
                 </button>
+                {/if}
             </div>
             <div class="overlay-content">
                 {@render children?.()}

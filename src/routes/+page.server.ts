@@ -1,9 +1,6 @@
-import { listAmbienceResources } from "$lib/resources/server/ambience";
-import { getBOTCTClockInstanceManager } from "$lib/model/server/model";
+import { listRulesSlidesResoirces } from "$lib/resources/server/rules-slides";
 
-export async function load(){
-    const manager = getBOTCTClockInstanceManager();
-    const instances = manager.listInstances();
-    const ambienceResources = listAmbienceResources();
-    return { instances, ambienceResources };
+export async function load() {
+    // Only the count is needed - the home menu hides the Rules button when there are no slides
+    return { hasRulesSlides: listRulesSlidesResoirces().length > 0 };
 }

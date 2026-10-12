@@ -1,11 +1,12 @@
+import { isTimerOption } from '$lib/common/timerOption.js';
 import { getBOTCTClockInstanceManager } from '$lib/model/server/model';
+import { error } from '@sveltejs/kit';
 
 export async function POST({ request, params }) {
     const data = await request.json();
-    const duration: number = data.duration;
-    const ringBellAfter: number|null = data.ringBellAfter;
+    if(!isTimerOption(data)) return error(400, {message: 'Is not a valid timer option'});
     const manager = getBOTCTClockInstanceManager();
     const clock = manager.getInstance(params.clockid);
-    clock.setup(duration, {ringBellAfter});
+    clock.setup(data);
     return new Response(null, { status: 200 });
 }

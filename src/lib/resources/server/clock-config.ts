@@ -1,40 +1,71 @@
-import type { Resource } from "../common/types";
-import { deleteResource, findResourceByName, encodeResourceId, saveResource, listResources } from "./resources";
+import { NO_CLOCK_SFX } from "$lib/audio/common/clockSfxPreset";
+import type { LegacyResourceMapping } from "$lib/common/config";
+import { isClocktowerModel, type ClocktowerModel } from "$lib/model/common/ClocktowerModel";
+import { migrateLegacyClockSfx } from "./clock-sfx-presets";
+import { JSONMultiResourceManager } from "./jsonResourceManager";
+import { listResources, getResourceData, deleteResource } from "./resources";
 
-function clock_id_to_resource_name(clockid: string): string {
-    return `${clockid}`;
-}
-
-function clock_id_to_resource_id(clockid: string, mimeType: string): string {
-    return encodeResourceId('clockconfig', clock_id_to_resource_name(clockid), mimeType);
-}
-
-export function listClockConfigResources(): (Resource & {clockid: string})[] {
-    const configs = listResources('clockconfig');
-    console.debug(`Found ${configs.length} clockconfig resources`)
-    const result: (Resource & {clockid: string})[] = [];
-    for(const config of configs){
-        result.push({...config, clockid: config.name});
+/**
+ * Upgrades, in place, a saved model from before clock SFX presets (when each clock picked its own bells via
+ * config.resourceMapping), or from before the day/night phase was stored, so it validates. The upgraded model is written back on the clock's next autosave.
+ */
+function migrateLegacyModel(data: any) {
+    if(typeof data !== 'object' || data === null) return;
+    const config = data.config;
+    if(typeof config === 'object' && config !== null && config.clockSfxPresetId === undefined){
+        const mapping: Partial<LegacyResourceMapping> | undefined = config.resourceMapping;
+        config.clockSfxPresetId = migrateLegacyClockSfx(
+            mapping?.finalBell?.resource_id ?? null,
+            mapping?.reminderBell?.resource_id ?? null
+        );
+        delete config.resourceMapping;
     }
-    return result;
+    const audio = data.audio;
+    if(typeof audio === 'object' && audio !== null && audio.sfx === undefined){
+        audio.sfx = { ...NO_CLOCK_SFX }; // Filled in from the preset when the clock is loaded
+        delete audio.resources;
+    }
+    if(typeof audio?.sfx === 'object' && audio.sfx !== null && audio.sfx.startUrl === undefined){
+        audio.sfx.startUrl = null; // From before the start of day sound; also filled in when the clock is loaded
+    }
+    const clock = data.clock;
+    if(typeof clock === 'object' && clock !== null && clock.timeOfDay === undefined){
+        // From before the phase was stored: it was night once the timer had run out (or been ended)
+        const time = clock.time;
+        const ended = time?.duration === 0 ||
+            (typeof time?.serverStartTime === 'number' && Date.now() - time.serverStartTime >= time.duration * 1000);
+        clock.timeOfDay = ended ? 'night' : 'day';
+    }
 }
 
-export function getClockConfigResource(clockid: string): Resource | null {
-    const resource = findResourceByName(clock_id_to_resource_name(clockid), 'clockconfig');
-    if(resource == null) return null;
-    return resource;
+function isClocktowerModelMigrating(data: unknown): data is ClocktowerModel {
+    migrateLegacyModel(data);
+    return isClocktowerModel(data);
 }
 
-export function setClockConfigResource(clockid: string, data: Buffer, mimeType: string) {
-    const resourceId = clock_id_to_resource_id(clockid, mimeType);
-    if(resourceId == null) throw new Error(`Failed to generate resource ID for clock ${clockid}`);
-    saveResource(resourceId, data);
-}
+export const CLOCK_CONFIG_MANAGER = new JSONMultiResourceManager<ClocktowerModel>(
+    'clock-config',
+    isClocktowerModelMigrating,
+    (m) => m.clock.clockId,
+    true // A game save that fails to load is deleted
+);
 
-export function deleteClockConfigResource(clockid: string): boolean {
-    const resource = findResourceByName(clock_id_to_resource_name(clockid), 'clockconfig');
-    if(resource == null) return false;
+// One-time migration from the old flat-file clockconfig resources, so existing clock instances aren't lost. Each
+// old file is deleted once it's been handled (migrated or not), so deleted games can't be migrated back.
+for (const resource of listResources('clockconfig')) {
+    const data = getResourceData(resource);
+    try {
+        const model = data && JSON.parse(data.toString('utf-8'));
+        if (isClocktowerModelMigrating(model)) {
+            if (!CLOCK_CONFIG_MANAGER.get(model.clock.clockId)) {
+                CLOCK_CONFIG_MANAGER.add(model);
+                console.log(`Migrated legacy clock config for instance ${model.clock.clockId}`);
+            }
+        } else {
+            console.warn(`Legacy clock config resource ${resource.id} is invalid. Deleting it.`);
+        }
+    } catch (e) {
+        console.warn(`Failed to migrate legacy clock config resource ${resource.id}. Deleting it.`, e);
+    }
     deleteResource(resource);
-    return true;
 }
-

@@ -1,2 +1,0 @@
-#!/bin/sh
-docker build -t "http://gabranth.local:5000/botc-clocktower:latest" --platform linux/amd64 . && docker save "http://gabranth.local:5000/botc-clocktower:latest" -o botc-clocktower-linux-amd64.tar

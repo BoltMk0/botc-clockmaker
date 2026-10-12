@@ -1,12 +1,27 @@
 
-export type ResourceType = "sfx" | "music" | "grimoirestate" | "charactertokenimage" | 'ambience' | 'clockconfig';
-export const ALL_RESOURCE_TYPES = ["sfx", "music", "grimoirestate", "charactertokenimage", "ambience", "clockconfig"] as const;
+export type ResourceType = "sfx" | "music" | "grimoirestate" | "charactertokenimage" | 'ambience' | 'sting' | 'clockconfig' | 'appconfig' | 'rules-slide' | 'albumart';
+export const ALL_RESOURCE_TYPES: ResourceType[] = ['sfx', 'music', 'grimoirestate', 'charactertokenimage', 'ambience', 'sting', 'clockconfig', 'appconfig', 'rules-slide', 'albumart'] as const;
+
+export function isResourceType(value: any): value is ResourceType {
+    if(typeof value !== 'string') return false;
+    if(!ALL_RESOURCE_TYPES.includes(value as any)) return false;
+    return true;
+}
 
 export type Resource = {
     id: string;
     name: string;
     type: ResourceType;
     mimetype: string;
+}
+
+export function isResource(data: any): data is Resource {
+    if(typeof data !== 'object') return false;
+    if(typeof data.id !== 'string') return false;
+    if(typeof data.name !== 'string') return false;
+    if(!isResourceType(data.type)) return false;
+    if(typeof data.mimetype !== 'string') return false;
+    return true;
 }
 
 export type ReminderTokenResource = Resource & {
@@ -18,17 +33,18 @@ export type ReminderTokenResource = Resource & {
 export function getAcceptedMimeTypeForResourceType(resourceType: ResourceType): string {
     switch (resourceType) {
         case "sfx":
-            return "audio/*";
         case "music":
+        case "ambience":
+        case "sting":
             return "audio/*";
         case "grimoirestate":
         case "clockconfig":
+        case 'appconfig':
             return "application/json";
         case "charactertokenimage":
+        case 'rules-slide':
+        case 'albumart':
             return "image/*";
-        case "ambience":
-            return "audio/*";
-
     }
 }
 
@@ -37,13 +53,18 @@ export function getAcceptedExtensionsForResourceType(resourceType: ResourceType)
         case "sfx":
         case "music":
         case "ambience":
-            return [".wav", ".mp3"];
+        case "sting":
+            return [".wav", ".mp3", ".aac", ".m4a", ".flac", ".ogg"];
         case "grimoirestate":
         case "clockconfig":
             return [".json"];
         case "charactertokenimage":
+        case 'rules-slide':
+        case 'albumart':
             return [".png", ".jpg", ".jpeg", ".webp", ".gif"];
-    }   
+        case 'appconfig':
+            return ['.json'];
+    }
 }
 
 export function isValidResourceType(type: string): type is ResourceType {

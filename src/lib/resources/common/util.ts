@@ -5,10 +5,13 @@ const mimeTypeMap: {[key: string]: string} = {
     '.wav': 'audio/wav',
     '.ogg': 'audio/ogg',
     '.flac': 'audio/flac',
+    '.aac': 'audio/aac',
+    '.m4a': 'audio/mp4',
     '.png': 'image/png',
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
     '.gif': 'image/gif',
+    '.webp': 'image/webp',
     '.json': 'application/json',
     '.txt': 'text/plain'
 };
@@ -30,6 +33,24 @@ export function prettifyResourceName(name: string): string {
     return name.replace(/[-_]+/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 }
 
+export function slugify(name: string): string {
+    return name
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+}
+
+/** A character's id, in the form the official script format uses: its name in lowercase letters and digits only ("Fang Gu" -> "fanggu"). */
+export function characterIdFromName(name: string): string {
+    return name.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+
+/** The stored form of a typed resource name (for audio asset libraries): lowercase, spaces as underscores. */
+export function resourceNameSlug(name: string): string {
+    return name.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_-]/g, "");
+}
 
 export function prettifyResourceType(type: ResourceType): string {
     switch(type){
@@ -38,7 +59,11 @@ export function prettifyResourceType(type: ResourceType): string {
         case "grimoirestate": return "Grimoire State";
         case "charactertokenimage": return "Character Token Image";
         case "ambience": return "Ambience";
+        case "sting": return "Audio Stings";
         case "clockconfig": return "Clock Config";
+        case 'appconfig': return "App Config";
+        case 'rules-slide': return "Rules Slides";
+        case 'albumart': return "Album Artwork"
         default: return type;
     }
 }

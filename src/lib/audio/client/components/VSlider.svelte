@@ -1,5 +1,7 @@
 
 <script lang="ts">
+    import { doubleTap } from "./doubleTap";
+
     let {
         value = $bindable(1), // linear value (0..1)
         min = 0,
@@ -46,6 +48,15 @@
     function handleChange(e: Event) {
         onchangefinished(updateValueFromEvent(e));
     }
+
+    // Double click/tap resets the slider to its "0" mark - 0dB (unity gain) for a logarithmic slider,
+    // literal 0 otherwise (e.g. centred pan).
+    function resetToZero() {
+        sliderValue = 0;
+        value = logarithmic ? Math.pow(10, 0 / 20) : 0;
+        onchange(value);
+        onchangefinished(value);
+    }
 </script>
 
 <style>
@@ -53,8 +64,74 @@
     writing-mode: vertical-lr;
     direction: rtl;
     width: 32px;
-    height: 100%;
     accent-color: var(--theme-slider-accent);
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+    /* No double-tap-to-zoom, which would otherwise eat the double tap that resets the fader */
+    touch-action: manipulation;
+}
+
+.vertical-slider::-webkit-slider-runnable-track {
+    width: 4px;
+    background: var(--theme-slider-trim);
+    border-radius: 2px;
+}
+
+.vertical-slider::-moz-range-track {
+    width: 4px;
+    margin-left: 14px;
+    background: var(--theme-slider-trim);
+    border-radius: 2px;
+}
+
+.vertical-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 38px;
+    margin-left: -8px;
+    border-radius: 2px;
+    background: linear-gradient(
+        to bottom,
+        #DDD 0%,
+        #DDD 10%,
+        #555 11%,
+        #EEE 46%,
+        hsl(from var(--theme-slider-accent) h calc(s) calc(l*0.5)) 46%,
+        var(--theme-slider-accent) 54%,
+        white 54%,
+        #EEE 66%,
+        #777 89%,
+        #DDD 90%,
+        #DDD 100%
+    );
+    border: 1px solid var(--theme-shadow);
+    box-shadow: 0 3px 5px var(--theme-shadow);
+}
+
+.vertical-slider::-moz-range-thumb {
+    width: 20px;
+    height: 38px;
+    margin-left: -8px;
+    border-radius: 2px;
+    background: linear-gradient(
+        to bottom,
+        #CCC 0%,
+        white 10%,
+        #555 11%,
+        #EEE 46%,
+        hsl(from var(--theme-slider-accent) h calc(s) calc(l*0.5)) 46%,
+        var(--theme-slider-accent) 54%,
+        white 54%,
+        #EEE 66%,
+        #777 89%,
+        #BBB 90%,
+        #CCC 100%
+    );
+    border: 1px solid var(--theme-shadow);
+    box-shadow: 0 3px 5px var(--theme-shadow);
 }
 </style>
 
@@ -66,6 +143,8 @@
     value={sliderValue}
     oninput={handleInput}
     onchange={handleChange}
+    ondblclick={resetToZero}
+    use:doubleTap={resetToZero}
     style=""
     class="vertical-slider"
 />
