@@ -123,6 +123,8 @@ export async function scrapeCharacter(category: CharacterCategory, name: string,
             return { status: 'error', error: 'Could not find ability text on wiki page' };
         }
         const { rules, setup } = splitSetupFromRules(abilityText);
+        const wakes = guessWakePattern(rules);
+        const nightOrder = await scrapeDefaultNightOrder(name);
 
         const newCharacter: NewCharacter = {
             name,
@@ -130,8 +132,10 @@ export async function scrapeCharacter(category: CharacterCategory, name: string,
             rules,
             setup,
             player_count: 1,
-            ...guessWakePattern(rules),
-            ...await scrapeDefaultNightOrder(name)
+            // A published place in the night order means it wakes that night, whatever the wording suggests
+            wakes_first_night: wakes.wakes_first_night || nightOrder.defaultFirstNightOrder !== null,
+            wakes_other_nights: wakes.wakes_other_nights || nightOrder.defaultOtherNightOrder !== null,
+            ...nightOrder
         };
 
         const existing = getCharacterByName(name);
