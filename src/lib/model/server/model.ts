@@ -54,6 +54,17 @@ class ClockInstanceManager extends EventEmitter {
         return combineTimesOfDay(Array.from(this.instances.values(), instance => instance.timeOfDay));
     }
 
+    /**
+     * Whether any game's countdown is running: started, and still in the day. (Once it runs out it's dusk, though the
+     * clock still counts as running until it's stopped; paused, it isn't running.)
+     */
+    get countdownRunning(): boolean {
+        for(const instance of this.instances.values()){
+            if(instance.running && instance.timeOfDay === 'day') return true;
+        }
+        return false;
+    }
+
     newInstance(id?: string): {id: string, instance: BOTCTClock} {
         const instanceId = id ?? v7();
         if(this.instances.has(instanceId)){

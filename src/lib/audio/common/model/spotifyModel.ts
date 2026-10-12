@@ -23,8 +23,13 @@ export type SpotifyModel = {
     playback: SpotifyPlaybackModel | null;
     /** The album/playlist being switched to, from the start of the fade-out until it's actually playing. */
     pendingContextUri: string | null;
-    /** The adaptive playlist that was last started, which switches playlist whenever the games' phase changes. */
+    /**
+     * The adaptive (or countdown) playlist that was last started, which switches playlist whenever the games' phase
+     * changes (or for a countdown playlist, when the countdown starts or stops).
+     */
     adaptivePresetId: string | null;
+    /** Whether that's a countdown playlist paused for a silent spell (it starts again by itself). */
+    adaptivePresetSilent: boolean;
 };
 
 export type SpotifyControlAction =

@@ -7,7 +7,7 @@
     import type { SpotifyPlayer } from "../../SpotifyPlayer.svelte";
     import TimeOfDayIcon from "$lib/assets/timeOfDayIcon.svelte";
     import { TIMES_OF_DAY } from "$lib/model/client/types";
-    import { isAdaptivePresetContext, isSameSpotifyContext, isSpotifyAdaptivePreset, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
+    import { COUNTDOWN_PHASES, isAdaptivePresetContext, isSameSpotifyContext, isSpotifyAdaptivePreset, isSpotifyCountdownPreset, isSpotifyFollowingPreset, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
 
     const NOW_PLAYING_LINE_PX = 14; // Keep in step with .now-playing-text line-height
 
@@ -45,23 +45,30 @@
         });
     });
     /**
-     * Whether `uri` is one of the preset's albums/playlists. An adaptive playlist only counts while it's the one selected;
-     * a plain one only while no adaptive playlist is, so the two kinds can share a playlist without both lighting up.
+     * Whether `uri` is one of the preset's albums/playlists. An adaptive (or countdown) playlist only counts while it's the
+     * one selected; a plain one only while no adaptive playlist is, so the two kinds can share a playlist without both
+     * lighting up. A countdown playlist waiting out a silent spell counts whatever's loaded.
      */
     function presetMatches(preset: SpotifyPreset, uri: string | null | undefined) {
-        if (isSpotifyAdaptivePreset(preset)) {
-            return model?.adaptivePresetId === preset.id && isAdaptivePresetContext(preset, uri);
+        if (isSpotifyFollowingPreset(preset)) {
+            if (model?.adaptivePresetId !== preset.id) return false;
+            return isAdaptivePresetContext(preset, uri) || (isSpotifyCountdownPreset(preset) && model.adaptivePresetSilent);
         }
         return !model?.adaptivePresetId && isSameSpotifyContext(uri, preset.uri);
     }
 
+    function presetKind(preset: SpotifyPreset) {
+        return isSpotifyAdaptivePreset(preset) ? ' (ambient adaptive)' : isSpotifyCountdownPreset(preset) ? ' (day & night)' : '';
+    }
+
     /**
-     * The loaded preset just toggles play/pause; any other starts playing from the beginning. A paused adaptive playlist
-     * is resumed through the server instead, which switches it to the other list if the phase changed while it was paused.
+     * The loaded preset just toggles play/pause; any other starts playing from the beginning. A paused adaptive (or
+     * countdown) playlist is resumed through the server instead, which switches it to the right list for now (or for a
+     * countdown playlist, keeps it quiet until the countdown starts or night falls).
      */
     function clickPreset(preset: SpotifyPreset, current: boolean, playing: boolean) {
         if (playing) spotify.togglePlayPause();
-        else if (isSpotifyAdaptivePreset(preset)) spotify.playAdaptivePreset(preset.id);
+        else if (isSpotifyFollowingPreset(preset)) spotify.playAdaptivePreset(preset.id);
         else if (current) spotify.togglePlayPause();
         else spotify.playContext(preset.uri);
     }
@@ -122,11 +129,12 @@
                 {@const current = presetMatches(preset, spotify.playback?.contextUri)}
                 {@const playing = current && spotify.playback?.playing === true}
                 {@const pending = presetMatches(preset, model.pendingContextUri)}
-                {@const kind = isSpotifyAdaptivePreset(preset) ? ' (adaptive)' : ''}
+                {@const kind = presetKind(preset)}
+                {@const waiting = current && isSpotifyCountdownPreset(preset) && model.adaptivePresetSilent}
                 <AudioMixerText
                     onclick={()=>clickPreset(preset, current, playing)}
                     style="{PRESET_ROW} {pending ? PENDING_PRESET : current ? CURRENT_PRESET : ''}"
-                    title={pending ? `Loading ${preset.name}${kind}` : playing ? `Pause ${preset.name}${kind}` : current ? `Resume ${preset.name}${kind}` : `Play ${preset.name}${kind}`}>
+                    title={pending ? `Loading ${preset.name}${kind}` : waiting ? `${preset.name}${kind}: silent until the countdown starts or night falls` : playing ? `Pause ${preset.name}${kind}` : current ? `Resume ${preset.name}${kind}` : `Play ${preset.name}${kind}`}>
                     <span class="preset-icon">
                         <!-- (Component names are the other way round: PlayIcon draws the pause bars, PauseIcon the triangle.) -->
                         {#if playing}<PlayIcon size={10}/>{:else}<PauseIcon size={10}/>{/if}
@@ -138,6 +146,14 @@
                             {#each TIMES_OF_DAY as phase}
                                 {@const uri = preset.phaseUris[phase]}
                                 {#if uri !== null && (!current || isSameSpotifyContext(spotify.playback?.contextUri, uri))}<TimeOfDayIcon timeOfDay={phase} size={10}/>{/if}
+                            {/each}
+                        </span>
+                    {:else if isSpotifyCountdownPreset(preset)}
+                        <!-- Likewise: the list that's loaded (none while silent), or both when it isn't playing -->
+                        <span class="preset-icon">
+                            {#each COUNTDOWN_PHASES as phase}
+                                {@const uri = preset.countdownUris[phase]}
+                                {#if uri !== null && (!current || (!waiting && isSameSpotifyContext(spotify.playback?.contextUri, uri)))}<TimeOfDayIcon timeOfDay={phase} size={10}/>{/if}
                             {/each}
                         </span>
                     {/if}
