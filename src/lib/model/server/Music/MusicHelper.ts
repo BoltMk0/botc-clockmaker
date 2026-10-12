@@ -24,6 +24,8 @@ const SKIP_FADE_MS = 600;
 const PAUSE_FADE_MS = 300;
 /** How often to check the games' phase. */
 const PHASE_CHECK_INTERVAL_MS = 250;
+/** Fade-out when the Spotify player takes over (it starts as this fades, so the two cross). */
+export const HANDOVER_FADE_MS = 2000;
 
 function isMusicLevellingModel(value: unknown): value is MusicLevellingModel {
     return typeof value === 'object' && value !== null && typeof (value as MusicLevellingModel).enabled === 'boolean' &&
@@ -42,7 +44,8 @@ const CROSSFADE_MANAGER = new JSONSingletonResourceManager<MusicCrossfadeModel>(
 /**
  * Runs the uploaded-music player: one mixer client hosts it (the sound comes out of that device, through its mixer's
  * Music & Ambience master, so the master fader, dim and time-of-day trim apply there), and every client controls it
- * through here. This decides what plays - shuffling each playlist in an order it remembers its place in, following
+ * through here. It runs alongside the Spotify player, but only one of the two plays at a time: whichever starts hands
+ * the other over, fading it out (see handOver), and only one of them has a preset scheduled. This decides what plays - shuffling each playlist in an order it remembers its place in, following
  * the games' phase for the adaptive and day & night presets, and switching to a scheduled preset at the next phase
  * change - and the host follows the model (see MusicModel), doing the fades itself.
  */
@@ -116,12 +119,10 @@ export class MusicHelper extends EventEmitter {
 
     // ---- Player host (the one client the sound comes out of) ----
 
-    /** Claims the player for a client. Throws if another client holds a live claim, or the Spotify player is running. */
+    /** Claims the player for a client. Throws if another client holds a live claim. */
     claimHost(clientId: string) {
         this.expireStaleHost();
         if (this.#hostClientId !== null && this.#hostClientId !== clientId) throw new Error('Another client is already running the music player');
-        // The two share the mixer's music strip, so only one runs at a time
-        if (getSpotifyHelperInstance().model.hostClientId !== null) throw new Error('The Spotify player is running. Stop it first');
         if (this.#hostClientId !== clientId) {
             this.#hostClientId = clientId;
             this.#hostCheckTimer = setInterval(() => this.expireStaleHost(true), HOST_CHECK_INTERVAL_MS);
@@ -210,9 +211,10 @@ export class MusicHelper extends EventEmitter {
                 break;
             case 'pause':
                 // Paused by hand, a day & night preset stays paused rather than coming back by itself, and nothing
-                // scheduled starts up at the next phase change either
+                // scheduled (on either player) starts up at the next phase change either
                 this.#silenced = false;
                 this.#scheduledPresetId = null;
+                if (this.#playing) getSpotifyHelperInstance().clearScheduledPreset();
                 this.pause(PAUSE_FADE_MS);
                 break;
             // Skipping stays in the playlist, so crossfades if that's on
@@ -227,11 +229,15 @@ export class MusicHelper extends EventEmitter {
                 break;
             }
             case 'playPreset':
-                this.#scheduledPresetId = null; // Picked to play now instead
+                // Picked to play now instead
+                this.#scheduledPresetId = null;
+                getSpotifyHelperInstance().clearScheduledPreset();
                 this.playPreset(command.presetId, FADE_MS);
                 break;
             case 'schedulePreset':
                 if (command.presetId !== null && !this.findPreset(command.presetId)) throw new Error('Unknown preset');
+                // Only one preset waits for the phase change, whichever player it's for
+                if (command.presetId !== null) getSpotifyHelperInstance().clearScheduledPreset();
                 this.#scheduledPresetId = command.presetId;
                 this.changed();
                 break;
@@ -244,6 +250,30 @@ export class MusicHelper extends EventEmitter {
             default:
                 throw new Error('Unknown action');
         }
+    }
+
+    /**
+     * The Spotify player is taking over: fades out and pauses, as if paused by hand, so a day & night preset waiting out
+     * a silent spell doesn't start up again by itself. The preset stays loaded, to carry on with when picked again.
+     */
+    handOver(fadeMs = HANDOVER_FADE_MS) {
+        if (this.#hostClientId === null) return;
+        const wasSilenced = this.#silenced;
+        this.#silenced = false;
+        if (this.#playing) this.pause(fadeMs);
+        else if (wasSilenced) this.changed();
+    }
+
+    /** Drops the preset scheduled for the next phase change (one's been scheduled, or picked to play now, on Spotify). */
+    clearScheduledPreset() {
+        if (this.#scheduledPresetId === null) return;
+        this.#scheduledPresetId = null;
+        this.changed();
+    }
+
+    /** Has the Spotify player fade out, as this starts playing. */
+    private takeOver() {
+        getSpotifyHelperInstance().handOver(HANDOVER_FADE_MS);
     }
 
     /** Validates and applies a patch to the loudness levelling settings ({ enabled?, targetLufs? }). Throws on an invalid field. */
@@ -321,6 +351,7 @@ export class MusicHelper extends EventEmitter {
             resume = this.isLoaded(playlistId);
         }
         if (playlistId === null) throw new Error(`"${preset.name}" has no playlist to play`);
+        this.takeOver();
         this.#presetId = presetId;
         this.#phaseKey = phaseKey;
         this.#silenced = false;
@@ -331,6 +362,8 @@ export class MusicHelper extends EventEmitter {
     /** Starts a day & night preset on its playlist for now, or silences the player if now has none. */
     private playCountdownPreset(preset: MusicCountdownPreset, fadeMs: number) {
         const phase = this.countdownPhase();
+        // Picked, so it takes over even when it starts out silent
+        this.takeOver();
         this.#presetId = preset.id;
         this.#phaseKey = phase;
         const playlistId = phase === 'silent' ? null : this.existing(preset.countdownPlaylistIds[phase]);
@@ -496,12 +529,14 @@ export class MusicHelper extends EventEmitter {
             loudness: track.loudness ?? null
         };
         this.#loadId++;
+        if (!this.#playing) this.takeOver();
         this.#playing = true;
         this.changed();
     }
 
     private resume() {
         if (!this.#track) return;
+        if (!this.#playing) this.takeOver();
         this.#playing = true;
         this.#fadeMs = 0;
         this.changed();
