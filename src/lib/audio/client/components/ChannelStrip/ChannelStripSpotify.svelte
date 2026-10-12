@@ -62,12 +62,14 @@
     }
 
     /**
-     * The loaded preset just toggles play/pause; any other starts playing from the beginning. A paused adaptive (or
-     * countdown) playlist is resumed through the server instead, which switches it to the right list for now (or for a
-     * countdown playlist, keeps it quiet until the countdown starts or night falls).
+     * The loaded preset just toggles play/pause. Another one, while something's playing, is scheduled to take over at the
+     * next change of phase; tapped again, it switches straight away. With nothing playing, it starts at once. A paused
+     * adaptive (or countdown) playlist is resumed through the server, which switches it to the right list for now (or
+     * for a countdown playlist, keeps it quiet until the countdown starts or night falls).
      */
     function clickPreset(preset: SpotifyPreset, current: boolean, playing: boolean) {
         if (playing) spotify.togglePlayPause();
+        else if (!current && model?.scheduledPresetId !== preset.id && spotify.playback?.playing) spotify.schedulePreset(preset.id);
         else if (isSpotifyFollowingPreset(preset)) spotify.playAdaptivePreset(preset.id);
         else if (current) spotify.togglePlayPause();
         else spotify.playContext(preset.uri);
@@ -81,6 +83,8 @@
     const CURRENT_PRESET = "background-color: #fff; color: #222;";
     /** The preset being switched to (during the fade-out), distinct from the one currently loaded. */
     const PENDING_PRESET = "background-color: #fc6; color: #222;";
+    /** The preset waiting for the next phase change: outlined in the pending colour, as it's next in line. */
+    const SCHEDULED_PRESET = "box-shadow: inset 0 0 0 2px #fc6;";
     const PRESET_ROW = "display: flex; align-items: center; gap: 4px; text-align: left;";
     const CENTER = "display: flex; justify-content: center; align-items: center; height: 30px;";
 </script>
@@ -131,10 +135,11 @@
                 {@const pending = presetMatches(preset, model.pendingContextUri)}
                 {@const kind = presetKind(preset)}
                 {@const waiting = current && isSpotifyCountdownPreset(preset) && model.adaptivePresetSilent}
+                {@const scheduled = model.scheduledPresetId === preset.id}
                 <AudioMixerText
                     onclick={()=>clickPreset(preset, current, playing)}
-                    style="{PRESET_ROW} {pending ? PENDING_PRESET : current ? CURRENT_PRESET : ''}"
-                    title={pending ? `Loading ${preset.name}${kind}` : waiting ? `${preset.name}${kind}: silent until the countdown starts or night falls` : playing ? `Pause ${preset.name}${kind}` : current ? `Resume ${preset.name}${kind}` : `Play ${preset.name}${kind}`}>
+                    style="{PRESET_ROW} {pending ? PENDING_PRESET : current ? CURRENT_PRESET : scheduled ? SCHEDULED_PRESET : ''}"
+                    title={pending ? `Loading ${preset.name}${kind}` : scheduled ? `${preset.name}${kind} plays at the next phase change. Tap again to switch now` : !current && spotify.playback?.playing ? `Play ${preset.name}${kind} at the next phase change (tap twice to switch now)` : waiting ? `${preset.name}${kind}: silent until the countdown starts or night falls` : playing ? `Pause ${preset.name}${kind}` : current ? `Resume ${preset.name}${kind}` : `Play ${preset.name}${kind}`}>
                     <span class="preset-icon">
                         <!-- (Component names are the other way round: PlayIcon draws the pause bars, PauseIcon the triangle.) -->
                         {#if playing}<PlayIcon size={10}/>{:else}<PauseIcon size={10}/>{/if}

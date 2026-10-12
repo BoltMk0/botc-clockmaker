@@ -61,6 +61,8 @@ export class SpotifyHelper extends EventEmitter {
     #phaseKey: TimeOfDay | CountdownPhase | 'silent' | null = null;
     /** Whether a countdown playlist has paused itself for a silent spell, so resumes by itself when it ends. */
     #silenced = false;
+    /** The preset to switch to at the next change of the games' phase. */
+    #scheduledPresetId: string | null = null;
     /**
      * The shared time-of-day trim (on the Music & Ambience master) currently applied to every volume we send, in dB.
      * Applied here rather than by the mixers, so that it and a playlist switch's fades are one ramp, not two fighting.
@@ -136,7 +138,8 @@ export class SpotifyHelper extends EventEmitter {
             playback: this.#playback,
             pendingContextUri: this.#pendingContextUri,
             adaptivePresetId: this.#adaptivePresetId,
-            adaptivePresetSilent: this.#silenced
+            adaptivePresetSilent: this.#silenced,
+            scheduledPresetId: this.#scheduledPresetId
         };
     }
 
@@ -238,6 +241,7 @@ export class SpotifyHelper extends EventEmitter {
         this.#pendingContextUri = null;
         this.#deviceVolume = null;
         this.clearAdaptivePreset();
+        this.#scheduledPresetId = null;
         if (this.#hostCheckTimer) {
             clearInterval(this.#hostCheckTimer);
             this.#hostCheckTimer = null;
@@ -307,19 +311,28 @@ export class SpotifyHelper extends EventEmitter {
                 this.changed();
                 break;
             case 'pause':
-                // Paused by hand, a countdown playlist stays paused rather than coming back by itself
+                // Paused by hand, a countdown playlist stays paused rather than coming back by itself, and nothing
+                // scheduled starts up at the next phase change either
                 this.#silenced = false;
+                this.#scheduledPresetId = null;
                 await this.api('PUT', `/me/player/pause?${device}`);
                 this.changed();
                 break;
             case 'playContext':
                 if (!isSpotifyContextUri(command.uri)) throw new Error('Invalid album/playlist');
                 this.clearAdaptivePreset();
+                this.#scheduledPresetId = null; // Picked to play now instead
                 if (this.isLoadedContext(command.uri)) await this.resumeLoadedContext(device);
                 else await this.playContext(command.uri, device);
                 break;
             case 'playAdaptivePreset':
+                this.#scheduledPresetId = null; // Picked to play now instead
                 await this.playAdaptivePreset(command.presetId, device);
+                break;
+            case 'schedulePreset':
+                if (command.presetId !== null && !getSpotifyPresets().some(p => p.id === command.presetId)) throw new Error('Unknown preset');
+                this.#scheduledPresetId = command.presetId;
+                this.changed();
                 break;
             case 'next':
                 await this.api('POST', `/me/player/next?${device}`);
@@ -347,10 +360,10 @@ export class SpotifyHelper extends EventEmitter {
      * Starts an adaptive playlist on the list for the current phase, and keeps it following the phase from then on. A
      * countdown playlist likewise starts on the list for now, or goes silent if there isn't one.
      */
-    private async playAdaptivePreset(presetId: string, device: string) {
+    private async playAdaptivePreset(presetId: string, device: string, fadeOutMs = FADE_MS) {
         const preset = getSpotifyPresets().find(p => p.id === presetId);
         if (!preset || !isSpotifyFollowingPreset(preset)) throw new Error('Unknown ambient adaptive or day & night playlist');
-        if (isSpotifyCountdownPreset(preset)) return await this.playCountdownPreset(preset, device);
+        if (isSpotifyCountdownPreset(preset)) return await this.playCountdownPreset(preset, device, fadeOutMs);
         const timeOfDay = getBOTCTClockInstanceManager().timeOfDay;
         const ownUri = preset.phaseUris[timeOfDay];
         const current = this.#playback?.contextUri;
@@ -365,25 +378,25 @@ export class SpotifyHelper extends EventEmitter {
         if (resume) {
             await this.resumeLoadedContext(device);
         } else {
-            await this.playContext(uri, device);
+            await this.playContext(uri, device, { fadeOutMs });
         }
     }
 
     /** Starts a countdown playlist on its list for now, or silences the player if now has none. */
-    private async playCountdownPreset(preset: SpotifyCountdownPreset, device: string) {
+    private async playCountdownPreset(preset: SpotifyCountdownPreset, device: string, fadeOutMs = FADE_MS) {
         const phase = this.countdownPhase();
         this.#adaptivePresetId = preset.id;
         this.#phaseKey = phase;
         const uri = phase === 'silent' ? null : preset.countdownUris[phase];
         if (uri === null) {
             this.#silenced = true;
-            if (this.#playback?.playing) await this.fadeOutAndPause(device);
+            if (this.#playback?.playing) await this.fadeOutAndPause(device, fadeOutMs);
             else this.changed();
             return;
         }
         this.#silenced = false;
         if (this.isLoadedContext(uri)) await this.resumeLoadedContext(device);
-        else await this.playContext(uri, device);
+        else await this.playContext(uri, device, { fadeOutMs });
     }
 
     /** Which of a countdown playlist's lists plays now: day while a countdown runs, night at night, otherwise none. */
@@ -403,9 +416,35 @@ export class SpotifyHelper extends EventEmitter {
         // Updated first, so a switch started below comes in at the new phase's trim
         const phaseChanged = timeOfDay !== this.#trimTimeOfDay;
         this.#trimTimeOfDay = timeOfDay;
+        // A preset scheduled for the phase change takes over from whatever was following the phase
+        if (phaseChanged && this.#scheduledPresetId !== null) this.applyScheduledPreset();
         const switching = this.followSelectedPreset();
         // A switch starts the new playlist at the new phase's trim itself (see playContext)
         if (phaseChanged && !switching && !this.#switching) this.rampTrim();
+    }
+
+    /**
+     * Switches to the preset scheduled for the phase change, fading over as the adaptive playlists do. Any preset kind:
+     * an adaptive or countdown playlist starts on its list for the new phase, and follows the phase from then on.
+     */
+    private applyScheduledPreset() {
+        const preset = getSpotifyPresets().find(p => p.id === this.#scheduledPresetId);
+        this.#scheduledPresetId = null;
+        const deviceId = this.#hostDeviceId;
+        if (!preset || deviceId === null) {
+            this.changed();
+            return;
+        }
+        console.log(`Spotify: phase changed, switching to the scheduled preset "${preset.name}"`);
+        const device = `device_id=${encodeURIComponent(deviceId)}`;
+        const fail = (e: unknown) => console.error('Failed to switch to the scheduled Spotify preset', e);
+        if (isSpotifyFollowingPreset(preset)) {
+            this.playAdaptivePreset(preset.id, device, PHASE_SWITCH_FADE_MS).catch(fail);
+        } else {
+            this.clearAdaptivePreset();
+            if (this.isLoadedContext(preset.uri)) this.resumeLoadedContext(device).catch(fail);
+            else this.playContext(preset.uri, device, { fadeOutMs: PHASE_SWITCH_FADE_MS }).catch(fail);
+        }
     }
 
     /** Has the selected adaptive or countdown playlist follow a change of phase. Returns whether it started a switch. */

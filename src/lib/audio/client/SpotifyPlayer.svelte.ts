@@ -204,6 +204,8 @@ export class SpotifyPlayer {
     playContext(uri: string) { this.control({ action: 'playContext', uri }); }
     /** Starts (or resumes) an adaptive playlist on the list for the current phase; it then follows the phase. */
     playAdaptivePreset(presetId: string) { this.control({ action: 'playAdaptivePreset', presetId }); }
+    /** Switches to a preset at the next change of the games' phase rather than now (null cancels). */
+    schedulePreset(presetId: string | null) { this.control({ action: 'schedulePreset', presetId }); }
     previous() { this.control({ action: 'previous' }); }
 
     /** @param volume 0..100. Rapid calls (a slider drag) are coalesced. */

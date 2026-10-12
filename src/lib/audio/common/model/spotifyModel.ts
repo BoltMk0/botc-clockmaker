@@ -30,6 +30,8 @@ export type SpotifyModel = {
     adaptivePresetId: string | null;
     /** Whether that's a countdown playlist paused for a silent spell (it starts again by itself). */
     adaptivePresetSilent: boolean;
+    /** The preset to switch to at the next change of the games' phase, if one's been picked. */
+    scheduledPresetId: string | null;
 };
 
 export type SpotifyControlAction =
@@ -39,4 +41,6 @@ export type SpotifyControlAction =
     | { action: 'previous' }
     | { action: 'playContext', uri: string }
     | { action: 'playAdaptivePreset', presetId: string }
+    /** Switches to the preset at the next change of the games' phase (null cancels). */
+    | { action: 'schedulePreset', presetId: string | null }
     | { action: 'volume', volume: number };
