@@ -505,6 +505,11 @@
         return pendingMembership[playlist.id] ?? playlist.trackIds;
     }
 
+    /** How many playlists have the track, counting changes from the popup still saving. */
+    function playlistCountOf(track: MusicTrack) {
+        return data.library.playlists.filter(p => playlistTrackIds(p).includes(track.id)).length;
+    }
+
     /** How many of the popup's tracks the playlist has: all, some or none. */
     function membership(playlist: MusicPlaylist, trackIds: string[]): 'all' | 'some' | 'none' {
         const ids = new Set(playlistTrackIds(playlist));
@@ -751,6 +756,7 @@
     {#each tracks as track (track.id)}
         {@const showArtist = typeof options.artist === 'function' ? options.artist(track) : options.artist}
         {@const album = albumOf(track)}
+        {@const inPlaylists = playlistCountOf(track)}
         <tr class="track-row" class:selected={playingId === track.id} onclick={() => togglePlay(track, tracks)}>
             <td class="play-cell">{@render playButton(track, tracks)}</td>
             {#if options.numbers}<td class="number-cell">{track.trackNumber ?? ''}</td>{/if}
@@ -764,8 +770,13 @@
             {@render loudnessCell(track)}
             <td class="row-actions">
                 <button class="icon-button add-menu-trigger" class:active={addMenuFor(track)} onclick={(e) => openAddMenu(e, [track], track.title)}
-                    aria-label="Add {track.title} to a playlist" aria-haspopup="dialog" aria-expanded={addMenuFor(track)} title="Add to playlist">
-                    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+                    aria-label="Add {track.title} to a playlist" aria-haspopup="dialog" aria-expanded={addMenuFor(track)}
+                    title={inPlaylists > 0 ? `In ${inPlaylists} playlist${inPlaylists === 1 ? '' : 's'}` : 'Add to playlist'}>
+                    {#if inPlaylists > 0}
+                        <svg class="in-playlist-tick" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>
+                    {:else}
+                        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+                    {/if}
                 </button>
                 <button class="icon-button edit-button" class:active={detailsId === track.id} onclick={(e) => { e.stopPropagation(); toggleDetails(track); }}
                     aria-label="Edit {track.title}" aria-expanded={detailsId === track.id} title="Edit details"><PencilIcon size={16}/></button>
@@ -1997,6 +2008,10 @@
 
     button.icon-button.add-menu-trigger.active {
         border-color: var(--theme-highlight);
+        color: var(--theme-highlight);
+    }
+
+    .in-playlist-tick {
         color: var(--theme-highlight);
     }
 
