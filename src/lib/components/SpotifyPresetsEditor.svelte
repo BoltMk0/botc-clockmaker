@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { COUNTDOWN_PHASES, isSpotifyAdaptivePreset, isSpotifyCountdownPreset, parseSpotifyContextUri, type CountdownPhase, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
+    import { isSpotifyAdaptivePreset, parseSpotifyContextUri, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
     import TimeOfDayIcon from "$lib/assets/timeOfDayIcon.svelte";
     import { TIME_OF_DAY_LABELS, TIMES_OF_DAY, type TimeOfDay } from "$lib/model/client/types";
     import BinIcon from "$lib/assets/binIcon.svelte";
@@ -8,41 +8,30 @@
     /** The Spotify presets editor: the albums and playlists shown on the mixer's music strip while Spotify runs it. */
 
     // The links are whatever the user typed/pasted; they become normalised URIs on save.
-    // A `phase` row is an adaptive playlist, using a link per phase (any of which may be empty); a `countdown` row is a
-    // countdown playlist, with a day and a night link (either may be empty); otherwise just `link`.
+    // A `phase` row is an adaptive playlist, using a link per phase (any of which may be empty); otherwise just `link`.
     type Row = {
-        id: string, name: string, phase: boolean, countdown: boolean, link: string,
-        phaseLinks: Record<TimeOfDay, string>, countdownLinks: Record<CountdownPhase, string>
+        id: string, name: string, phase: boolean, link: string,
+        phaseLinks: Record<TimeOfDay, string>
     };
 
     function emptyPhaseLinks(): Record<TimeOfDay, string> {
         return Object.fromEntries(TIMES_OF_DAY.map(t => [t, ''])) as Record<TimeOfDay, string>;
     }
 
-    function emptyCountdownLinks(): Record<CountdownPhase, string> {
-        return Object.fromEntries(COUNTDOWN_PHASES.map(p => [p, ''])) as Record<CountdownPhase, string>;
-    }
-
-    function newRow(kind: 'single' | 'phase' | 'countdown'): Row {
-        return { id: newId(), name: '', phase: kind === 'phase', countdown: kind === 'countdown', link: '', phaseLinks: emptyPhaseLinks(), countdownLinks: emptyCountdownLinks() };
+    function newRow(kind: 'single' | 'phase'): Row {
+        return { id: newId(), name: '', phase: kind === 'phase', link: '', phaseLinks: emptyPhaseLinks() };
     }
 
     function toRow(p: SpotifyPreset): Row {
-        const row: Row = { id: p.id, name: p.name, phase: false, countdown: false, link: '', phaseLinks: emptyPhaseLinks(), countdownLinks: emptyCountdownLinks() };
+        const row: Row = { id: p.id, name: p.name, phase: false, link: '', phaseLinks: emptyPhaseLinks() };
         if (isSpotifyAdaptivePreset(p)) {
             row.phase = true;
             row.phaseLinks = Object.fromEntries(TIMES_OF_DAY.map(t => [t, p.phaseUris[t] ?? ''])) as Record<TimeOfDay, string>;
-        } else if (isSpotifyCountdownPreset(p)) {
-            row.countdown = true;
-            row.countdownLinks = Object.fromEntries(COUNTDOWN_PHASES.map(c => [c, p.countdownUris[c] ?? ''])) as Record<CountdownPhase, string>;
         } else {
             row.link = p.uri;
         }
         return row;
     }
-
-    /** A day & night playlist's two lists, as the settings name them. */
-    const COUNTDOWN_LIST_LABELS: Record<CountdownPhase, string> = { day: 'Day', night: 'Night' };
 
     function isInvalidLink(link: string) {
         return link.trim() !== '' && !parseSpotifyContextUri(link);
@@ -85,20 +74,6 @@
                     return;
                 }
                 presets.push({ id: row.id, name: row.name.trim() || 'Ambient Adaptive Playlist', phaseUris });
-            } else if (row.countdown) {
-                const countdownUris = {} as Record<CountdownPhase, string | null>;
-                for (const c of COUNTDOWN_PHASES) {
-                    if (isInvalidLink(row.countdownLinks[c])) {
-                        alert(`"${row.name || '(unnamed)'}": the ${COUNTDOWN_LIST_LABELS[c].toLowerCase()} link isn't a Spotify album or playlist link.`);
-                        return;
-                    }
-                    countdownUris[c] = row.countdownLinks[c].trim() === '' ? null : parseSpotifyContextUri(row.countdownLinks[c]);
-                }
-                if (COUNTDOWN_PHASES.every(c => countdownUris[c] === null)) {
-                    alert(`"${row.name || '(unnamed)'}" needs a Spotify album or playlist link for the day or the night.`);
-                    return;
-                }
-                presets.push({ id: row.id, name: row.name.trim() || 'Day & Night Playlist', countdownUris });
             } else {
                 const uri = parseSpotifyContextUri(row.link);
                 if (!uri) {
@@ -135,7 +110,7 @@
     <h2>Spotify Presets</h2>
     <button class="save" disabled={!dirty} onclick={save}>Save changes</button>
 </div>
-<p class="description">Albums and playlists shown on the Spotify strip in the mixer. Clicking one starts it playing straight away. In Spotify, use Share &rarr; Copy link and paste it here.<br/>An ambient adaptive playlist has a list for each phase: it plays the one for the current phase, and fades out to a random track from the next phase's list whenever the games' phase changes. Leave a phase empty to keep it silent: the music fades out and pauses through it, and picks up again by itself when a phase with a list comes round. A phase with the same list as the one playing carries straight on.<br/>A day &amp; night playlist has a list for the day and one for the night. The day list only plays while a game's countdown is running; the rest of the day (the morning before it's started, a pause, and dusk) is silent, and it picks up again by itself when the countdown starts or night falls. Leave a list empty to keep that time silent too.</p>
+<p class="description">Albums and playlists shown on the Spotify strip in the mixer. Clicking one starts it playing straight away. In Spotify, use Share &rarr; Copy link and paste it here.<br/>An ambient adaptive playlist has a list for each phase: it plays the one for the current phase, and fades out to a random track from the next phase's list whenever the games' phase changes. Leave a phase empty to keep it silent: the music fades out and pauses through it, and picks up again by itself when a phase with a list comes round. A phase with the same list as the one playing carries straight on. The morning is daytime before the countdown's started (or while it's paused), and the day while it runs, so with only day and night lists it plays just while the countdown runs and at night.</p>
 <div class="data-table-scroll">
 <table class="data-table spotify-table">
     <tbody>
@@ -155,12 +130,6 @@
                                 <span class="phase-icon" title={TIME_OF_DAY_LABELS[t]}><TimeOfDayIcon timeOfDay={t}/></span>
                             {/each}
                         </div>
-                    {:else if row.countdown}
-                        <div class="phase-stack">
-                            {#each COUNTDOWN_PHASES as c}
-                                <span class="phase-icon" title={COUNTDOWN_LIST_LABELS[c]}><TimeOfDayIcon timeOfDay={c}/></span>
-                            {/each}
-                        </div>
                     {/if}
                 </td>
                 <td class="spotify-links">
@@ -168,12 +137,6 @@
                         <div class="phase-stack">
                             {#each TIMES_OF_DAY as t}
                                 <input class="link-input" class:invalid={isInvalidLink(row.phaseLinks[t])} bind:value={row.phaseLinks[t]} type="text" placeholder="{TIME_OF_DAY_LABELS[t]}: https://open.spotify.com/playlist/... (empty: silent)"/>
-                            {/each}
-                        </div>
-                    {:else if row.countdown}
-                        <div class="phase-stack">
-                            {#each COUNTDOWN_PHASES as c}
-                                <input class="link-input" class:invalid={isInvalidLink(row.countdownLinks[c])} bind:value={row.countdownLinks[c]} type="text" placeholder="{COUNTDOWN_LIST_LABELS[c]}: https://open.spotify.com/playlist/... (empty: silent)"/>
                             {/each}
                         </div>
                     {:else}
@@ -188,7 +151,6 @@
                 <div class="add-buttons">
                 <button style="flex: 1;" class="add" onclick={()=>rows.push(newRow('single'))}>Add Ambient Playlist</button>
                 <button style="flex: 1;" class="add" onclick={()=>rows.push(newRow('phase'))}>Add Ambient Adaptive Playlist</button>
-                <button style="flex: 1;" class="add" onclick={()=>rows.push(newRow('countdown'))}>Add Day &amp; Night Playlist</button>
                 </div>
             </td>
         </tr>

@@ -7,6 +7,7 @@
     import { appSettings } from "$lib/model/client/appSettings.svelte";
     import type { FullDisplayMode } from "./fullDisplayTypes";
     import type { Clocktower } from "$lib/model/client/Clocktower.svelte";
+    import { isDaytime } from "$lib/model/client/types";
 
 
     const NOTIFICATION_TIMEOUT = 10000;
@@ -34,7 +35,7 @@
 
     // The displays draw night at progress 1, so they follow the phase - which can be set by hand - rather than the timer
     // alone. Dusk looks the same as night, for now.
-    let progress = $derived(model.timeOfDay !== 'day' ? 1 : Math.min(model.progress, 0.99))
+    let progress = $derived(!isDaytime(model.timeOfDay) ? 1 : Math.min(model.progress, 0.99))
 
     let instructionTimeout: NodeJS.Timeout | undefined = undefined;
     let otherClockNotificationTimeout: NodeJS.Timeout | undefined = undefined;
@@ -60,7 +61,7 @@
         console.debug("Setting up model listener")
 
         const onBellRing = ()=>{
-            if(model.timeOfDay === 'day')
+            if(isDaytime(model.timeOfDay))
                 setInstruction("Your Story Teller requires your attention!");
             else
                 setInstruction("The day has ended! Please return to the Town Square.");

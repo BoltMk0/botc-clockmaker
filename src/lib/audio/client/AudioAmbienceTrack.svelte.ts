@@ -108,6 +108,12 @@ export class AudioAmbienceTrack extends AudioTrack {
         this.onLocalChange?.({activeAtDusk: value});
     }
 
+    get activeInMorning(): boolean { return this.#model.activeInMorning; }
+    set activeInMorning(value: boolean){
+        this.#model.activeInMorning = value;
+        this.onLocalChange?.({activeInMorning: value});
+    }
+
     get activeInDay(): boolean { return this.#model.activeInDay; }
     set activeInDay(value: boolean){
         this.#model.activeInDay = value;

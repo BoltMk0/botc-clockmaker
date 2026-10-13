@@ -1,7 +1,6 @@
 import { EventEmitter } from "node:events";
 import { clampCrossfadeSeconds, clampLevellingTarget, DEFAULT_MUSIC_CROSSFADE, DEFAULT_MUSIC_GAIN, DEFAULT_MUSIC_LEVELLING, MAX_MUSIC_GAIN, type MusicCrossfadeModel, type MusicControlAction, type MusicHostEvent, type MusicLevellingModel, type MusicModel, type MusicTrackPlaybackModel } from "$lib/audio/common/model/musicModel";
-import { adaptiveMusicPlaylistFor, isMusicAdaptivePreset, isMusicCountdownPreset, musicPresetPlaylistIds, type MusicAdaptivePreset, type MusicCountdownPreset, type MusicPreset } from "$lib/audio/common/musicPreset";
-import type { CountdownPhase } from "$lib/audio/common/spotifyPreset";
+import { isMusicAdaptivePreset, type MusicAdaptivePreset, type MusicPreset } from "$lib/audio/common/musicPreset";
 import type { TimeOfDay } from "$lib/model/client/types";
 import { getMusicAlbum, getMusicPlaylist, getMusicTrack } from "$lib/resources/server/musicLibrary";
 import { getMusicPresets } from "$lib/resources/server/musicPresets";
@@ -43,7 +42,7 @@ const CROSSFADE_MANAGER = new JSONSingletonResourceManager<MusicCrossfadeModel>(
  * Runs the uploaded-music player: one mixer client hosts it (the sound comes out of that device, through its mixer's
  * Music & Ambience master, so the master fader, dim and time-of-day trim apply there), and every client controls it
  * through here. This decides what plays - shuffling each playlist in an order it remembers its place in, following
- * the games' phase for the adaptive and day & night presets, and switching to a scheduled preset at the next phase
+ * the games' phase for the adaptive presets, and switching to a scheduled preset at the next phase
  * change - and the host follows the model (see MusicModel), doing the fades itself.
  */
 export class MusicHelper extends EventEmitter {
@@ -59,12 +58,9 @@ export class MusicHelper extends EventEmitter {
     #presetId: string | null = null;
     #pendingPresetId: string | null = null;
     #pendingTimer: ReturnType<typeof setTimeout> | null = null;
-    /**
-     * What the preset playing was last switched for: the phase, for an adaptive preset, or for a day & night one, which
-     * of its playlists (or 'silent').
-     */
-    #phaseKey: TimeOfDay | CountdownPhase | 'silent' | null = null;
-    /** Whether a day & night preset has paused itself for a silent spell, so resumes by itself when it ends. */
+    /** The phase the adaptive preset playing was last switched for. */
+    #phaseKey: TimeOfDay | null = null;
+    /** Whether an adaptive preset has paused itself for a silent spell, so resumes by itself when it ends. */
     #silenced = false;
     #scheduledPresetId: string | null = null;
     #lastTimeOfDay: TimeOfDay;
@@ -203,13 +199,13 @@ export class MusicHelper extends EventEmitter {
         if (this.#hostClientId === null) throw new Error('The music player is not running');
         switch (command.action) {
             case 'play':
-                // Played by hand, a silent day & night preset is just playing now
+                // Played by hand, a silent adaptive preset is just playing now
                 this.#silenced = false;
                 if (this.#track) this.resume();
                 else if (this.#presetId) this.playPreset(this.#presetId, FADE_MS);
                 break;
             case 'pause':
-                // Paused by hand, a day & night preset stays paused rather than coming back by itself, and nothing
+                // Paused by hand, an adaptive preset stays paused rather than coming back by itself, and nothing
                 // scheduled starts up at the next phase change either
                 this.#silenced = false;
                 this.#scheduledPresetId = null;
@@ -297,43 +293,28 @@ export class MusicHelper extends EventEmitter {
     }
 
     /**
-     * Starts a preset: on its playlist for now (an adaptive preset's phase, or for a day & night one, the countdown or
-     * the night - or silence), carrying on where it left off if that playlist is already loaded. Adaptive and day &
-     * night presets follow the phase from then on.
+     * Starts a preset: on its playlist for now (an adaptive preset's phase's - or silence, if that has none), carrying
+     * on where it left off if that playlist is already loaded. Adaptive presets follow the phase from then on.
      */
     private playPreset(presetId: string, fadeMs: number) {
         const preset = this.findPreset(presetId);
         if (!preset) throw new Error('Unknown preset');
-        if (isMusicCountdownPreset(preset)) return this.playCountdownPreset(preset, fadeMs);
-        let playlistId: string | null;
-        let resume: boolean;
-        let phaseKey: TimeOfDay | null = null;
-        if (isMusicAdaptivePreset(preset)) {
-            const timeOfDay = phaseKey = getBOTCTClockInstanceManager().timeOfDay;
-            const own = this.existing(preset.phasePlaylistIds[timeOfDay]);
-            playlistId = own ?? this.existing(adaptiveMusicPlaylistFor(preset, timeOfDay));
-            // Already loaded (just paused) on this phase's playlist - or on any of its playlists, if this phase has
-            // none to switch to: carry on where it left off
-            const loadedOwn = this.#track !== null && musicPresetPlaylistIds(preset).includes(this.#track.playlistId);
-            resume = (this.#presetId === presetId && loadedOwn && (own === null || this.isLoaded(own))) || this.isLoaded(playlistId);
-        } else {
-            playlistId = this.existing(preset.playlistId);
-            resume = this.isLoaded(playlistId);
-        }
+        if (isMusicAdaptivePreset(preset)) return this.playAdaptivePreset(preset, fadeMs);
+        const playlistId = this.existing(preset.playlistId);
         if (playlistId === null) throw new Error(`"${preset.name}" has no playlist to play`);
         this.#presetId = presetId;
-        this.#phaseKey = phaseKey;
+        this.#phaseKey = null;
         this.#silenced = false;
-        if (resume) this.resume();
+        if (this.isLoaded(playlistId)) this.resume();
         else this.switchTo(playlistId, fadeMs, presetId);
     }
 
-    /** Starts a day & night preset on its playlist for now, or silences the player if now has none. */
-    private playCountdownPreset(preset: MusicCountdownPreset, fadeMs: number) {
-        const phase = this.countdownPhase();
+    /** Starts an adaptive preset on the phase's playlist, or silences the player if the phase has none. */
+    private playAdaptivePreset(preset: MusicAdaptivePreset, fadeMs: number) {
+        const timeOfDay = getBOTCTClockInstanceManager().timeOfDay;
         this.#presetId = preset.id;
-        this.#phaseKey = phase;
-        const playlistId = phase === 'silent' ? null : this.existing(preset.countdownPlaylistIds[phase]);
+        this.#phaseKey = timeOfDay;
+        const playlistId = this.existing(preset.phasePlaylistIds[timeOfDay]);
         if (playlistId === null) {
             this.#silenced = true;
             if (this.#playing) this.pause(fadeMs);
@@ -343,13 +324,6 @@ export class MusicHelper extends EventEmitter {
         this.#silenced = false;
         if (this.isLoaded(playlistId)) this.resume();
         else this.switchTo(playlistId, fadeMs, preset.id);
-    }
-
-    /** Which of a day & night preset's playlists plays now: day while a countdown runs, night at night, otherwise none. */
-    private countdownPhase(): CountdownPhase | 'silent' {
-        const manager = getBOTCTClockInstanceManager();
-        if (manager.countdownRunning) return 'day';
-        return manager.timeOfDay === 'night' ? 'night' : 'silent';
     }
 
     /** On a change of the games' phase, switches to a scheduled preset, or has the playing preset follow the phase. */
@@ -374,7 +348,7 @@ export class MusicHelper extends EventEmitter {
         this.playPreset(preset.id, PHASE_SWITCH_FADE_MS);
     }
 
-    /** Has the playing adaptive or day & night preset follow a change of phase (or of the countdown). */
+    /** Has the playing adaptive preset follow a change of phase. */
     private followPreset() {
         if (this.#presetId === null) return;
         const preset = this.findPreset(this.#presetId);
@@ -385,29 +359,24 @@ export class MusicHelper extends EventEmitter {
             this.#silenced = false;
             return this.changed();
         }
-        if (isMusicCountdownPreset(preset)) {
-            const phase = this.countdownPhase();
-            if (phase === this.#phaseKey) return;
-            this.#phaseKey = phase;
-            this.followCountdown(preset, phase);
-        } else if (isMusicAdaptivePreset(preset)) {
-            const timeOfDay = getBOTCTClockInstanceManager().timeOfDay;
-            if (timeOfDay === this.#phaseKey) return;
-            this.#phaseKey = timeOfDay;
-            this.followAdaptive(preset, timeOfDay);
-        }
+        if (!isMusicAdaptivePreset(preset)) return;
+        const timeOfDay = getBOTCTClockInstanceManager().timeOfDay;
+        if (timeOfDay === this.#phaseKey) return;
+        this.#phaseKey = timeOfDay;
+        this.followAdaptive(preset, timeOfDay);
     }
 
     /**
-     * Moves a day & night preset on to its playlist for now: fading out and pausing for a silent spell, and starting
-     * (or resuming) the playlist when one comes round. One paused by hand is left alone.
+     * Moves an adaptive preset on to the phase's playlist: fading out and pausing for a silent spell (a phase with none),
+     * and starting (or resuming) the playlist when one comes round. One paused by hand is left alone (starting it again
+     * picks the playlist for then).
      */
-    private followCountdown(preset: MusicCountdownPreset, phase: CountdownPhase | 'silent') {
+    private followAdaptive(preset: MusicAdaptivePreset, timeOfDay: TimeOfDay) {
         if (!this.#playing && !this.#silenced) return;
-        const playlistId = phase === 'silent' ? null : this.existing(preset.countdownPlaylistIds[phase]);
+        const playlistId = this.existing(preset.phasePlaylistIds[timeOfDay]);
         if (playlistId === null) {
             if (!this.#playing) return;
-            console.log(`Music: "${preset.name}" going silent`);
+            console.log(`Music: "${preset.name}" going silent for ${timeOfDay}`);
             this.#silenced = true;
             this.pause(PHASE_SWITCH_FADE_MS);
             return;
@@ -415,21 +384,11 @@ export class MusicHelper extends EventEmitter {
         this.#silenced = false;
         if (this.isLoaded(playlistId)) {
             if (!this.#playing) {
-                console.log(`Music: "${preset.name}" resuming for ${phase}`);
+                console.log(`Music: "${preset.name}" resuming for ${timeOfDay}`);
                 this.resume();
             }
             return;
         }
-        console.log(`Music: "${preset.name}" switching to its ${phase} playlist`);
-        this.switchTo(playlistId, PHASE_SWITCH_FADE_MS, preset.id);
-    }
-
-    /** Switches a playing adaptive preset to the new phase's playlist, unless it has none or it's already on it. */
-    private followAdaptive(preset: MusicAdaptivePreset, timeOfDay: TimeOfDay) {
-        // A paused preset is left alone; starting it again picks the new phase's playlist
-        if (!this.#playing) return;
-        const playlistId = this.existing(preset.phasePlaylistIds[timeOfDay]);
-        if (playlistId === null || this.isLoaded(playlistId)) return;
         console.log(`Music: phase changed to ${timeOfDay}, switching "${preset.name}" playlist`);
         this.switchTo(playlistId, PHASE_SWITCH_FADE_MS, preset.id);
     }

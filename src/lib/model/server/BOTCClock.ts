@@ -4,7 +4,7 @@ import type { TimerOption } from "$lib/common/timerOption";
 import { clockSfxPlaybackFor } from "$lib/audio/common/clockSfxPreset";
 import { CLOCK_CONFIG_MANAGER } from "$lib/resources/server/clock-config";
 import { getClockSfxPreset } from "$lib/resources/server/clock-sfx-presets";
-import type { TimeOfDay } from "../client/types";
+import { isDaytime, type TimeOfDay } from "../client/types";
 import { EventEmitter } from "../client/util/eventEmitter";
 import type { ClocktowerModel } from "../common/ClocktowerModel";
 
@@ -40,11 +40,11 @@ export class BOTCTClock extends EventEmitter {
         const startTime = this.#model.clock.time.serverStartTime;
         if(startTime === null) return;
         const remainingMs = startTime + this.#model.clock.time.duration * 1000 - Date.now();
-        // Already run out (e.g. while the server was down): dusk falls straight away. Only from day, so it never
+        // Already run out (e.g. while the server was down): dusk falls straight away. Only from daytime, so it never
         // undoes a later phase set by hand (e.g. night set before the timer ran out, or before a restart).
         this.#expiryTimeout = setTimeout(()=>{
             this.#expiryTimeout = null;
-            if(this.timeOfDay === 'day') this.timeOfDay = 'dusk';
+            if(isDaytime(this.timeOfDay)) this.timeOfDay = 'dusk';
         }, Math.max(0, remainingMs));
     }
 
@@ -65,7 +65,7 @@ export class BOTCTClock extends EventEmitter {
     }
 
     on(event: 'audio', listener: (audio: ClocktowerAudioTrackModel) => void): this;
-    /** `bell` is the sound to ring: 'final' for the bell rung by hand, 'start' when the game goes from night to day. */
+    /** `bell` is the sound to ring: 'final' for the bell rung by hand, 'start' when the game goes from night to daytime. */
     on(event: 'bellRingRequest', listener: (bell: 'start' | 'final') => void): this;
     on(event: 'modelUpdated', listener: (model: ClocktowerModel) => void): this;
     on(event: string, listener: (...args: any[]) => void): this {
@@ -92,7 +92,7 @@ export class BOTCTClock extends EventEmitter {
         const previous = this.#model.clock.timeOfDay;
         if(previous === timeOfDay) return;
         this.#model.clock.timeOfDay = timeOfDay;
-        if(previous === 'night' && timeOfDay === 'day') this.emit('bellRingRequest', 'start');
+        if(previous === 'night' && isDaytime(timeOfDay)) this.emit('bellRingRequest', 'start');
         this.scheduleSave();
         this.debouncedEmit('modelUpdated', this.#model);
     }
@@ -119,7 +119,7 @@ export class BOTCTClock extends EventEmitter {
 
     setup(timerOption: TimerOption) {
         console.log("Setting up clock...", timerOption);
-        if(this.#model.clock.day === 0 || this.timeOfDay !== 'day'){
+        if(this.#model.clock.day === 0 || !isDaytime(this.timeOfDay)){
             // Day had ended, so advance to next day
             console.log("Advancing to next day...");
             this.day += 1;
@@ -129,7 +129,8 @@ export class BOTCTClock extends EventEmitter {
         if(this.running) this.stop();
         this.duration = timerOption.duration;
         this.ringBellWhen = timerOption.ringBellWhenRemaining ?? undefined;
-        this.timeOfDay = 'day';
+        // Set up but not started yet
+        this.timeOfDay = 'morning';
     }
 
     start() {
@@ -148,11 +149,13 @@ export class BOTCTClock extends EventEmitter {
                 this.emit('modelUpdated', this.#model);
             }
             if(this.duration !== 0) this.duration = 0;
-            if(this.timeOfDay === 'day') this.timeOfDay = 'dusk';
+            if(isDaytime(this.timeOfDay)) this.timeOfDay = 'dusk';
             return;
         }
+        // Paused: back to morning until it's started again
         this.#model.clock.time.serverStartTime = null;
         this.#scheduleExpiry();
+        if(this.timeOfDay === 'day') this.timeOfDay = 'morning';
         this.emit('modelUpdated', this.#model);
     }
 

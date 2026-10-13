@@ -80,7 +80,7 @@ export type MusicModel = {
     presetId: string | null;
     /** The preset being switched to, while the old one fades out. */
     pendingPresetId: string | null;
-    /** Whether that's a day & night preset paused for a silent spell (it starts again by itself). */
+    /** Whether that's an adaptive preset paused for a silent spell (it starts again by itself). */
     presetSilent: boolean;
     /** The preset to switch to at the next change of the games' phase, if one's been picked. */
     scheduledPresetId: string | null;

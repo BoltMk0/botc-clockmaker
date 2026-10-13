@@ -10,8 +10,7 @@
     import type { MusicPlayer } from "../../MusicPlayer.svelte";
     import TimeOfDayIcon from "$lib/assets/timeOfDayIcon.svelte";
     import { TIMES_OF_DAY } from "$lib/model/client/types";
-    import { COUNTDOWN_PHASES } from "$lib/audio/common/spotifyPreset";
-    import { isMusicAdaptivePreset, isMusicCountdownPreset, type MusicPreset } from "$lib/audio/common/musicPreset";
+    import { isMusicAdaptivePreset, type MusicPreset } from "$lib/audio/common/musicPreset";
 
     const NOW_PLAYING_LINE_PX = 14; // Keep in step with .now-playing-text line-height
 
@@ -53,7 +52,7 @@
     });
 
     function presetKind(preset: MusicPreset) {
-        return isMusicAdaptivePreset(preset) ? ' (ambient adaptive)' : isMusicCountdownPreset(preset) ? ' (day & night)' : '';
+        return isMusicAdaptivePreset(preset) ? ' (ambient adaptive)' : '';
     }
 
     /**
@@ -126,30 +125,22 @@
             {@const playing = current && music.playing}
             {@const pending = model.pendingPresetId === preset.id}
             {@const kind = presetKind(preset)}
-            {@const waiting = current && isMusicCountdownPreset(preset) && model.presetSilent}
+            {@const waiting = current && isMusicAdaptivePreset(preset) && model.presetSilent}
             {@const scheduled = model.scheduledPresetId === preset.id}
             {@const loadedPlaylist = current && !waiting ? music.track?.playlistId : undefined}
             <AudioMixerText
                 onclick={()=>clickPreset(preset, current, playing)}
                 style="{PRESET_ROW} {pending ? PENDING_PRESET : current ? CURRENT_PRESET : scheduled ? SCHEDULED_PRESET : ''}"
-                title={pending ? `Loading ${preset.name}${kind}` : scheduled ? `${preset.name}${kind} plays at the next phase change. Tap again to switch now` : !current && music.playing ? `Play ${preset.name}${kind} at the next phase change (tap twice to switch now)` : waiting ? `${preset.name}${kind}: silent until the countdown starts or night falls` : playing ? `Pause ${preset.name}${kind}` : current ? `Resume ${preset.name}${kind}` : `Play ${preset.name}${kind}`}>
+                title={pending ? `Loading ${preset.name}${kind}` : scheduled ? `${preset.name}${kind} plays at the next phase change. Tap again to switch now` : !current && music.playing ? `Play ${preset.name}${kind} at the next phase change (tap twice to switch now)` : waiting ? `${preset.name}${kind}: silent until a phase with a playlist` : playing ? `Pause ${preset.name}${kind}` : current ? `Resume ${preset.name}${kind}` : `Play ${preset.name}${kind}`}>
                 <span class="preset-icon">
                     {#if playing}<PlayIcon size={10}/>{:else}<PauseIcon size={10}/>{/if}
                 </span>
                 <span class="preset-name">{preset.name}</span>
                 {#if isMusicAdaptivePreset(preset)}
-                    <!-- The phases whose playlist is loaded, or every phase with one when none is -->
+                    <!-- The phases whose playlist is loaded (none while silent), or every phase with one when it isn't playing -->
                     <span class="preset-icon">
                         {#each TIMES_OF_DAY as phase}
                             {@const id = preset.phasePlaylistIds[phase]}
-                            {#if id !== null && (!current || loadedPlaylist === id)}<TimeOfDayIcon timeOfDay={phase} size={10}/>{/if}
-                        {/each}
-                    </span>
-                {:else if isMusicCountdownPreset(preset)}
-                    <!-- Likewise: the playlist that's loaded (none while silent), or both when it isn't playing -->
-                    <span class="preset-icon">
-                        {#each COUNTDOWN_PHASES as phase}
-                            {@const id = preset.countdownPlaylistIds[phase]}
                             {#if id !== null && (!current || loadedPlaylist === id)}<TimeOfDayIcon timeOfDay={phase} size={10}/>{/if}
                         {/each}
                     </span>

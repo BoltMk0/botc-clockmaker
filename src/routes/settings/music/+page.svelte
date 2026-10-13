@@ -4,8 +4,7 @@
     import { SvelteSet } from "svelte/reactivity";
     import TimeOfDayIcon from "$lib/assets/timeOfDayIcon.svelte";
     import { TIME_OF_DAY_LABELS, TIMES_OF_DAY, type TimeOfDay } from "$lib/model/client/types";
-    import { COUNTDOWN_PHASES, type CountdownPhase } from "$lib/audio/common/spotifyPreset";
-    import { isMusicAdaptivePreset, isMusicCountdownPreset, type MusicPreset } from "$lib/audio/common/musicPreset";
+    import { isMusicAdaptivePreset, type MusicPreset } from "$lib/audio/common/musicPreset";
     import BinIcon from "$lib/assets/binIcon.svelte";
     import PencilIcon from "$lib/components/PencilIcon.svelte";
     import PlayIcon from "$lib/audio/client/components/PlayIcon.svelte";
@@ -620,16 +619,14 @@
     // ---- Music presets ----
 
     // A preset as edited: playlists by id, '' for none. A `phase` row is an ambient adaptive playlist (a playlist per
-    // phase), a `countdown` row a day & night playlist; otherwise just `playlistId`.
-    type PresetKind = 'single' | 'phase' | 'countdown';
+    // phase); otherwise just `playlistId`.
+    type PresetKind = 'single' | 'phase';
     type PresetRow = {
         id: string, name: string, kind: PresetKind, playlistId: string,
-        phase: Record<TimeOfDay, string>, countdown: Record<CountdownPhase, string>
+        phase: Record<TimeOfDay, string>
     };
 
-    /** A day & night playlist's two playlists, as the settings name them. */
-    const COUNTDOWN_LIST_LABELS: Record<CountdownPhase, string> = { day: 'Day', night: 'Night' };
-    const PRESET_KIND_LABELS: Record<PresetKind, string> = { single: 'Ambient Playlist', phase: 'Ambient Adaptive Playlist', countdown: 'Day & Night Playlist' };
+    const PRESET_KIND_LABELS: Record<PresetKind, string> = { single: 'Ambient Playlist', phase: 'Ambient Adaptive Playlist' };
 
     function newPresetId() {
         return globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
@@ -639,12 +636,8 @@
         return Object.fromEntries(TIMES_OF_DAY.map(t => [t, ''])) as Record<TimeOfDay, string>;
     }
 
-    function emptyCountdown(): Record<CountdownPhase, string> {
-        return Object.fromEntries(COUNTDOWN_PHASES.map(p => [p, ''])) as Record<CountdownPhase, string>;
-    }
-
     function newPresetRow(kind: PresetKind): PresetRow {
-        return { id: newPresetId(), name: '', kind, playlistId: '', phase: emptyPhase(), countdown: emptyCountdown() };
+        return { id: newPresetId(), name: '', kind, playlistId: '', phase: emptyPhase() };
     }
 
     function toPresetRow(p: MusicPreset): PresetRow {
@@ -654,9 +647,6 @@
         if (isMusicAdaptivePreset(p)) {
             row.kind = 'phase';
             row.phase = Object.fromEntries(TIMES_OF_DAY.map(t => [t, p.phasePlaylistIds[t] ?? ''])) as Record<TimeOfDay, string>;
-        } else if (isMusicCountdownPreset(p)) {
-            row.kind = 'countdown';
-            row.countdown = Object.fromEntries(COUNTDOWN_PHASES.map(c => [c, p.countdownPlaylistIds[c] ?? ''])) as Record<CountdownPhase, string>;
         } else {
             row.playlistId = p.playlistId;
         }
@@ -693,10 +683,6 @@
                 const phasePlaylistIds = Object.fromEntries(TIMES_OF_DAY.map(t => [t, picked(row.phase[t])])) as Record<TimeOfDay, string | null>;
                 if (TIMES_OF_DAY.every(t => phasePlaylistIds[t] === null)) return alert(`"${label}" needs a playlist for at least one phase.`);
                 presets.push({ id: row.id, name: row.name.trim() || PRESET_KIND_LABELS.phase, phasePlaylistIds });
-            } else if (row.kind === 'countdown') {
-                const countdownPlaylistIds = Object.fromEntries(COUNTDOWN_PHASES.map(c => [c, picked(row.countdown[c])])) as Record<CountdownPhase, string | null>;
-                if (COUNTDOWN_PHASES.every(c => countdownPlaylistIds[c] === null)) return alert(`"${label}" needs a playlist for the day or the night.`);
-                presets.push({ id: row.id, name: row.name.trim() || PRESET_KIND_LABELS.countdown, countdownPlaylistIds });
             } else {
                 const playlistId = picked(row.playlistId);
                 if (playlistId === null) return alert(`"${label}" needs a playlist.`);
@@ -1080,7 +1066,7 @@
         <h2>Music Presets</h2>
         <button class="save" disabled={!presetsDirty || savingPresets} onclick={savePresets}>{savingPresets ? 'Saving...' : 'Save changes'}</button>
     </div>
-    <p class="description">Playlists shown on the music strip in the mixer, in place of Spotify's when the music player is running there. Each always plays shuffled, and remembers its place in the shuffle: switching back to a playlist carries on with tracks it hasn't played yet, rather than repeating ones it has, until it's been through them all.<br/>An ambient adaptive playlist has a playlist for each phase: it plays the one for the current phase, and fades out to the next phase's whenever the games' phase changes. Leave a phase empty to keep playing whatever was on through it.<br/>A day &amp; night playlist has a playlist for the day and one for the night. The day one only plays while a game's countdown is running; the rest of the day (the morning before it's started, a pause, and dusk) is silent, and it picks up again by itself when the countdown starts or night falls. Leave one empty to keep that time silent too.</p>
+    <p class="description">Playlists shown on the music strip in the mixer, in place of Spotify's when the music player is running there. Each always plays shuffled, and remembers its place in the shuffle: switching back to a playlist carries on with tracks it hasn't played yet, rather than repeating ones it has, until it's been through them all.<br/>An ambient adaptive playlist has a playlist for each phase: it plays the one for the current phase, and fades out to the next phase's whenever the games' phase changes. Leave a phase empty to keep it silent: the music fades out and pauses through it, and picks up again by itself when a phase with a playlist comes round. The morning is daytime before the countdown's started (or while it's paused), and the day while it runs, so with only day and night playlists it plays just while the countdown runs and at night.</p>
     {#if data.library.playlists.length === 0}
         <p class="empty">Make a playlist on the Playlists tab first.</p>
     {/if}
@@ -1099,10 +1085,10 @@
                             <input class="preset-name-input" type="text" maxlength={MUSIC_TEXT_MAX_LENGTH} bind:value={row.name} placeholder={PRESET_KIND_LABELS[row.kind]}/>
                         </td>
                         <td class="phase-icons">
-                            {#if row.kind !== 'single'}
+                            {#if row.kind === 'phase'}
                                 <div class="phase-stack">
-                                    {#each row.kind === 'phase' ? TIMES_OF_DAY : COUNTDOWN_PHASES as t}
-                                        <span class="phase-icon" title={row.kind === 'phase' ? TIME_OF_DAY_LABELS[t as TimeOfDay] : COUNTDOWN_LIST_LABELS[t as CountdownPhase]}><TimeOfDayIcon timeOfDay={t}/></span>
+                                    {#each TIMES_OF_DAY as t}
+                                        <span class="phase-icon" title={TIME_OF_DAY_LABELS[t]}><TimeOfDayIcon timeOfDay={t}/></span>
                                     {/each}
                                 </div>
                             {/if}
@@ -1111,13 +1097,7 @@
                             {#if row.kind === 'phase'}
                                 <div class="phase-stack">
                                     {#each TIMES_OF_DAY as t}
-                                        {@render playlistSelect(row.phase[t], (id) => row.phase[t] = id, '(no change)', `${TIME_OF_DAY_LABELS[t]} playlist`)}
-                                    {/each}
-                                </div>
-                            {:else if row.kind === 'countdown'}
-                                <div class="phase-stack">
-                                    {#each COUNTDOWN_PHASES as c}
-                                        {@render playlistSelect(row.countdown[c], (id) => row.countdown[c] = id, '(silent)', `${COUNTDOWN_LIST_LABELS[c]} playlist`)}
+                                        {@render playlistSelect(row.phase[t], (id) => row.phase[t] = id, '(silent)', `${TIME_OF_DAY_LABELS[t]} playlist`)}
                                     {/each}
                                 </div>
                             {:else}
@@ -1132,7 +1112,6 @@
                         <div class="add-buttons">
                             <button class="add" onclick={() => presetRows.push(newPresetRow('single'))}>Add {PRESET_KIND_LABELS.single}</button>
                             <button class="add" onclick={() => presetRows.push(newPresetRow('phase'))}>Add {PRESET_KIND_LABELS.phase}</button>
-                            <button class="add" onclick={() => presetRows.push(newPresetRow('countdown'))}>Add {PRESET_KIND_LABELS.countdown}</button>
                         </div>
                     </td>
                 </tr>

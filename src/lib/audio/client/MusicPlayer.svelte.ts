@@ -390,7 +390,7 @@ export class MusicPlayer {
     togglePlayPause() { this.control({ action: this.playing ? 'pause' : 'play' }); }
     next() { this.control({ action: 'next' }); }
     previous() { this.control({ action: 'previous' }); }
-    /** Starts (or resumes) a preset straight away; adaptive and day & night presets then follow the phase. */
+    /** Starts (or resumes) a preset straight away; adaptive presets then follow the phase. */
     playPreset(presetId: string) { this.control({ action: 'playPreset', presetId }); }
     /** Switches to a preset at the next change of the games' phase rather than now (null cancels). */
     schedulePreset(presetId: string | null) { this.control({ action: 'schedulePreset', presetId }); }

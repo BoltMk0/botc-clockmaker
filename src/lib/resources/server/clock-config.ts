@@ -7,7 +7,7 @@ import { listResources, getResourceData, deleteResource } from "./resources";
 
 /**
  * Upgrades, in place, a saved model from before clock SFX presets (when each clock picked its own bells via
- * config.resourceMapping), or from before the day/night phase was stored, so it validates. The upgraded model is written back on the clock's next autosave.
+ * config.resourceMapping), from before the day/night phase was stored, or from before the morning phase, so it validates. The upgraded model is written back on the clock's next autosave.
  */
 function migrateLegacyModel(data: any) {
     if(typeof data !== 'object' || data === null) return;
@@ -35,6 +35,10 @@ function migrateLegacyModel(data: any) {
         const ended = time?.duration === 0 ||
             (typeof time?.serverStartTime === 'number' && Date.now() - time.serverStartTime >= time.duration * 1000);
         clock.timeOfDay = ended ? 'night' : 'day';
+    }
+    if(typeof clock === 'object' && clock !== null && clock.timeOfDay === 'day' && clock.time?.serverStartTime === null){
+        // From before the morning phase: daytime with the countdown not running is morning now
+        clock.timeOfDay = 'morning';
     }
 }
 

@@ -24,8 +24,7 @@ export type SpotifyModel = {
     /** The album/playlist being switched to, from the start of the fade-out until it's actually playing. */
     pendingContextUri: string | null;
     /**
-     * The adaptive (or countdown) playlist that was last started, which switches playlist whenever the games' phase
-     * changes (or for a countdown playlist, when the countdown starts or stops).
+     * The adaptive playlist that was last started, which switches playlist whenever the games' phase changes.
      */
     adaptivePresetId: string | null;
     /** Whether that's paused for a silent spell, a time it has no list for (it starts again by itself). */

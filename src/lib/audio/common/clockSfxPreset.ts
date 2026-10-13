@@ -16,7 +16,7 @@ export const CLOCK_SFX_SLOT_LABELS: Record<ClockSfxSlot, string> = {
 
 /** The phase whose icon marks each slot: the day starting, drawing to a close, and over. */
 export const CLOCK_SFX_SLOT_TIMES_OF_DAY: Record<ClockSfxSlot, TimeOfDay> = {
-    start: 'day',
+    start: 'morning',
     reminder: 'dusk',
     final: 'night'
 };

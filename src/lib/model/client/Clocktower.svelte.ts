@@ -2,7 +2,7 @@ import { AudioClockTrack } from "$lib/audio/client/AudioClockTrack.svelte";
 import type { ClocktowerModel as ClocktowerModel } from "../common/ClocktowerModel";
 import type { ClocktowerAudioTrackModel } from "$lib/audio/common/model/clocktowerAudioTrackModel.svelte";
 import { SSEClient } from "./util/sseClient.svelte";
-import type { TimeOfDay } from "./types";
+import { isDaytime, type TimeOfDay } from "./types";
 import { BOTCTimeTypeNow, type BOTCTimeType } from "./util/botcTime";
 import { ServerDeltaTimeManager } from "./util/serverDeltaTimeManager.svelte";
 import { EventEmitter } from "./util/eventEmitter";
@@ -149,7 +149,7 @@ export class Clocktower extends EventEmitter<ClocktowerEvents> {
                 // If over 2 seconds late, assume clock was reset and don't ring bell
                 if(remaining > -2) {
                     // The server turns it to dusk too; don't wait on its update to show it
-                    if(this.#model.clock.timeOfDay === 'day') this.#model.clock.timeOfDay = 'dusk';
+                    if(isDaytime(this.#model.clock.timeOfDay)) this.#model.clock.timeOfDay = 'dusk';
                     this.#audioTrack?.ringEndOfDay();
                     this.emit('bellRing');
                 }

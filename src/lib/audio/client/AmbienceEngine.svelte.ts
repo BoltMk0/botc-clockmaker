@@ -11,7 +11,7 @@ const SEND_DELAY_MS = 80;
 const LOCAL_EDIT_HOLD_MS = 500;
 
 const ENGINE_KEYS = ['playing', 'gain', 'pan'] as const;
-const TRACK_KEYS = ['gain', 'pan', 'activeInDay', 'activeAtDusk', 'activeAtNight', 'loadedResourceId'] as const;
+const TRACK_KEYS = ['gain', 'pan', 'activeInMorning', 'activeInDay', 'activeAtDusk', 'activeAtNight', 'loadedResourceId'] as const;
 
 export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
 

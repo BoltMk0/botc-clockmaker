@@ -23,6 +23,10 @@ export class AmbienceTrackHelper {
             if(typeof patch.pan !== 'number' || isNaN(patch.pan)) throw new Error('Invalid pan');
             clean.pan = Math.min(1, Math.max(-1, patch.pan));
         }
+        if(patch.activeInMorning !== undefined){
+            if(typeof patch.activeInMorning !== 'boolean') throw new Error('Invalid activeInMorning');
+            clean.activeInMorning = patch.activeInMorning;
+        }
         if(patch.activeInDay !== undefined){
             if(typeof patch.activeInDay !== 'boolean') throw new Error('Invalid activeInDay');
             clean.activeInDay = patch.activeInDay;

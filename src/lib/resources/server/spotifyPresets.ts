@@ -1,7 +1,7 @@
 import { isSpotifyPreset, migrateLegacySpotifyPreset, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
 import { JSONSingletonResourceManager } from "./jsonResourceManager";
 
-/** Also upgrades saved presets from before the dusk phase, so they validate. They're written back on the next save. */
+/** Also upgrades saved presets from older kinds (see migrateLegacySpotifyPreset), so they validate. They're written back on the next save. */
 function isSpotifyPresetListMigrating(data: unknown): data is SpotifyPreset[] {
     if (!Array.isArray(data)) return false;
     data.forEach(migrateLegacySpotifyPreset);

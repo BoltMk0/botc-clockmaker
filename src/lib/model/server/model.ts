@@ -49,20 +49,9 @@ class ClockInstanceManager extends EventEmitter {
         return Array.from(this.instances.values()).map(instance => (instance.model));
     }
 
-    /** With several games each in their own phase, the earliest wins: it's day if any game is in daytime. */
+    /** With several games each in their own phase, the earliest wins: it's daytime if any game is (see combineTimesOfDay). */
     get timeOfDay(): TimeOfDay {
         return combineTimesOfDay(Array.from(this.instances.values(), instance => instance.timeOfDay));
-    }
-
-    /**
-     * Whether any game's countdown is running: started, and still in the day. (Once it runs out it's dusk, though the
-     * clock still counts as running until it's stopped; paused, it isn't running.)
-     */
-    get countdownRunning(): boolean {
-        for(const instance of this.instances.values()){
-            if(instance.running && instance.timeOfDay === 'day') return true;
-        }
-        return false;
     }
 
     newInstance(id?: string): {id: string, instance: BOTCTClock} {

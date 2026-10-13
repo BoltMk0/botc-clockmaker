@@ -1,11 +1,14 @@
-import { isMusicPreset, withoutMusicPlaylist, type MusicPreset } from "$lib/audio/common/musicPreset";
+import { isMusicPreset, migrateLegacyMusicPreset, withoutMusicPlaylist, type MusicPreset } from "$lib/audio/common/musicPreset";
 import { JSONSingletonResourceManager } from "./jsonResourceManager";
 
-function isMusicPresetList(data: unknown): data is MusicPreset[] {
-    return Array.isArray(data) && data.every(isMusicPreset);
+/** Also upgrades saved presets from older kinds (see migrateLegacyMusicPreset), so they validate. They're written back on the next save. */
+function isMusicPresetListMigrating(data: unknown): data is MusicPreset[] {
+    if (!Array.isArray(data)) return false;
+    data.forEach(migrateLegacyMusicPreset);
+    return data.every(isMusicPreset);
 }
 
-const MUSIC_PRESETS_MANAGER = new JSONSingletonResourceManager<MusicPreset[]>('music_presets', isMusicPresetList);
+const MUSIC_PRESETS_MANAGER = new JSONSingletonResourceManager<MusicPreset[]>('music_presets', isMusicPresetListMigrating);
 
 export function getMusicPresets(): MusicPreset[] {
     return MUSIC_PRESETS_MANAGER.value ?? [];

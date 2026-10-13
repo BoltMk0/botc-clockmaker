@@ -5,7 +5,7 @@ export function GET() {
     return json(getTimeOfDayTrimHelperInstance().model);
 }
 
-/** Patch the per-phase master trims: { day?: number, dusk?: number, night?: number } in dB */
+/** Patch the per-phase master trims: { morning?: number, day?: number, dusk?: number, night?: number } in dB */
 export async function POST({ request }) {
     const patch = await request.json().catch(() => null);
     if (typeof patch !== 'object' || patch === null) return error(400, { message: 'Invalid body' });

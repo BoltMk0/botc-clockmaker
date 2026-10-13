@@ -99,11 +99,11 @@
         background: var(--theme-slider-trim);
     }
 
-    /* Per-phase master trims, laid out like the day/dusk/night toggles on the ambience strips. The MASTER strip is
-       widened (to 100px, from the usual 85px) so each column fits its knob and a "+12.0" readout. */
+    /* Per-phase master trims, two by two, in the phases' order. The MASTER strip is widened (to 100px, from the usual
+       85px) so each column fits its knob and a "+12.0" readout. */
     .time-of-day-trims {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(2, 1fr);
         gap: 2px;
         padding: 5px 0;
     }

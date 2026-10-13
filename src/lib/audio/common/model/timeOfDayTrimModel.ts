@@ -11,7 +11,7 @@ export function clampTimeOfDayTrim(db: number): number {
 }
 
 export function newTimeOfDayTrimModel(): TimeOfDayTrimModel {
-    return { day: 0, dusk: 0, night: 0 };
+    return { morning: 0, day: 0, dusk: 0, night: 0 };
 }
 
 export function isTimeOfDayTrimModel(value: unknown): value is TimeOfDayTrimModel {

@@ -4,7 +4,7 @@ import { getMimeTypeForExtension } from "../common/util";
 import { encodeResourceId, findResourceById, getResourceData } from "./resources";
 import { JSONSingletonResourceManager } from "./jsonResourceManager";
 
-/** Upgrades a saved model from before the dusk phase, so it validates. It's written back on the next save. */
+/** Upgrades a saved model from before the dusk or morning phase, so it validates. It's written back on the next save. */
 function isAmbienceEngineModelMigrating(data: any): data is AmbienceEngineModel {
     if(Array.isArray(data?.tracks)) data.tracks.forEach(migrateLegacyAmbienceTrack);
     return isAmbienceEngineModel(data);

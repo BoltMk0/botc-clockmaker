@@ -3,7 +3,13 @@ import { clampTimeOfDayTrim, isTimeOfDayTrimModel, newTimeOfDayTrimModel, type T
 import { TIMES_OF_DAY } from "$lib/model/client/types";
 import { JSONSingletonResourceManager } from "$lib/resources/server/jsonResourceManager";
 
-const CONFIG_MANAGER = new JSONSingletonResourceManager<TimeOfDayTrimModel>('time_of_day_trim', isTimeOfDayTrimModel);
+/** Also upgrades the saved trims from before the morning phase (morning starts at the day's level), so they validate. */
+function isTimeOfDayTrimModelMigrating(data: any): data is TimeOfDayTrimModel {
+    if (typeof data === 'object' && data !== null && data.morning === undefined) data.morning = data.day;
+    return isTimeOfDayTrimModel(data);
+}
+
+const CONFIG_MANAGER = new JSONSingletonResourceManager<TimeOfDayTrimModel>('time_of_day_trim', isTimeOfDayTrimModelMigrating);
 
 export class TimeOfDayTrimHelper extends EventEmitter {
     #model: TimeOfDayTrimModel = { ...newTimeOfDayTrimModel(), ...CONFIG_MANAGER.value };
@@ -15,7 +21,7 @@ export class TimeOfDayTrimHelper extends EventEmitter {
 
     get model(): TimeOfDayTrimModel { return { ...this.#model }; }
 
-    /** Validates and applies a patch ({ day?, dusk?, night? } in dB). Throws on an invalid field. */
+    /** Validates and applies a patch ({ morning?, day?, dusk?, night? } in dB). Throws on an invalid field. */
     update(patch: Record<string, unknown>) {
         let changed = false;
         for (const phase of TIMES_OF_DAY) {
