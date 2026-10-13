@@ -37,6 +37,12 @@ export class SSEClient {
 
         const self = this;
         this.sse_connection = source(this.sourceUrl, {
+            // Not shared through sveltekit-sse's cache: it keys sources by URL and keeps the callbacks of whichever
+            // client made the source first. A later client for the same URL (e.g. the mixer's connection, reopened
+            // after its last subscriber closed it) would get those of an earlier, closed client, so it never reconnected
+            // after a drop, nor did its watchdog run, and it went deaf. Closing one client also closed the connection
+            // under any other sharing it.
+            cache: false,
             close({ connect }) {
                 if(self.closing){
                     console.log('SSE connection closed by client, not reconnecting.');

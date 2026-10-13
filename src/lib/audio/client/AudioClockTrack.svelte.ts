@@ -4,8 +4,8 @@ import { AudioTrack } from "./AudioTrack.svelte";
 
 
 export class AudioClockTrack extends AudioTrack {
-    /** When set, bells never ring (used by remote-only clients). */
-    silent = false;
+    /** When set, bells never ring, and so aren't loaded either (used by remote-only clients). */
+    readonly silent: boolean;
 
     /** Called whenever the user edits this track's gain/pan/balance locally (e.g. via the mixer's clock
      *  channel strip), so Clocktower can sync it to the server for every other connected mixer. */
@@ -21,11 +21,13 @@ export class AudioClockTrack extends AudioTrack {
         readonly id: string,
         model: ClocktowerAudioTrackModel,
         title: string,
-        outputNode: AudioNode
+        outputNode: AudioNode,
+        options: {silent?: boolean} = {}
     ) {
         console.debug("Setting up new AudioClockTrack", model);
         super(model, outputNode, title);
         this.#model = model;
+        this.silent = options.silent ?? false;
 
         let context = outputNode.context as AudioContext;
 
@@ -69,6 +71,7 @@ export class AudioClockTrack extends AudioTrack {
     }
 
     #setSource(audio: HTMLAudioElement, url: string|null){
+        if(this.silent) return;
         console.log(`Updating bell source of Clock #${this.id} to "${url ?? ''}"`);
         if(url === null) audio.removeAttribute('src');
         else audio.src = url;

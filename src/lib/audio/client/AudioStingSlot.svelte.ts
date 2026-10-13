@@ -8,10 +8,12 @@ export class AudioStingSlot extends AudioTrack {
     readonly #model: AudioResourceTrackModel;
     readonly #stopEffects: () => void;
 
+    /** @param options.silent Never fires, so its asset is never loaded either. */
     constructor(
         model: AudioResourceTrackModel,
         outputNode: AudioNode,
-        title: string
+        title: string,
+        options: { silent?: boolean } = {}
     ) {
         super(model, outputNode, title);
         this.#model = model;
@@ -25,7 +27,7 @@ export class AudioStingSlot extends AudioTrack {
         this.audioSource = context.createMediaElementSource(this.audio);
         this.audioSource.connect(this.input);
 
-        this.#stopEffects = $effect.root(() => {
+        this.#stopEffects = options.silent ? () => { } : $effect.root(() => {
             $effect(() => {
                 const id = this.#model.loadedResourceId;
                 if (id === null) {

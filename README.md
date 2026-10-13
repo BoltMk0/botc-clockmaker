@@ -2,7 +2,10 @@
 
 A simple app for tracking time during a blood on the clocktower game, with a nice satisfying "bong" sound. 
 
+📖 **Full user guide: [doc/](doc/README.md)** — installation, a step-by-step walkthrough from a simple town square clock to a virtual grimoire and custom audio, and a reference for every settings page.
+
 # Table of Contents
+1. [Documentation](doc/README.md)
 1. [Quickstart](#quickstart)
 2. [Configuration and Resource Storage](#configuration-and-resource-storage)
 3. [From source code](#from-source-code)
@@ -48,7 +51,7 @@ docker compose up -d
 ```
 
 ## Configuration and Resource Storage
-All configuration and content (games, presets, scripts, characters, audio, images, grimoire state, ...) is stored as flat JSON/binary files. The storage root defaults to `data/resources` relative to the working directory, and can be set with the `RESOURCE_DATA_DIR` environment variable. The docker setups above set it to `/data` inside the container.
+All configuration and content (games, presets, scripts, characters, audio, images, grimoire state, ...) is stored as flat JSON/binary files. The storage root defaults to `data/resources` relative to the working directory, and can be set with the `RESOURCE_DATA_DIR` environment variable. The Docker image sets it to `/data` inside the container.
 
 For persisting configuration & customization, be sure to mount a volume at that path:
 ```sh
@@ -86,7 +89,12 @@ Most content is managed in the app itself, under **Settings** (games, scripts, c
 | `RESOURCE_DATA_DIR` | Where configuration and resources are stored (default `data/resources`) |
 | `PORT` | Port to serve on (default `3000`) |
 | `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `FEEDBACK_TO_EMAILS` | Optional. Used to email submissions from the feedback form. Without them, feedback is still saved to disk but no email is sent |
+| `TURNSTILE_SITE_KEY` | Site key of your Cloudflare Turnstile widget for the feedback form, read at runtime. Defaults to the original deployment's widget |
 | `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret for the feedback form, read at runtime. Without it, feedback submissions are rejected |
+| `FEEDBACK_DATA_DIR` | Where feedback submissions are stored (default `data/feedback`; the Docker image sets it to `/data/feedback`) |
+| `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` | Optional. Credentials of a Spotify developer app, to play Spotify from the mixer. See [Music & Spotify](doc/music-and-spotify.md#setting-up-spotify) |
+
+See the [configuration reference](doc/configuration.md) for every variable and the data directory layout.
 
 
 <br>

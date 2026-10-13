@@ -1066,7 +1066,7 @@
         <h2>Music Presets</h2>
         <button class="save" disabled={!presetsDirty || savingPresets} onclick={savePresets}>{savingPresets ? 'Saving...' : 'Save changes'}</button>
     </div>
-    <p class="description">Playlists shown on the music strip in the mixer, in place of Spotify's when the music player is running there. Each always plays shuffled, and remembers its place in the shuffle: switching back to a playlist carries on with tracks it hasn't played yet, rather than repeating ones it has, until it's been through them all.<br/>An ambient adaptive playlist has a playlist for each phase: it plays the one for the current phase, and fades out to the next phase's whenever the games' phase changes. Leave a phase empty to keep it silent: the music fades out and pauses through it, and picks up again by itself when a phase with a playlist comes round. The morning is daytime before the countdown's started (or while it's paused), and the day while it runs, so with only day and night playlists it plays just while the countdown runs and at night.</p>
+    <p class="description">Playlists shown on the music player's strip in the mixer, which can run beside Spotify's: only one plays at a time, so picking a preset on either fades the other out (or, while the other is playing, schedules it for the next phase change, as within one player). Each always plays shuffled, and remembers its place in the shuffle: switching back to a playlist carries on with tracks it hasn't played yet, rather than repeating ones it has, until it's been through them all.<br/>An ambient adaptive playlist has a playlist for each phase: it plays the one for the current phase, and fades out to the next phase's whenever the games' phase changes. Leave a phase empty to keep it silent: the music fades out and pauses through it, and picks up again by itself when a phase with a playlist comes round. The morning is daytime before the countdown's started (or while it's paused), and the day while it runs, so with only day and night playlists it plays just while the countdown runs and at night.</p>
     {#if data.library.playlists.length === 0}
         <p class="empty">Make a playlist on the Playlists tab first.</p>
     {/if}
@@ -2065,10 +2065,75 @@
         .tab-bar {
             padding: 0.5rem 0.75rem 0;
         }
+        .tab-bar {
+            gap: 0;
+        }
         .tab-bar button {
             flex: 1;
             justify-content: center;
-            padding: 0.6em 0.5em;
+            gap: 0.35em;
+            padding: 0.6em 0.3em;
+            font-size: 0.9rem;
+        }
+        .tab-count {
+            padding: 0.1em 0.45em;
+        }
+        input.search {
+            flex-basis: 100%;
+        }
+
+        /*
+         * Each track becomes two lines, so the title gets the full width: the play button (and number) down the left,
+         * the title along the top, and the length, loudness and buttons below it.
+         */
+        .track-table, .track-table tbody {
+            display: block;
+        }
+        tr.track-row {
+            display: grid;
+            grid-template-columns: auto auto auto 1fr auto;
+            grid-template-areas:
+                "play number title title title"
+                "play number duration loudness actions";
+            border-top: 1px solid var(--theme-bg-tertiary);
+            background-color: var(--theme-bg);
+        }
+        /* (The row, rather than its cells, carries the striping, as the cells no longer tile it) */
+        tr.track-row:nth-child(even) {
+            background-color: color-mix(in srgb, var(--theme-bg) 50%, var(--theme-bg-secondary));
+        }
+        .track-table tr.track-row td {
+            display: flex;
+            align-items: center;
+            border-top: none;
+            width: auto;
+            background: none;
+        }
+        tr.track-row td.play-cell {
+            grid-area: play;
+        }
+        tr.track-row td.number-cell {
+            grid-area: number;
+            padding-left: 0;
+        }
+        tr.track-row td.title-cell {
+            grid-area: title;
+            display: block;
+            padding-bottom: 0;
+        }
+        tr.track-row td.duration-cell {
+            grid-area: duration;
+            font-size: 0.85em;
+        }
+        tr.track-row td.loudness-cell {
+            grid-area: loudness;
+        }
+        tr.track-row td.row-actions {
+            grid-area: actions;
+            justify-content: flex-end;
+        }
+        tr.details-row, tr.details-row td {
+            display: block;
         }
         .panel {
             padding: 1rem;

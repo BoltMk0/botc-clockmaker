@@ -15,19 +15,25 @@
     const NOW_PLAYING_LINE_PX = 14; // Keep in step with .now-playing-text line-height
 
     /**
-     * The mixer's music strip while the uploaded-music player is running - laid out like the Spotify one, which it
-     * shares the strip's place with. The music plays through the Music & Ambience master bus on the host, so the
+     * The mixer's strip for the uploaded-music player while it's running - laid out like the Spotify one, which can run
+     * beside it (starting either fades the other out). The music plays through the Music & Ambience master bus on the host, so the
      * master fader, dim and time-of-day trim apply to it there.
      */
     let {
         music,
         presets = [],
+        /** Whether the Spotify player is playing, so a preset picked here waits for the phase change, as one would mid-music. */
+        otherPlaying = false,
         style = undefined
     }: {
         music: MusicPlayer;
         presets?: MusicPreset[];
+        otherPlaying?: boolean;
         style?: string;
     } = $props();
+
+    /** Either player playing, which a preset picked here takes over from. */
+    const anyPlaying = $derived(music.playing || otherPlaying);
 
     const model = $derived(music.model);
     /** The fader, as a linear gain (shown in dB, like the ambience tracks'). */
@@ -56,13 +62,13 @@
     }
 
     /**
-     * The loaded preset just toggles play/pause. Another one, while something's playing, is scheduled to take over at the
-     * next change of phase; tapped again, it switches straight away. With nothing playing, it starts at once (a paused
+     * The loaded preset just toggles play/pause. Another one, while something's playing (here or on Spotify), is
+     * scheduled to take over at the next change of phase; tapped again, it switches straight away. With nothing playing, it starts at once (a paused
      * one carries on where it left off).
      */
     function clickPreset(preset: MusicPreset, current: boolean, playing: boolean) {
         if (playing) music.togglePlayPause();
-        else if (!current && model?.scheduledPresetId !== preset.id && music.playing) music.schedulePreset(preset.id);
+        else if (!current && model?.scheduledPresetId !== preset.id && anyPlaying) music.schedulePreset(preset.id);
         else music.playPreset(preset.id);
     }
 
@@ -99,7 +105,7 @@
             <AudioMixerText onclick={()=>music.next()} style={CENTER} title="Next track">&#9197;</AudioMixerText>
         </div>
         {#if music.isHost}
-        <AudioMixerText onclick={()=>{ menuOpen = false; music.stopHosting(); }} title="Stop the player on this device so another (or Spotify) can take over">Stop player</AudioMixerText>
+        <AudioMixerText onclick={()=>{ menuOpen = false; music.stopHosting(); }} title="Stop the player on this device so another can take over">Stop player</AudioMixerText>
         {:else}
         <div class="remote-note">Playing from another device</div>
         {/if}
@@ -131,7 +137,7 @@
             <AudioMixerText
                 onclick={()=>clickPreset(preset, current, playing)}
                 style="{PRESET_ROW} {pending ? PENDING_PRESET : current ? CURRENT_PRESET : scheduled ? SCHEDULED_PRESET : ''}"
-                title={pending ? `Loading ${preset.name}${kind}` : scheduled ? `${preset.name}${kind} plays at the next phase change. Tap again to switch now` : !current && music.playing ? `Play ${preset.name}${kind} at the next phase change (tap twice to switch now)` : waiting ? `${preset.name}${kind}: silent until a phase with a playlist` : playing ? `Pause ${preset.name}${kind}` : current ? `Resume ${preset.name}${kind}` : `Play ${preset.name}${kind}`}>
+                title={pending ? `Loading ${preset.name}${kind}` : scheduled ? `${preset.name}${kind} plays at the next phase change. Tap again to switch now` : !current && anyPlaying ? `Play ${preset.name}${kind} at the next phase change (tap twice to switch now)` : waiting ? `${preset.name}${kind}: silent until a phase with a playlist` : playing ? `Pause ${preset.name}${kind}` : current ? `Resume ${preset.name}${kind}` : `Play ${preset.name}${kind}`}>
                 <span class="preset-icon">
                     {#if playing}<PlayIcon size={10}/>{:else}<PauseIcon size={10}/>{/if}
                 </span>

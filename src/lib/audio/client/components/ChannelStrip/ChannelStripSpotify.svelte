@@ -14,14 +14,20 @@
     let {
         spotify,
         presets = [],
+        /** Whether the music player is playing, so a preset picked here waits for the phase change, as one would mid-Spotify. */
+        otherPlaying = false,
         // (Spotify plays through its own device/SDK rather than the Web Audio master bus, so the server applies the
         // shared master fader, dim and time-of-day trim to the volume it sends the player instead - see SpotifyHelper.)
         style = undefined
     }: {
         spotify: SpotifyPlayer;
         presets?: SpotifyPreset[];
+        otherPlaying?: boolean;
         style?: string;
     } = $props();
+
+    /** Either player playing, which a preset picked here takes over from. */
+    const anyPlaying = $derived(spotify.playback?.playing === true || otherPlaying);
 
     const model = $derived(spotify.model);
     let volume = $state(untrack(() => model?.volume ?? 50));
@@ -61,14 +67,14 @@
     }
 
     /**
-     * The loaded preset just toggles play/pause. Another one, while something's playing, is scheduled to take over at the
-     * next change of phase; tapped again, it switches straight away. With nothing playing, it starts at once. A paused
+     * The loaded preset just toggles play/pause. Another one, while something's playing (here or on the music player),
+     * is scheduled to take over at the next change of phase; tapped again, it switches straight away. With nothing playing, it starts at once. A paused
      * adaptive playlist is resumed through the server, which switches it to the right list for the phase (or keeps it
      * quiet, if the phase has none).
      */
     function clickPreset(preset: SpotifyPreset, current: boolean, playing: boolean) {
         if (playing) spotify.togglePlayPause();
-        else if (!current && model?.scheduledPresetId !== preset.id && spotify.playback?.playing) spotify.schedulePreset(preset.id);
+        else if (!current && model?.scheduledPresetId !== preset.id && anyPlaying) spotify.schedulePreset(preset.id);
         else if (isSpotifyAdaptivePreset(preset)) spotify.playAdaptivePreset(preset.id);
         else if (current) spotify.togglePlayPause();
         else spotify.playContext(preset.uri);
@@ -137,7 +143,7 @@
                 <AudioMixerText
                     onclick={()=>clickPreset(preset, current, playing)}
                     style="{PRESET_ROW} {pending ? PENDING_PRESET : current ? CURRENT_PRESET : scheduled ? SCHEDULED_PRESET : ''}"
-                    title={pending ? `Loading ${preset.name}${kind}` : scheduled ? `${preset.name}${kind} plays at the next phase change. Tap again to switch now` : !current && spotify.playback?.playing ? `Play ${preset.name}${kind} at the next phase change (tap twice to switch now)` : waiting ? `${preset.name}${kind}: silent until a phase with a list` : playing ? `Pause ${preset.name}${kind}` : current ? `Resume ${preset.name}${kind}` : `Play ${preset.name}${kind}`}>
+                    title={pending ? `Loading ${preset.name}${kind}` : scheduled ? `${preset.name}${kind} plays at the next phase change. Tap again to switch now` : !current && anyPlaying ? `Play ${preset.name}${kind} at the next phase change (tap twice to switch now)` : waiting ? `${preset.name}${kind}: silent until a phase with a list` : playing ? `Pause ${preset.name}${kind}` : current ? `Resume ${preset.name}${kind}` : `Play ${preset.name}${kind}`}>
                     <span class="preset-icon">
                         <!-- (Component names are the other way round: PlayIcon draws the pause bars, PauseIcon the triangle.) -->
                         {#if playing}<PlayIcon size={10}/>{:else}<PauseIcon size={10}/>{/if}

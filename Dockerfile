@@ -9,7 +9,9 @@ RUN npm run build
 
 FROM node:20-alpine AS production
 
-ENV DATA_DIR=/data
+# Where configuration, resources and feedback are stored; mount a volume at /data to keep them
+ENV RESOURCE_DATA_DIR=/data
+ENV FEEDBACK_DATA_DIR=/data/feedback
 # Measures the music tracks' loudness, for loudness levelling
 RUN apk add --no-cache ffmpeg
 

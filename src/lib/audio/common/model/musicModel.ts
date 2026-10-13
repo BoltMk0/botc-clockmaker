@@ -60,8 +60,8 @@ export function musicLevellingGainDb(model: Pick<MusicModel, 'levelling' | 'trac
 /**
  * Server-wide state of the uploaded-music player, shared by every mixer client. The server decides what plays; the
  * host client (the one device the sound comes out of) follows it: whenever `loadId` changes it fades out what it had
- * (over `fadeMs`, if it was playing) and starts `track` from the top, and otherwise it plays or pauses (fading out over
- * `fadeMs` to pause) to match `playing`. A change marked `crossfading` instead overlaps the two tracks over `fadeMs`.
+ * (over `fadeMs`, if it was playing) and starts `track` from the top, and otherwise it plays or pauses (fading in or
+ * out over `fadeMs`) to match `playing`. A change marked `crossfading` instead overlaps the two tracks over `fadeMs`.
  */
 export type MusicModel = {
     /** The mixer client running the player, if any. */
@@ -72,7 +72,7 @@ export type MusicModel = {
     /** Bumped for every track started, so starting the same track again (a one-track playlist) still restarts it. */
     loadId: number;
     playing: boolean;
-    /** How long the host should fade out for to make the latest change (0 for a track that just ended). */
+    /** How long the host should fade for to make the latest change: out, or in to resume (0 for a track that just ended). */
     fadeMs: number;
     /** Whether the latest change of track is a crossfade into the playlist's next track (over fadeMs), not a fade-out. */
     crossfading: boolean;

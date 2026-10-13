@@ -3,8 +3,6 @@ import { subscribeMixerEvents } from "./MixerEventsClient";
 
 const HEARTBEAT_MS = 5000;
 const VOLUME_SEND_DELAY_MS = 80;
-/** Brings the level back in when resuming after a fade-out, rather than snapping in. */
-const FADE_IN_S = 0.05;
 /** Time constant of the volume following the strip's fader. */
 const VOLUME_TIME_CONSTANT_S = 0.05;
 /** Points in the fades' equal-power curves. */
@@ -32,11 +30,15 @@ type Deck = {
     loadId: number | null;
 };
 
-/** An equal-power curve from `from` down to silence (fading out) or from silence up to 1 (fading in). */
-function fadeCurve(direction: 'out' | 'in', from = 1): Float32Array<ArrayBuffer> {
+/**
+ * An equal-power curve from `from` down to silence (fading out) or from `from` up to 1 (fading in, picking the curve up
+ * at that level, so a fade-in turning round a fade-out partway carries on smoothly).
+ */
+function fadeCurve(direction: 'out' | 'in', from = direction === 'out' ? 1 : 0): Float32Array<ArrayBuffer> {
     const curve = new Float32Array(FADE_CURVE_POINTS);
+    const start = direction === 'in' ? Math.asin(Math.min(1, Math.max(0, from))) : 0;
     for (let i = 0; i < FADE_CURVE_POINTS; i++) {
-        const angle = i / (FADE_CURVE_POINTS - 1) * Math.PI / 2;
+        const angle = start + i / (FADE_CURVE_POINTS - 1) * (Math.PI / 2 - start);
         curve[i] = direction === 'out' ? from * Math.cos(angle) : Math.sin(angle);
     }
     return curve;
@@ -267,7 +269,7 @@ export class MusicPlayer {
         } else {
             this.#targetPlaying = playing;
             if (playing) {
-                this.setFade(deck, 1, FADE_IN_S);
+                this.fadeIn(deck, model.fadeMs);
                 this.startElement(deck);
             } else {
                 this.fadeOutAll(audible ? model.fadeMs : 0, token).then(done => { if (done) this.pauseAll(); });
@@ -357,6 +359,16 @@ export class MusicPlayer {
         const step = durationMs / 1000 / (curve.length - 1);
         param.setValueAtTime(curve[0], now);
         for (let i = 1; i < curve.length; i++) param.linearRampToValueAtTime(curve[i], now + i * step);
+    }
+
+    /**
+     * Equal-power fade up to full level, from where the level is now (silence after a pause, or partway down if it's
+     * still fading out from one), over what's left of the fade from there.
+     */
+    private fadeIn(deck: Deck, durationMs: number) {
+        const from = Math.min(1, Math.max(0, deck.fadeNode.gain.value));
+        const remaining = 1 - Math.asin(from) / (Math.PI / 2);
+        this.scheduleCurve(deck.fadeNode, fadeCurve('in', from), durationMs * remaining);
     }
 
     /** Sets the active deck's levelling gain as the model calls for: straight away, or easing to it with the given time constant. */

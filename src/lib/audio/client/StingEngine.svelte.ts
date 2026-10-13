@@ -31,7 +31,7 @@ export class StingEngine extends AudioTrackGroup<AudioStingSlot> {
         super(
             model,
             outputNode, '',
-            (slotModel: AudioResourceTrackModel, outputNode: AudioNode, index: number) => new AudioStingSlot(slotModel, outputNode, `Sting ${index + 1}`)
+            (slotModel: AudioResourceTrackModel, outputNode: AudioNode, index: number) => new AudioStingSlot(slotModel, outputNode, `Sting ${index + 1}`, options)
         );
         this.#model = model;
         this.#silent = options.silent ?? false;

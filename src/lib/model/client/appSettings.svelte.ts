@@ -38,6 +38,8 @@ interface AppSettingsState {
     nowPlayingMode: NowPlayingMode;
     /** Where on the screen it shows. */
     nowPlayingPosition: NowPlayingPosition;
+    /** Whether the town square plays the mixer's sound on this device. When off, its mixer only acts as a remote. */
+    audioEngineEnabled: boolean;
 }
 
 const DEFAULT_STATE: AppSettingsState = {
@@ -50,7 +52,8 @@ const DEFAULT_STATE: AppSettingsState = {
     qrAutoSize: true,
     qrScale: 1,
     nowPlayingMode: 'popup',
-    nowPlayingPosition: 'top'
+    nowPlayingPosition: 'top',
+    audioEngineEnabled: true
 };
 
 
@@ -80,6 +83,7 @@ class AppSettingsModel {
     qrScale: number = $state(DEFAULT_STATE.qrScale);
     nowPlayingMode: NowPlayingMode = $state(DEFAULT_STATE.nowPlayingMode);
     nowPlayingPosition: NowPlayingPosition = $state(DEFAULT_STATE.nowPlayingPosition);
+    audioEngineEnabled: boolean = $state(DEFAULT_STATE.audioEngineEnabled);
 
     /** How much to scale QR codes by, relative to their default size. */
     get qrSizeScale(): number {
@@ -106,7 +110,8 @@ class AppSettingsModel {
                         qrAutoSize: this.qrAutoSize,
                         qrScale: this.qrScale,
                         nowPlayingMode: this.nowPlayingMode,
-                        nowPlayingPosition: this.nowPlayingPosition
+                        nowPlayingPosition: this.nowPlayingPosition,
+                        audioEngineEnabled: this.audioEngineEnabled
                     };
                     this.saveState(state);
                 });
@@ -166,6 +171,7 @@ class AppSettingsModel {
             this.qrScale = parsedValue.qrScale ?? this.qrScale;
             if (isNowPlayingMode(parsedValue.nowPlayingMode)) this.nowPlayingMode = parsedValue.nowPlayingMode;
             if (isNowPlayingPosition(parsedValue.nowPlayingPosition)) this.nowPlayingPosition = parsedValue.nowPlayingPosition;
+            if (typeof parsedValue.audioEngineEnabled === 'boolean') this.audioEngineEnabled = parsedValue.audioEngineEnabled;
         } catch(e) {
             console.error("Failed to parse stored app settings", e);
         }

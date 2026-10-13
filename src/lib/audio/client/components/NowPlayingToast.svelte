@@ -13,8 +13,15 @@
 
     let { spotify, music = null }: { spotify: SpotifyPlayer | null, music?: MusicPlayer | null } = $props();
 
-    /** The track of whichever player is running (only one runs at a time: they share the mixer's music strip). */
-    const currentPlayback = $derived(music?.active ? music.playback : spotify?.playback ?? null);
+    /**
+     * The track of whichever player is playing (only one plays at a time: starting either fades the other out), or with
+     * neither playing, the music player's if it's running, else Spotify's.
+     */
+    const currentPlayback = $derived(
+        music?.playing ? music.playback
+        : spotify?.playback?.playing ? spotify.playback
+        : music?.active ? music.playback
+        : spotify?.playback ?? null);
 
     type Shown = { key: string, title: string, artist: string, imageUrl: string | null };
 

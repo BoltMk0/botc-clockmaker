@@ -7,9 +7,12 @@
     import ChannelStripMusic from "./ChannelStripMusic.svelte";
 
     /**
-     * The mixer's music strip, which the Spotify player and the uploaded-music player share: whichever is running takes
-     * it (the server only lets one run at a time). With neither running, it's an empty outline to start one from - split
-     * in two, Spotify and music, where Spotify is set up on the server.
+     * The mixer's music strips: one for the Spotify player and one for the uploaded-music player, each while it's
+     * running. The two can run side by side, though only one plays at a time - starting either (a preset, or play)
+     * fades the other out, and a preset picked on one while the other plays is scheduled for the next phase change,
+     * the same as within one player. A player that isn't running is an outline to start it from: with neither running,
+     * one strip's worth split in two (Spotify only where it's set up on the server), and otherwise a narrow one beside
+     * the strip that is.
      */
     let {
         spotify = undefined,
@@ -30,41 +33,48 @@
     const musicRunning = $derived(music?.active === true);
     /** Spotify gets half the outline once the server says it's set up. */
     const offerSpotify = $derived(spotifyModel?.configured === true);
-    /** Whether this client can start either player (not a remote-only one). */
-    const canStart = $derived((music?.canHost ?? false) || (offerSpotify && (spotify?.canHost ?? false)));
     const error = $derived(spotify?.error ?? music?.error ?? null);
+    /** Each strip's presets go by whether either player is playing, to schedule a pick rather than cut in. */
+    const spotifyPlaying = $derived(spotifyRunning && spotify?.playback?.playing === true);
+    const musicPlaying = $derived(musicRunning && music?.playing === true);
+    /** Outlines for the players that aren't running (only those this client can start, or Spotify to link). */
+    const spotifyOutline = $derived(!!spotify && offerSpotify && !spotifyRunning && (!spotifyModel?.authorized || spotify.canHost));
+    const musicOutline = $derived(!!music && !musicRunning && music.canHost);
+    const eitherRunning = $derived(spotifyRunning || musicRunning);
 </script>
 
 {#if spotify && spotifyRunning}
-<ChannelStripSpotify {spotify} presets={spotifyPresets} {style}/>
-{:else if music && musicRunning}
-<ChannelStripMusic {music} presets={musicPresets} {style}/>
-{:else if spotify || music}
-<div class="player-slot" {style}>
-    {#if !canStart && !(offerSpotify && !spotifyModel?.authorized)}
+<ChannelStripSpotify {spotify} presets={spotifyPresets} otherPlaying={musicPlaying} {style}/>
+{/if}
+{#if music && musicRunning}
+<ChannelStripMusic {music} presets={musicPresets} otherPlaying={spotifyPlaying} {style}/>
+{/if}
+{#if (spotify || music) && (!eitherRunning || spotifyOutline || musicOutline)}
+<div class="player-slot" class:narrow={eitherRunning} {style}>
+    {#if !spotifyOutline && !musicOutline}
         <div class="outline"><div class="outline-text">Player<br/>not<br/>running</div></div>
     {:else}
         <div class="outlines">
-            {#if spotify && offerSpotify}
+            {#if spotify && spotifyOutline}
                 {#if !spotifyModel?.authorized}
                     <!-- The whole dashed area is the click target (not just the text), so it's easy to hit. -->
                     <a class="outline clickable" href="/api/spotify/auth" data-sveltekit-reload title="Link a Spotify account">
                         <div class="outline-text">+<br/>Link<br/>Spotify</div>
                     </a>
-                {:else if spotify.canHost}
-                    <button class="outline clickable" onclick={()=>spotify.startHosting()} disabled={spotify.starting || music?.starting} title="Start the Spotify player on this device">
+                {:else}
+                    <button class="outline clickable" onclick={()=>spotify.startHosting()} disabled={spotify.starting} title="Start the Spotify player on this device">
                         <div class="outline-text">{#if spotify.starting}Starting…{:else}+<br/>Spotify{/if}</div>
                     </button>
                 {/if}
             {/if}
-            {#if music?.canHost}
-                <button class="outline clickable" onclick={()=>music.startHosting()} disabled={music.starting || spotify?.starting} title="Start the music player (your uploaded music) on this device">
+            {#if music && musicOutline}
+                <button class="outline clickable" onclick={()=>music.startHosting()} disabled={music.starting} title="Start the music player (your uploaded music) on this device">
                     <div class="outline-text">{#if music.starting}Starting…{:else}+<br/>Music{/if}</div>
                 </button>
             {/if}
         </div>
     {/if}
-    {#if error}<div class="error">{error}</div>{/if}
+    {#if !eitherRunning && error}<div class="error">{error}</div>{/if}
 </div>
 {/if}
 
@@ -79,10 +89,19 @@
         font-family: 'Courier New', Courier, monospace;
     }
 
+    /* Beside a running strip: just wide enough for the labels, stacked if both players' are there */
+    .player-slot.narrow {
+        width: 56px;
+    }
+
     .outlines {
         flex: 1;
         display: flex;
         gap: 4px;
+    }
+
+    .narrow .outlines {
+        flex-direction: column;
     }
 
     .outline {
