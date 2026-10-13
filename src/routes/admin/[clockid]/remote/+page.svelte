@@ -62,7 +62,7 @@
     }
 
     .remote-page {
-        padding: 60px 16px 20px;
+        padding: 20px 16px;
         box-sizing: border-box;
         font-size: large;
     }
