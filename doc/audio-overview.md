@@ -17,7 +17,7 @@ through building up a full setup step by step.
 | Source | What it is | Set up in |
 | --- | --- | --- |
 | **Clock bells** | Each game's start of day, reminder and end of day sounds. | [Settings → Audio → Clock SFX](settings/audio.md#clock-sfx) |
-| **Ambience** | Looping background tracks (rain, crickets, tavern chatter…), each switched on or off for day, dusk and night. | Files: [Settings → Audio → Ambience Assets](settings/audio.md#ambience-assets). Tracks: the [mixer](audio-mixer.md#ambience) |
+| **Ambience** | Looping background tracks (rain, crickets, tavern chatter…), each switched on or off for morning, day, dusk and night. | Files: [Settings → Audio → Ambience Assets](settings/audio.md#ambience-assets). Tracks: the [mixer](audio-mixer.md#ambience) |
 | **Stings** | Short dramatic sounds; each press of the sting button plays a random one. | [Settings → Audio → Audio Stings](settings/audio.md#audio-stings) |
 | **Music player** | Your own uploaded music, played from playlists and presets. | [Settings → Music](settings/music.md) |
 | **Spotify** | A Spotify account played through the browser. | [Music & Spotify](music-and-spotify.md#spotify) |
@@ -61,25 +61,27 @@ tablet as a second display can mute it without affecting anyone else.
 
 ## The phase drives the audio
 
-The game's phase (day, dusk or night) changes the audio automatically:
+The game's phase (morning, day, dusk or night) changes the audio automatically:
 
-- **Ambience tracks** each have Day / Dusk / Night switches, and fade in or out (over 3 seconds) as the phase changes.
+- **Ambience tracks** each have Morning / Day / Dusk / Night switches, and fade in or out (over 3 seconds) as the
+  phase changes.
 - **Time-of-day trims** raise or lower the whole Music & Ambience level per phase — e.g. quieter during day
   discussions, louder at night.
-- **Adaptive music presets** play a different playlist for each phase, and **day & night presets** keep the day
-  silent until the countdown starts. See [Music & Spotify](music-and-spotify.md#preset-types).
-- The **start of day** bell rings going from night to day.
+- **Adaptive music presets** play a different playlist for each phase, or stay silent through a phase with none.
+  See [Music & Spotify](music-and-spotify.md#preset-types).
+- The **start of day** bell rings going from night to morning or day.
 
 When several games share the audio (the mixer page, the split screen and the music players follow every game), it's
-**day** if any game is in its day, and only **night** once every game is.
+daytime if any game is (**day** if any game's countdown is running, otherwise **morning**), and only **night** once
+every game is.
 
 ## Building up a setup, step by step
 
 1. **Bells.** Create a clock SFX preset and upload an End of Day sound, then pick the preset on each game's card on
    **Play**. → [Settings → Audio](settings/audio.md#clock-sfx)
 2. **Ambience.** Upload a few looping sounds under **Ambience Assets**. On the town square, open ☰ → **Audio
-   Mixer**, load a sound into each ambience track (tap the track's name), set its Day / Dusk / Night switches, and tap
-   **Ambience Engine** to start it. → [The audio mixer](audio-mixer.md#ambience)
+   Mixer**, load a sound into each ambience track (tap the track's name), set its Morning / Day / Dusk / Night
+   switches, and tap **Ambience Engine** to start it. → [The audio mixer](audio-mixer.md#ambience)
 3. **Stings.** Upload some under **Audio Stings**. Trigger them from the mixer's STING strip or the grimoire's audio
    menu.
 4. **Music.** Upload tracks in **Settings → Music**, make playlists, and create music presets. In the mixer, press

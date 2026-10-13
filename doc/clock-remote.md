@@ -24,13 +24,20 @@ From top to bottom:
 The countdown, with one button beside it:
 
 - **▶ Start** — starts the countdown. Greyed out once the timer has run out (pick a timer option to set up a new day).
-- **⏸ Pause** — shown while counting down. It stops the clock **and resets it to its full time**; pressing ▶ again
-  starts the countdown from the top.
+- **⏸ Pause** — shown while counting down. It stops the clock **and resets it to its full time**, and the game goes
+  back to **Morning**; pressing ▶ again starts the countdown from the top.
 
 ### Day / Dusk / Night
 
-Sets the game's phase directly. The highlighted button is the current phase. Phases change the town square's sky,
-the night order in the grimoire, and the [time-of-day audio](audio-overview.md#the-phase-drives-the-audio).
+Set the game's phase. The highlighted button is the current phase. Phases change the town square's sky, the night
+order in the grimoire, and the [time-of-day audio](audio-overview.md#the-phase-drives-the-audio).
+
+- **Day** sets the timer up again as it was last set up (the last timer option picked) and waits for ▶ — a new day,
+  if the last one had ended. Until the countdown starts it reads **Morning**. It's disabled while the countdown runs.
+- **Dusk** and **Night** set that phase straight away.
+
+There's no Morning button: the game is in the morning whenever the timer is set up but not running, and in the day
+while it runs.
 
 ### Day and Players
 
@@ -57,17 +64,18 @@ Pressing one **sets up a day** — see [How the day cycle works](#how-the-day-cy
 
 ## How the day cycle works
 
-Clockmaker tracks a **day number** and a **phase** (day, dusk or night) for each game.
+Clockmaker tracks a **day number** and a **phase** (morning, day, dusk or night) for each game.
 
-1. **Picking a timer option** sets up a day:
-   - If the game is at **dusk or night** (or still on day 0), the day number goes up by one. If it's already day,
-     the day number stays the same — so you can swap to a different timer mid-morning without skipping a day.
-   - Any running countdown is stopped, the new duration and reminder are loaded, and the phase becomes **Day**.
-2. **▶** starts the countdown.
+1. **Picking a timer option** (or pressing **Day**, which repeats the last one) sets up a day:
+   - If the game is at **dusk or night** (or still on day 0), the day number goes up by one. If it's already
+     daytime, the day number stays the same — so you can swap to a different timer mid-morning without skipping a
+     day.
+   - Any running countdown is stopped, the new duration and reminder are loaded, and the phase becomes **Morning**.
+2. **▶** starts the countdown, and the phase becomes **Day**. Pausing goes back to **Morning**.
 3. With the reminder time left, the **reminder bell** rings.
 4. When the countdown reaches zero, the **end of day bell** rings and the phase becomes **Dusk**.
 5. **Night** is only ever set by hand, with the Night button.
-6. Going from **Night** to **Day** (by picking a timer option, or pressing Day) rings the **start of day** sound.
+6. Going from **Night** to daytime (by picking a timer option, or pressing Day) rings the **start of day** sound.
 
 The server keeps time, so the countdown is the same on every device and survives a page reload. If the server
 restarts while a countdown is running and the time runs out meanwhile, the game is at dusk when it comes back.
@@ -79,7 +87,7 @@ Each game rings the sounds of its **Clock SFX preset**, picked on the game's car
 
 | Sound | When it plays |
 | --- | --- |
-| **Start of Day** | The game goes from night to day. |
+| **Start of Day** | The game goes from night to morning or day. |
 | **Reminder Bell** | The reminder time is reached during the countdown. |
 | **End of Day** | The countdown runs out, or the bell is rung by hand. |
 
@@ -95,6 +103,6 @@ device whose audio engine is on — see [which devices make sound](audio-overvie
 | End the day early | Press ⏸, then Dusk. (Pressing only Dusk leaves the countdown running underneath, and its bell still rings when it runs out.) |
 | Call players back | Press 🔔. |
 | Go to night | Press Night. |
-| Start the next day | Pick a timer option — the day number goes up by one. |
+| Start the next day | Pick a timer option, or press Day to repeat the last one — the day number goes up by one. |
 | Fix a wrong day number | Day − / +. |
 | Quieten the music while you talk | Press DIM; press again to restore. |

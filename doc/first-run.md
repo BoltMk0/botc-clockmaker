@@ -35,9 +35,9 @@ three buttons:
 
 ## Key ideas
 
-**A game** is one clock: its timer, day number, player count and phase (day, dusk or night). It may also have a
-virtual grimoire. You can run several games at once — useful for events with more than one table — and each has its
-own town square and remote.
+**A game** is one clock: its timer, day number, player count and phase (morning, day, dusk or night). It may also
+have a virtual grimoire. You can run several games at once — useful for events with more than one table — and each
+has its own town square and remote.
 
 **Every device is a live view.** The town square screen, the storyteller's phone and anything else showing a game
 are all connected to the server and update the moment anything changes. Start the timer from a phone and the TV
@@ -51,8 +51,9 @@ counts down; set the phase to night and every screen for that game turns to nigh
   options, now-playing banner and whether that device plays audio. So the TV can show the 3D clocktower while a
   tablet uses the simpler display.
 
-**Phases.** Each game is always in one of three phases:
+**Phases.** Each game is always in one of four phases:
 
+- **Morning** — daytime with the countdown set up but not running (not started yet, or paused).
 - **Day** — discussion time; the countdown runs.
 - **Dusk** — the day is over (the timer ran out or the storyteller ended it) but night hasn't been called yet;
   typically nominations and executions.

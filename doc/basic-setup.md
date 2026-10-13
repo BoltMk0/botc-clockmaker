@@ -50,7 +50,7 @@ On your phone, open **Play** and press the **remote** button (top right of the g
 The remote shows, from top to bottom:
 
 - the **time remaining** with a play/pause button;
-- **Day / Dusk / Night** buttons for the current phase;
+- **Day / Dusk / Night** buttons for the current phase (Day reads **Morning** until the countdown starts);
 - **Day** and **Players** counters with − and + buttons;
 - your **timer options** (e.g. "5 Minutes");
 - a bottom row of **mixer**, **DIM**, **skip track** and **ring bell** buttons.
@@ -61,21 +61,21 @@ The remote shows, from top to bottom:
    townsfolk, outsiders, minions and demons that means.
 2. **Night 1.** Set the phase to **Night**. The town square shows night.
 3. **Morning.** Press a **timer option**, e.g. "5 Minutes". This moves the game to the next day (Day 1), sets the
-   countdown to 5:00 and switches to **Day**. The countdown doesn't start yet.
-4. **Start the discussion** with the ▶ button. The clock counts down on every screen.
+   countdown to 5:00 and switches to **Morning**. The countdown doesn't start yet.
+4. **Start the discussion** with the ▶ button. The game moves to **Day** and the clock counts down on every screen.
 5. If the timer option has a reminder (e.g. 30 s), a **reminder bell** rings with that long left, and the town
    square says *"The end of the day is approaching…"*.
 6. When the time runs out, the **end of day bell** rings, the game moves to **Dusk**, and the town square says
    *"The day has ended! Please return to the Town Square."*
 7. When you're ready for night, press **Night**.
-8. Next morning, press a timer option again: the game moves to Day 2, and so on.
+8. Next morning, press a timer option again (or **Day**, to use the same one): the game moves to Day 2, and so on.
 
 Other things you can do:
 
 - **Ring the bell** by hand (bottom-right button) at any time to call people back. During the day the town square
   shows *"Your Story Teller requires your attention!"*.
-- **Pause/stop** the countdown with ⏸. Note this stops the clock *and resets it* to the full time; ▶ starts it
-  again from the top.
+- **Pause/stop** the countdown with ⏸. Note this stops the clock *and resets it* to the full time, back in the
+  morning; ▶ starts it again from the top.
 - **End the day early**: press ⏸, then **Dusk** (or **Night**). If you only press Dusk, the screens turn to dusk
   but the countdown carries on in the background and its end of day bell still rings when it runs out.
 - **Fix the day number** with the Day − / + buttons.

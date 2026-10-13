@@ -40,8 +40,8 @@ day number and player-count breakdown. A good choice for older TVs and tablets.
 The original simple clock face with a day dial — the lightest option. Good for small screens or when you want just the
 countdown.
 
-In every mode the screen follows the game's **phase** (set from the remote), not just the timer: dusk is drawn like
-night, and pressing Night turns the sky to night straight away.
+In every mode the screen follows the game's **phase** (set from the remote), not just the timer: morning is drawn like
+day, dusk like night, and pressing Night turns the sky to night straight away.
 
 ## Messages shown on screen
 

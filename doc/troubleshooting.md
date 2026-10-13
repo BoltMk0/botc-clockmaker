@@ -47,7 +47,7 @@ Pressing Dusk doesn't stop the countdown. To end the day early, press ⏸ first,
 
 **The ambience doesn't play.**
 Tap **Ambience Engine** in the mixer to start it, check each track has a sound loaded and is switched on for the
-current phase (Day / Dusk / Night), and check the BUS and MASTER levels.
+current phase (Morning / Day / Dusk / Night), and check the BUS and MASTER levels.
 
 **A strip is silent on one device only.**
 Mutes are per device: tap the strip's **Gain** label to unmute it there.
@@ -81,7 +81,8 @@ levelled once they've been measured.
 
 **A preset I tapped didn't start.**
 While other music is playing, tapping a preset **schedules** it for the next phase change. Tap it again to switch
-straight away. A day & night preset is silent during the day until the countdown starts.
+straight away. An adaptive preset is silent through any phase with no playlist — with only day and night ones,
+that's the morning until the countdown starts, and dusk.
 
 ## Grimoire and scripts
 

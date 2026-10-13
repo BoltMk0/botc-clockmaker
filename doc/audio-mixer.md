@@ -48,8 +48,9 @@ The ambience engine plays looping background sounds. Its strips sit under an **A
 - Each **ambience track** strip:
   - Tap its **name** (or "(empty)") to pick a sound from your [ambience assets](settings/audio.md#ambience-assets),
     choose **None** to empty it, or **Remove ambience track**.
-  - **Day / Dusk / Night** switches choose which phases it plays in. A track fades in and out over three seconds as
-    the phase changes.
+  - **Morning / Day / Dusk / Night** switches (two by two) choose which phases it plays in: the ones it plays in
+    are lit blue, brighter for the current phase, which is also outlined. A track fades in and out over three
+    seconds as the phase changes.
   - Its own pan and gain.
 - **+ Ambience Track** adds another track (up to 16). New installs start with four.
 - **BUS** — the level and pan of all the ambience together.
@@ -82,14 +83,14 @@ Once a player is running, its strip shows:
 ### Master and time-of-day trims
 
 The **MASTER** strip at the end of the group sets the overall Music & Ambience level (Spotify follows it too).
-Above its fader are three small **trim knobs**, one each for **Day**, **Dusk** and **Night**:
+Above its fader are four small **trim knobs**, one each for **Morning**, **Day**, **Dusk** and **Night**:
 
 - Each raises or lowers the whole group by up to ±12 dB during that phase. The current phase's knob is outlined.
 - Drag up/down to change; double-click to reset to 0. A bubble at the top of the screen shows the value while you
   drag.
 - Changes fade in smoothly when the phase changes.
 
-Typical use: turn the day down a few dB so music doesn't drown out discussion, and the night up.
+Typical use: turn the morning and day down a few dB so music doesn't drown out discussion, and the night up.
 
 ## SFX
 

@@ -62,7 +62,7 @@ time-of-day trims, so Spotify fits in with everything else even though it doesn'
 
 ## Preset types
 
-Both players use the same three kinds of preset.
+Both players use the same two kinds of preset.
 
 ### Ambient Playlist
 
@@ -70,23 +70,15 @@ One playlist (or Spotify album/playlist), played continuously whatever the phase
 
 ### Ambient Adaptive Playlist
 
-A playlist **for each phase** — day, dusk and night. It plays the current phase's playlist, and when the games'
-phase changes it fades out and moves to the new phase's playlist.
+A playlist **for each phase** — morning, day, dusk and night (see [phases](first-run.md#key-ideas)). It plays the
+current phase's playlist, and when the games' phase changes it fades out and moves to the new phase's playlist.
 
-- Music player: leave a phase empty to **keep playing** whatever was on through it.
-- Spotify: leave a phase empty to make it **silent** — the music fades out and pauses, and picks up again when a
-  phase with a list comes round. A phase with the same list as the one playing carries straight on.
+Leave a phase empty to make it **silent**: the music fades out and pauses, and picks up again by itself when a phase
+with a playlist comes round. A phase with the same playlist as the one playing carries straight on.
 
-### Day & Night Playlist
-
-A playlist for the **day** and one for the **night**, built around the countdown:
-
-- the day playlist only plays **while a game's countdown is running**;
-- the rest of the day — the morning before the timer starts, a pause, and dusk — is **silent**;
-- it picks up by itself when the countdown starts or night falls.
-
-Leave either empty to keep that time silent too. This is ideal for "music while people talk, silence for
-nominations, night music while the storyteller works".
+With only **Day** and **Night** filled in, the music plays just while the countdown runs and at night, and is silent
+in the morning before the timer starts (or while it's paused) and at dusk. This is ideal for "music while people
+talk, silence for nominations, night music while the storyteller works".
 
 ## Picking presets in the mixer
 
@@ -98,8 +90,8 @@ On the Music or Spotify strip, tap a preset:
 - **The current preset** — pauses or resumes it.
 
 The same rules apply between the two players: picking a preset on one while the other is playing schedules it, and
-when it takes over the other fades out. A preset that's waiting through a silent spell (a day & night preset before
-the countdown starts, say) shows as waiting.
+when it takes over the other fades out. A preset that's waiting through a silent spell (an adaptive preset with no
+morning playlist, before the countdown starts, say) shows as waiting.
 
 ## Controlling music during a game
 

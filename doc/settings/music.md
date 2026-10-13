@@ -66,8 +66,8 @@ The presets shown on the mixer's **Music** strip. Make at least one playlist fir
 Add a preset with one of:
 
 - **Add Ambient Playlist** — one playlist, whatever the phase.
-- **Add Ambient Adaptive Playlist** — a playlist each for **Day**, **Dusk** and **Night**.
-- **Add Day & Night Playlist** — a **Day** playlist (only while the countdown runs) and a **Night** playlist.
+- **Add Ambient Adaptive Playlist** — a playlist each for **Morning**, **Day**, **Dusk** and **Night**. Leave a
+  phase empty to make it silent.
 
 Give each a **name** (it defaults to its type) and choose its playlist(s). The bin deletes a preset. Press **Save
 changes** to save. How each type behaves is explained under
@@ -75,12 +75,12 @@ changes** to save. How each type behaves is explained under
 
 ## Spotify
 
-The presets shown on the mixer's **Spotify** strip. The same three types are available — **Add Ambient Playlist**,
-**Add Ambient Adaptive Playlist** and **Add Day & Night Playlist** — but each list is a **Spotify album or playlist
+The presets shown on the mixer's **Spotify** strip. The same two types are available — **Add Ambient Playlist** and
+**Add Ambient Adaptive Playlist** — but each list is a **Spotify album or playlist
 link**: in Spotify, use **Share → Copy link** and paste it in. Links are checked and tidied when you save; invalid ones
 are highlighted.
 
-For an adaptive or day & night preset, leave a phase's link empty to make that phase **silent** (the music fades out
+For an adaptive preset, leave a phase's link empty to make that phase **silent** (the music fades out
 and pauses, and resumes by itself when a phase with a list comes round).
 
 Press **Save changes** to save. Spotify itself needs [setting up on the server](../music-and-spotify.md#setting-up-spotify)
