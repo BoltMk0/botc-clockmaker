@@ -121,7 +121,8 @@ their character in private, and types their name.
 When the draw finishes:
 
 - every player is placed round the circle **in the order they drew**, with their name, character and default
-  alignment (evil for minions and demons);
+  alignment (evil for minions and demons). They're spread evenly from the bottom left (the first to draw), clockwise
+  over the top, to the bottom right (the last), leaving a gap at the bottom of the circle;
 - tokens you put "on the grim", and any loric/fabled, are placed on the board;
 - your bluff sets are ready in the token tray;
 - the game's **player count** is set (travellers not included), the day is reset to **0** and the clock is cleared,

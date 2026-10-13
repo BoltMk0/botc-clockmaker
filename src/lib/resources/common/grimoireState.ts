@@ -139,12 +139,27 @@ export const BOARD_TOKEN_SIZE = 150;
 // Radii of the guide rings drawn on the board, as multiples of the token size.
 export const ALIGNMENT_RING_FACTORS = [1.9, 2.6, 3.3];
 
+// The arc the players are seated round after a draw, in degrees clockwise from the top: the first player at the
+// start, the last at the end, leaving a gap at the bottom.
+export const DRAW_SEAT_ARC = { fromDegrees: -150, toDegrees: 150 };
+
 // Radius the players are seated at: the middle guide ring, or the outer one when there are too many players for
 // neighbouring tokens to sit clear of each other on the middle one.
 export function seatCircleRadius(n: number): number {
+    return seatRadiusForStep(n < 2 ? null : 2 * Math.PI / n);
+}
+
+// The same for players spread over an arc (`spanDegrees` from the first to the last).
+export function seatArcRadius(n: number, spanDegrees: number): number {
+    return seatRadiusForStep(n < 2 ? null : spanDegrees * Math.PI / 180 / (n - 1));
+}
+
+// The smallest seat ring (from the middle one out) on which neighbouring tokens, `step` radians apart, sit clear of
+// each other (null: there are no neighbours).
+function seatRadiusForStep(step: number | null): number {
     for (const factor of ALIGNMENT_RING_FACTORS.slice(1)) {
         const radius = BOARD_TOKEN_SIZE * factor;
-        if (n < 2 || 2 * radius * Math.sin(Math.PI / n) >= BOARD_TOKEN_SIZE) return radius;
+        if (step === null || 2 * radius * Math.sin(Math.min(step, Math.PI) / 2) >= BOARD_TOKEN_SIZE) return radius;
     }
     return BOARD_TOKEN_SIZE * ALIGNMENT_RING_FACTORS[ALIGNMENT_RING_FACTORS.length - 1];
 }
@@ -154,6 +169,21 @@ export function seatCircleRadius(n: number): number {
 export function computeCirclePositions(n: number, radius: number = seatCircleRadius(n)): { x: number, y: number }[] {
     return Array.from({ length: n }, (_, i) => {
         const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
+        return { x: Math.round(radius * Math.cos(angle)), y: Math.round(radius * Math.sin(angle)) };
+    });
+}
+
+// Evenly spreads n points over an arc of a circle of the given radius (px, relative to board centre), from
+// `fromDegrees` to `toDegrees` clockwise from the top, the first and last at its ends (a single point at the start).
+export function computeArcPositions(
+    n: number,
+    fromDegrees: number,
+    toDegrees: number,
+    radius: number = seatArcRadius(n, toDegrees - fromDegrees)
+): { x: number, y: number }[] {
+    return Array.from({ length: n }, (_, i) => {
+        const degrees = n < 2 ? fromDegrees : fromDegrees + (i / (n - 1)) * (toDegrees - fromDegrees);
+        const angle = degrees * Math.PI / 180 - Math.PI / 2;
         return { x: Math.round(radius * Math.cos(angle)), y: Math.round(radius * Math.sin(angle)) };
     });
 }
@@ -248,7 +278,8 @@ export function newGrimoireStateFromDraw(
     presetId: string | null = null
 ): GrimoireStateHistory {
     const history = newGrimoireStateHistory(clockId, scriptId);
-    const positions = computeCirclePositions(seats.length);
+    // Round the arc clockwise in seating order, the first player at its start
+    const positions = computeArcPositions(seats.length, DRAW_SEAT_ARC.fromDegrees, DRAW_SEAT_ARC.toDegrees);
     const seatTokens: PlacedToken[] = seats.map((seat, i) => ({
         id: v7(),
         characterId: seat.characterId,
