@@ -19,6 +19,7 @@
     import PlayerToken from "$lib/components/PlayerToken.svelte";
     import { ALIGNMENT_RING_FACTORS, BOARD_TOKEN_SIZE, hasDeadVote, isPlayerToken, layoutTokensAtDefaultPositions, newGrimoireStateHistory, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
     import { v7 } from "uuid";
+    import { characterImageUrl } from "$lib/resources/common/characterImages";
     import type { PageData } from "./$types";
 
     const z_indecies = {
@@ -295,6 +296,21 @@
         .map(c=>{return [c.id, nightOrderFunction(c)]})
         .filter(([_, order])=>order !== null) as [string, number][]).sort((a, b) => a[1] - b[1])
         .map(([id, _])=>id) ?? []);
+
+    // The night order sheet: every character that wakes, in order, on the first night or the other nights. The
+    // script's own characters always show; travellers, loric and fabled only when they're on the grim.
+    let nightOrderSheet = $state<'first' | 'other' | null>(null);
+    const onGrimCharacterIds = $derived(new Set(placedTokens.map(t => t.characterId).filter(id => id !== null)));
+    // In play but every token for them dead, so they may not wake
+    const deadCharacterIds = $derived(new Set([...onGrimCharacterIds].filter(id =>
+        placedTokens.filter(t => t.characterId === id).every(t => t.isDead))));
+    const nightSheetCharacters = $derived.by(() => {
+        if (!script || !nightOrderSheet) return [];
+        const orderOf = nightOrderSheet === 'first' ? (c: ScriptCharacter) => c.firstNightOrder : (c: ScriptCharacter) => c.otherNightOrder;
+        return script.characters
+            .filter(c => orderOf(c) !== null && (!SIDE_CATEGORIES.some(s => s.category === c.category) || onGrimCharacterIds.has(c.id)))
+            .sort((a, b) => (orderOf(a) as number) - (orderOf(b) as number));
+    });
 
     let showFooter = $state(false);
     let tokensLocked = $derived(browser ? localStorage.getItem(`grimoire-locked-${data.clockid}`) === 'true' : false);
@@ -1371,6 +1387,135 @@
         overflow-y: auto;
     }
 
+    .overlay-panel.night-sheet {
+        width: min(92vw, 560px);
+        height: 92%;
+        padding-top: 1.2em;
+        align-items: stretch;
+        text-align: left;
+        /* Only the list scrolls, so the close button and tabs stay put */
+        overflow: hidden;
+    }
+
+    /* Full screen on a phone, like the communications panel */
+    @media (max-width: 768px) {
+        .overlay-panel.night-sheet {
+            width: 100%;
+            height: 100%;
+            max-height: none;
+            margin: 0;
+            border-radius: 0;
+        }
+    }
+
+    /* The tab bar from the music settings */
+    .night-sheet-tabs {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        flex-shrink: 0;
+        border-bottom: 1px solid var(--theme-bg-tertiary);
+    }
+
+    .night-sheet-tabs > button[role="tab"] {
+        flex: 1;
+        padding: 0.6em 0.3em;
+        font-size: 1rem;
+        background: none;
+        color: var(--theme-on-bg);
+        border: none;
+        border-bottom: 3px solid transparent;
+        border-radius: 6px 6px 0 0;
+        opacity: 0.7;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+
+    .night-sheet-tabs > button[role="tab"]:hover {
+        opacity: 1;
+        background-color: var(--theme-bg-tertiary);
+    }
+
+    .night-sheet-tabs > button[role="tab"].selected {
+        opacity: 1;
+        border-bottom-color: var(--theme-highlight);
+        font-weight: bold;
+    }
+
+    /* In line with the tabs rather than in the corner */
+    .night-sheet-tabs > .overlay-close {
+        position: static;
+        flex-shrink: 0;
+        margin-left: 0.25rem;
+    }
+
+    .night-sheet-empty {
+        text-align: center;
+        opacity: 0.6;
+    }
+
+    .night-sheet-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4em;
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+    }
+
+    .night-sheet-list > li {
+        display: flex;
+        align-items: center;
+        gap: 0.7em;
+        padding: 0.4em 0.6em;
+        border-radius: 0.6em;
+        border-left: 4px solid transparent;
+        opacity: 0.55;
+    }
+
+    .night-sheet-list > li.in-play {
+        opacity: 1;
+        background: var(--theme-bg-tertiary);
+        border-left-color: var(--theme-highlight);
+    }
+
+    .night-sheet-list img {
+        width: 48px;
+        height: 48px;
+        flex-shrink: 0;
+        object-fit: contain;
+    }
+
+    .night-sheet-name {
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.5em;
+    }
+
+    .night-sheet-badge {
+        font-size: 0.7em;
+        font-weight: normal;
+        padding: 0.15em 0.6em;
+        border-radius: 1em;
+        background: var(--theme-highlight);
+        color: var(--theme-on-highlight);
+    }
+
+    .night-sheet-badge.dead {
+        background: var(--theme-bg-secondary);
+        color: var(--theme-on-bg-secondary);
+    }
+
+    .night-sheet-rules {
+        font-size: 0.85em;
+        opacity: 0.85;
+    }
+
     .overlay-panel.comms-panel .comms-input {
         width: 100%;
         box-sizing: border-box;
@@ -1491,6 +1636,10 @@
         background: rgba(0, 0, 0, 0.5);
         color: white;
         cursor: pointer;
+        /* A bigger ✕ in the same 32px circle */
+        padding: 0;
+        font-size: 1.25rem;
+        line-height: 1;
     }
 
     .overlay-icon {
@@ -1997,9 +2146,19 @@
             {/if}
         </button>
 
+        <!-- Clock controls, as tapping the clock in the middle opens -->
+        <button class="sidebar-btn" class:active={showTimerOptions} onclick={() => showTimerOptions = true} title="Clock controls">
+            <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+        </button>
+
         <!-- Communications: things to show a player -->
         <button class="sidebar-btn" class:active={commsView !== null} onclick={() => commsView = 'menu'} title="Communications">
             <svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM6.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0zM10.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0zM14.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0z"/></svg>
+        </button>
+
+        <!-- Night order: who wakes, and when, on the first night and the other nights -->
+        <button class="sidebar-btn" class:active={nightOrderSheet !== null} onclick={() => nightOrderSheet = (clockClient?.day || 0) > 0 ? 'other' : 'first'} title="Night order">
+            <svg viewBox="0 0 24 24"><path d="M12.34 2.02C6.59 1.82 2 6.42 2 12c0 5.52 4.48 10 10 10 3.71 0 6.93-2.02 8.66-5.02-7.51-.25-12.09-8.43-8.32-14.96z"/></svg>
         </button>
 
         <!-- Hide the grim behind a blank page, e.g. before leaving the device unattended. Replaces this page in the
@@ -2130,7 +2289,7 @@
         <!-- Refresh page button -->
         <button class="sidebar-btn" onclick={() => location.reload()} title="Refresh page">
             <svg viewBox="0 0 24 24">
-                <path d="M12 5V2L8 6l4 4V7c3.31 0 6 2.69 6 6 0 1.3-.42 2.5-1.13 3.47l1.46 1.46C19.07 16.07 20 14.15 20 12c0-4.42-3.58-8-8-8zm-6.87 3.53L3.67 7.07C2.93 7.93 2 9.85 2 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3c-3.31 0-6-2.69-6-6 0-1.3.42-2.5 1.13-3.47z"/>
+                <path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
             </svg>
         </button>
 
@@ -2529,6 +2688,41 @@
         </div>
     {/if}
 
+    {#if nightOrderSheet}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 20};" onclick={() => nightOrderSheet = null}>
+            <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+            <div class="overlay-panel night-sheet" onclick={(e) => e.stopPropagation()}>
+                <div class="night-sheet-tabs" role="tablist" aria-label="Night order">
+                    <button role="tab" aria-selected={nightOrderSheet === 'first'} class:selected={nightOrderSheet === 'first'} onclick={() => nightOrderSheet = 'first'}>First night</button>
+                    <button role="tab" aria-selected={nightOrderSheet === 'other'} class:selected={nightOrderSheet === 'other'} onclick={() => nightOrderSheet = 'other'}>Other nights</button>
+                    <button class="overlay-close" onclick={() => nightOrderSheet = null} aria-label="Close">✕</button>
+                </div>
+                {#if !script}
+                    <p class="night-sheet-empty">No script loaded.</p>
+                {:else if nightSheetCharacters.length === 0}
+                    <p class="night-sheet-empty">Nobody wakes.</p>
+                {:else}
+                    <ol class="night-sheet-list">
+                        {#each nightSheetCharacters as character (character.id)}
+                            {@const inPlay = onGrimCharacterIds.has(character.id)}
+                            <li class:in-play={inPlay}>
+                                <img src={characterImageUrl(character.id, 128)} alt="" onerror={(e) => (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'} />
+                                <div class="night-sheet-text">
+                                    <div class="night-sheet-name">
+                                        {character.name}
+                                        {#if inPlay}<span class="night-sheet-badge" class:dead={deadCharacterIds.has(character.id)}>{deadCharacterIds.has(character.id) ? 'Dead' : 'In play'}</span>{/if}
+                                    </div>
+                                    <div class="night-sheet-rules">{character.rules}</div>
+                                </div>
+                            </li>
+                        {/each}
+                    </ol>
+                {/if}
+            </div>
+        </div>
+    {/if}
+
     {#if commsView === 'menu' || commsView === 'bluffs' || commsView === 'selected' || commsView === 'suffix' || commsView === 'custom' || commsView === 'customCharacter' || commsView === 'customCharacter2' || commsView === 'secondCharacter' || commsView === 'resolveBlank'}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 20};" onclick={() => { commsView = null; resolvingFields = null; }}>
@@ -2730,11 +2924,8 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {z_indecies.ui};" onclick={() => {showTimerOptions = false;}} role="dialog" tabindex="0">
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div style="background: var(--theme-bg-secondary); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px;" onclick={(e) => e.stopPropagation()} >
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em; gap: 2em;">
-                    <h2 style="margin: 0; padding: 0;">Clock Controls</h2>
-                    <button class="button-style error" onclick={()=>{showTimerOptions = false;}}>X</button>
-                </div>
+            <div style="position: relative; background: var(--theme-bg-secondary); padding: 48px 20px 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px;" onclick={(e) => e.stopPropagation()} >
+                <button class="overlay-close" onclick={()=>{showTimerOptions = false;}} aria-label="Close">✕</button>
                 {#if clockClient}
                     <ClockSetter model={clockClient} timerOptions={data.timerOptions} musicPresets={data.musicPresets} spotifyPresets={data.spotifyPresets} onstart={()=>{showTimerOptions = false}} onmixer={() => {showTimerOptions = false; saveGrimoire().then(()=>goto(`/admin/mixer?remote_only=1&back_uri=${encodeURIComponent(location.pathname + location.search)}`))}}/>
                 {:else}
