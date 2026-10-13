@@ -8,10 +8,6 @@
     import { browser } from "$app/environment";
 
     import { goto } from '$app/navigation';
-    import { AudioDim } from '$lib/audio/client/AudioDim.svelte';
-    import { DEFAULT_DIM_AMOUNT_DB } from '$lib/audio/common/model/audioDimModel';
-    import { SpotifyPlayer } from '$lib/audio/client/SpotifyPlayer.svelte';
-    import { MusicPlayer } from '$lib/audio/client/MusicPlayer.svelte';
     import { Clocktower } from "$lib/model/client/Clocktower.svelte.js";
     import FullDisplay from "$lib/components/FullDisplay/FullDisplay.svelte";
     import { onMount } from "svelte";
@@ -196,37 +192,6 @@
     }
 
     let sidebarOpen = $state(false);
-    let audioDim: AudioDim|null = $state(null); // Created on mount: it opens a connection to the server
-    let spotify: SpotifyPlayer|null = $state(null); // Remote-only: controls a player running on another device
-    // Only offer the Spotify controls while a player is running somewhere and can take commands
-    const spotifyActive = $derived.by(() => {
-        const model = spotify?.model;
-        return !!model?.hostClientId && model.hostReady;
-    });
-    let music: MusicPlayer|null = $state(null); // Remote-only, likewise, for the uploaded-music player
-    const musicActive = $derived((music as MusicPlayer|null)?.active === true);
-    let audioMenuOpen = $state(false);
-    let audioMenuEl: HTMLElement|undefined = $state();
-    let showStingPopup = $state(false);
-    let stingTriggering = $state(false);
-
-    // Close the audio menu on any press outside it
-    function closeAudioMenuOnOutsidePress(e: PointerEvent){
-        if(audioMenuOpen && !audioMenuEl?.contains(e.target as Node)) audioMenuOpen = false;
-    }
-
-    function triggerSting(){
-        stingTriggering = true;
-        fetch('/api/stingEngine/trigger', {method: 'POST'}).catch((e)=>{
-            console.error('Failed to trigger sting', e);
-        }).finally(()=>{
-            stingTriggering = false;
-        });
-    }
-
-    function closeStingPopup(){
-        showStingPopup = false;
-    }
     // Board token size in board px; the zoom does the fitting to the screen.
     const tokenSize = BOARD_TOKEN_SIZE;
     const reminderTokenSize = $derived(Math.round(tokenSize * 0.56));
@@ -1060,9 +1025,6 @@
     onMount(()=>{
         if(!browser) return;
         clockClient = new Clocktower(data.model);
-        audioDim = new AudioDim();
-        spotify = new SpotifyPlayer({ remoteOnly: true });
-        music = new MusicPlayer({ remoteOnly: true });
         fitView();
 
         // Refit the zoom when the screen space changes (rotation, window resize). Only the board's layout size is
@@ -1090,9 +1052,6 @@
                 clearTimeout(saveGrimoireTimeout);
             }
             clockClient?.close();
-            audioDim?.close();
-            spotify?.close();
-            music?.close();
         }
     });
 
@@ -1129,7 +1088,7 @@
 
 </script>
 
-<svelte:window onpointerdown={closeAudioMenuOnOutsidePress} onpointermove={onPointerMove} onpointerup={onPointerUp}/>
+<svelte:window onpointermove={onPointerMove} onpointerup={onPointerUp}/>
 
 <style>
     /* Pins the whole grim view to the viewport and clips everything else (e.g. the hidden tray sitting
@@ -1372,53 +1331,6 @@
             justify-items: center;
             gap: 0.15em;
         }
-    }
-
-    .sting-overlay {
-        position: fixed;
-        inset: 0;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        background: rgba(0, 0, 0, 0.9);
-        padding: 2em;
-        box-sizing: border-box;
-    }
-
-    .sting-close-btn {
-        position: absolute;
-        top: 1em;
-        right: 1em;
-        width: 2.5em;
-        height: 2.5em;
-        padding: 0.5em;
-        box-sizing: border-box;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(255, 255, 255, 0.12);
-        border-radius: 50%;
-        border: none;
-        color: white;
-        cursor: pointer;
-    }
-
-    .sting-close-btn:hover {
-        background: rgba(255, 255, 255, 0.25);
-    }
-
-    .sting-close-btn svg {
-        width: 100%;
-        height: 100%;
-        fill: currentColor;
-    }
-
-    .sting-trigger-btn {
-        width: min(90vw, 700px);
-        height: min(70vh, 700px);
-        font-size: 2em;
-        font-weight: bold;
-        border-radius: 1.5em;
     }
 
     .character-overlay {
@@ -1922,20 +1834,6 @@
         color: #ff7b7b;
     }
 
-    .audio-menu {
-        position: relative;
-    }
-
-    /* Hangs below the audio button, clear of the sidebar column */
-    .audio-menu-options {
-        position: absolute;
-        left: 0;
-        top: 52px;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-
     .sidebar-btn svg {
         width: 22px;
         height: 22px;
@@ -2098,88 +1996,6 @@
                 <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
             {/if}
         </button>
-
-        <!-- Audio menu: dim, Spotify (or the music player), sting, mixer -->
-        <div class="audio-menu" bind:this={audioMenuEl}>
-            <button class="sidebar-btn" class:active={audioMenuOpen} onclick={() => {
-                audioMenuOpen = !audioMenuOpen;
-                // The draw tools pop out over the same area, so opening the audio menu leaves draw mode.
-                if (audioMenuOpen) editing = false;
-            }} title="{audioMenuOpen ? 'Hide' : 'Show'} audio menu">
-                {#if audioMenuOpen}
-                    <svg viewBox="0 0 24 24"><path d="M7.41 15.41 12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
-                {:else if audioDim?.dimmed}
-                    <svg viewBox="0 0 24 24" style="overflow: visible;"><g transform="translate(0 -4)"><path d="M18.5 12A4.5 4.5 0 0 0 16 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/></g><text x="12" y="27.5" text-anchor="middle" font-size="8" font-weight="bold" fill="currentColor">DIM</text></svg>
-                {:else}
-                    <svg viewBox="0 0 24 24"><path d="M18.5 12A4.5 4.5 0 0 0 16 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/><path d="M16.5 3.23v2.06c2.6.86 4.5 3.54 4.5 6.71s-1.9 5.85-4.5 6.71v2.06c3.6-.91 6.5-4.49 6.5-8.77s-2.9-7.86-6.5-8.77z"/></svg>
-                {/if}
-            </button>
-            {#if audioMenuOpen}
-            <div class="audio-menu-options">
-                <!-- Dim the audio everywhere (on all clients) -->
-                <button class="sidebar-btn" class:active={audioDim?.dimmed} onclick={() => audioDim?.toggle()} title={audioDim?.dimmed ? 'Restore audio volume' : `Dim audio (-${audioDim?.amountDb ?? DEFAULT_DIM_AMOUNT_DB} dB)`}>
-                    <svg viewBox="0 0 24 24" style="overflow: visible;">
-                        <text x="12" y="13" text-anchor="middle" font-size="8" fill="currentColor"><tspan font-size="14">{audioDim?.dimmed ? `-${audioDim.amountDb}` : 0}</tspan> dB</text>
-                        <text x="12" y="27" text-anchor="middle" font-size="9" font-weight="bold" fill="currentColor" opacity={audioDim?.dimmed ? 1 : 0.5}>DIM</text>
-                    </svg>
-                </button>
-
-                {#if spotify && spotifyActive}
-                <!-- Spotify transport, for the player running on whichever device hosts it -->
-                <button class="sidebar-btn" class:active={spotify.playback?.playing} onclick={() => spotify?.togglePlayPause()} title={spotify.playback?.playing ? 'Pause Spotify' : 'Play Spotify'}>
-                    {#if spotify.playback?.playing}
-                        <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                    {:else}
-                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                    {/if}
-                </button>
-                <button class="sidebar-btn" onclick={() => spotify?.next()} title="Skip Spotify track">
-                    <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
-                </button>
-                {:else if music && musicActive}
-                <!-- Or the music player's, which runs in Spotify's place -->
-                <button class="sidebar-btn" class:active={music.playing} onclick={() => music?.togglePlayPause()} title={music.playing ? 'Pause music' : 'Play music'}>
-                    {#if music.playing}
-                        <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                    {:else}
-                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                    {/if}
-                </button>
-                <button class="sidebar-btn" onclick={() => music?.next()} title="Skip music track">
-                    <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
-                </button>
-                {/if}
-
-                {#if data.hasStings}
-                <!-- Open the sting overlay, to punctuate the moment -->
-                <button class="sidebar-btn" onclick={() => { audioMenuOpen = false; showStingPopup = true; }} title="Sting">
-                    <svg viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
-                </button>
-                {/if}
-
-                <!-- Open the mixer as a remote control only (no sound plays on this device), with a way back to this page -->
-                <button class="sidebar-btn" onclick={() => {audioMenuOpen = false; saveGrimoire().then(()=>goto(`/admin/mixer?remote_only=1&back_uri=${encodeURIComponent(location.pathname + location.search)}`))} } title="Open mixer">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M4 5h2v14H4zM11 5h2v14h-2zM18 5h2v14h-2z"/>
-                        <rect x="2" y="13" width="6" height="3" rx="1"/>
-                        <rect x="9" y="7" width="6" height="3" rx="1"/>
-                        <rect x="16" y="11" width="6" height="3" rx="1"/>
-                    </svg>
-                </button>
-            </div>
-            {/if}
-        </div>
-
-        {#if showStingPopup}
-        <div class="sting-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 30};">
-            <button class="sting-close-btn" onclick={closeStingPopup} title="Close" aria-label="Close">
-                <svg viewBox="0 0 24 24"><path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.42L10.59 13.4 4.3 19.71 2.88 18.3 9.17 12 2.88 5.71 4.3 4.29l6.29 6.3 6.29-6.3z"/></svg>
-            </button>
-            <button class="sting-trigger-btn button-style" disabled={stingTriggering} onclick={triggerSting}>
-                Trigger Sting
-            </button>
-        </div>
-        {/if}
 
         <!-- Communications: things to show a player -->
         <button class="sidebar-btn" class:active={commsView !== null} onclick={() => commsView = 'menu'} title="Communications">
