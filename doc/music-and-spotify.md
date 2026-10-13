@@ -107,8 +107,14 @@ Exactly one device â€” the one where **+ Music** or **+ Spotify** was pressed â€
 other mixer controls it remotely. The host reports in every few seconds; if it disappears (closed, asleep, lost
 Wi-Fi) for about 15 seconds, another device can start the player instead.
 
-To move the music to another device, open the strip's menu on the host, press **Stop player**, then start it from
-the other device.
+The host remembers that it was running the player, and what it was playing: when the page is reloaded or opened
+again on that device (the mixer, or a town square with its audio engine on), the player starts again by itself and
+plays the same preset (or Spotify album/playlist) again. One that was paused comes back paused. It won't take over
+from another device that has started the player meanwhile. If the browser holds the sound back until you touch the
+page, it starts at the first tap.
+
+To move the music to another device, open the strip's menu on the host, press **Stop player** (which also stops this
+device from starting it again by itself), then start it from the other device.
 
 The music player plays through that device's mixer, so start it on the device connected to your speakers, and keep
 that page open and the screen awake.

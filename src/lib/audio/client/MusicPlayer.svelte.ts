@@ -1,5 +1,6 @@
 import { DEFAULT_MUSIC_GAIN, musicLevellingGainDb, type MusicControlAction, type MusicHostEvent, type MusicModel, type MusicTrackPlaybackModel } from "$lib/audio/common/model/musicModel";
 import { subscribeMixerEvents } from "./MixerEventsClient";
+import { PlayerAutoStart } from "./playerAutoStart";
 
 const HEARTBEAT_MS = 5000;
 const VOLUME_SEND_DELAY_MS = 80;
@@ -66,6 +67,8 @@ export class MusicPlayer {
 
     readonly #output: AudioNode | null;
     #unsubscribeEvents: () => void;
+    /** Starts the player again when a page opens on this device, if it ran here last, with the preset it was playing. */
+    readonly #autoStart: PlayerAutoStart<{ presetId: string }>;
     #decks: [Deck, Deck] | null = null;
     /** Which deck is playing the model's track (the other is idle, or fading out the track before it). */
     #activeDeck = 0;
@@ -98,6 +101,7 @@ export class MusicPlayer {
     constructor(options: { remoteOnly?: boolean, output?: AudioNode | null } = {}) {
         this.#output = options.output ?? null;
         this.canHost = !(options.remoteOnly ?? false) && this.#output !== null;
+        this.#autoStart = new PlayerAutoStart('music', this.canHost);
         this.#unsubscribeEvents = subscribeMixerEvents((msg) => {
             if (msg.type !== 'musicUpdate') return;
             const wasHost = this.isHost;
@@ -105,6 +109,13 @@ export class MusicPlayer {
             // The server dropped our claim (e.g. we went quiet for too long): stop making sound.
             if (wasHost && !this.isHost && this.#decks) this.teardown();
             else if (this.isHost && this.#decks) this.follow();
+            // This device ran the player last time: run it again (the sound starts at the first touch, if the browser holds it back till then)
+            else if (this.#autoStart.shouldStart(!this.active)) this.startHosting();
+            // What's playing (an adaptive preset quiet for a phase still counts), to play again then
+            if (this.isHost) {
+                const { presetId, playing, presetSilent } = msg.model;
+                this.#autoStart.rememberPlaying(presetId !== null && (playing || presetSilent) ? { presetId } : null);
+            }
         });
     }
 
@@ -124,7 +135,10 @@ export class MusicPlayer {
 
     // ---- Hosting ----
 
-    /** Becomes the player host. Call from a click handler: browsers only allow audio to start after a gesture. */
+    /**
+     * Becomes the player host. Call from a click handler: browsers only allow audio to start after a gesture (started
+     * without one, it plays from the next). This device then starts it again by itself whenever a page that can opens.
+     */
     async startHosting() {
         if (!this.canHost || this.starting || this.isHost || !this.#output) return;
         this.starting = true;
@@ -146,7 +160,10 @@ export class MusicPlayer {
             this.#heartbeat = setInterval(() => this.put({}).catch(e => this.failHosting(e)), HEARTBEAT_MS);
             window.addEventListener('pagehide', this.#releaseOnLeave);
             document.addEventListener('pointerdown', this.#retryOnGesture);
+            this.#autoStart.remember(true);
             this.follow();
+            const restore = this.#autoStart.takeRestore();
+            if (restore) this.playPreset(restore.presetId);
         } catch (e) {
             this.failHosting(e);
         } finally {
@@ -169,8 +186,14 @@ export class MusicPlayer {
         return deck;
     }
 
-    /** Stops the local player and gives the host role up so another client can take it. */
+    /** Stops the local player and gives the host role up so another client can take it, and this device no longer starts it by itself. */
     stopHosting() {
+        this.#autoStart.remember(false);
+        this.release();
+    }
+
+    /** Stops the local player and gives the host role up, still starting it again next time (e.g. leaving the page). */
+    private release() {
         this.teardown();
         this.sendRelease();
     }
@@ -178,7 +201,7 @@ export class MusicPlayer {
     private failHosting(e: unknown) {
         console.error('MusicPlayer - hosting failed', e);
         this.error = e instanceof Error ? e.message : String(e);
-        this.stopHosting();
+        this.release();
     }
 
     private teardown() {
@@ -439,7 +462,7 @@ export class MusicPlayer {
     }
 
     close() {
-        if (this.isHost || this.#decks) this.stopHosting();
+        if (this.isHost || this.#decks) this.release();
         if (this.#gainTimer !== null) clearTimeout(this.#gainTimer);
         this.#unsubscribeEvents();
     }

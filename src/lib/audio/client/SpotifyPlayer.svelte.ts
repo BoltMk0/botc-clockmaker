@@ -1,5 +1,6 @@
 import type { SpotifyControlAction, SpotifyModel, SpotifyPlaybackModel } from "$lib/audio/common/model/spotifyModel";
 import { subscribeMixerEvents } from "./MixerEventsClient";
+import { PlayerAutoStart } from "./playerAutoStart";
 
 const SDK_URL = 'https://sdk.scdn.co/spotify-player.js';
 const HEARTBEAT_MS = 5000;
@@ -68,6 +69,11 @@ export class SpotifyPlayer {
     starting = $state(false);
 
     #unsubscribeEvents: () => void;
+    /**
+     * Starts the player again when a page opens on this device, if it ran here last, with what it was playing: an
+     * adaptive preset, or an album/playlist (a plain preset's, or any other).
+     */
+    readonly #autoStart: PlayerAutoStart<{ adaptivePresetId: string } | { contextUri: string }>;
     #player: SpotifySDKPlayer | null = null;
     #heartbeat: ReturnType<typeof setInterval> | null = null;
     #volumeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -78,10 +84,13 @@ export class SpotifyPlayer {
     #generation = 0;
 
     readonly #releaseOnLeave = () => { this.sendRelease(); };
+    /** A player started without a gesture (by itself, as this device ran it last time) may only make sound after one. */
+    readonly #activateOnGesture = () => { this.#player?.activateElement().catch(() => { }); };
 
     /** @param options.remoteOnly This client never runs the player itself; it can only control one running elsewhere. */
     constructor(options: { remoteOnly?: boolean } = {}) {
         this.canHost = !(options.remoteOnly ?? false);
+        this.#autoStart = new PlayerAutoStart('spotify', this.canHost);
         this.#unsubscribeEvents = subscribeMixerEvents((msg) => {
             if (msg.type === 'spotifyDeviceVolume') {
                 // The server runs the volume (fades, dim, trim), but this client's player applies it, locally
@@ -95,7 +104,24 @@ export class SpotifyPlayer {
             this.model = msg.model;
             // The server dropped our claim (e.g. we went quiet for too long): stop making sound.
             if (wasHost && !this.isHost && this.#player) this.teardown();
+            // This device ran the player last time: run it again, once Spotify's set up and no other device runs it
+            else if (this.#autoStart.shouldStart(msg.model.configured && msg.model.authorized && msg.model.hostClientId === null)) this.startHosting();
+            // Once the player can take commands: play again what it was playing, or else note what's playing now
+            if (this.isHost && msg.model.hostReady) {
+                const restore = this.#autoStart.takeRestore();
+                if (restore && 'adaptivePresetId' in restore) this.playAdaptivePreset(restore.adaptivePresetId);
+                else if (restore) this.playContext(restore.contextUri);
+                else this.#autoStart.rememberPlaying(this.nowPlaying(msg.model));
+            }
         });
+    }
+
+    /** What the player's playing, as it's remembered to play again: an adaptive preset (quiet for a phase still counts), or an album/playlist. */
+    private nowPlaying(model: SpotifyModel): { adaptivePresetId: string } | { contextUri: string } | null {
+        if (model.adaptivePresetId !== null) {
+            return model.playback?.playing || model.adaptivePresetSilent ? { adaptivePresetId: model.adaptivePresetId } : null;
+        }
+        return model.playback?.playing && model.playback.contextUri ? { contextUri: model.playback.contextUri } : null;
     }
 
     get isHost() { return this.model !== null && this.model.hostClientId === this.clientId; }
@@ -104,7 +130,10 @@ export class SpotifyPlayer {
 
     // ---- Hosting ----
 
-    /** Becomes the player host. Call from a click handler: browsers only allow the player to start audio after a gesture. */
+    /**
+     * Becomes the player host. Call from a click handler: browsers only allow the player to start audio after a gesture
+     * (started without one, it's let at the next). This device then starts it again by itself whenever a page that can opens.
+     */
     async startHosting() {
         if (!this.canHost || this.starting || this.isHost) return;
         this.starting = true;
@@ -136,14 +165,17 @@ export class SpotifyPlayer {
             for (const event of ['initialization_error', 'authentication_error', 'account_error']) {
                 player.addListener(event, ({ message }: { message: string }) => this.failHosting(new Error(message)));
             }
-            // Must happen while we still count as handling the user's click
-            await player.activateElement();
+            // Must happen while we still count as handling the user's click. Without one (started by itself), the
+            // browser may refuse, and the next touch of the page activates it instead.
+            await player.activateElement().catch(() => { });
             if (!await player.connect()) throw new Error('Could not connect to Spotify');
 
             this.#heartbeat = setInterval(() => {
                 this.put({}).catch(e => this.failHosting(e));
             }, HEARTBEAT_MS);
             window.addEventListener('pagehide', this.#releaseOnLeave);
+            document.addEventListener('pointerdown', this.#activateOnGesture, { once: true });
+            this.#autoStart.remember(true);
         } catch (e) {
             this.failHosting(e);
         } finally {
@@ -151,8 +183,14 @@ export class SpotifyPlayer {
         }
     }
 
-    /** Stops the local player and gives the host role up so another client can take it. */
+    /** Stops the local player and gives the host role up so another client can take it, and this device no longer starts it by itself. */
     stopHosting() {
+        this.#autoStart.remember(false);
+        this.release();
+    }
+
+    /** Stops the local player and gives the host role up, still starting it again next time (e.g. leaving the page). */
+    private release() {
         this.teardown();
         this.sendRelease();
     }
@@ -160,7 +198,7 @@ export class SpotifyPlayer {
     private failHosting(e: unknown) {
         console.error('SpotifyPlayer - hosting failed', e);
         this.error = e instanceof Error ? e.message : String(e);
-        this.stopHosting();
+        this.release();
     }
 
     private teardown() {
@@ -170,6 +208,7 @@ export class SpotifyPlayer {
             this.#heartbeat = null;
         }
         window.removeEventListener('pagehide', this.#releaseOnLeave);
+        document.removeEventListener('pointerdown', this.#activateOnGesture);
         this.#player?.disconnect();
         this.#player = null;
         this.#deviceVolume = null;
@@ -240,7 +279,7 @@ export class SpotifyPlayer {
     }
 
     close() {
-        if (this.isHost || this.#player) this.stopHosting();
+        if (this.isHost || this.#player) this.release();
         if (this.#volumeTimer !== null) clearTimeout(this.#volumeTimer);
         this.#unsubscribeEvents();
     }

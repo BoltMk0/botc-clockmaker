@@ -70,6 +70,9 @@ When no player is running you'll see a dashed outline:
 - **+ Link Spotify** — links a Spotify account (only offered when the server has Spotify credentials).
 - **Player not running** — this device can't start one (for example, it's a remote-only mixer).
 
+A device that was running a player starts it again by itself when the page opens, and plays what it was playing (see
+[which device plays the music](music-and-spotify.md#which-device-plays-the-music)).
+
 Once a player is running, its strip shows:
 
 - **Music** / **Spotify** title — tap for controls: previous, play/pause, next, and **Stop player** on the host
