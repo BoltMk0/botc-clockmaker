@@ -163,8 +163,9 @@
             {/if}
         </div>
         <div class="card-buttons">
-            <a class="card-button" href="/admin/{id}/remote?backUrl=/play" aria-label="Open remote" title="Remote">
+            <a class="card-button remote-button" href="/admin/{id}/remote?backUrl=/play" title="Open the clock remote">
                 <RemoteIcon size={24}/>
+                <span>Remote</span>
             </a>
             <button class="card-button delete-game" onclick={() => deleteGame(instance)} aria-label="Delete game" title="Delete">
                 <TrashIcon size={24}/>
@@ -369,7 +370,7 @@
         color: var(--theme-on-bg);
         word-break: break-word;
         /* Clears the remote and delete buttons in the card's corner */
-        padding-right: 4.5em;
+        padding-right: 7.5em;
     }
 
     .game-name h2 {
@@ -423,6 +424,15 @@
         background-color: var(--theme-bg-tertiary);
         color: var(--theme-on-bg-tertiary);
         cursor: pointer;
+    }
+
+    .remote-button {
+        align-items: center;
+        gap: 0.3em;
+        padding-right: 0.6em;
+        font-size: 0.95rem;
+        font-weight: 600;
+        text-decoration: none;
     }
 
     .card-button:hover {
