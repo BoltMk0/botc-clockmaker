@@ -37,7 +37,7 @@ export async function POST({ params }) {
     const clock = getBOTCTClockInstanceManager().getInstance(params.clockid);
     if (clock) {
         clock.playerCount = playerCount;
-        // The first night, so going to the morning starts day 1
+        // Dusk before the first night, so going to the morning starts day 1
         clock.newGame();
     }
 

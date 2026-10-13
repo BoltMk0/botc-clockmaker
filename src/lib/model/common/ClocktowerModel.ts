@@ -28,7 +28,7 @@ export function newClocktowerModel(id: string): ClocktowerModel {
         clock: {
             clockId: id,
             day: 0,
-            timeOfDay: 'night',
+            timeOfDay: 'dusk',
             numPlayers: 8,
             time: {
                 duration: 60,

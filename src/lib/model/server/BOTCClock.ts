@@ -168,8 +168,8 @@ export class BOTCTClock extends EventEmitter {
     }
 
     /**
-     * Starts the game over, as a new game starts: the first night (day 0), with no timer. Going to the morning then
-     * starts day 1.
+     * Starts the game over, as a new game starts: dusk before the first night (day 0), with no timer. Going to the
+     * morning then starts day 1.
      */
     newGame() {
         if(this.running){
@@ -179,7 +179,7 @@ export class BOTCTClock extends EventEmitter {
         }
         if(this.duration !== 0) this.duration = 0;
         this.day = 0;
-        this.timeOfDay = 'night';
+        this.timeOfDay = 'dusk';
     }
 
     /**
