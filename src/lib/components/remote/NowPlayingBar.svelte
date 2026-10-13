@@ -96,6 +96,8 @@
     /* Just text: faint while off, red while dimmed */
     .dim {
         flex: none;
+        box-sizing: border-box;
+        width: 48px; /* Fits "-18 dB", so the readout doesn't shift its neighbours as it changes */
         display: flex;
         flex-direction: column;
         align-items: center;

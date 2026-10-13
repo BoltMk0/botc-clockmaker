@@ -44,6 +44,8 @@ export class RemoteMusic {
     readonly #music: MusicPlayer;
     readonly #spotify: SpotifyPlayer;
     readonly #presets: () => { music: MusicPreset[], spotify: SpotifyPreset[] };
+    /** Each source's volume when it was last muted, to restore on unmute. */
+    readonly #unmuteVolumes: { music?: number, spotify?: number } = {};
 
     constructor(music: MusicPlayer, spotify: SpotifyPlayer, presets: () => { music: MusicPreset[], spotify: SpotifyPreset[] }) {
         this.#music = music;
@@ -169,6 +171,22 @@ export class RemoteMusic {
     setVolume(volume: number) {
         if (this.source === 'music') this.#music.setGain(faderToGain(volume));
         else if (this.source === 'spotify') this.#spotify.setVolume(Math.round(volume * 100));
+    }
+
+    /** The source's volume is all the way down. */
+    get muted(): boolean { return this.volume === 0; }
+
+    /** Turn the source's volume all the way down, or back up to where it was (or to unity gain / half volume). */
+    toggleMute() {
+        const source = this.source;
+        const volume = this.volume;
+        if (source !== 'music' && source !== 'spotify' || volume === null) return;
+        if (volume > 0) {
+            this.#unmuteVolumes[source] = volume;
+            this.setVolume(0);
+        } else {
+            this.setVolume(this.#unmuteVolumes[source] ?? (source === 'music' ? gainToFader(1)! : 0.5));
+        }
     }
 }
 

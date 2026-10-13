@@ -101,7 +101,14 @@
     </div>
 
     <div class="volume-row">
-        <svg class="volume-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg>
+        <button class="mute" class:active={music.muted} onclick={() => music.toggleMute()} disabled={!nowPlaying}
+            title={music.muted ? 'Unmute music' : 'Mute music'} aria-label="Mute music" aria-pressed={music.muted}>
+            {#if music.muted}
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M15.3 9.7l1.4-1.4 2.3 2.3 2.3-2.3 1.4 1.4-2.3 2.3 2.3 2.3-1.4 1.4-2.3-2.3-2.3 2.3-1.4-1.4 2.3-2.3z"/></svg>
+            {:else}
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg>
+            {/if}
+        </button>
         <input type="range" min="0" max="1" step="0.01" value={volume} disabled={!nowPlaying}
             aria-label="Music volume"
             oninput={onVolumeInput}
@@ -109,8 +116,10 @@
             onpointerup={() => dragging = false}
             onpointercancel={() => dragging = false}/>
         <button class="dim" class:active={audioDim?.dimmed} onclick={() => audioDim?.toggle()} disabled={!audioDim}
-            title={audioDim?.dimmed ? 'Restore audio volume' : `Dim all audio (-${audioDim?.amountDb ?? DEFAULT_DIM_AMOUNT_DB} dB)`}>
-            DIM
+            title={audioDim?.dimmed ? 'Restore audio volume' : `Dim all audio (-${audioDim?.amountDb ?? DEFAULT_DIM_AMOUNT_DB} dB)`}
+            aria-pressed={audioDim?.dimmed ?? false}>
+            <span class="dim-label">DIM</span>
+            <span class="dim-amount">{audioDim?.dimmed ? `-${audioDim.amountDb}` : 0} dB</span>
         </button>
     </div>
 
@@ -416,11 +425,36 @@
         gap: 10px;
     }
 
-    .volume-icon {
+    /* The speaker: mutes the music, red while muted */
+    .mute {
         flex: none;
+        display: flex;
+        padding: 4px;
+        border: none;
+        background: none;
+        color: inherit;
+        opacity: 0.6;
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+
+    .mute svg {
         width: 20px;
         height: 20px;
-        opacity: 0.6;
+    }
+
+    .mute.active {
+        opacity: 1;
+        color: #ff6b6b;
+    }
+
+    .mute:hover:not(:disabled):not(.active) {
+        opacity: 0.85;
+    }
+
+    .mute:disabled {
+        opacity: 0.2;
+        cursor: not-allowed;
     }
 
     .volume-row input {
@@ -429,21 +463,46 @@
         accent-color: #f2f2f2;
     }
 
+    /* Just text, as in the now playing bar: faint while off, red while dimmed */
     .dim {
         flex: none;
-        padding: 6px 10px;
+        box-sizing: border-box;
+        width: 48px; /* Fits "-18 dB", so the readout doesn't shift its neighbours as it changes */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 4px 6px;
         border: none;
-        border-radius: 8px;
-        background: #444;
-        color: white;
+        background: none;
+        color: inherit;
         font: inherit;
-        font-size: 0.75em;
-        font-weight: bold;
+        line-height: 1.1;
+        opacity: 0.45;
         cursor: pointer;
+        transition: opacity 0.2s;
     }
 
     .dim.active {
-        background: #2c6e9b;
+        opacity: 1;
+        color: #ff6b6b;
+    }
+
+    .dim:hover:not(:disabled):not(.active) {
+        opacity: 0.7;
+    }
+
+    .dim:disabled {
+        opacity: 0.2;
+        cursor: not-allowed;
+    }
+
+    .dim-label {
+        font-size: 0.75em;
+        font-weight: bold;
+    }
+
+    .dim-amount {
+        font-size: 0.6em;
     }
 
     .hint {
