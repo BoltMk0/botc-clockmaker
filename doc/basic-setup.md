@@ -76,7 +76,7 @@ Other things you can do:
 - **Give more (or less) time** with **+30s / +1m** (or **−30s / −1m**) while the day counts down.
 - **Pause** the countdown with ⏸. Note this stops the clock *and resets it* to the full time, back in the morning;
   ▶ starts it again from the top.
-- **End the day early**: press **End the day**, then again to confirm. The game moves to dusk.
+- **End the day early**: press **End the day**, then again to confirm. The game moves to dusk and the end of day bell rings.
 - **Fix the day number**: tap **Game**, then Day − / +.
 
 The full detail is in [The clock remote and the day cycle](clock-remote.md).

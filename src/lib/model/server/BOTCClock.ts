@@ -167,15 +167,36 @@ export class BOTCTClock extends EventEmitter {
         this.emit('modelUpdated', this.#model);
     }
 
-    /** Ends the day now: stops any countdown, running out the time left, and turns daytime to dusk. */
-    endDay() {
+    /**
+     * Starts the game over, as a new game starts: the first night (day 0), with no timer. Going to the morning then
+     * starts day 1.
+     */
+    newGame() {
         if(this.running){
             this.#model.clock.time.serverStartTime = null;
             this.#scheduleExpiry();
             this.emit('modelUpdated', this.#model);
         }
         if(this.duration !== 0) this.duration = 0;
-        if(isDaytime(this.timeOfDay)) this.timeOfDay = 'dusk';
+        this.day = 0;
+        this.timeOfDay = 'night';
+    }
+
+    /**
+     * Ends the day now: stops any countdown, running out the time left, and turns daytime to dusk (or `to`, e.g. night).
+     * Ending a countdown before it runs out rings the end of day bell, as running out would have.
+     */
+    endDay(to: 'dusk' | 'night' = 'dusk') {
+        const counting = this.running && this.#expiryTimeout !== null;
+        if(this.running){
+            this.#model.clock.time.serverStartTime = null;
+            this.#scheduleExpiry();
+            this.emit('modelUpdated', this.#model);
+        }
+        if(this.duration !== 0) this.duration = 0;
+        if(to === 'night' || isDaytime(this.timeOfDay)) this.timeOfDay = to;
+        // After the change of phase reaches the clients (both are debounced, in order), so the town square says the day has ended
+        if(counting) this.debouncedEmit('bellRingRequest', 'final');
     }
 
     /**

@@ -49,13 +49,13 @@ One large button that moves the game on to its next phase. It says what it will 
 | Phase | Button | What it does |
 | --- | --- | --- |
 | Morning | **Start the day** | Opens the timer options. Picking one sets it up and starts it: the game moves to **Day**. |
-| Day | **End the day** | Ends the day early. Tap it twice (it turns red and asks): the countdown stops and the game moves to **Dusk**. When the timer runs out, the game moves to dusk by itself. |
+| Day | **End the day** | Ends the day early. Tap it twice (it turns red and asks): the countdown stops, the game moves to **Dusk** and the **end of day bell** rings. When the timer runs out, the game moves to dusk by itself. |
 | Dusk | **Night falls** | Moves the game to **Night**. |
 | Night | **Morning of day N** | Sets the last timer option up again and moves the game to **Morning** of the next day. |
 
 You can also tap a phase in the flow to jump straight to it, e.g. to fix a mistake. Tapping **Day** opens the timer
-options. Going to Dusk or Night while the countdown runs asks first, and ends the countdown so its bell doesn't ring
-later. Morning can't be picked while the countdown runs (pause instead).
+options. Going to Dusk or Night while the countdown runs asks first, then ends the countdown and rings the end of day bell
+(it doesn't ring again later). Morning can't be picked while the countdown runs (pause instead).
 
 ### The timer options
 
@@ -67,7 +67,8 @@ without starting.
 ### Now playing
 
 The bar at the bottom shows what's playing on the uploaded-music player or Spotify (whichever is playing) with its
-album art, and a **⏭ skip** button. "No music player running" means neither player is running on any device.
+album art, **DIM** (turns all the room's audio down by the dim amount, shown under it; red while it's on, tap again to restore) and
+a **⏭ skip** button. "No music player running" means neither player is running on any device.
 
 Tap the bar to open the **music view**:
 
@@ -111,7 +112,7 @@ Each game rings the sounds of its **Clock SFX preset**, picked on the game's car
 | --- | --- |
 | **Start of Day** | The game goes from night to morning or day. |
 | **Reminder Bell** | The reminder time is reached during the countdown. |
-| **End of Day** | The countdown runs out, or the bell is rung by hand (e.g. from a [Lightscapes](lightscapes.md) button). |
+| **End of Day** | The countdown runs out or the day is ended early, or the bell is rung by hand (e.g. from a [Lightscapes](lightscapes.md) button). |
 
 A game whose preset is "None", or whose preset has no sound for a slot, stays silent for it. Bells play on every
 device whose audio engine is on — see [which devices make sound](audio-overview.md#which-devices-make-sound).
@@ -127,4 +128,4 @@ device whose audio engine is on — see [which devices make sound](audio-overvie
 | Start the next day | **Morning of day N**, then **Start the day** and pick a timer. |
 | Fix a wrong day number | Open **Game** at the top, then Day − / +. |
 | Change the music | Tap the now playing bar and pick a preset. |
-| Quieten the music while you talk | Now playing bar → **DIM**; tap again to restore. |
+| Quieten the music while you talk | **DIM** on the now playing bar; tap again to restore. |

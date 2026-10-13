@@ -125,8 +125,8 @@ When the draw finishes:
   over the top, to the bottom right (the last), leaving a gap at the bottom of the circle;
 - tokens you put "on the grim", and any loric/fabled, are placed on the board;
 - your bluff sets are ready in the token tray;
-- the game's **player count** is set (travellers not included), the day is reset to **0** and the clock is cleared,
-  ready for the first night.
+- the game's **player count** is set (travellers not included), the day is reset to **0**, the clock is cleared and
+  the game is at **night**: the first night. Going to the morning then starts day 1.
 
 Characters stay hidden from the storyteller's device until the draw is finished, and each slot only reveals its
 character to the player who taps it.

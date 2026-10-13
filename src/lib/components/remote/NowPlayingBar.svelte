@@ -1,9 +1,11 @@
 <script lang="ts">
     import type { RemoteMusic } from "./remoteMusic.svelte";
+    import type { AudioDim } from "$lib/audio/client/AudioDim.svelte";
+    import { DEFAULT_DIM_AMOUNT_DB } from "$lib/audio/common/model/audioDimModel";
     import MusicArt from "./MusicArt.svelte";
 
-    /** The remote's now playing bar: what's playing and a skip button. Tapping it opens the music view. */
-    let { music, onopen }: { music: RemoteMusic; onopen: () => void } = $props();
+    /** The remote's now playing bar: what's playing, DIM and a skip button. Tapping it opens the music view. */
+    let { music, audioDim, onopen }: { music: RemoteMusic; audioDim: AudioDim | null; onopen: () => void } = $props();
 
     const nowPlaying = $derived(music.nowPlaying);
     const nothingRunning = $derived(!music.musicAvailable && !music.spotifyAvailable);
@@ -23,6 +25,12 @@
             <span class="subtitle">{nothingRunning ? 'No music player running' : 'Tap to pick a preset'}</span>
             {/if}
         </span>
+    </button>
+    <button class="dim" class:active={audioDim?.dimmed} onclick={() => audioDim?.toggle()} disabled={!audioDim}
+        title={audioDim?.dimmed ? 'Restore audio volume' : `Dim all audio (-${audioDim?.amountDb ?? DEFAULT_DIM_AMOUNT_DB} dB)`}
+        aria-pressed={audioDim?.dimmed ?? false}>
+        <span class="dim-label">DIM</span>
+        <span class="dim-amount">{audioDim?.dimmed ? `-${audioDim.amountDb}` : 0} dB</span>
     </button>
     <button class="skip" onclick={() => music.next()} disabled={!nowPlaying} title="Skip track" aria-label="Skip track">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
@@ -83,6 +91,46 @@
 
     .paused {
         font-weight: 600;
+    }
+
+    /* Just text: faint while off, red while dimmed */
+    .dim {
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 4px 6px;
+        border: none;
+        background: none;
+        color: inherit;
+        font: inherit;
+        line-height: 1.1;
+        opacity: 0.45;
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+
+    .dim.active {
+        opacity: 1;
+        color: #ff6b6b;
+    }
+
+    .dim:hover:not(:disabled):not(.active) {
+        opacity: 0.7;
+    }
+
+    .dim:disabled {
+        opacity: 0.2;
+        cursor: not-allowed;
+    }
+
+    .dim-label {
+        font-size: 0.75em;
+        font-weight: bold;
+    }
+
+    .dim-amount {
+        font-size: 0.6em;
     }
 
     .skip {

@@ -224,7 +224,7 @@
         <button class="advance-btn phase-{phase}" class:confirming={confirmingEnd} onclick={advance}>
             {#if phase === 'morning'}
                 <TimeOfDayIcon timeOfDay="day" size={22}/>
-                <span class="advance-text"><span>Start the day</span><small>Pick a timer</small></span>
+                <span class="advance-text"><span>Start day {model.day}</span><small>Pick a timer</small></span>
             {:else if phase === 'day'}
                 <TimeOfDayIcon timeOfDay="dusk" size={22}/>
                 <span class="advance-text">
@@ -245,7 +245,7 @@
 
     {#if music}
     <div class="now-playing-slot">
-        <NowPlayingBar {music} onopen={() => view = 'music'}/>
+        <NowPlayingBar {music} {audioDim} onopen={() => view = 'music'}/>
     </div>
     {/if}
 </div>

@@ -57,7 +57,7 @@ The sounds a game's clock plays. Each **Clock SFX preset** is a set of up to thr
 | --- | --- |
 | **Start of Day** | A game goes from night to day. |
 | **Reminder Bell** | The reminder time is reached during a countdown (see [Timer Options](timer-options.md)). |
-| **End of Day** | A game's timer runs out, or the bell is rung by hand. |
+| **End of Day** | A game's timer runs out or its day is ended early, or the bell is rung by hand. |
 
 The table lists each preset with a ✓ for each sound it has. **+ Clock SFX Preset** makes a new one; the pencil
 edits one.

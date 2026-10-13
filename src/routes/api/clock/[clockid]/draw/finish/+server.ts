@@ -37,9 +37,8 @@ export async function POST({ params }) {
     const clock = getBOTCTClockInstanceManager().getInstance(params.clockid);
     if (clock) {
         clock.playerCount = playerCount;
-        // End of the day with no time remaining; setup() may advance the day, so reset it after.
-        clock.setup({ label: '', duration: 0, ringBellWhenRemaining: null });
-        clock.day = 0;
+        // The first night, so going to the morning starts day 1
+        clock.newGame();
     }
 
     delete_draw_session_for_clock(params.clockid);
