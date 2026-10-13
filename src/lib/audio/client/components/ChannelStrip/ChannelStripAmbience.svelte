@@ -26,32 +26,17 @@
 
     const selectedResourceValue: number = $derived(resources.findIndex((r)=>{return track.loadedResourceId === r.id}));
     let showOverlay = $state(false);
-
-    const PHASES_PER_ROW = 2;
-    const PHASE_ROWS = Array.from({length: Math.ceil(TIMES_OF_DAY.length / PHASES_PER_ROW)}, (_, i) => TIMES_OF_DAY.slice(i * PHASES_PER_ROW, (i + 1) * PHASES_PER_ROW));
 </script>
 
 
-{#snippet timeOfDayActiveIndicator(active: boolean)}
-    <div style="width: 0.5em; height: 0.5em; border-radius: 50%; background-color: {active ? '#6A7' : '#FFF5'}; border: 0.1em solid #111">
-
-    </div>
-{/snippet}
-
-
 {#snippet timeOfDayActivitySelection()}
-    <!-- Two by two (morning & day, then dusk & night), each row's indicators under its buttons -->
-    <div style="display: grid; grid-template-columns: repeat({PHASES_PER_ROW}, 1fr); gap: 3px 3px; padding: 5px 3px; box-sizing: border-box; width: 100%; overflow: hidden; justify-items: center;">
-        {#each PHASE_ROWS as row}
-            {#each row as phase}
-                {@const key = AMBIENCE_ACTIVE_KEYS[phase]}
-                <button class="daynight-btn button-style" onclick={()=>{track[key] = !track[key]}} class:isEnabled={track[key]} title="{track[key] ? 'Plays' : 'Silent'} at {TIME_OF_DAY_LABELS[phase].toLowerCase()}">
-                    <TimeOfDayIcon timeOfDay={phase} color={track[key] ? 'white' : '#FFF5'}/>
-                </button>
-            {/each}
-            {#each row as phase}
-                {@render timeOfDayActiveIndicator(timeOfDay === phase)}
-            {/each}
+    <!-- Two by two (morning & day, then dusk & night). Lit from inside where the track plays; the current phase outlined -->
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 2em)); gap: 4px; justify-content: center; padding: 5px 3px; box-sizing: border-box; width: 100%; overflow: hidden;">
+        {#each TIMES_OF_DAY as phase}
+            {@const key = AMBIENCE_ACTIVE_KEYS[phase]}
+            <button class="daynight-btn button-style" onclick={()=>{track[key] = !track[key]}} class:isEnabled={track[key]} class:isCurrent={timeOfDay === phase} title="{track[key] ? 'Plays' : 'Silent'} at {TIME_OF_DAY_LABELS[phase].toLowerCase()}">
+                <TimeOfDayIcon timeOfDay={phase} color={track[key] ? 'white' : '#FFF5'}/>
+            </button>
         {/each}
     </div>
 {/snippet}
@@ -110,7 +95,18 @@
         padding: 0;
     }
 
+    /* A phase the track plays in: lit from inside, light blue - dimmer while it isn't the current phase */
     button.daynight-btn.isEnabled {
+        background: radial-gradient(circle, #8CEA 0%, #8CE4 60%, #8CE1 100%);
+        box-shadow: inset 0 0 5px #ADFC;
+    }
+
+    button.daynight-btn.isEnabled.isCurrent {
+        background: radial-gradient(circle, #96CBEBE6 0%, #7DBDEB73 60%, #7DBDEB1A 100%);
+        box-shadow: inset 0 0 7px #AED2EB;
+    }
+
+    button.daynight-btn.isCurrent {
         border-color: var(--theme-highlight);
     }
 </style>
