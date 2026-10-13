@@ -5,6 +5,8 @@ export async function POST({ request, params }) {
     const { timeOfDay } = await request.json();
     if (!isTimeOfDay(timeOfDay)) return new Response('Invalid time of day', { status: 400 });
     const clock = getBOTCTClockInstanceManager().getInstance(params.clockid);
-    clock.timeOfDay = timeOfDay;
+    // Day is the countdown running, so asking for it sets the timer up again, ready to start (morning until it is)
+    if (timeOfDay === 'day') clock.resetDay();
+    else clock.timeOfDay = timeOfDay;
     return new Response('Time of day updated', { status: 200 });
 }

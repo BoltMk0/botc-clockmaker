@@ -4,6 +4,9 @@ export type ClocktowerClockTimeModel =  {
     duration: number;
     ringBellWhen?: number;
     serverStartTime: number|null; // Start time of the clock relative to the server. if null, then the clock is not running.
+    /** The timer as last set up (duration and ringBellWhen), so the day can be set up again after it's ended. */
+    setupDuration?: number;
+    setupRingBellWhen?: number;
 };
 
 function isClocktowerClockTimeModel(data: any): data is ClocktowerClockTimeModel {
@@ -11,10 +14,8 @@ function isClocktowerClockTimeModel(data: any): data is ClocktowerClockTimeModel
     if(typeof data.serverStartTime !== 'number' && data.serverStartTime !== null) {
         return false;
     }
-    if(data.ringBellWhen !== undefined){
-        if(typeof data.ringBellWhen !== 'number'){
-            return false;
-        }
+    for(const key of ['ringBellWhen', 'setupDuration', 'setupRingBellWhen']){
+        if(data[key] !== undefined && typeof data[key] !== 'number') return false;
     }
     return true;
 }
@@ -24,7 +25,10 @@ export type ClocktowerClockModel = {
     numPlayers: number;
     time: ClocktowerClockTimeModel;
     day: number;
-    /** The current phase. Set directly, or automatically: day when a timer is set up, night when it runs out. */
+    /**
+     * The current phase. Set directly, or automatically: morning when a timer is set up or paused, day while it runs,
+     * dusk when it runs out.
+     */
     timeOfDay: TimeOfDay;
 };
 

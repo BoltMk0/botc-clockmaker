@@ -129,8 +129,24 @@ export class BOTCTClock extends EventEmitter {
         if(this.running) this.stop();
         this.duration = timerOption.duration;
         this.ringBellWhen = timerOption.ringBellWhenRemaining ?? undefined;
+        this.#model.clock.time.setupDuration = timerOption.duration;
+        this.#model.clock.time.setupRingBellWhen = timerOption.ringBellWhenRemaining ?? undefined;
         // Set up but not started yet
         this.timeOfDay = 'morning';
+    }
+
+    /**
+     * Sets the timer up again as it was last set up (or as it is, if it never was), waiting in the morning to be
+     * started - a new day, if the last one had ended.
+     */
+    resetDay() {
+        const time = this.#model.clock.time;
+        const setUp = time.setupDuration !== undefined;
+        this.setup({
+            label: null,
+            duration: setUp ? time.setupDuration! : time.duration,
+            ringBellWhenRemaining: (setUp ? time.setupRingBellWhen : time.ringBellWhen) ?? null
+        });
     }
 
     start() {

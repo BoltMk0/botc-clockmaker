@@ -9,7 +9,7 @@
     import bell_slash from '$lib/assets/bell.slash.png';
     import type { Clocktower } from "$lib/model/client/Clocktower.svelte";
     import { type TimerOption } from "$lib/common/timerOption";
-    import { TIME_OF_DAY_LABELS, TIMES_OF_DAY, type TimeOfDay } from "$lib/model/client/types";
+    import { isDaytime, TIME_OF_DAY_LABELS, TIMES_OF_DAY, type TimeOfDay } from "$lib/model/client/types";
     import TimeOfDayIcon from "$lib/assets/timeOfDayIcon.svelte";
     import { AudioDim } from "$lib/audio/client/AudioDim.svelte";
     import { SpotifyPlayer } from "$lib/audio/client/SpotifyPlayer.svelte";
@@ -131,6 +131,9 @@
         });
     }
 
+    // No morning button: Day sets the timer up again and waits to be started, which is the morning (shown on the Day button)
+    const REMOTE_TIMES_OF_DAY = TIMES_OF_DAY.filter(t => t !== 'morning');
+
     function setTimeOfDay(timeOfDay: TimeOfDay){
         fetch(`/api/clock/${model.id}/timeOfDay`, {
             method: 'POST',
@@ -180,11 +183,15 @@
                 <span>{formatTime(model.secondsRemaining)}</span>
             </div>
 
-            <div class="time-of-day-row" style="grid-template-columns: repeat({TIMES_OF_DAY.length}, 1fr);">
-                {#each TIMES_OF_DAY as timeOfDay}
-                    <button class="button-container-button time-of-day-btn" class:active={model.timeOfDay === timeOfDay} onclick={() => setTimeOfDay(timeOfDay)}>
-                        <TimeOfDayIcon {timeOfDay} size={18}/>
-                        {TIME_OF_DAY_LABELS[timeOfDay]}
+            <div class="time-of-day-row" style="grid-template-columns: repeat({REMOTE_TIMES_OF_DAY.length}, 1fr);">
+                {#each REMOTE_TIMES_OF_DAY as timeOfDay}
+                    <!-- The Day button shows Morning while it's morning, so the phase is still clear -->
+                    {@const shown = timeOfDay === 'day' && model.timeOfDay === 'morning' ? 'morning' : timeOfDay}
+                    <button class="button-container-button time-of-day-btn" class:active={timeOfDay === 'day' ? isDaytime(model.timeOfDay) : model.timeOfDay === timeOfDay}
+                        onclick={() => setTimeOfDay(timeOfDay)} disabled={timeOfDay === 'day' && counting}
+                        title={timeOfDay === 'day' ? 'Set the timer up again, ready to start' : undefined}>
+                        <TimeOfDayIcon timeOfDay={shown} size={18}/>
+                        {TIME_OF_DAY_LABELS[shown]}
                     </button>
                 {/each}
             </div>

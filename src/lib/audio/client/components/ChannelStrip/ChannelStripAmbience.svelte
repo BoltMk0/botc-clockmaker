@@ -26,6 +26,9 @@
 
     const selectedResourceValue: number = $derived(resources.findIndex((r)=>{return track.loadedResourceId === r.id}));
     let showOverlay = $state(false);
+
+    const PHASES_PER_ROW = 2;
+    const PHASE_ROWS = Array.from({length: Math.ceil(TIMES_OF_DAY.length / PHASES_PER_ROW)}, (_, i) => TIMES_OF_DAY.slice(i * PHASES_PER_ROW, (i + 1) * PHASES_PER_ROW));
 </script>
 
 
@@ -37,15 +40,18 @@
 
 
 {#snippet timeOfDayActivitySelection()}
-    <div style="display: grid; grid-template-columns: repeat({TIMES_OF_DAY.length}, 1fr); gap: 3px 3px; padding: 5px 3px; box-sizing: border-box; width: 100%; overflow: hidden; justify-items: center;">
-        {#each TIMES_OF_DAY as phase}
-            {@const key = AMBIENCE_ACTIVE_KEYS[phase]}
-            <button class="daynight-btn button-style" onclick={()=>{track[key] = !track[key]}} class:isEnabled={track[key]} title="{track[key] ? 'Plays' : 'Silent'} at {TIME_OF_DAY_LABELS[phase].toLowerCase()}">
-                <TimeOfDayIcon timeOfDay={phase} color={track[key] ? 'white' : '#FFF5'}/>
-            </button>
-        {/each}
-        {#each TIMES_OF_DAY as phase}
-            {@render timeOfDayActiveIndicator(timeOfDay === phase)}
+    <!-- Two by two (morning & day, then dusk & night), each row's indicators under its buttons -->
+    <div style="display: grid; grid-template-columns: repeat({PHASES_PER_ROW}, 1fr); gap: 3px 3px; padding: 5px 3px; box-sizing: border-box; width: 100%; overflow: hidden; justify-items: center;">
+        {#each PHASE_ROWS as row}
+            {#each row as phase}
+                {@const key = AMBIENCE_ACTIVE_KEYS[phase]}
+                <button class="daynight-btn button-style" onclick={()=>{track[key] = !track[key]}} class:isEnabled={track[key]} title="{track[key] ? 'Plays' : 'Silent'} at {TIME_OF_DAY_LABELS[phase].toLowerCase()}">
+                    <TimeOfDayIcon timeOfDay={phase} color={track[key] ? 'white' : '#FFF5'}/>
+                </button>
+            {/each}
+            {#each row as phase}
+                {@render timeOfDayActiveIndicator(timeOfDay === phase)}
+            {/each}
         {/each}
     </div>
 {/snippet}
