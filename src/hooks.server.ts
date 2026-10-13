@@ -1,5 +1,6 @@
 import { redirect, type Handle, type ServerInit } from "@sveltejs/kit";
 import { isValidSessionToken, SESSION_COOKIE } from "$lib/auth/server/auth";
+import { bearerToken, isValidApiToken } from "$lib/auth/server/apiToken";
 import { migrateCharacterIds } from "$lib/resources/server/migrateCharacterIds";
 import { startMusicLoudnessWorker } from "$lib/resources/server/musicLoudness";
 
@@ -23,6 +24,10 @@ function isPublicRead(method: string, pathname: string): boolean {
     return (method === 'GET' || method === 'HEAD') && PUBLIC_CHARACTER_IMAGE.test(pathname);
 }
 
+function isApiPath(pathname: string): boolean {
+    return pathname.startsWith('/api/') || pathname.startsWith('/events/');
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
     const { pathname, search } = event.url;
 
@@ -30,7 +35,12 @@ export const handle: Handle = async ({ event, resolve }) => {
         return resolve(event);
     }
 
-    if (pathname.startsWith('/api/') || pathname.startsWith('/events/')) {
+    // Programs (e.g. Lightscapes) use the API token instead of a session, for the API and events only
+    if (isApiPath(pathname) && isValidApiToken(bearerToken(event.request))) {
+        return resolve(event);
+    }
+
+    if (isApiPath(pathname)) {
         return new Response('Unauthorized', { status: 401 });
     }
 

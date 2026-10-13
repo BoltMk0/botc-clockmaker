@@ -12,13 +12,15 @@
         '/settings/music',
         '/settings/rulesSlides',
         '/settings/feedback',
-        '/settings/password'
+        '/settings/password',
+        '/settings/apiToken'
     ]
 
     /** For the paths whose label isn't just their name. */
     const LABELS: Record<string, string> = {
         '/settings/customMessages': 'Grim Messages',
-        '/settings/rulesSlides': 'Rules Slides'
+        '/settings/rulesSlides': 'Rules Slides',
+        '/settings/apiToken': 'API Token'
     };
 
     const currentPath = $derived(page.url.pathname);
