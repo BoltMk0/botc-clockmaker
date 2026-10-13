@@ -97,7 +97,7 @@ morning playlist, before the countdown starts, say) shows as waiting.
 
 You don't need the mixer open to control the music:
 
-- **Clock remote** — **⏭** skips the track; **DIM** turns everything down while you talk.
+- **Clock remote** — the now playing bar's **⏭** skips the track; tap the bar for the music view, with a preset button (the music and Spotify presets in one list), play/pause, volume and **DIM**.
 - **Grimoire** → audio menu — dim, play/pause and skip for whichever player is running, plus the sting.
 - **Town square** — the **Now Playing** banner (☰ menu) shows players what's on.
 

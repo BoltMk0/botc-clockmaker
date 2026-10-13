@@ -19,54 +19,76 @@ Both are the same controls, and every change shows up on every screen for that g
 
 From top to bottom:
 
-### Time remaining and play/pause
+### Game
 
-The countdown, with one button beside it:
-
-- **▶ Start** — starts the countdown. Greyed out once the timer has run out (pick a timer option to set up a new day).
-- **⏸ Pause** — shown while counting down. It stops the clock **and resets it to its full time**, and the game goes
-  back to **Morning**; pressing ▶ again starts the countdown from the top.
-
-### Day / Dusk / Night
-
-Set the game's phase. The highlighted button is the current phase. Phases change the town square's sky, the night
-order in the grimoire, and the [time-of-day audio](audio-overview.md#the-phase-drives-the-audio).
-
-- **Day** sets the timer up again as it was last set up (the last timer option picked) and waits for ▶ — a new day,
-  if the last one had ended. Until the countdown starts it reads **Morning**. It's disabled while the countdown runs.
-- **Dusk** and **Night** set that phase straight away.
-
-There's no Morning button: the game is in the morning whenever the timer is set up but not running, and in the day
-while it runs.
-
-### Day and Players
+A slim bar showing the **day number** and **player count**. Tap it to open the − / + counters:
 
 - **Day − / +** — corrects the day number. (It normally moves on by itself; see below.)
 - **Players − / +** — the number of players. The town square shows the matching character breakdown. When a game
   is set up with the grimoire's token draw, this is set for you.
 
-### Timer options
+### The day's flow
 
-One button per timer option from [Settings → Timer Options](settings/timer-options.md). Each shows its duration
-(⏱), its reminder bell time (🔔, or a crossed-out bell for none) and its label. The option currently loaded is
-highlighted. They're disabled while the countdown is running.
+The four phases, **Morning → Day → Dusk → Night**, in a row. The current phase is lit, and the next one is
+outlined. Phases change the town square's sky, the night order in the grimoire, and the
+[time-of-day audio](audio-overview.md#the-phase-drives-the-audio).
 
-Pressing one **sets up a day** — see [How the day cycle works](#how-the-day-cycle-works).
+Under them is the countdown. While the timer is set up (in the morning) or counting down, there are buttons beside
+and under it:
 
-### Bottom row
+- **▶** (morning) starts the timer as it's set up, without picking one.
+- **⏸** (day) pauses. It stops the clock **and resets it to its full time**, and the game goes back to **Morning**.
+- **−1m, −30s, +30s, +1m** give the day more or less time, while it counts down or before it starts. They change
+  only this day: the next morning sets up the timer option as it was picked. A minus button is disabled when it
+  would take off all the time that's left.
 
-| Button | What it does |
-| --- | --- |
-| **Mixer** (three sliders) | Opens the [audio mixer](audio-mixer.md) as a remote control — it plays no sound on this device — with a back button to where you came from. |
-| **DIM** | Turns all the room's audio down by the dim amount (6 dB by default), and back up again. Shared: every device follows it. Shows the current reduction, e.g. "-6 dB". Set the amount in [Settings → Audio](settings/audio.md#dim-strength). |
-| **⏭ Skip** | Skips to the next music track, on whichever player is running (the uploaded-music player or Spotify). Disabled when neither is running. |
-| **🔔 Ring bell** | Rings the game's **End of Day** bell by hand on every device playing sound, and shows a message on the town square. |
+### The main button
+
+One large button that moves the game on to its next phase. It says what it will do:
+
+| Phase | Button | What it does |
+| --- | --- | --- |
+| Morning | **Start the day** | Opens the timer options. Picking one sets it up and starts it: the game moves to **Day**. |
+| Day | **End the day** | Ends the day early. Tap it twice (it turns red and asks): the countdown stops and the game moves to **Dusk**. When the timer runs out, the game moves to dusk by itself. |
+| Dusk | **Night falls** | Moves the game to **Night**. |
+| Night | **Morning of day N** | Sets the last timer option up again and moves the game to **Morning** of the next day. |
+
+You can also tap a phase in the flow to jump straight to it, e.g. to fix a mistake. Tapping **Day** opens the timer
+options. Going to Dusk or Night while the countdown runs asks first, and ends the countdown so its bell doesn't ring
+later. Morning can't be picked while the countdown runs (pause instead).
+
+### The timer options
+
+Shown when you start the day: one button per timer option from
+[Settings → Timer Options](settings/timer-options.md), each with its duration (⏱), its reminder bell time (🔔, or a
+crossed-out bell for none) and its label. The option currently set up is highlighted. Tap outside to close it
+without starting.
+
+### Now playing
+
+The bar at the bottom shows what's playing on the uploaded-music player or Spotify (whichever is playing) with its
+album art, and a **⏭ skip** button. "No music player running" means neither player is running on any device.
+
+Tap the bar to open the **music view**:
+
+- a **preset button** above the album art, showing the preset that's loaded (and, under it, one waiting for the next
+  phase). Tap it for a scrollable list of **every music and Spotify preset**, each marked with its player. Tapping the
+  preset that's loaded plays or pauses it. While anything is playing, tapping another preset queues it for the next
+  change of phase (it's outlined and reads *Next phase*); tap it again to switch now. Presets of a player that isn't
+  running are greyed out;
+- the track, artist and player;
+- **previous / play-pause / next**;
+- a **volume** slider for the player that's playing (the music strip's fader, or Spotify's volume) and **DIM**, which
+  turns all the room's audio down by the dim amount (see [Settings → Audio](settings/audio.md#dim-strength));
+- **Mixer** (top right) opens the [audio mixer](audio-mixer.md) as a remote control, with a back button.
+
+**‹ Clock** returns to the clock controls.
 
 ## How the day cycle works
 
 Clockmaker tracks a **day number** and a **phase** (morning, day, dusk or night) for each game.
 
-1. **Picking a timer option** (or pressing **Day**, which repeats the last one) sets up a day:
+1. **Picking a timer option** (or going to **Morning**, which repeats the last one) sets up a day:
    - If the game is at **dusk or night** (or still on day 0), the day number goes up by one. If it's already
      daytime, the day number stays the same — so you can swap to a different timer mid-morning without skipping a
      day.
@@ -74,8 +96,8 @@ Clockmaker tracks a **day number** and a **phase** (morning, day, dusk or night)
 2. **▶** starts the countdown, and the phase becomes **Day**. Pausing goes back to **Morning**.
 3. With the reminder time left, the **reminder bell** rings.
 4. When the countdown reaches zero, the **end of day bell** rings and the phase becomes **Dusk**.
-5. **Night** is only ever set by hand, with the Night button.
-6. Going from **Night** to daytime (by picking a timer option, or pressing Day) rings the **start of day** sound.
+5. **Night** is only ever set by hand, with **Night falls**.
+6. Going from **Night** to daytime rings the **start of day** sound.
 
 The server keeps time, so the countdown is the same on every device and survives a page reload. If the server
 restarts while a countdown is running and the time runs out meanwhile, the game is at dusk when it comes back.
@@ -89,7 +111,7 @@ Each game rings the sounds of its **Clock SFX preset**, picked on the game's car
 | --- | --- |
 | **Start of Day** | The game goes from night to morning or day. |
 | **Reminder Bell** | The reminder time is reached during the countdown. |
-| **End of Day** | The countdown runs out, or the bell is rung by hand. |
+| **End of Day** | The countdown runs out, or the bell is rung by hand (e.g. from a [Lightscapes](lightscapes.md) button). |
 
 A game whose preset is "None", or whose preset has no sound for a slot, stays silent for it. Bells play on every
 device whose audio engine is on — see [which devices make sound](audio-overview.md#which-devices-make-sound).
@@ -98,11 +120,11 @@ device whose audio engine is on — see [which devices make sound](audio-overvie
 
 | I want to… | Do this |
 | --- | --- |
-| Start the first day | Set Night for night 1, then pick a timer option (Day 1) and press ▶. |
-| Give more time | Press ⏸ (resets the timer), pick a longer option, press ▶. Or ▶ again to rerun the same length. |
-| End the day early | Press ⏸, then Dusk. (Pressing only Dusk leaves the countdown running underneath, and its bell still rings when it runs out.) |
-| Call players back | Press 🔔. |
-| Go to night | Press Night. |
-| Start the next day | Pick a timer option, or press Day to repeat the last one — the day number goes up by one. |
-| Fix a wrong day number | Day − / +. |
-| Quieten the music while you talk | Press DIM; press again to restore. |
+| Start the first day | Tap **Night** in the flow for night 1, then the main button (**Morning of day 1**), then **Start the day** and pick a timer. |
+| Give more time | **+30s** or **+1m**. |
+| End the day early | **End the day**, and tap it again to confirm. |
+| Go to night | **Night falls**. |
+| Start the next day | **Morning of day N**, then **Start the day** and pick a timer. |
+| Fix a wrong day number | Open **Game** at the top, then Day − / +. |
+| Change the music | Tap the now playing bar and pick a preset. |
+| Quieten the music while you talk | Now playing bar → **DIM**; tap again to restore. |

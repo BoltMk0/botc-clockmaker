@@ -102,5 +102,5 @@ The second group holds the one-off sounds:
   Day bell on this device only. Panning games apart is useful when several tables share a room.
 - **MASTER** — the level and pan of all the SFX together.
 
-The **DIM** button (on the clock remote and in the grimoire) turns down *everything* — both groups and Spotify — by
+The **DIM** button (in the clock remote's music view and in the grimoire) turns down *everything* — both groups and Spotify — by
 the [dim strength](settings/audio.md#dim-strength).

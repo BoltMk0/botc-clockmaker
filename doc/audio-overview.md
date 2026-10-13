@@ -87,7 +87,7 @@ every game is.
 4. **Music.** Upload tracks in **Settings → Music**, make playlists, and create music presets. In the mixer, press
    **+ Music** to start the player on this device and pick a preset. → [Music & Spotify](music-and-spotify.md)
 5. **Balance the levels** with the mixer's faders and the per-phase trims, and set the dim strength.
-6. **Control it from your phone**: the clock remote's mixer button, and DIM / skip.
+6. **Control it from your phone**: the clock remote's now playing bar (skip), and its music view (presets, volume, DIM and the mixer).
 
 ## Recommended room setups
 

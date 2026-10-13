@@ -7,6 +7,10 @@ export async function POST({ request, params }) {
     const clock = getBOTCTClockInstanceManager().getInstance(params.clockid);
     // Day is the countdown running, so asking for it sets the timer up again, ready to start (morning until it is)
     if (timeOfDay === 'day') clock.resetDay();
-    else clock.timeOfDay = timeOfDay;
+    else {
+        // Dusk or night ends a running countdown, so its bell doesn't ring later on
+        if (timeOfDay !== 'morning' && clock.running) clock.endDay();
+        clock.timeOfDay = timeOfDay;
+    }
     return new Response('Time of day updated', { status: 200 });
 }

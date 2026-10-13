@@ -39,7 +39,7 @@
 <div class="remote-page">
     <h2 class="team-name">{data.teamName}</h2>
     {#if model}
-    <ClockSetter {model} timerOptions={data.timerOptions} onmixer={openMixer}/>
+    <ClockSetter {model} timerOptions={data.timerOptions} musicPresets={data.musicPresets} spotifyPresets={data.spotifyPresets} onmixer={openMixer}/>
     {/if}
 </div>
 

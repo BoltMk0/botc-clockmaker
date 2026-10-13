@@ -22,7 +22,7 @@ Changes here apply straight away, on every device.
 
 ### Dim strength
 
-How far the **DIM** button (on the clock remote and in the grimoire) turns the audio down: **3 to 18 dB**,
+How far the **DIM** button (in the clock remote's music view and in the grimoire) turns the audio down: **3 to 18 dB**,
 default **6 dB**. Dim affects everything — ambience, music, Spotify, stings and bells.
 
 ### Loudness levelling

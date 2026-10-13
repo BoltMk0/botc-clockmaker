@@ -158,21 +158,40 @@ export class BOTCTClock extends EventEmitter {
     }
 
     stop() {
-        if(!this.running || this.#expiryTimeout === null) {
-            // Stopping an already stopped (or run out) clock ends the day, running out the remaining time.
-            if(this.running){
-                this.#model.clock.time.serverStartTime = null;
-                this.emit('modelUpdated', this.#model);
-            }
-            if(this.duration !== 0) this.duration = 0;
-            if(isDaytime(this.timeOfDay)) this.timeOfDay = 'dusk';
-            return;
-        }
+        // Stopping an already stopped (or run out) clock ends the day, running out the remaining time.
+        if(!this.running || this.#expiryTimeout === null) return this.endDay();
         // Paused: back to morning until it's started again
         this.#model.clock.time.serverStartTime = null;
         this.#scheduleExpiry();
         if(this.timeOfDay === 'day') this.timeOfDay = 'morning';
         this.emit('modelUpdated', this.#model);
+    }
+
+    /** Ends the day now: stops any countdown, running out the time left, and turns daytime to dusk. */
+    endDay() {
+        if(this.running){
+            this.#model.clock.time.serverStartTime = null;
+            this.#scheduleExpiry();
+            this.emit('modelUpdated', this.#model);
+        }
+        if(this.duration !== 0) this.duration = 0;
+        if(isDaytime(this.timeOfDay)) this.timeOfDay = 'dusk';
+    }
+
+    /**
+     * Gives the timer more time (or less, for negative seconds), whether it's counting down or waiting in the morning
+     * (as it's set up for this day only: the next day's timer is set up as the option picked).
+     * Never below the time already gone by: taking off more than is left runs it out now, turning the day to dusk.
+     */
+    adjustTime(seconds: number) {
+        const time = this.#model.clock.time;
+        // Only a timer still to run out: one set up in the morning, or counting down
+        if(!isDaytime(this.timeOfDay) || (this.running && this.#expiryTimeout === null)) return;
+        const elapsed = time.serverStartTime === null ? 0 : Math.ceil((Date.now() - time.serverStartTime) / 1000);
+        const duration = Math.max(elapsed, time.duration + Math.round(seconds));
+        if(duration === time.duration) return;
+        this.duration = duration;
+        this.#scheduleExpiry();
     }
 
     makeDaBellNoise(){

@@ -1,4 +1,5 @@
 import { TIMES_OF_DAY, type TimeOfDay } from "$lib/model/client/types";
+import type { SpotifyModel } from "./model/spotifyModel";
 
 /** Plays a single album/playlist. */
 export type SpotifySinglePreset = {
@@ -73,6 +74,19 @@ export function migrateLegacySpotifyPreset(data: any) {
 /** Whether `uri` is one of an adaptive playlist's lists. */
 export function isAdaptivePresetContext(preset: SpotifyAdaptivePreset, uri: string | null | undefined): boolean {
     return TIMES_OF_DAY.some(t => isSameSpotifyContext(uri, preset.phaseUris[t]));
+}
+
+/**
+ * Whether `uri` is one of the preset's albums/playlists. An adaptive playlist only counts while it's the one selected;
+ * a plain one only while no adaptive playlist is, so the two kinds can share a playlist without both lighting up. An
+ * adaptive playlist waiting out a silent spell counts whatever's loaded.
+ */
+export function spotifyPresetMatches(preset: SpotifyPreset, model: Pick<SpotifyModel, 'adaptivePresetId' | 'adaptivePresetSilent'> | null | undefined, uri: string | null | undefined): boolean {
+    if (isSpotifyAdaptivePreset(preset)) {
+        if (model?.adaptivePresetId !== preset.id) return false;
+        return isAdaptivePresetContext(preset, uri) || model.adaptivePresetSilent;
+    }
+    return !model?.adaptivePresetId && isSameSpotifyContext(uri, preset.uri);
 }
 
 /** Whether two context URIs are the same album/playlist (tolerates the old spotify:user:NAME:playlist:ID form). */

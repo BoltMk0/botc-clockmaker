@@ -5,6 +5,8 @@ import { getCustomMessages } from '$lib/resources/server/customMessages';
 import { get_grimoire_state_history_resource_for_clock } from '$lib/resources/server/grimoire-state';
 import { isGrimoireStateHistory, type GrimoireStateHistory } from '$lib/resources/common/grimoireState';
 import { listResources } from '$lib/resources/server/resources';
+import { getMusicPresets } from '$lib/resources/server/musicPresets';
+import { getSpotifyPresets } from '$lib/resources/server/spotifyPresets';
 
 export async function load({ params }) {
     const clockid = params.clockid;
@@ -25,6 +27,8 @@ export async function load({ params }) {
         grimoireState,
         timerOptions,
         customMessages,
-        hasStings
+        hasStings,
+        musicPresets: getMusicPresets(),
+        spotifyPresets: getSpotifyPresets()
     };
 }

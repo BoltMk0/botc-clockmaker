@@ -49,36 +49,35 @@ On your phone, open **Play** and press the **remote** button (top right of the g
 
 The remote shows, from top to bottom:
 
-- the **time remaining** with a play/pause button;
-- **Day / Dusk / Night** buttons for the current phase (Day reads **Morning** until the countdown starts);
-- **Day** and **Players** counters with − and + buttons;
-- your **timer options** (e.g. "5 Minutes");
-- a bottom row of **mixer**, **DIM**, **skip track** and **ring bell** buttons.
+- a **Game** bar with the day number and player count (tap it for − and + buttons);
+- the day's flow, **Morning → Day → Dusk → Night**, with the current phase lit;
+- the **time remaining**, with buttons to add or take off time;
+- a large **main button** that moves the game on to its next phase;
+- a **now playing** bar for the music, with a skip button (tap it for the music controls).
 
 ## 4. Run a game
 
-1. **Set the player count** with the Players − / + buttons. The town square shows it, along with how many
-   townsfolk, outsiders, minions and demons that means.
-2. **Night 1.** Set the phase to **Night**. The town square shows night.
-3. **Morning.** Press a **timer option**, e.g. "5 Minutes". This moves the game to the next day (Day 1), sets the
-   countdown to 5:00 and switches to **Morning**. The countdown doesn't start yet.
-4. **Start the discussion** with the ▶ button. The game moves to **Day** and the clock counts down on every screen.
+1. **Set the player count**: tap **Game** and use the Players − / + buttons. The town square shows it, along with how
+   many townsfolk, outsiders, minions and demons that means.
+2. **Night 1.** Tap **Night** in the flow. The town square shows night.
+3. **Morning.** Press the main button, **Morning of day 1**. The game moves to Day 1 and **Morning**, with the last
+   timer set up. The countdown doesn't start yet.
+4. **Start the discussion**: press **Start the day** and pick a timer option, e.g. "5 Minutes". The game moves to
+   **Day** and the clock counts down on every screen.
 5. If the timer option has a reminder (e.g. 30 s), a **reminder bell** rings with that long left, and the town
    square says *"The end of the day is approaching…"*.
 6. When the time runs out, the **end of day bell** rings, the game moves to **Dusk**, and the town square says
    *"The day has ended! Please return to the Town Square."*
-7. When you're ready for night, press **Night**.
-8. Next morning, press a timer option again (or **Day**, to use the same one): the game moves to Day 2, and so on.
+7. When you're ready for night, press **Night falls**.
+8. Next morning, press **Morning of day 2**, and so on.
 
 Other things you can do:
 
-- **Ring the bell** by hand (bottom-right button) at any time to call people back. During the day the town square
-  shows *"Your Story Teller requires your attention!"*.
-- **Pause/stop** the countdown with ⏸. Note this stops the clock *and resets it* to the full time, back in the
-  morning; ▶ starts it again from the top.
-- **End the day early**: press ⏸, then **Dusk** (or **Night**). If you only press Dusk, the screens turn to dusk
-  but the countdown carries on in the background and its end of day bell still rings when it runs out.
-- **Fix the day number** with the Day − / + buttons.
+- **Give more (or less) time** with **+30s / +1m** (or **−30s / −1m**) while the day counts down.
+- **Pause** the countdown with ⏸. Note this stops the clock *and resets it* to the full time, back in the morning;
+  ▶ starts it again from the top.
+- **End the day early**: press **End the day**, then again to confirm. The game moves to dusk.
+- **Fix the day number**: tap **Game**, then Day − / +.
 
 The full detail is in [The clock remote and the day cycle](clock-remote.md).
 

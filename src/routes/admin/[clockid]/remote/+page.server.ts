@@ -1,5 +1,7 @@
 import { getBOTCTClockInstanceManager, InstanceNotFoundError } from '$lib/model/server/model';
 import { getTimerOptions } from '$lib/resources/server/timerOptions';
+import { getMusicPresets } from '$lib/resources/server/musicPresets';
+import { getSpotifyPresets } from '$lib/resources/server/spotifyPresets';
 import { error } from '@sveltejs/kit';
 
 // Where the back link goes instead of the game's town square, e.g. /play. Only same-site paths, so a shared link
@@ -16,7 +18,9 @@ export async function load({params, url}){
             model,
             teamName: model.config.teamName ?? model.clock.clockId,
             timerOptions: getTimerOptions(),
-            backUrl: backUrlFrom(url)
+            backUrl: backUrlFrom(url),
+            musicPresets: getMusicPresets(),
+            spotifyPresets: getSpotifyPresets()
         }
     } catch (er) {
         if (er instanceof InstanceNotFoundError) {

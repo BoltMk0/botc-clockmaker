@@ -7,7 +7,7 @@
     import type { SpotifyPlayer } from "../../SpotifyPlayer.svelte";
     import TimeOfDayIcon from "$lib/assets/timeOfDayIcon.svelte";
     import { TIMES_OF_DAY } from "$lib/model/client/types";
-        import { isAdaptivePresetContext, isSameSpotifyContext, isSpotifyAdaptivePreset, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
+        import { isSameSpotifyContext, isSpotifyAdaptivePreset, spotifyPresetMatches, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
 
     const NOW_PLAYING_LINE_PX = 14; // Keep in step with .now-playing-text line-height
 
@@ -49,17 +49,8 @@
             volume = remote;
         });
     });
-    /**
-     * Whether `uri` is one of the preset's albums/playlists. An adaptive playlist only counts while it's the one selected;
-     * a plain one only while no adaptive playlist is, so the two kinds can share a playlist without both lighting up. An
-     * adaptive playlist waiting out a silent spell counts whatever's loaded.
-     */
     function presetMatches(preset: SpotifyPreset, uri: string | null | undefined) {
-        if (isSpotifyAdaptivePreset(preset)) {
-            if (model?.adaptivePresetId !== preset.id) return false;
-            return isAdaptivePresetContext(preset, uri) || model.adaptivePresetSilent;
-        }
-        return !model?.adaptivePresetId && isSameSpotifyContext(uri, preset.uri);
+        return spotifyPresetMatches(preset, model, uri);
     }
 
     function presetKind(preset: SpotifyPreset) {
