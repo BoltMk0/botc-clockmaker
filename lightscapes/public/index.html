@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Lightscapes</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="top">
+        <div class="title">
+            <h1>Lightscapes</h1>
+            <span class="subtitle">Zigbee lighting for Clockmaker</span>
+        </div>
+        <div id="status" class="status"></div>
+    </header>
+    <div id="preview-banner" class="banner" hidden>
+        <span id="preview-text"></span>
+        <button id="end-preview" type="button">Back to the game</button>
+    </div>
+
+    <main>
+        <section class="card" id="clockmaker-card">
+            <h2>Clockmaker</h2>
+            <p class="hint">
+                The Clockmaker to follow, and the game. The API token is in Clockmaker's <em>Settings → API Token</em>.
+            </p>
+            <div id="clockmaker"></div>
+        </section>
+
+        <section class="card">
+            <h2>Phases</h2>
+            <p class="hint">What the lights are set to in each phase of the game.</p>
+            <div id="phases"></div>
+        </section>
+
+        <section class="card">
+            <h2>Day spectrum</h2>
+            <p class="hint">
+                Colours the lights fade through as the day's countdown runs, like the town square's sky: from dawn at
+                the start to the night sky as it runs out.
+            </p>
+            <div id="spectrum"></div>
+        </section>
+
+        <section class="card">
+            <h2>Bells</h2>
+            <p class="hint">Lights to flash when a bell rings, held for a moment before going back to the phase's.</p>
+            <div id="bells"></div>
+        </section>
+
+        <section class="card">
+            <h2>Buttons</h2>
+            <p class="hint">Zigbee buttons as a clock remote. Pair them in Zigbee2MQTT first.</p>
+            <div id="buttons"></div>
+        </section>
+
+        <section class="card">
+            <h2>Activity</h2>
+            <ul id="activity" class="activity"></ul>
+        </section>
+    </main>
+
+    <footer id="savebar" class="savebar" hidden>
+        <span id="save-error" class="error"></span>
+        <span class="unsaved">Unsaved changes</span>
+        <button id="discard" type="button" class="secondary">Discard</button>
+        <button id="save" type="button">Save</button>
+    </footer>
+
+    <div id="toast" class="toast" role="status" hidden></div>
+
+    <script src="app.js" type="module"></script>
+</body>
+</html>

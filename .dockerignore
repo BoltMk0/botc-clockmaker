@@ -5,3 +5,6 @@ botc-clocktower.config.json
 *.tgz
 .env
 .env.*
+
+# Lightscapes has its own image (lightscapes/Dockerfile)
+lightscapes

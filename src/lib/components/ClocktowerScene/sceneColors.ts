@@ -2,7 +2,7 @@
 // from $lib/common/util's getSkyColor (used by the older SVG-based display)
 // so tuning one scene's look never bleeds into the other's.
 
-type ColorPoint = { progress: number; r: number; g: number; b: number };
+export type ColorPoint = { progress: number; r: number; g: number; b: number };
 
 // Shared by getSceneSkyColor and getSceneAmbientColor: finds the two
 // keyframes `progress` falls between in an ascending-`progress` list and
@@ -29,7 +29,8 @@ function interpolateColorPoints(points: ColorPoint[], progress: number): Rgb {
     };
 }
 
-const sky_color_points: ColorPoint[] = [
+// Exported for Lightscapes, whose day spectrum can follow the town square's sky
+export const sky_color_points: ColorPoint[] = [
     { progress: 0, r: 140, g: 162, b: 183 },    // Dawn - pale, hazy blue (a touch darker)
     { progress: 0.4, r: 150, g: 195, b: 230 },  // Morning - clear pale blue
     { progress: 0.7, r: 100, g: 160, b: 220 },  // Midday - deeper, more saturated blue

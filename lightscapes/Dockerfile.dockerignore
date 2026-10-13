@@ -1,0 +1,12 @@
+# The build context is the repository root (Lightscapes shares some of Clockmaker's source), so leave out the rest
+**/node_modules
+**/dist
+**/data
+build
+.svelte-kit
+res
+static
+doc
+.git
+.env
+.env.*

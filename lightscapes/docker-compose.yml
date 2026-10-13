@@ -1,0 +1,47 @@
+# Lightscapes, with Zigbee2MQTT and the MQTT broker they talk through, for the computer by the game (e.g. a Raspberry Pi).
+# Set up as in README.md, then from this folder: docker compose up -d --build
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    # No ports: only Zigbee2MQTT and Lightscapes use it, over Compose's own network
+
+  zigbee2mqtt:
+    image: koenkk/zigbee2mqtt:2
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+    devices:
+      # The Zigbee adapter: set ZIGBEE_ADAPTER in .env to its /dev/serial/by-id/... path
+      - ${ZIGBEE_ADAPTER:?Set ZIGBEE_ADAPTER in .env}:/dev/ttyACM0
+    volumes:
+      - ./data/zigbee2mqtt:/app/data
+      - /run/udev:/run/udev:ro
+    environment:
+      - TZ=${TZ:-UTC}
+    ports:
+      # Zigbee2MQTT's own page, for pairing devices
+      - ${BIND_ADDRESS:-0.0.0.0}:8080:8080
+
+  lightscapes:
+    build:
+      # The repository root: Lightscapes shares some of Clockmaker's source
+      context: ..
+      dockerfile: lightscapes/Dockerfile
+    image: lightscapes
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+    volumes:
+      - ./data/lightscapes:/data
+    environment:
+      - MQTT_URL=mqtt://mosquitto:1883
+      - LIGHTSCAPES_PASSWORD=${LIGHTSCAPES_PASSWORD:-}
+      - TZ=${TZ:-UTC}
+    ports:
+      - ${BIND_ADDRESS:-0.0.0.0}:8090:8090
+    # If Clockmaker's address is a Tailscale MagicDNS name the container can't resolve, use Tailscale's resolver:
+    # dns:
+    #   - 100.100.100.100

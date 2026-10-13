@@ -28,6 +28,10 @@ stands on its own, so jump to whatever you need.
 - [The audio mixer](audio-mixer.md) — every strip, fader and knob on the mixer.
 - [Music & Spotify](music-and-spotify.md) — the uploaded-music player, Spotify, presets, and adaptive playlists.
 
+## Lighting
+
+- [Lightscapes: Zigbee lighting](lightscapes.md) — lights that follow the game's phases and the town square's sky, bell flashes, and Zigbee buttons as a remote.
+
 ## Settings reference
 
 The **Settings** area holds everything shared between games. See the [settings overview](settings/README.md), or go
@@ -45,6 +49,7 @@ straight to a page:
 | [Rules Slides](settings/rules-slides.md) | The images in the rules slideshow |
 | [Feedback](settings/feedback.md) | Reading feedback sent through the feedback form |
 | [Password](settings/password.md) | Resetting the site password |
+| [API Token](settings/api-token.md) | The token other programs, like Lightscapes, use the API with |
 
 ## Reference
 

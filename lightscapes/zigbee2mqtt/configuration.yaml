@@ -1,0 +1,22 @@
+# Zigbee2MQTT's starting configuration. Copied to data/zigbee2mqtt/ on setup (see README.md); Zigbee2MQTT keeps it
+# from then on, filling in the network keys on first start.
+version: 4
+mqtt:
+  base_topic: zigbee2mqtt
+  server: mqtt://mosquitto:1883
+serial:
+  port: /dev/ttyACM0
+  # Uncomment the line for your adapter if Zigbee2MQTT can't tell what it is:
+  # adapter: zstack   # Sonoff ZBDongle-P, and other TI CC2652/CC1352 ones
+  # adapter: ember    # Sonoff ZBDongle-E, Home Assistant SkyConnect/ZBT-1, and other Silicon Labs EFR32 ones
+  # adapter: deconz   # ConBee II/III, RaspBee
+frontend:
+  enabled: true
+  port: 8080
+homeassistant:
+  enabled: false
+advanced:
+  network_key: GENERATE
+  pan_id: GENERATE
+  ext_pan_id: GENERATE
+  log_level: info

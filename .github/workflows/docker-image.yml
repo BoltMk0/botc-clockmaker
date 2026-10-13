@@ -16,3 +16,5 @@ jobs:
     - uses: actions/checkout@v4
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag botc-clockmaker:$(date +%s)
+    - name: Build the Lightscapes image
+      run: docker build . --file lightscapes/Dockerfile --tag lightscapes:$(date +%s)

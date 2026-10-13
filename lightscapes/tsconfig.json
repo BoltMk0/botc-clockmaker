@@ -1,0 +1,16 @@
+{
+	"compilerOptions": {
+		"target": "ES2023",
+		"module": "preserve",
+		"moduleResolution": "bundler",
+		"lib": ["ES2023"],
+		"types": ["node"],
+		"strict": true,
+		"skipLibCheck": true,
+		"noEmit": true,
+		"allowImportingTsExtensions": true,
+		"forceConsistentCasingInFileNames": true
+	},
+	// Also type-checks the few Clockmaker files Lightscapes shares (the clock model and the town square's sky)
+	"include": ["src/**/*.ts"]
+}

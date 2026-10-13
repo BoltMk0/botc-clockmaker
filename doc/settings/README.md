@@ -20,6 +20,7 @@ On a phone, the list of pages is behind the ☰ button at the top left.
 | [Rules Slides](rules-slides.md) | Upload and order the images for the rules slideshow. |
 | [Feedback](feedback.md) | Read and delete feedback sent through the feedback form. |
 | [Password](password.md) | Reset the site password and sign out every device. |
+| [API Token](api-token.md) | Create, replace or revoke the token other programs (like [Lightscapes](../lightscapes.md)) use the API with. |
 
 Some pages save as you go ("Changes here apply straight away"); others have a **Save changes** button that lights up
 when you have unsaved edits. Each page's guide says which.
