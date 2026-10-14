@@ -126,7 +126,8 @@ When the draw finishes:
 - tokens you put "on the grim", and any loric/fabled, are placed on the board;
 - your bluff sets are ready in the token tray;
 - the game's **player count** is set (travellers not included), the day is reset to **0**, the clock is cleared and
-  the game is at **dusk**, ready for the first night. Going to the morning then starts day 1.
+  the game is at **dusk**, ready for the first night. Going to the morning then starts day 1, with a 5 minute timer set
+  up (pick another from the timer list if you want).
 
 Characters stay hidden from the storyteller's device until the draw is finished, and each slot only reveals its
 character to the player who taps it.
@@ -134,7 +135,7 @@ character to the player who taps it.
 ## Going straight to the grim
 
 Skips the draw. Every chosen token is laid out in rows along the top of the board, with no player names, and the
-day is reset to 0 with the clock cleared.
+day is reset to 0 with the clock cleared, at **dusk** ready for the first night, as after a draw.
 
 From there, drag tokens to seats round the circle and tap each one to type the player's name (see
 [Using the grimoire](grimoire.md)). A token only counts as a seated player once it has a name.

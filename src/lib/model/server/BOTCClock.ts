@@ -6,7 +6,7 @@ import { CLOCK_CONFIG_MANAGER } from "$lib/resources/server/clock-config";
 import { getClockSfxPreset } from "$lib/resources/server/clock-sfx-presets";
 import { isDaytime, type TimeOfDay } from "../client/types";
 import { EventEmitter } from "../client/util/eventEmitter";
-import type { ClocktowerModel } from "../common/ClocktowerModel";
+import { NEW_GAME_TIMER_DURATION, type ClocktowerModel } from "../common/ClocktowerModel";
 
 
 export class BOTCTClock extends EventEmitter {
@@ -169,7 +169,7 @@ export class BOTCTClock extends EventEmitter {
 
     /**
      * Starts the game over, as a new game starts: dusk before the first night (day 0), with no timer. Going to the
-     * morning then starts day 1.
+     * morning then starts day 1, with a new game's timer set up.
      */
     newGame() {
         if(this.running){
@@ -178,6 +178,8 @@ export class BOTCTClock extends EventEmitter {
             this.emit('modelUpdated', this.#model);
         }
         if(this.duration !== 0) this.duration = 0;
+        this.#model.clock.time.setupDuration = NEW_GAME_TIMER_DURATION;
+        this.#model.clock.time.setupRingBellWhen = undefined;
         this.day = 0;
         this.timeOfDay = 'dusk';
     }

@@ -23,6 +23,9 @@ export function isClocktowerModel(data: any): data is ClocktowerModel {
     return true;
 }
 
+/** The timer (in seconds) a new game's first morning is set up with. */
+export const NEW_GAME_TIMER_DURATION = 5 * 60;
+
 export function newClocktowerModel(id: string): ClocktowerModel {
     return {
         clock: {
@@ -31,8 +34,9 @@ export function newClocktowerModel(id: string): ClocktowerModel {
             timeOfDay: 'dusk',
             numPlayers: 8,
             time: {
-                duration: 60,
-                serverStartTime: null
+                duration: 0,
+                serverStartTime: null,
+                setupDuration: NEW_GAME_TIMER_DURATION
             }
         },
         audio: {

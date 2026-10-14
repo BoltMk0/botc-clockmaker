@@ -163,17 +163,8 @@
                 alert('Failed to save the new game state.');
                 return;
             }
-            // End of the day with no time remaining; setup may advance the day, so reset it after.
-            await fetch(`/api/clock/${data.clockid}/setup`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ label: '', duration: 0, ringBellWhenRemaining: null })
-            });
-            await fetch(`/api/clock/${data.clockid}/day`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ day: 0 })
-            });
+            // Dusk before the first night, so going to the morning starts day 1
+            await fetch(`/api/clock/${data.clockid}/newGame`, { method: 'POST' });
             localStorage.setItem(`grimoire-locked-${data.clockid}`, 'false');
             goto(`/admin/${data.clockid}/grim`);
         } finally {
