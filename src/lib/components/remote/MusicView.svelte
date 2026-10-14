@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { AudioDim } from "$lib/audio/client/AudioDim.svelte";
     import { DEFAULT_DIM_AMOUNT_DB } from "$lib/audio/common/model/audioDimModel";
+    import { TIMES_OF_DAY } from "$lib/model/client/types";
     import type { RemoteMusic } from "./remoteMusic.svelte";
     import MusicArt from "./MusicArt.svelte";
 
@@ -155,7 +156,28 @@
                         </span>
                         <span class="preset-name">
                             {preset.name}
-                            <span class="preset-meta">{preset.source === 'spotify' ? 'Spotify' : 'Music'}{preset.adaptive ? ' · Adaptive' : ''}</span>
+                            <span class="preset-meta">
+                                <span class="preset-kind">{preset.source === 'spotify' ? 'Spotify' : 'Music'}{preset.adaptive ? ' · Adaptive' : ''}</span>
+                                {#if preset.phases}
+                                {@const phases = preset.phases}
+                                <span class="phases">
+                                    {#each TIMES_OF_DAY as phase (phase)}
+                                    <svg class:active={phases[phase]} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <title>{phase[0].toUpperCase() + phase.slice(1)}: {phases[phase] ? 'playlist' : 'silent'}</title>
+                                        {#if phase === 'morning'}
+                                        <path d="M3 19h18M7 19a5 5 0 0 1 10 0M12 4v6M9.5 6.5 12 4l2.5 2.5"/>
+                                        {:else if phase === 'day'}
+                                        <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+                                        {:else if phase === 'dusk'}
+                                        <path d="M3 19h18M7 19a5 5 0 0 1 10 0M12 4v6M9.5 7.5 12 10l2.5-2.5"/>
+                                        {:else}
+                                        <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>
+                                        {/if}
+                                    </svg>
+                                    {/each}
+                                </span>
+                                {/if}
+                            </span>
                         </span>
                         {#if status}<span class="preset-status">{status}</span>{/if}
                     </button>
@@ -585,8 +607,30 @@
     }
 
     .preset-meta {
+        display: flex;
+        align-items: center;
+        gap: 6px;
         font-size: 0.75em;
+    }
+
+    .preset-kind {
         opacity: 0.55;
+    }
+
+    /* An adaptive preset's phases: bright where it has a playlist, faint where it's silent */
+    .phases {
+        display: flex;
+        gap: 3px;
+    }
+
+    .phases svg {
+        width: 14px;
+        height: 14px;
+        opacity: 0.6;
+    }
+
+    .phases svg.active {
+        opacity: 1;
     }
 
     .preset-status {

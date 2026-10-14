@@ -3,6 +3,7 @@ import type { MusicPlayer } from "$lib/audio/client/MusicPlayer.svelte";
 import type { SpotifyPlayer } from "$lib/audio/client/SpotifyPlayer.svelte";
 import { isMusicAdaptivePreset, type MusicPreset } from "$lib/audio/common/musicPreset";
 import { isSpotifyAdaptivePreset, spotifyPresetMatches, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
+import { TIMES_OF_DAY, type TimeOfDay } from "$lib/model/client/types";
 
 export type MusicSource = 'music' | 'spotify';
 
@@ -12,6 +13,8 @@ export type RemotePreset = {
     source: MusicSource;
     name: string;
     adaptive: boolean;
+    /** For an adaptive preset, whether each phase has a playlist (the rest are silent). */
+    phases: Record<TimeOfDay, boolean> | null;
     /** Its player is running somewhere, so it can be played. */
     available: boolean;
     /** Loaded on its player (playing or paused). */
@@ -103,6 +106,7 @@ export class RemoteMusic {
                     source: 'music',
                     name: preset.name,
                     adaptive: isMusicAdaptivePreset(preset),
+                    phases: isMusicAdaptivePreset(preset) ? phasesWith(preset.phasePlaylistIds) : null,
                     available: this.musicAvailable,
                     current,
                     playing,
@@ -126,6 +130,7 @@ export class RemoteMusic {
                     source: 'spotify',
                     name: preset.name,
                     adaptive: isSpotifyAdaptivePreset(preset),
+                    phases: isSpotifyAdaptivePreset(preset) ? phasesWith(preset.phaseUris) : null,
                     available: this.spotifyAvailable,
                     current,
                     playing,
@@ -188,6 +193,11 @@ export class RemoteMusic {
             this.setVolume(this.#unmuteVolumes[source] ?? (source === 'music' ? gainToFader(1)! : 0.5));
         }
     }
+}
+
+/** Which phases an adaptive preset has a playlist for. */
+function phasesWith(playlists: Record<TimeOfDay, string | null>): Record<TimeOfDay, boolean> {
+    return Object.fromEntries(TIMES_OF_DAY.map(t => [t, playlists[t] !== null])) as Record<TimeOfDay, boolean>;
 }
 
 // The music volume slider spans the mixer fader's range; all the way down is off.
