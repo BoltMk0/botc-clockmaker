@@ -34,6 +34,13 @@ for (const character of [...CHARACTERS_MANAGER.values]) {
         });
     }
 }
+// Characters used to say how many players draw them, which nothing reads any more.
+for (const character of [...CHARACTERS_MANAGER.values]) {
+    if ('player_count' in character) {
+        const { player_count, ...rest } = character as any;
+        CHARACTERS_MANAGER.add(rest);
+    }
+}
 // Characters saved before night reminders were kept have none.
 for (const character of [...CHARACTERS_MANAGER.values]) {
     if (character.firstNightReminder === undefined || character.otherNightReminder === undefined) {

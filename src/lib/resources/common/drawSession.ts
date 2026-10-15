@@ -13,7 +13,7 @@ export type DrawSession = {
     bluffSets?: string[][];
     /** Legacy: a single bluff set, from before multiple sets were supported. */
     bluffIds?: string[];
-    // Characters with player_count == 0: nobody draws these, but they still get a token on the grim.
+    // Grim-only tokens: nobody draws these, but they still get a token on the grim.
     offSeatIds?: string[];
     // The saved preset this draw was started from, if any.
     presetId?: string | null;

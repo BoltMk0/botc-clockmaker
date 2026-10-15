@@ -122,7 +122,6 @@ export async function scrapeCharacter(category: CharacterCategory, name: string,
             category,
             rules,
             setup,
-            player_count: 1,
             ...nightInfo,
             // Characters newer than roles.json have no published place in the night order: keep any set by hand
             firstNightOrder: nightInfo.firstNightOrder ?? existing?.firstNightOrder ?? null,

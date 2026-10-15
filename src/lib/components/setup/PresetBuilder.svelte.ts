@@ -81,15 +81,10 @@ export class PresetBuilder {
         this.playerCount = n;
     }
 
-    /**
-     * Loads a saved character list. Presets saved before the bag/grim split have no grim tokens
-     * saved, so their zero-seat characters are the grim tokens.
-     */
-    loadCharacters(characterIds: string[], bluffSets: string[][], grimIds?: string[]) {
+    /** Loads a saved character list. */
+    loadCharacters(characterIds: string[], bluffSets: string[][], grimIds: string[] = []) {
         this.chosenCharacterIds = [...characterIds];
-        this.grimCharacterIds = grimIds
-            ? [...grimIds]
-            : characterIds.filter(id => this.charById.get(id)?.player_count === 0);
+        this.grimCharacterIds = [...grimIds];
         this.bluffSets = bluffSets.map(s => [...s]);
         this.activeBluffSet = 0;
     }

@@ -50,7 +50,7 @@
     const sameIds = (a: string[], b: string[]) => a.length === b.length && [...a].sort().join() === [...b].sort().join();
     const sameBluffSets = (a: string[][], b: string[][]) => a.length === b.length && sameIds(a.map(s => [...s].sort().join('+')), b.map(s => [...s].sort().join('+')));
     const matchesBuilder = (p: Preset) => sameIds(p.character_ids, builder.chosenCharacterIds)
-        && sameIds(presetGrimCharacterIds(p, builder.script?.characters ?? []), builder.grimCharacterIds)
+        && sameIds(presetGrimCharacterIds(p), builder.grimCharacterIds)
         && sameBluffSets(bluffSetsOf(p), builder.bluffSets);
 
     // Only credit the chosen preset if the game still matches it (the characters may have been edited since).
@@ -88,7 +88,7 @@
     }
 
     const matchingPresets = $derived(presets.filter(p =>
-        presetPlayerCount(p, builder.script?.characters ?? []) === builder.playerCount
+        presetPlayerCount(p) === builder.playerCount
     ));
 
     async function chooseScript(script: ScriptWithCharacters) {
@@ -108,7 +108,7 @@
     }
 
     function applyPreset(preset: Preset) {
-        builder.loadCharacters(preset.character_ids, bluffSetsOf(preset), presetGrimCharacterIds(preset, builder.script?.characters ?? []));
+        builder.loadCharacters(preset.character_ids, bluffSetsOf(preset), presetGrimCharacterIds(preset));
         chosenPresetId = preset.id;
         step = 'summary';
     }

@@ -28,7 +28,7 @@
         .filter(c => !!c)
         .sort((a, b) => CHARACTER_CATEGORIES.indexOf(b.category) - CHARACTER_CATEGORIES.indexOf(a.category));
 
-    const grimIds = $derived(presetGrimCharacterIds(preset, characters));
+    const grimIds = $derived(presetGrimCharacterIds(preset));
     const grimCharacters = $derived(toSortedCharacters(grimIds));
     const bagCharacters = $derived.by(() => {
         const remaining = [...grimIds];

@@ -52,18 +52,11 @@ export const actions = {
         }
 
 
-        const counts_as_player = formData.get('counts_as_player') === 'on';
-        const player_count = counts_as_player ? 1 : 0;
-        const playerCountNumber = Number(player_count);
-        if (isNaN(playerCountNumber) || playerCountNumber < 0) {
-            return fail(400, {error: 'Player count must be a non-negative number' });
-        }
-
         // Left empty, the character doesn't wake that night
         const firstNightOrder = parseNightOrderField(formData.get('firstNightOrder'));
         const otherNightOrder = parseNightOrderField(formData.get('otherNightOrder'));
 
-        const character = updateCharacter(id, {name, category, rules, setup: setup.trim(), player_count: playerCountNumber, firstNightOrder, otherNightOrder, firstNightReminder: firstNightReminder.trim(), otherNightReminder: otherNightReminder.trim()});
+        const character = updateCharacter(id, {name, category, rules, setup: setup.trim(), firstNightOrder, otherNightOrder, firstNightReminder: firstNightReminder.trim(), otherNightReminder: otherNightReminder.trim()});
 
         if(!character){
             return fail(404, {error: 'Character not found'});

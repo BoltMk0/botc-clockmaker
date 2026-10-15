@@ -55,7 +55,6 @@ Characters can also be created by [importing a script](scripts.md#importing-a-sc
 | **Group** | The category: townsfolk, outsider, minion, demon, traveller, loric or fabled. Decides the default alignment (minions and demons are evil), where it's listed, and whether it's a player character. |
 | **Text** | The ability text, shown on tokens, in the grimoire and in the script viewer. |
 | **Setup** | Any setup change, e.g. "+2 Outsiders". Leave empty if it doesn't change setup. Shown in brackets under the ability. |
-| **Counts as Player** | Whether the token is drawn by a player. Untick for tokens that only ever sit on the grim. |
 | **Night Order** → **First Night** / **Other Nights** | Its place in the night order; leave it empty (or press **✕**) if it doesn't wake that night. Scripts use this when the character is added, and when you press **Reset** on a script's night order. |
 | **First Night Reminder** / **Other Nights Reminder** | What the storyteller does when it wakes, shown on the grimoire's night order sheet. Leave empty to show the ability text there instead. |
 

@@ -207,13 +207,6 @@
         resize: vertical;
     }
 
-    .character-info input[type="checkbox"] {
-        accent-color: var(--theme-highlight);
-        width: 1.2em;
-        height: 1.2em;
-        margin: 0;
-    }
-
     /* Header: image, name and actions */
     .character-header {
         display: flex;
@@ -265,7 +258,7 @@
         margin-bottom: 1em;
     }
 
-    /* Wrapping groups of label + control, e.g. checkboxes and night order */
+    /* Wrapping groups of label + control, e.g. the night order */
     .field-group {
         display: flex;
         flex-wrap: wrap;
@@ -502,17 +495,6 @@
                             <tr>
                                 <th>Setup</th>
                                 <td><input name="setup" type="text" placeholder="e.g. +2 Outsiders (leave empty if it doesn't change setup)" bind:value={selectedCharacter.setup} /></td>
-                            </tr>
-                            <tr>
-                                <th>Other</th>
-                                <td>
-                                    <div class="field-group">
-                                        <label>
-                                            <input type="checkbox" name="counts_as_player" checked={selectedCharacter.player_count > 0} onchange={(e)=>selectedCharacter.player_count = (e.target as HTMLInputElement).checked ? 1 : 0}/>
-                                            Counts as Player
-                                        </label>
-                                    </div>
-                                </td>
                             </tr>
                             <tr>
                                 <th>Night Order</th>

@@ -157,7 +157,6 @@ function planCharacter(item: unknown, problems: string[], unknownIds: string[]):
             name,
             category,
             ...splitSetupFromRules(ability),
-            player_count: 1,
             firstNightOrder: firstNight,
             otherNightOrder: otherNight,
             firstNightReminder: typeof entry.firstNightReminder === 'string' ? entry.firstNightReminder.trim() : '',

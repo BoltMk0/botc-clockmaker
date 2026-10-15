@@ -24,7 +24,7 @@ export const actions = {
             return fail(400, {error: 'Invalid category' });
         }
         
-        const character = addCharacter({name, category, rules: '', setup: '', player_count: 1, firstNightOrder: null, otherNightOrder: null, firstNightReminder: '', otherNightReminder: ''});
+        const character = addCharacter({name, category, rules: '', setup: '', firstNightOrder: null, otherNightOrder: null, firstNightReminder: '', otherNightReminder: ''});
 
         return { success: true, ...character};
     }

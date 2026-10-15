@@ -2,8 +2,7 @@ import { isPlayerToken, type GrimoireStateHistory, type PlacedToken } from "$lib
 import type { ScriptCharacter, ScriptWithCharacters } from "$lib/resources/common/gameData";
 
 // Which placed tokens actually represent a player seat (as opposed to a
-// travveler/demon-only bluff or some other non-seated marker): anything
-// whose character has a player_count > 0 on the loaded script.
+// bluff or some other non-seated marker): named tokens that aren't loric or fabled.
 export function filterSeatTokens(
     grimoireState: GrimoireStateHistory | null,
     script: ScriptWithCharacters | null

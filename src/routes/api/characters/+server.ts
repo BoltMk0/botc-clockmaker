@@ -19,7 +19,7 @@ export async function POST({ request }) {
     const body = await request.json().catch(() => null);
     if (!body) return json({ error: 'Invalid JSON body' }, { status: 400 });
 
-    const { name, category, rules, setup, player_count, firstNightOrder, otherNightOrder, firstNightReminder, otherNightReminder } = body;
+    const { name, category, rules, setup, firstNightOrder, otherNightOrder, firstNightReminder, otherNightReminder } = body;
     if (!name || !category || !rules) {
         return json({ error: 'name, category and rules are required' }, { status: 400 });
     }
@@ -32,7 +32,6 @@ export async function POST({ request }) {
         category,
         rules,
         setup: typeof setup === 'string' ? setup.trim() : '',
-        player_count: player_count ?? 1,
         firstNightOrder: typeof firstNightOrder === 'number' ? firstNightOrder : null,
         otherNightOrder: typeof otherNightOrder === 'number' ? otherNightOrder : null,
         firstNightReminder: typeof firstNightReminder === 'string' ? firstNightReminder.trim() : '',

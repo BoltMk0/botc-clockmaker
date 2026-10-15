@@ -32,7 +32,6 @@ export type Character = {
     // How the character changes setup, without the brackets the wiki and scripts print it in, e.g.
     // "+2 Outsiders" for the Baron. Empty when it doesn't change setup.
     setup: string;
-    player_count: number;
     // The character's canonical night order rank, as published by the game (e.g. from the
     // bra1n/townsquare role dataset). Scripts derive their own per-script night order from
     // this; null means the character doesn't wake on that night.
@@ -123,16 +122,14 @@ export function hasValidBluffs(obj: any): boolean {
         (obj.bluff_sets !== undefined || obj.bluff_ids !== undefined);
 }
 
-/** The preset's grim-only tokens. Older presets have none saved, so zero-seat characters count as grim tokens. */
-export function presetGrimCharacterIds(preset: Pick<Preset, 'character_ids' | 'grim_character_ids'>, characters: Pick<Character, 'id' | 'player_count'>[]): string[] {
-    if (preset.grim_character_ids) return preset.grim_character_ids;
-    const zeroSeat = new Set(characters.filter(c => c.player_count === 0).map(c => c.id));
-    return preset.character_ids.filter(id => zeroSeat.has(id));
+/** The preset's grim-only tokens. Older presets have none saved, so all their tokens go in the bag. */
+export function presetGrimCharacterIds(preset: Pick<Preset, 'grim_character_ids'>): string[] {
+    return preset.grim_character_ids ?? [];
 }
 
 /** How many players a preset seats: its tokens that go in the bag. */
-export function presetPlayerCount(preset: Pick<Preset, 'character_ids' | 'grim_character_ids'>, characters: Pick<Character, 'id' | 'player_count'>[]): number {
-    return preset.character_ids.length - presetGrimCharacterIds(preset, characters).length;
+export function presetPlayerCount(preset: Pick<Preset, 'character_ids' | 'grim_character_ids'>): number {
+    return preset.character_ids.length - presetGrimCharacterIds(preset).length;
 }
 
 export type NewPreset = Omit<Preset, 'id' | 'evil_victories' | 'good_victories'>;
@@ -172,7 +169,6 @@ export function isCharacter(obj: any): obj is Character {
         typeof obj.rules === "string" &&
         // Absent on characters saved before setup was split out of the rules; characters.ts fills it in.
         (obj.setup === undefined || typeof obj.setup === "string") &&
-        typeof obj.player_count === "number" && isFinite(obj.player_count) && obj.player_count >= 0 &&
         // Characters saved before the night order lost its "default" prefix have defaultFirstNightOrder and
         // defaultOtherNightOrder (and wakes_first_night / wakes_other_nights) instead; characters.ts converts them.
         (isNightOrder(obj.firstNightOrder) || isNightOrder(obj.defaultFirstNightOrder)) &&

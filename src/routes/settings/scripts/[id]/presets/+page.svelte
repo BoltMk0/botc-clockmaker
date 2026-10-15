@@ -11,7 +11,7 @@
     const presetGroups = $derived.by(() => {
         const groups = new Map<number, { preset: Preset; index: number }[]>();
         data.presets.forEach((preset: Preset, index: number) => {
-            const count = presetPlayerCount(preset, data.script.characters);
+            const count = presetPlayerCount(preset);
             groups.set(count, [...(groups.get(count) ?? []), { preset, index }]);
         });
         return [...groups.entries()]
