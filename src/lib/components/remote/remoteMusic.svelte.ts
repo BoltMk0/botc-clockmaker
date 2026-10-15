@@ -45,17 +45,19 @@ function spotifyAvailable(spotify: SpotifyPlayer) {
 }
 
 /**
- * The selected player, whose preset is the selected one: the one playing, or else the one the other's handed over to,
- * or else the one with something loaded. The remote shows and controls it, and the mixer's strips highlight only its preset.
+ * The selected player, whose preset is the selected one: the one the other last handed over to, even while it's quiet
+ * (an adaptive preset silent for the phase, say, or one still fading the other out); or else, before either has
+ * taken over, the one playing, or with a preset or something loaded. The remote shows and controls it, and the
+ * mixer's strips highlight only its preset.
  */
 export function selectedMusicSource(music: MusicPlayer, spotify: SpotifyPlayer): MusicSource | null {
     const spotifyReady = spotifyAvailable(spotify);
+    if (music.active && !music.model?.handedOver && spotify.model?.handedOver) return 'music';
+    if (spotifyReady && !spotify.model?.handedOver && music.model?.handedOver) return 'spotify';
     if (music.playing) return 'music';
     if (spotifyReady && spotify.playback?.playing) return 'spotify';
-    if (music.active && music.track && !music.model?.handedOver) return 'music';
-    if (spotifyReady && spotify.playback && !spotify.model?.handedOver) return 'spotify';
-    if (music.active && music.track) return 'music';
-    if (spotifyReady && spotify.playback) return 'spotify';
+    if (music.active && (music.track || music.model?.presetId)) return 'music';
+    if (spotifyReady && (spotify.playback || spotify.model?.adaptivePresetId)) return 'spotify';
     return null;
 }
 
