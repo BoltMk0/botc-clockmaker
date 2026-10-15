@@ -1,5 +1,7 @@
 // The configuration page. Edits a working copy of the configuration, saved as a whole with the save bar.
 
+import { hexToMireds, miredsToHex } from './whites.js';
+
 const PHASES = ['morning', 'day', 'dusk', 'night'];
 const PHASE_LABELS = { morning: 'Morning', day: 'Day', dusk: 'Dusk', night: 'Night' };
 const PHASE_HINTS = {
@@ -302,10 +304,15 @@ function renderPhases() {
     );
 }
 
+/** A spectrum stop's colour as the lights show it: its white's, if it's white. */
+function shownHex(stop) {
+    return stop.white ? miredsToHex(hexToMireds(stop.hex)) : stop.hex;
+}
+
 function gradientCss(stops) {
     if (stops.length === 0) return 'var(--raised)';
-    if (stops.length === 1) return stops[0].hex;
-    return `linear-gradient(to right, ${stops.map(s => `${s.hex} ${s.at * 100}%`).join(', ')})`;
+    if (stops.length === 1) return shownHex(stops[0]);
+    return `linear-gradient(to right, ${stops.map(s => `${shownHex(s)} ${s.at * 100}%`).join(', ')})`;
 }
 
 function renderSpectrum() {
@@ -353,6 +360,7 @@ function renderSpectrum() {
             h('thead', {}, h('tr', {}, h('th', {}, 'At'), h('th', {}, 'Colour'), h('th', {}, 'Brightness'), h('th', {}))),
             h('tbody', {}, stops.map((stop, i) => {
                 const brightness = h('span', { class: 'value' }, `${Math.round(stop.brightness / 254 * 100)}%`);
+                const whiteValue = h('span', { class: 'value' }, stop.white ? `${kelvin(hexToMireds(stop.hex))}K` : '');
                 return h('tr', {},
                     h('td', {}, h('input', {
                         type: 'number', min: 0, max: 100, step: 1, value: Math.round(stop.at * 1000) / 10,
@@ -363,14 +371,23 @@ function renderSpectrum() {
                             renderSpectrum();
                         }
                     }), ' %'),
-                    h('td', {}, h('input', {
-                        type: 'color', value: stop.hex,
-                        oninput: e => {
-                            stop.hex = e.target.value;
-                            document.getElementById('gradient').style.background = gradientCss(stops);
-                            changed();
-                        }
-                    })),
+                    h('td', { class: 'color' },
+                        h('select', {
+                            title: 'White uses the bulbs\' white light, at the temperature nearest the colour',
+                            onchange: e => { stop.white = e.target.value === 'white'; changed(); renderSpectrum(); }
+                        }, option('white', 'White', stop.white ? 'white' : 'rgb'), option('rgb', 'Colour', stop.white ? 'white' : 'rgb')),
+                        h('input', {
+                            type: 'color', value: stop.hex,
+                            title: stop.white ? 'The white nearest this colour is used' : 'Colour',
+                            oninput: e => {
+                                stop.hex = e.target.value;
+                                document.getElementById('gradient').style.background = gradientCss(stops);
+                                if (stop.white) whiteValue.textContent = `${kelvin(hexToMireds(stop.hex))}K`;
+                                changed();
+                            }
+                        }),
+                        whiteValue
+                    ),
                     h('td', { class: 'brightness' }, h('input', {
                         type: 'range', min: 1, max: 254, value: stop.brightness,
                         oninput: e => {
@@ -397,7 +414,7 @@ function renderSpectrum() {
                         if (points[i + 1] - points[i] > widest) { widest = points[i + 1] - points[i]; at = (points[i] + points[i + 1]) / 2; }
                     }
                     const near = stops.reduce((best, s) => !best || Math.abs(s.at - at) < Math.abs(best.at - at) ? s : best, null);
-                    stops.push({ at: Math.round(at * 1000) / 1000, hex: near?.hex ?? '#ffffff', brightness: near?.brightness ?? 254 });
+                    stops.push({ at: Math.round(at * 1000) / 1000, hex: near?.hex ?? '#ffffff', brightness: near?.brightness ?? 254, white: near?.white ?? true });
                     stops.sort((a, b) => a.at - b.at);
                     changed();
                     renderSpectrum();

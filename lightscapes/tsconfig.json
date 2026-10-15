@@ -9,6 +9,8 @@
 		"skipLibCheck": true,
 		"noEmit": true,
 		"allowImportingTsExtensions": true,
+		// For the colour maths the page shares (public/whites.js)
+		"allowJs": true,
 		"forceConsistentCasingInFileNames": true
 	},
 	// Also type-checks the few Clockmaker files Lightscapes shares (the clock model and the town square's sky)

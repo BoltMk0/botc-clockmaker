@@ -22,6 +22,8 @@ export type SpectrumStop = {
     hex: string;
     /** 1-254 */
     brightness: number;
+    /** Use the bulbs' white light, at the colour temperature nearest `hex`, rather than the colour itself. */
+    white: boolean;
 };
 
 /** The colours the day's lights fade through as the countdown runs, as the town square's sky does. */
@@ -172,7 +174,8 @@ export function normalizeConfig(value: unknown): Config {
             return {
                 at: num(stop.at, `${path}.at`, 0, 1),
                 hex: hex(stop.hex, `${path}.hex`),
-                brightness: Math.round(num(stop.brightness, `${path}.brightness`, 1, 254))
+                brightness: Math.round(num(stop.brightness, `${path}.brightness`, 1, 254)),
+                white: stop.white !== false
             };
         }).sort((a, b) => a.at - b.at);
         if(spectrum.intervalSeconds !== undefined) config.spectrum.intervalSeconds = num(spectrum.intervalSeconds, 'spectrum.intervalSeconds', 1, 300);

@@ -3,7 +3,7 @@ import type { TimeOfDay } from "../../src/lib/model/client/types.ts";
 import type { BellEvent, Command, Config, LightState, SceneEntry } from "./config.ts";
 import type { ClockFollower } from "./clock.ts";
 import type { Zigbee } from "./zigbee.ts";
-import { spectrumAt } from "./spectrum.ts";
+import { spectrumAt, type SpectrumColor } from "./spectrum.ts";
 
 /** How long a preview from the configuration page holds the lights before they go back to following the game. */
 const PREVIEW_MS = 60_000;
@@ -48,7 +48,7 @@ export class Engine {
     /** The phase whose scene the lights are showing, or null to set them again on the next update. */
     #appliedPhase: TimeOfDay | null = null;
     /** What the spectrum's lights were last sent, so they're not sent the same again. */
-    #lastSpectrum: { hex: string; brightness: number } | null = null;
+    #lastSpectrum: SpectrumColor | null = null;
     #spectrumTimer: ReturnType<typeof setTimeout> | null = null;
 
     #reminderTimer: ReturnType<typeof setTimeout> | null = null;
@@ -132,9 +132,15 @@ export class Engine {
         }
     }
 
-    #setSpectrum(color: { hex: string; brightness: number }, transition: number, config = this.#config) {
+    #setSpectrum(color: SpectrumColor, transition: number, config = this.#config) {
         for(const target of config.spectrum.targets){
-            this.#zigbee.set(target, { state: 'ON', color: { hex: color.hex }, brightness: color.brightness, transition });
+            // A light that says it does colours but not whites gets the white's colour
+            const device = this.#zigbee.devices.find(d => d.name === target);
+            const white = color.mireds !== null && !(device?.color && !device.colorTemp);
+            this.#zigbee.set(target, {
+                state: 'ON', ...(white ? { color_temp: color.mireds } : { color: { hex: color.hex } }),
+                brightness: color.brightness, transition
+            });
         }
     }
 
@@ -185,7 +191,8 @@ export class Engine {
         const transition = first ? this.#config.transitionSeconds : (target - now) / 1000;
         const progress = startTime === null ? 0 : Math.min(this.progress(target), DAY_PROGRESS_CAP);
         const color = spectrumAt(stops, progress);
-        if(color.hex !== this.#lastSpectrum?.hex || color.brightness !== this.#lastSpectrum.brightness){
+        const last = this.#lastSpectrum;
+        if(color.hex !== last?.hex || color.brightness !== last.brightness || color.mireds !== last.mireds){
             this.#setSpectrum(color, Math.round(transition * 10) / 10);
             this.#lastSpectrum = color;
         }
