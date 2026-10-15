@@ -6,6 +6,9 @@ const SDK_URL = 'https://sdk.scdn.co/spotify-player.js';
 const HEARTBEAT_MS = 5000;
 const VOLUME_SEND_DELAY_MS = 80;
 const PLAYER_NAME = 'Clocktower Mixer';
+/** Reconnecting the player after it drops off Spotify is given up on after this many tries within the window. */
+const MAX_RECONNECTS = 3;
+const RECONNECT_WINDOW_MS = 60000;
 
 // Just the parts of the Spotify Web Playback SDK we use.
 type SpotifySDKImage = { url: string, width?: number | null, height?: number | null };
@@ -82,6 +85,10 @@ export class SpotifyPlayer {
     #deviceVolume: number | null = null;
     /** Bumped on every start/stop, so a start that was abandoned partway doesn't complete. */
     #generation = 0;
+    /** The device our player last registered with Spotify as, while it's still registered. */
+    #deviceId: string | null = null;
+    /** When the player was last reconnected, within the window. */
+    #reconnects: number[] = [];
 
     readonly #releaseOnLeave = () => { this.sendRelease(); };
     /** A player started without a gesture (by itself, as this device ran it last time) may only make sound after one. */
@@ -104,6 +111,8 @@ export class SpotifyPlayer {
             this.model = msg.model;
             // The server dropped our claim (e.g. we went quiet for too long): stop making sound.
             if (wasHost && !this.isHost && this.#player) this.teardown();
+            // Spotify has forgotten our player (the server found it gone): connect it again
+            else if (this.isHost && !msg.model.hostReady && this.#deviceId !== null) this.reconnect();
             // This device ran the player last time: run it again, once Spotify's set up and no other device runs it
             else if (this.#autoStart.shouldStart(msg.model.configured && msg.model.authorized && msg.model.hostClientId === null)) this.startHosting();
             // Once the player can take commands: play again what it was playing, or else note what's playing now
@@ -157,7 +166,14 @@ export class SpotifyPlayer {
             });
             this.#player = player;
             player.addListener('ready', ({ device_id }: { device_id: string }) => {
+                this.#deviceId = device_id;
                 this.put({ deviceId: device_id }).catch(e => this.failHosting(e));
+            });
+            // Dropped off Spotify (a network blip, say): nothing can play on it until it's connected again
+            player.addListener('not_ready', ({ device_id }: { device_id: string }) => {
+                if (device_id !== this.#deviceId) return;
+                this.put({ deviceId: null }).catch(e => this.failHosting(e));
+                this.reconnect();
             });
             player.addListener('player_state_changed', (state: SpotifySDKState | null) => {
                 this.put({ playback: state ? this.toPlayback(state) : null }).catch(e => this.failHosting(e));
@@ -195,6 +211,21 @@ export class SpotifyPlayer {
         this.sendRelease();
     }
 
+    /** Connects the player to Spotify again, as a new device (which it reports once ready), giving up if it keeps dropping off. */
+    private async reconnect() {
+        const player = this.#player;
+        if (!player || this.#deviceId === null) return;
+        this.#deviceId = null;
+        const now = Date.now();
+        this.#reconnects = this.#reconnects.filter(t => now - t < RECONNECT_WINDOW_MS);
+        if (this.#reconnects.length >= MAX_RECONNECTS) return this.failHosting(new Error('The Spotify player keeps dropping off Spotify'));
+        this.#reconnects.push(now);
+        console.warn('SpotifyPlayer - the player dropped off Spotify, reconnecting');
+        player.disconnect();
+        const connected = await player.connect().catch(() => false);
+        if (!connected && player === this.#player) this.failHosting(new Error('Could not reconnect to Spotify'));
+    }
+
     private failHosting(e: unknown) {
         console.error('SpotifyPlayer - hosting failed', e);
         this.error = e instanceof Error ? e.message : String(e);
@@ -212,6 +243,7 @@ export class SpotifyPlayer {
         this.#player?.disconnect();
         this.#player = null;
         this.#deviceVolume = null;
+        this.#deviceId = null;
     }
 
     private sendRelease() {

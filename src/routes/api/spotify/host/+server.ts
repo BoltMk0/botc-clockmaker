@@ -20,13 +20,18 @@ export async function POST({ request }) {
     return new Response();
 }
 
-/** Host heartbeat. Body: { clientId, deviceId? (player registered with Spotify), playback? (latest state or null) } */
+/**
+ * Host heartbeat. Body: { clientId, deviceId? (player registered with Spotify, or null: gone offline, reconnecting),
+ * playback? (latest state or null) }
+ */
 export async function PUT({ request }) {
     const body = await readClientId(request);
     const spotify = getSpotifyHelperInstance();
     try {
         if (typeof body.deviceId === 'string') {
             await spotify.hostReady(body.clientId, body.deviceId);
+        } else if (body.deviceId === null) {
+            spotify.hostOffline(body.clientId);
         }
         const playback = body.playback as any;
         if (playback !== undefined && playback !== null && (typeof playback !== 'object'

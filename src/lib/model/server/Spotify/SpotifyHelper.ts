@@ -272,7 +272,8 @@ export class SpotifyHelper extends EventEmitter {
     hostReport(clientId: string, report: { playback?: SpotifyPlaybackModel | null }) {
         this.assertHost(clientId);
         this.#hostLastSeen = Date.now();
-        if (report.playback !== undefined) {
+        // Until the player's (re)registered with Spotify, what it last had isn't playing anywhere
+        if (report.playback !== undefined && this.#hostDeviceId !== null) {
             this.#playback = report.playback;
             // Something else was picked in Spotify itself, so the adaptive playlist is no longer selected
             const adaptivePreset = this.adaptivePreset();
@@ -293,6 +294,28 @@ export class SpotifyHelper extends EventEmitter {
         // The SDK starts at the volume without the master gain, dim or trim
         this.#deviceVolume = null;
         await this.setDeviceVolume(`device_id=${encodeURIComponent(deviceId)}`, this.#volume);
+        this.changed();
+    }
+
+    /** The host's SDK player has gone offline: it reconnects, and reports its device again once it's back. */
+    hostOffline(clientId: string) {
+        this.assertHost(clientId);
+        this.#hostLastSeen = Date.now();
+        this.deviceLost();
+    }
+
+    /**
+     * Spotify no longer knows the host's player (it dropped off, after a network blip, say). Nothing can play until the
+     * host reconnects it, so it stops counting as ready - and its last playback as playing, which would otherwise have
+     * the remotes treat Spotify as still playing, and send everything its way. The host reconnects on seeing this.
+     */
+    private deviceLost() {
+        if (this.#hostDeviceId === null) return;
+        console.log('Spotify: the player has dropped off Spotify, waiting for the host to reconnect it');
+        this.#hostDeviceId = null;
+        this.#playback = null;
+        this.#pendingContextUri = null;
+        this.#deviceVolume = null;
         this.changed();
     }
 
@@ -773,6 +796,9 @@ export class SpotifyHelper extends EventEmitter {
         });
         // 403 is Spotify's "already playing/paused" style restriction; the end state is what was asked for
         if (!res.ok && res.status !== 403) {
+            // Not found, on the host's device: Spotify has forgotten the player
+            const deviceId = new URLSearchParams(path.split('?')[1] ?? '').get('device_id');
+            if (res.status === 404 && deviceId !== null && deviceId === this.#hostDeviceId) this.deviceLost();
             throw new Error(`Spotify API ${method} ${path} failed: ${res.status} ${await res.text()}`);
         }
     }
