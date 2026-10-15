@@ -194,7 +194,7 @@
         <input class="track-search" type="search" placeholder="Search tracks" aria-label="Search tracks" bind:value={startFilter}/>
         {/if}
         <div class="sheet-body">
-            <button class="track" class:chosen={!scheduledStart} onclick={() => pickStart(null)}>
+            <button class="start-track" class:chosen={!scheduledStart} onclick={() => pickStart(null)}>
                 <span class="track-shuffle" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
                 </span>
@@ -218,7 +218,7 @@
             <div class="tracks">
                 {#each list.tracks as track (track.id)}
                 {@const chosen = scheduledStart?.listKey === list.key && scheduledStart.trackId === track.id}
-                <button class="track" class:chosen onclick={() => pickStart({ listKey: list.key, trackId: track.id })}>
+                <button class="start-track" class:chosen onclick={() => pickStart({ listKey: list.key, trackId: track.id })}>
                     <MusicArt imageUrl={track.imageUrl} source={null} size={36}/>
                     <span class="track-text">
                         <span class="track-title">{track.title}</span>
@@ -465,7 +465,7 @@
         gap: 2px;
     }
 
-    .track {
+    .start-track {
         display: flex;
         align-items: center;
         gap: 12px;
@@ -480,15 +480,15 @@
         transition: background-color 0.2s;
     }
 
-    .track:hover {
+    .start-track:hover {
         background: rgba(255, 255, 255, 0.08);
     }
 
-    .track.chosen {
+    .start-track.chosen {
         box-shadow: inset 0 0 0 2px #fc6;
     }
 
-    .track.chosen .preset-status {
+    .start-track.chosen .preset-status {
         color: #fc6;
         opacity: 1;
     }
