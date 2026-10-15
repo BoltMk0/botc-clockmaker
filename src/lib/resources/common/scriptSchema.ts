@@ -16,6 +16,8 @@ export type SchemaCharacter = {
     // Wake priority on the night; 0 means the character doesn't wake.
     firstNight?: number;
     otherNight?: number;
+    firstNightReminder?: string;
+    otherNightReminder?: string;
     reminders?: string[];
 };
 
@@ -68,6 +70,8 @@ export function scriptToSchema(script: ScriptWithCharacters): SchemaScriptItem[]
         setup: !!c.setup,
         firstNight: c.firstNightOrder ?? 0,
         otherNight: c.otherNightOrder ?? 0,
+        firstNightReminder: c.firstNightReminder,
+        otherNightReminder: c.otherNightReminder,
         reminders: c.reminderTokens.map(t => t.text)
     }));
     return [meta, ...characters];

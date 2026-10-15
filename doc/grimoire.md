@@ -92,6 +92,11 @@ Each living, seated character that wakes tonight gets a **number badge** showing
 - On **day 0** it uses the script's **first night** order; from day 1 on, the **other nights** order.
 - Dead players and characters that don't wake are left out, so the badges count 1, 2, 3… down the real wake order.
 
+The **night order** button in the sidebar opens the whole night as a sheet, with a tab for the first night and one for
+the other nights. Each character shows the storyteller's night reminder, or its ability text when it has none. With 7
+or more seated players (not counting travellers), the first night also lists **Minion Info** and **Demon Info** in
+their places.
+
 The night order comes from the script; it can be edited in
 [Settings → Scripts → Edit Characters](settings/scripts.md#editing-a-scripts-characters-and-night-order).
 

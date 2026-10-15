@@ -19,6 +19,12 @@ for (const character of [...CHARACTERS_MANAGER.values]) {
         CHARACTERS_MANAGER.add({ ...character, ...splitSetupFromRules(character.rules) });
     }
 }
+// Characters saved before night reminders were kept have none.
+for (const character of [...CHARACTERS_MANAGER.values]) {
+    if (character.firstNightReminder === undefined || character.otherNightReminder === undefined) {
+        CHARACTERS_MANAGER.add({ ...character, firstNightReminder: character.firstNightReminder ?? '', otherNightReminder: character.otherNightReminder ?? '' });
+    }
+}
 
 export function listCharacters(): Character[] {
     return [...CHARACTERS_MANAGER.values].sort((a, b) => a.name.localeCompare(b.name));

@@ -40,6 +40,10 @@ export type Character = {
     // this default; null means the character doesn't wake on that night.
     defaultFirstNightOrder: number | null;
     defaultOtherNightOrder: number | null;
+    // What the storyteller does when the character wakes, as the night order sheet reads it, e.g. "The Poisoner
+    // points to a player. That player is poisoned." Empty when there's none; the sheet then shows the ability.
+    firstNightReminder: string;
+    otherNightReminder: string;
     reminderTokens: ReminderToken[];
 };
 
@@ -165,6 +169,9 @@ export function isCharacter(obj: any): obj is Character {
         typeof obj.wakes_other_nights === "boolean" &&
         (obj.defaultFirstNightOrder === null || typeof obj.defaultFirstNightOrder === "number") &&
         (obj.defaultOtherNightOrder === null || typeof obj.defaultOtherNightOrder === "number") &&
+        // Absent on characters saved before night reminders were kept; characters.ts fills them in.
+        (obj.firstNightReminder === undefined || typeof obj.firstNightReminder === "string") &&
+        (obj.otherNightReminder === undefined || typeof obj.otherNightReminder === "string") &&
         Array.isArray(obj.reminderTokens) && obj.reminderTokens.every(isReminderToken);
     if(!result){
         console.error("Invalid Character object:", obj);

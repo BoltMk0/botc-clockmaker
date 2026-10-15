@@ -19,7 +19,7 @@ export async function POST({ request }) {
     const body = await request.json().catch(() => null);
     if (!body) return json({ error: 'Invalid JSON body' }, { status: 400 });
 
-    const { name, category, rules, setup, player_count, wakes_first_night, wakes_other_nights, defaultFirstNightOrder, defaultOtherNightOrder } = body;
+    const { name, category, rules, setup, player_count, wakes_first_night, wakes_other_nights, defaultFirstNightOrder, defaultOtherNightOrder, firstNightReminder, otherNightReminder } = body;
     if (!name || !category || !rules) {
         return json({ error: 'name, category and rules are required' }, { status: 400 });
     }
@@ -36,7 +36,9 @@ export async function POST({ request }) {
         wakes_first_night: wakes_first_night ?? false,
         wakes_other_nights: wakes_other_nights ?? false,
         defaultFirstNightOrder: defaultFirstNightOrder ?? null,
-        defaultOtherNightOrder: defaultOtherNightOrder ?? null
+        defaultOtherNightOrder: defaultOtherNightOrder ?? null,
+        firstNightReminder: typeof firstNightReminder === 'string' ? firstNightReminder.trim() : '',
+        otherNightReminder: typeof otherNightReminder === 'string' ? otherNightReminder.trim() : ''
     });
     return json(character, { status: 201 });
 }

@@ -10,7 +10,7 @@ import type { CharacterScrapeResult, WikiCharacterListing } from "../common/type
 // grimoire, which mirrors the official reminder tokens for each character.
 const ROLES_JSON_URL = 'https://raw.githubusercontent.com/bra1n/townsquare/main/src/roles.json';
 
-type BrainRole = { name: string; reminders?: string[]; firstNight?: number; otherNight?: number };
+type BrainRole = { name: string; reminders?: string[]; firstNight?: number; otherNight?: number; firstNightReminder?: string; otherNightReminder?: string };
 
 let brainRolesPromise: Promise<BrainRole[]> | null = null;
 
@@ -37,19 +37,24 @@ async function scrapeReminderTokenTexts(name: string): Promise<string[]> {
     }
 }
 
+type NightInfo = Pick<NewCharacter, 'defaultFirstNightOrder' | 'defaultOtherNightOrder' | 'firstNightReminder' | 'otherNightReminder'>;
+
 // roles.json ranks every character on a single global first/other-night scale; 0 means the
-// character doesn't wake that night at all, so that maps to "no default order" here.
-async function scrapeDefaultNightOrder(name: string): Promise<{ defaultFirstNightOrder: number | null; defaultOtherNightOrder: number | null }> {
+// character doesn't wake that night at all, so that maps to "no default order" here. It also
+// carries the storyteller's reminder for each night, as the night order sheet reads it.
+async function scrapeNightInfo(name: string): Promise<NightInfo> {
     try {
         const roles = await fetchBrainRoles();
         const role = roles.find(r => r.name === name);
         return {
             defaultFirstNightOrder: role?.firstNight ? role.firstNight : null,
-            defaultOtherNightOrder: role?.otherNight ? role.otherNight : null
+            defaultOtherNightOrder: role?.otherNight ? role.otherNight : null,
+            firstNightReminder: role?.firstNightReminder?.trim() ?? '',
+            otherNightReminder: role?.otherNightReminder?.trim() ?? ''
         };
     } catch (er) {
-        console.error(`Failed to fetch default night order for ${name}:`, er);
-        return { defaultFirstNightOrder: null, defaultOtherNightOrder: null };
+        console.error(`Failed to fetch night order for ${name}:`, er);
+        return { defaultFirstNightOrder: null, defaultOtherNightOrder: null, firstNightReminder: '', otherNightReminder: '' };
     }
 }
 
@@ -124,7 +129,7 @@ export async function scrapeCharacter(category: CharacterCategory, name: string,
         }
         const { rules, setup } = splitSetupFromRules(abilityText);
         const wakes = guessWakePattern(rules);
-        const nightOrder = await scrapeDefaultNightOrder(name);
+        const nightInfo = await scrapeNightInfo(name);
 
         const newCharacter: NewCharacter = {
             name,
@@ -133,9 +138,9 @@ export async function scrapeCharacter(category: CharacterCategory, name: string,
             setup,
             player_count: 1,
             // A published place in the night order means it wakes that night, whatever the wording suggests
-            wakes_first_night: wakes.wakes_first_night || nightOrder.defaultFirstNightOrder !== null,
-            wakes_other_nights: wakes.wakes_other_nights || nightOrder.defaultOtherNightOrder !== null,
-            ...nightOrder
+            wakes_first_night: wakes.wakes_first_night || nightInfo.defaultFirstNightOrder !== null,
+            wakes_other_nights: wakes.wakes_other_nights || nightInfo.defaultOtherNightOrder !== null,
+            ...nightInfo
         };
 
         const existing = getCharacterByName(name);

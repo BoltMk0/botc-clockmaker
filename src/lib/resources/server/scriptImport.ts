@@ -161,7 +161,9 @@ function planCharacter(item: unknown, problems: string[], unknownIds: string[]):
             wakes_first_night: firstNight !== null,
             wakes_other_nights: otherNight !== null,
             defaultFirstNightOrder: firstNight,
-            defaultOtherNightOrder: otherNight
+            defaultOtherNightOrder: otherNight,
+            firstNightReminder: typeof entry.firstNightReminder === 'string' ? entry.firstNightReminder.trim() : '',
+            otherNightReminder: typeof entry.otherNightReminder === 'string' ? entry.otherNightReminder.trim() : ''
         },
         reminders
     };

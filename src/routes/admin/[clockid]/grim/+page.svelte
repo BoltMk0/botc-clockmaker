@@ -2755,7 +2755,7 @@
                                         {character.name}
                                         {#if inPlay}<span class="night-sheet-badge" class:dead={deadCharacterIds.has(character.id)}>{deadCharacterIds.has(character.id) ? 'Dead' : 'In play'}</span>{/if}
                                     </div>
-                                    <div class="night-sheet-rules">{character.rules}</div>
+                                    <div class="night-sheet-rules">{(nightOrderSheet === 'first' ? character.firstNightReminder : character.otherNightReminder) || character.rules}</div>
                                 </div>
                             </li>
                             {/if}

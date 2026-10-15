@@ -533,6 +533,14 @@
                                     </div>
                                 </td>
                             </tr>
+                            <tr>
+                                <th>First Night Reminder</th>
+                                <td><textarea name="firstNightReminder" style="height: 4em;" placeholder="What the storyteller does on the first night (leave empty to show the ability)" bind:value={selectedCharacter.firstNightReminder}></textarea></td>
+                            </tr>
+                            <tr>
+                                <th>Other Nights Reminder</th>
+                                <td><textarea name="otherNightReminder" style="height: 4em;" placeholder="What the storyteller does on other nights (leave empty to show the ability)" bind:value={selectedCharacter.otherNightReminder}></textarea></td>
+                            </tr>
                         </tbody>
                     </table>
                 </form>

@@ -24,7 +24,8 @@ one's:
 
 - name and **ability text**, and any setup change (e.g. "[+2 Outsiders]");
 - **token icon**;
-- **night order** (whether it wakes on the first night and other nights, and where);
+- **night order** (whether it wakes on the first night and other nights, and where), and the storyteller's
+  **night reminders** for each;
 - **reminder tokens** (taken from the community-maintained role list used by the clocktower.online grimoire).
 
 Press **Scrape All** (press again to **Stop**). A progress bar and status line show how it's going, and each
@@ -57,6 +58,7 @@ Characters can also be created by [importing a script](scripts.md#importing-a-sc
 | **Wakes First Night** / **Wakes Other Nights** | Whether it wakes at night. |
 | **Counts as Player** | Whether the token is drawn by a player. Untick for tokens that only ever sit on the grim. |
 | **Default Night Order** → **First Night** / **Other Nights** | Its default position in the night order. Scripts use this when the character is added, and when you press **Reset** on a script's night order. |
+| **First Night Reminder** / **Other Nights Reminder** | What the storyteller does when it wakes, shown on the grimoire's night order sheet. Leave empty to show the ability text there instead. |
 
 Press **Save Changes** to save, or **Delete** to remove the character.
 

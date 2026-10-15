@@ -24,7 +24,7 @@ export const actions = {
             return fail(400, {error: 'Invalid category' });
         }
         
-        const character = addCharacter({name, category, rules: '', setup: '', player_count: 1, wakes_first_night: false, wakes_other_nights: false, defaultFirstNightOrder: null, defaultOtherNightOrder: null});
+        const character = addCharacter({name, category, rules: '', setup: '', player_count: 1, wakes_first_night: false, wakes_other_nights: false, defaultFirstNightOrder: null, defaultOtherNightOrder: null, firstNightReminder: '', otherNightReminder: ''});
 
         return { success: true, ...character};
     }
