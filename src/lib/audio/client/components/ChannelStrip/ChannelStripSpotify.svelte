@@ -125,7 +125,8 @@
         {#if presets.length > 0}
         <div class="presets">
             {#each presets as preset (preset.id)}
-                {@const current = presetMatches(preset, spotify.playback?.contextUri)}
+                <!-- Paused for the music player, the loaded preset isn't the one in use (picked again, it waits for the phase change like the rest) -->
+                {@const current = !(otherPlaying && spotify.playback?.playing !== true) && presetMatches(preset, spotify.playback?.contextUri)}
                 {@const playing = current && spotify.playback?.playing === true}
                 {@const pending = presetMatches(preset, model.pendingContextUri)}
                 {@const kind = presetKind(preset)}
