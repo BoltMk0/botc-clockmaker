@@ -312,6 +312,29 @@
             .sort((a, b) => (orderOf(a) as number) - (orderOf(b) as number));
     });
 
+    // With 7 or more players (not counting travellers), the Minions and the Demon learn each other on the first
+    // night. Each step goes before the first character whose canonical first night order comes after it.
+    const FIRST_NIGHT_INFO_STEPS = [
+        { id: 'minioninfo', name: 'Minion Info', defaultOrder: 6,
+            rules: 'If more than one Minion, they all make eye contact with each other. Show the "This is the Demon" card. Point to the Demon.' },
+        { id: 'demoninfo', name: 'Demon Info', defaultOrder: 9,
+            rules: 'Show the "These are your minions" card. Point to each Minion. Show the "These characters are not in play" card. Show 3 not-in-play good character tokens.' }
+    ];
+    const playerCount = $derived(placedTokens.filter(t => isPlayerToken(t) && !isSideRoleToken(t)
+        && script?.characters.find(c => c.id === t.characterId)?.category !== 'traveler').length);
+    type NightSheetEntry = { kind: 'character'; character: ScriptCharacter } | { kind: 'info'; id: string; name: string; rules: string };
+    const nightSheetEntries = $derived.by(() => {
+        const entries: NightSheetEntry[] = nightSheetCharacters.map(character => ({ kind: 'character', character }));
+        if (nightOrderSheet !== 'first' || playerCount < 7) return entries;
+        for (const step of FIRST_NIGHT_INFO_STEPS) {
+            let insertAt = entries.findIndex(e => e.kind === 'character'
+                && e.character.defaultFirstNightOrder !== null && e.character.defaultFirstNightOrder > step.defaultOrder);
+            if (insertAt === -1) insertAt = entries.length;
+            entries.splice(insertAt, 0, { kind: 'info', id: step.id, name: step.name, rules: step.rules });
+        }
+        return entries;
+    });
+
     let showFooter = $state(false);
     let tokensLocked = $derived(browser ? localStorage.getItem(`grimoire-locked-${data.clockid}`) === 'true' : false);
     let editing = $state(false);
@@ -1487,6 +1510,15 @@
         height: 48px;
         flex-shrink: 0;
         object-fit: contain;
+    }
+
+    /* Stands in for a character image on the Minion and Demon info steps */
+    .night-sheet-info-icon {
+        width: 48px;
+        height: 48px;
+        flex-shrink: 0;
+        border-radius: 50%;
+        background: radial-gradient(circle, #8b1a1a 0 40%, transparent 42%);
     }
 
     .night-sheet-name {
@@ -2700,11 +2732,21 @@
                 </div>
                 {#if !script}
                     <p class="night-sheet-empty">No script loaded.</p>
-                {:else if nightSheetCharacters.length === 0}
+                {:else if nightSheetEntries.length === 0}
                     <p class="night-sheet-empty">Nobody wakes.</p>
                 {:else}
                     <ol class="night-sheet-list">
-                        {#each nightSheetCharacters as character (character.id)}
+                        {#each nightSheetEntries as entry (entry.kind === 'info' ? entry.id : entry.character.id)}
+                            {#if entry.kind === 'info'}
+                            <li class="in-play">
+                                <div class="night-sheet-info-icon" aria-hidden="true"></div>
+                                <div class="night-sheet-text">
+                                    <div class="night-sheet-name">{entry.name}</div>
+                                    <div class="night-sheet-rules">{entry.rules}</div>
+                                </div>
+                            </li>
+                            {:else}
+                            {@const character = entry.character}
                             {@const inPlay = onGrimCharacterIds.has(character.id)}
                             <li class:in-play={inPlay}>
                                 <img src={characterImageUrl(character.id, 128)} alt="" onerror={(e) => (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'} />
@@ -2716,6 +2758,7 @@
                                     <div class="night-sheet-rules">{character.rules}</div>
                                 </div>
                             </li>
+                            {/if}
                         {/each}
                     </ol>
                 {/if}
