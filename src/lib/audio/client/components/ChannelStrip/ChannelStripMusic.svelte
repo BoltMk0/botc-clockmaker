@@ -22,21 +22,15 @@
     let {
         music,
         presets = [],
-        /** Whether the Spotify player is playing, so a preset picked here waits for the phase change, as one would mid-music. */
-        otherPlaying = false,
         /** Whether this is the selected player (see selectedMusicSource): only then is its loaded preset highlighted, as the selected one. */
         selected = true,
         style = undefined
     }: {
         music: MusicPlayer;
         presets?: MusicPreset[];
-        otherPlaying?: boolean;
         selected?: boolean;
         style?: string;
     } = $props();
-
-    /** Either player playing, which a preset picked here takes over from. */
-    const anyPlaying = $derived(music.playing || otherPlaying);
 
     const model = $derived(music.model);
     /** The fader, as a linear gain (shown in dB, like the ambience tracks'). */
@@ -65,13 +59,12 @@
     }
 
     /**
-     * The loaded preset just toggles play/pause. Another one, while something's playing (here or on Spotify), is
-     * scheduled to take over at the next change of phase; tapped again, it switches straight away. With nothing playing, it starts at once (a paused
-     * one carries on where it left off).
+     * The loaded preset just toggles play/pause (a paused one carries on where it left off). Another one is scheduled
+     * to take over at the next change of phase; tapped again, it switches straight away.
      */
     function clickPreset(preset: MusicPreset, current: boolean, playing: boolean) {
         if (playing) music.togglePlayPause();
-        else if (!current && model?.scheduledPresetId !== preset.id && anyPlaying) music.schedulePreset(preset.id);
+        else if (!current && model?.scheduledPresetId !== preset.id) music.schedulePreset(preset.id);
         else music.playPreset(preset.id);
     }
 
@@ -140,7 +133,7 @@
             <AudioMixerText
                 onclick={()=>clickPreset(preset, current, playing)}
                 style="{PRESET_ROW} {pending ? PENDING_PRESET : current ? CURRENT_PRESET : scheduled ? SCHEDULED_PRESET : ''}"
-                title={pending ? `Loading ${preset.name}${kind}` : scheduled ? `${preset.name}${kind} plays at the next phase change. Tap again to switch now` : !current && anyPlaying ? `Play ${preset.name}${kind} at the next phase change (tap twice to switch now)` : waiting ? `${preset.name}${kind}: silent until a phase with a playlist` : playing ? `Pause ${preset.name}${kind}` : current ? `Resume ${preset.name}${kind}` : `Play ${preset.name}${kind}`}>
+                title={pending ? `Loading ${preset.name}${kind}` : scheduled ? `${preset.name}${kind} plays at the next phase change. Tap again to switch now` : !current ? `Play ${preset.name}${kind} at the next phase change (tap twice to switch now)` : waiting ? `${preset.name}${kind}: silent until a phase with a playlist` : playing ? `Pause ${preset.name}${kind}` : current ? `Resume ${preset.name}${kind}` : `Play ${preset.name}${kind}`}>
                 <span class="preset-icon">
                     {#if playing}<PlayIcon size={10}/>{:else}<PauseIcon size={10}/>{/if}
                 </span>

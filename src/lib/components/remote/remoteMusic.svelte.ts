@@ -117,9 +117,6 @@ export class RemoteMusic {
     /** A Spotify player is running somewhere and can take commands. */
     get spotifyAvailable() { return spotifyAvailable(this.#spotify); }
 
-    get #spotifyPlaying() { return this.spotifyAvailable && this.#spotify.playback?.playing === true; }
-    get anyPlaying() { return this.#music.playing || this.#spotifyPlaying; }
-
     /** The player shown and controlled (see selectedMusicSource). */
     readonly source: MusicSource | null = $derived.by(() => selectedMusicSource(this.#music, this.#spotify));
 
@@ -161,11 +158,11 @@ export class RemoteMusic {
                     pending: musicModel?.pendingPresetId === preset.id,
                     scheduled: musicModel?.scheduledPresetId === preset.id,
                     silent: current && isMusicAdaptivePreset(preset) && musicModel?.presetSilent === true,
-                    // As on the mixer's strip: the loaded one plays or pauses; another waits for the phase change while
-                    // anything's playing (tapped again, it switches now); with nothing playing, it starts at once
+                    // As on the mixer's strip: the loaded one plays or pauses; another waits for the phase change (tapped
+                    // again, it switches now)
                     click: () => {
                         if (playing) this.#music.togglePlayPause();
-                        else if (!current && musicModel?.scheduledPresetId !== preset.id && this.anyPlaying) this.#music.schedulePreset(preset.id);
+                        else if (!current && musicModel?.scheduledPresetId !== preset.id) this.#music.schedulePreset(preset.id);
                         else this.#music.playPreset(preset.id);
                     }
                 };
@@ -187,7 +184,7 @@ export class RemoteMusic {
                     silent: current && isSpotifyAdaptivePreset(preset) && spotifyModel?.adaptivePresetSilent === true,
                     click: () => {
                         if (playing) this.#spotify.togglePlayPause();
-                        else if (!current && spotifyModel?.scheduledPresetId !== preset.id && this.anyPlaying) this.#spotify.schedulePreset(preset.id);
+                        else if (!current && spotifyModel?.scheduledPresetId !== preset.id) this.#spotify.schedulePreset(preset.id);
                         else if (isSpotifyAdaptivePreset(preset)) this.#spotify.playAdaptivePreset(preset.id);
                         else if (current) this.#spotify.togglePlayPause();
                         else this.#spotify.playContext(preset.uri);

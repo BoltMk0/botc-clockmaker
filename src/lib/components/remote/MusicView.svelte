@@ -246,7 +246,7 @@
             <button class="sheet-close" onclick={() => pickingPreset = false} aria-label="Close">✕</button>
         </div>
         <div class="sheet-body">
-            {#if music.anyPlaying}<div class="hint">Picks wait for the next phase · tap twice to switch now</div>{/if}
+            <div class="hint">Picks wait for the next phase · tap twice to play now</div>
             {#if presets.length === 0}
             <div class="empty">No presets yet. Add them in Settings → Music or Settings → Spotify.</div>
             {:else}

@@ -35,9 +35,6 @@
     /** Spotify gets half the outline once the server says it's set up. */
     const offerSpotify = $derived(spotifyModel?.configured === true);
     const error = $derived(spotify?.error ?? music?.error ?? null);
-    /** Each strip's presets go by whether either player is playing, to schedule a pick rather than cut in. */
-    const spotifyPlaying = $derived(spotifyRunning && spotify?.playback?.playing === true);
-    const musicPlaying = $derived(musicRunning && music?.playing === true);
     /** Only the selected player's strip highlights its preset, as the remote shows it. */
     const selected = $derived(spotify && music ? selectedMusicSource(music, spotify) : spotify ? 'spotify' : 'music');
     /** Outlines for the players that aren't running (only those this client can start, or Spotify to link). */
@@ -47,10 +44,10 @@
 </script>
 
 {#if spotify && spotifyRunning}
-<ChannelStripSpotify {spotify} presets={spotifyPresets} otherPlaying={musicPlaying} selected={selected === 'spotify'} {style}/>
+<ChannelStripSpotify {spotify} presets={spotifyPresets} selected={selected === 'spotify'} {style}/>
 {/if}
 {#if music && musicRunning}
-<ChannelStripMusic {music} presets={musicPresets} otherPlaying={spotifyPlaying} selected={selected === 'music'} {style}/>
+<ChannelStripMusic {music} presets={musicPresets} selected={selected === 'music'} {style}/>
 {/if}
 {#if (spotify || music) && (!eitherRunning || spotifyOutline || musicOutline)}
 <div class="player-slot" class:narrow={eitherRunning} {style}>
