@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { ALL_CHARACTER_CATEGORIES, CHARACTER_CATEGORIES, type Character, type CharacterCategory, type ScriptCharacter } from "$lib/resources/common/gameData.js";
+    import { ALL_CHARACTER_CATEGORIES, CHARACTER_CATEGORIES, wakesFirstNight, wakesOtherNights, type Character, type CharacterCategory, type ScriptCharacter } from "$lib/resources/common/gameData.js";
     import CharacterThumb from "$lib/components/CharacterThumb.svelte";
     import { goto } from "$app/navigation";
     import type { PageData } from "./$types";
@@ -35,7 +35,7 @@
         .filter(c => !scriptFilterCharacterIds || scriptFilterCharacterIds.has(c.id))
         .filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())));
 
-    function orderSort(key: 'firstNightOrder' | 'otherNightOrder') {
+    function orderSort(key: 'scriptFirstNightOrder' | 'scriptOtherNightOrder') {
         return (a: ScriptCharacter, b: ScriptCharacter) => {
             const ao = a[key] ?? Number.POSITIVE_INFINITY;
             const bo = b[key] ?? Number.POSITIVE_INFINITY;
@@ -45,11 +45,11 @@
     }
 
     const firstNightList = $derived((data.script.characters as ScriptCharacter[])
-        .filter(c => !!c.wakes_first_night)
-        .sort(orderSort('firstNightOrder')));
+        .filter(wakesFirstNight)
+        .sort(orderSort('scriptFirstNightOrder')));
     const otherNightList = $derived((data.script.characters as ScriptCharacter[])
-        .filter(c => !!c.wakes_other_nights)
-        .sort(orderSort('otherNightOrder')));
+        .filter(wakesOtherNights)
+        .sort(orderSort('scriptOtherNightOrder')));
 
     function captialiseString(str: string) {
         return str.charAt(0).toUpperCase() + str.slice(1);
@@ -64,7 +64,7 @@
                 alert(`Character with id ${characterId} not found`);
                 return;
             }
-            const added: ScriptCharacter = { ...char, firstNightOrder: null, otherNightOrder: null };
+            const added: ScriptCharacter = { ...char, scriptFirstNightOrder: null, scriptOtherNightOrder: null };
             data.script.characters.push(added);
             insertIntoNightOrder('first', added);
             insertIntoNightOrder('other', added);
@@ -139,7 +139,7 @@
     }
 
     function applyOrder(list: NightList, ordered: ScriptCharacter[]) {
-        const key = list === 'first' ? 'firstNightOrder' : 'otherNightOrder';
+        const key = list === 'first' ? 'scriptFirstNightOrder' : 'scriptOtherNightOrder';
         const orderById = new Map(ordered.map((c, i) => [c.id, i + 1]));
         data.script.characters = data.script.characters.map((c: ScriptCharacter) => {
             const n = orderById.get(c.id);
@@ -153,38 +153,33 @@
     }
 
     // Slots a newly added character into one night's existing (possibly manually edited) order,
-    // just before the first character whose default night order comes after its own. Characters
-    // with no scraped default go to the end. Every waking character ends up numbered, so the
-    // server doesn't see a null order on save and re-rank the whole night from defaults.
+    // just before the first character whose canonical night order comes after its own. Every
+    // waking character ends up numbered, so the server doesn't see a null order on save and
+    // re-rank the whole night from the canonical order.
     function insertIntoNightOrder(list: NightList, added: ScriptCharacter) {
-        const key = list === 'first' ? 'firstNightOrder' : 'otherNightOrder';
-        const defaultKey = list === 'first' ? 'defaultFirstNightOrder' : 'defaultOtherNightOrder';
-        const wakesKey = list === 'first' ? 'wakes_first_night' : 'wakes_other_nights';
-        if (!added[wakesKey]) return;
+        const key = list === 'first' ? 'scriptFirstNightOrder' : 'scriptOtherNightOrder';
+        const characterKey = list === 'first' ? 'firstNightOrder' : 'otherNightOrder';
+        const addedOrder = added[characterKey];
+        if (addedOrder === null) return;
 
         const current = (data.script.characters as ScriptCharacter[])
-            .filter(c => c[wakesKey] && c.id !== added.id)
+            .filter(c => c[characterKey] !== null && c.id !== added.id)
             .sort(orderSort(key));
-        const addedDefault = added[defaultKey];
-        let insertAt = addedDefault == null
-            ? -1
-            : current.findIndex(c => c[defaultKey] != null && (c[defaultKey] as number) > addedDefault);
+        let insertAt = current.findIndex(c => (c[characterKey] as number) > addedOrder);
         if (insertAt === -1) insertAt = current.length;
 
         applyOrder(list, [...current.slice(0, insertAt), added, ...current.slice(insertAt)]);
     }
 
-    // Re-derives the order for one night from each character's canonical default night order,
-    // discarding any manual ordering. Characters that don't wake this night, or have no
-    // scraped default, end up with no order.
+    // Re-derives the order for one night from each character's canonical night order,
+    // discarding any manual ordering. Characters that don't wake this night end up with no order.
     function resetNightOrder(list: NightList) {
-        const key = list === 'first' ? 'firstNightOrder' : 'otherNightOrder';
-        const defaultKey = list === 'first' ? 'defaultFirstNightOrder' : 'defaultOtherNightOrder';
-        const wakesKey = list === 'first' ? 'wakes_first_night' : 'wakes_other_nights';
+        const key = list === 'first' ? 'scriptFirstNightOrder' : 'scriptOtherNightOrder';
+        const characterKey = list === 'first' ? 'firstNightOrder' : 'otherNightOrder';
 
         const ranked = (data.script.characters as ScriptCharacter[])
-            .filter(c => c[wakesKey] && c[defaultKey] != null)
-            .sort((a, b) => (a[defaultKey] as number) - (b[defaultKey] as number));
+            .filter(c => c[characterKey] !== null)
+            .sort((a, b) => (a[characterKey] as number) - (b[characterKey] as number));
         const rankById = new Map(ranked.map((c, i) => [c.id, i + 1]));
 
         data.script.characters = (data.script.characters as ScriptCharacter[]).map(c => ({
@@ -215,8 +210,8 @@
                 body: JSON.stringify({
                     characters: (data.script.characters as ScriptCharacter[]).map(c => ({
                         characterId: c.id,
-                        firstNightOrder: c.firstNightOrder ?? null,
-                        otherNightOrder: c.otherNightOrder ?? null,
+                        scriptFirstNightOrder: c.scriptFirstNightOrder ?? null,
+                        scriptOtherNightOrder: c.scriptOtherNightOrder ?? null,
                     })),
                 }),
             });

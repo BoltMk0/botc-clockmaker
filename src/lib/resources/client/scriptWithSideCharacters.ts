@@ -7,7 +7,7 @@ export function withSideCharacters(script: ScriptWithCharacters, all: Character[
     const have = new Set(script.characters.map(c => c.id));
     const extra: ScriptCharacter[] = all
         .filter(c => SIDE_CATEGORIES.includes(c.category) && !have.has(c.id))
-        .map(c => ({ ...c, firstNightOrder: c.defaultFirstNightOrder, otherNightOrder: c.defaultOtherNightOrder }));
+        .map(c => ({ ...c, scriptFirstNightOrder: c.firstNightOrder, scriptOtherNightOrder: c.otherNightOrder }));
     return { ...script, characters: [...script.characters, ...extra] };
 }
 

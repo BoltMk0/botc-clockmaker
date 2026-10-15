@@ -288,7 +288,7 @@
     let showTimerOptions = $state(false);
 
     // NIGHT ORDER LOGIC
-    const nightOrderFunction = $derived((clockClient?.day || 0) > 0 ? (c: ScriptCharacter) => c.otherNightOrder : (c: ScriptCharacter) => c.firstNightOrder);
+    const nightOrderFunction = $derived((clockClient?.day || 0) > 0 ? (c: ScriptCharacter) => c.scriptOtherNightOrder : (c: ScriptCharacter) => c.scriptFirstNightOrder);
     const nightOrderByCharacterId = $derived((placedTokens
         .filter(c=>!c.isDead)
         .map(c=>script?.characters.find(ch => ch.id === c.characterId))
@@ -306,7 +306,7 @@
         placedTokens.filter(t => t.characterId === id).every(t => t.isDead))));
     const nightSheetCharacters = $derived.by(() => {
         if (!script || !nightOrderSheet) return [];
-        const orderOf = nightOrderSheet === 'first' ? (c: ScriptCharacter) => c.firstNightOrder : (c: ScriptCharacter) => c.otherNightOrder;
+        const orderOf = nightOrderSheet === 'first' ? (c: ScriptCharacter) => c.scriptFirstNightOrder : (c: ScriptCharacter) => c.scriptOtherNightOrder;
         return script.characters
             .filter(c => orderOf(c) !== null && (!SIDE_CATEGORIES.some(s => s.category === c.category) || onGrimCharacterIds.has(c.id)))
             .sort((a, b) => (orderOf(a) as number) - (orderOf(b) as number));
@@ -328,7 +328,7 @@
         if (nightOrderSheet !== 'first' || playerCount < 7) return entries;
         for (const step of FIRST_NIGHT_INFO_STEPS) {
             let insertAt = entries.findIndex(e => e.kind === 'character'
-                && e.character.defaultFirstNightOrder !== null && e.character.defaultFirstNightOrder > step.defaultOrder);
+                && e.character.firstNightOrder !== null && e.character.firstNightOrder > step.defaultOrder);
             if (insertAt === -1) insertAt = entries.length;
             entries.splice(insertAt, 0, { kind: 'info', id: step.id, name: step.name, rules: step.rules });
         }

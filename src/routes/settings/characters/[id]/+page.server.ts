@@ -51,8 +51,7 @@ export const actions = {
             return fail(400, {error: 'Night reminders must be strings' });
         }
 
-        const wakes_first_night = formData.get('wakes_first_night') === 'on';
-        const wakes_other_nights = formData.get('wakes_other_nights') === 'on';
+
         const counts_as_player = formData.get('counts_as_player') === 'on';
         const player_count = counts_as_player ? 1 : 0;
         const playerCountNumber = Number(player_count);
@@ -60,10 +59,11 @@ export const actions = {
             return fail(400, {error: 'Player count must be a non-negative number' });
         }
 
-        const defaultFirstNightOrder = parseNightOrderField(formData.get('defaultFirstNightOrder'));
-        const defaultOtherNightOrder = parseNightOrderField(formData.get('defaultOtherNightOrder'));
+        // Left empty, the character doesn't wake that night
+        const firstNightOrder = parseNightOrderField(formData.get('firstNightOrder'));
+        const otherNightOrder = parseNightOrderField(formData.get('otherNightOrder'));
 
-        const character = updateCharacter(id, {name, category, rules, setup: setup.trim(), wakes_first_night, wakes_other_nights, player_count: playerCountNumber, defaultFirstNightOrder, defaultOtherNightOrder, firstNightReminder: firstNightReminder.trim(), otherNightReminder: otherNightReminder.trim()});
+        const character = updateCharacter(id, {name, category, rules, setup: setup.trim(), player_count: playerCountNumber, firstNightOrder, otherNightOrder, firstNightReminder: firstNightReminder.trim(), otherNightReminder: otherNightReminder.trim()});
 
         if(!character){
             return fail(404, {error: 'Character not found'});

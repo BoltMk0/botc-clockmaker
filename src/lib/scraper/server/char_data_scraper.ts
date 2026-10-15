@@ -37,24 +37,24 @@ async function scrapeReminderTokenTexts(name: string): Promise<string[]> {
     }
 }
 
-type NightInfo = Pick<NewCharacter, 'defaultFirstNightOrder' | 'defaultOtherNightOrder' | 'firstNightReminder' | 'otherNightReminder'>;
+type NightInfo = Pick<NewCharacter, 'firstNightOrder' | 'otherNightOrder' | 'firstNightReminder' | 'otherNightReminder'>;
 
 // roles.json ranks every character on a single global first/other-night scale; 0 means the
-// character doesn't wake that night at all, so that maps to "no default order" here. It also
+// character doesn't wake that night at all, so that maps to no order here. It also
 // carries the storyteller's reminder for each night, as the night order sheet reads it.
 async function scrapeNightInfo(name: string): Promise<NightInfo> {
     try {
         const roles = await fetchBrainRoles();
         const role = roles.find(r => r.name === name);
         return {
-            defaultFirstNightOrder: role?.firstNight ? role.firstNight : null,
-            defaultOtherNightOrder: role?.otherNight ? role.otherNight : null,
+            firstNightOrder: role?.firstNight ? role.firstNight : null,
+            otherNightOrder: role?.otherNight ? role.otherNight : null,
             firstNightReminder: role?.firstNightReminder?.trim() ?? '',
             otherNightReminder: role?.otherNightReminder?.trim() ?? ''
         };
     } catch (er) {
         console.error(`Failed to fetch night order for ${name}:`, er);
-        return { defaultFirstNightOrder: null, defaultOtherNightOrder: null, firstNightReminder: '', otherNightReminder: '' };
+        return { firstNightOrder: null, otherNightOrder: null, firstNightReminder: '', otherNightReminder: '' };
     }
 }
 
@@ -105,20 +105,6 @@ function extractRulesText(html: string): string | null {
     return text || null;
 }
 
-// Best-effort guess at when the character wakes, based on wording conventions used
-// throughout the ability text (e.g. "Each night*" means every night but the first,
-// "You start knowing" / "On your first night" imply a first-night wake). Not perfect -
-// intended as a starting point for manual review, not a guaranteed-correct result.
-function guessWakePattern(rules: string): { wakes_first_night: boolean; wakes_other_nights: boolean } {
-    const mentionsEachNight = /each night/i.test(rules);
-    const exceptFirstNight = /each night\*/i.test(rules);
-
-    const wakes_first_night = /you start knowing|on your first night/i.test(rules) || (mentionsEachNight && !exceptFirstNight);
-    const wakes_other_nights = mentionsEachNight || /other night/i.test(rules);
-
-    return { wakes_first_night, wakes_other_nights };
-}
-
 export async function scrapeCharacter(category: CharacterCategory, name: string, wikiPath: string): Promise<CharacterScrapeResult> {
     console.log("Scraping character data", name);
     try {
@@ -128,8 +114,8 @@ export async function scrapeCharacter(category: CharacterCategory, name: string,
             return { status: 'error', error: 'Could not find ability text on wiki page' };
         }
         const { rules, setup } = splitSetupFromRules(abilityText);
-        const wakes = guessWakePattern(rules);
         const nightInfo = await scrapeNightInfo(name);
+        const existing = getCharacterByName(name);
 
         const newCharacter: NewCharacter = {
             name,
@@ -137,13 +123,12 @@ export async function scrapeCharacter(category: CharacterCategory, name: string,
             rules,
             setup,
             player_count: 1,
-            // A published place in the night order means it wakes that night, whatever the wording suggests
-            wakes_first_night: wakes.wakes_first_night || nightInfo.defaultFirstNightOrder !== null,
-            wakes_other_nights: wakes.wakes_other_nights || nightInfo.defaultOtherNightOrder !== null,
-            ...nightInfo
+            ...nightInfo,
+            // Characters newer than roles.json have no published place in the night order: keep any set by hand
+            firstNightOrder: nightInfo.firstNightOrder ?? existing?.firstNightOrder ?? null,
+            otherNightOrder: nightInfo.otherNightOrder ?? existing?.otherNightOrder ?? null
         };
 
-        const existing = getCharacterByName(name);
         const character = existing ? updateCharacter(existing.id, newCharacter)! : addCharacter(newCharacter);
 
         if (character.reminderTokens.length === 0) {

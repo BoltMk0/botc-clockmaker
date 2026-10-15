@@ -33,13 +33,11 @@ export type Character = {
     // "+2 Outsiders" for the Baron. Empty when it doesn't change setup.
     setup: string;
     player_count: number;
-    wakes_first_night: boolean;
-    wakes_other_nights: boolean;
     // The character's canonical night order rank, as published by the game (e.g. from the
     // bra1n/townsquare role dataset). Scripts derive their own per-script night order from
-    // this default; null means the character doesn't wake on that night.
-    defaultFirstNightOrder: number | null;
-    defaultOtherNightOrder: number | null;
+    // this; null means the character doesn't wake on that night.
+    firstNightOrder: number | null;
+    otherNightOrder: number | null;
     // What the storyteller does when the character wakes, as the night order sheet reads it, e.g. "The Poisoner
     // points to a player. That player is poisoned." Empty when there's none; the sheet then shows the ability.
     firstNightReminder: string;
@@ -60,15 +58,25 @@ export function rulesWithSetup(character: Pick<Character, 'rules' | 'setup'>): s
     return character.setup ? `${character.rules} [${character.setup}]` : character.rules;
 }
 
+export function wakesFirstNight(character: Pick<Character, 'firstNightOrder'>): boolean {
+    return character.firstNightOrder !== null;
+}
+
+export function wakesOtherNights(character: Pick<Character, 'otherNightOrder'>): boolean {
+    return character.otherNightOrder !== null;
+}
+
+// The script's own night order: a 1-based rank among the script's characters that wake that night, which the
+// script can rearrange freely. Null for a character that doesn't wake that night.
 export type ScriptCharacterEntry = {
     characterId: string;
-    firstNightOrder: number | null;
-    otherNightOrder: number | null;
+    scriptFirstNightOrder: number | null;
+    scriptOtherNightOrder: number | null;
 };
 
 export type ScriptCharacter = Character & {
-    firstNightOrder: number | null;
-    otherNightOrder: number | null;
+    scriptFirstNightOrder: number | null;
+    scriptOtherNightOrder: number | null;
 };
 
 export type Script = {
@@ -165,10 +173,10 @@ export function isCharacter(obj: any): obj is Character {
         // Absent on characters saved before setup was split out of the rules; characters.ts fills it in.
         (obj.setup === undefined || typeof obj.setup === "string") &&
         typeof obj.player_count === "number" && isFinite(obj.player_count) && obj.player_count >= 0 &&
-        typeof obj.wakes_first_night === "boolean" &&
-        typeof obj.wakes_other_nights === "boolean" &&
-        (obj.defaultFirstNightOrder === null || typeof obj.defaultFirstNightOrder === "number") &&
-        (obj.defaultOtherNightOrder === null || typeof obj.defaultOtherNightOrder === "number") &&
+        // Characters saved before the night order lost its "default" prefix have defaultFirstNightOrder and
+        // defaultOtherNightOrder (and wakes_first_night / wakes_other_nights) instead; characters.ts converts them.
+        (isNightOrder(obj.firstNightOrder) || isNightOrder(obj.defaultFirstNightOrder)) &&
+        (isNightOrder(obj.otherNightOrder) || isNightOrder(obj.defaultOtherNightOrder)) &&
         // Absent on characters saved before night reminders were kept; characters.ts fills them in.
         (obj.firstNightReminder === undefined || typeof obj.firstNightReminder === "string") &&
         (obj.otherNightReminder === undefined || typeof obj.otherNightReminder === "string") &&
@@ -179,11 +187,17 @@ export function isCharacter(obj: any): obj is Character {
     return result;
 }
 
+function isNightOrder(value: unknown): value is number | null {
+    return value === null || typeof value === "number";
+}
+
 function isScriptCharacterEntry(obj: any): obj is ScriptCharacterEntry {
     return typeof obj === "object" &&
         typeof obj.characterId === "string" &&
-        (obj.firstNightOrder === null || typeof obj.firstNightOrder === "number") &&
-        (obj.otherNightOrder === null || typeof obj.otherNightOrder === "number");
+        // Scripts saved before the script's own order was told apart from the character's have firstNightOrder
+        // and otherNightOrder instead; scripts.ts converts them.
+        (isNightOrder(obj.scriptFirstNightOrder) || isNightOrder(obj.firstNightOrder)) &&
+        (isNightOrder(obj.scriptOtherNightOrder) || isNightOrder(obj.otherNightOrder));
 }
 
 export function isScript(obj: any): obj is Script {

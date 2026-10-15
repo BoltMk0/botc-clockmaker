@@ -57,8 +57,8 @@ export async function scrapeScript(entry: BaseScriptEntry): Promise<ScriptScrape
 
         setScriptCharacters(script.id, characterIds.map(characterId => ({
             characterId,
-            firstNightOrder: null,
-            otherNightOrder: null
+            scriptFirstNightOrder: null,
+            scriptOtherNightOrder: null
         })));
 
         return {

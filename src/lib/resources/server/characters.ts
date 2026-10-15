@@ -19,6 +19,21 @@ for (const character of [...CHARACTERS_MANAGER.values]) {
         CHARACTERS_MANAGER.add({ ...character, ...splitSetupFromRules(character.rules) });
     }
 }
+// Characters saved before the night order lost its "default" prefix also say whether they wake each night. One
+// that wakes but has no order is put at the end of that night, so it still wakes.
+{
+    const legacy = [...CHARACTERS_MANAGER.values].filter(c => 'defaultFirstNightOrder' in c) as any[];
+    const lastOrder = (field: string) => Math.max(0, ...legacy.map(c => c[field] ?? 0));
+    const lastFirst = lastOrder('defaultFirstNightOrder');
+    const lastOther = lastOrder('defaultOtherNightOrder');
+    for (const { defaultFirstNightOrder, defaultOtherNightOrder, wakes_first_night, wakes_other_nights, ...character } of legacy) {
+        CHARACTERS_MANAGER.add({
+            ...character,
+            firstNightOrder: defaultFirstNightOrder ?? (wakes_first_night ? lastFirst + 1 : null),
+            otherNightOrder: defaultOtherNightOrder ?? (wakes_other_nights ? lastOther + 1 : null)
+        });
+    }
+}
 // Characters saved before night reminders were kept have none.
 for (const character of [...CHARACTERS_MANAGER.values]) {
     if (character.firstNightReminder === undefined || character.otherNightReminder === undefined) {

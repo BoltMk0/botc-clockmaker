@@ -63,10 +63,10 @@ editable), and **Save**. Nothing is saved until you press **Save**.
 | --- | --- |
 | **All characters** | The library. **Search** by name; **Filter by script** to show another script's characters (handy for building variants); tick which **categories** to show (travellers, loric and fabled are hidden by default; **Reset** restores that). Characters already in the script are outlined. Tap one to **add** it (tap again to remove it). |
 | **In Script** | The script's characters, in the order players will see them. Drag to reorder within a category. Tap to **remove**. |
-| **First Night** | The first night's wake order. Drag to reorder. **Reset** rebuilds it from each character's default night order. |
+| **First Night** | The first night's wake order. Drag to reorder. **Reset** rebuilds it from each character's night order. |
 | **Other Nights** | The same for every other night. |
 
-When you add a character, it's slotted into each night where its default night order puts it, so a hand-edited
+When you add a character, it's slotted into each night where its night order puts it, so a hand-edited
 night order is kept. The grimoire uses these orders for its [night order badges](../grimoire.md#night-order).
 
 Travellers, loric and fabled don't need adding to a script to be used in a game — the grimoire setup always offers

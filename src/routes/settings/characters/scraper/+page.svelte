@@ -24,7 +24,7 @@
     );
 
     function thumbCharacter(category: CharacterCategory, name: string): Character {
-        return { id: characterIdFromName(name), name, category, rules: '', setup: '', player_count: 1, wakes_first_night: false, wakes_other_nights: false, defaultFirstNightOrder: null, defaultOtherNightOrder: null, firstNightReminder: '', otherNightReminder: '', reminderTokens: [] };
+        return { id: characterIdFromName(name), name, category, rules: '', setup: '', player_count: 1, firstNightOrder: null, otherNightOrder: null, firstNightReminder: '', otherNightReminder: '', reminderTokens: [] };
     }
 
     let progress = writable(0);

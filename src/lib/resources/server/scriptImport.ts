@@ -1,6 +1,6 @@
 import { characterIdFromName, slugify } from "../common/util";
 import { categoryFromTeam, isSchemaMeta } from "../common/scriptSchema";
-import { rulesWithSetup, splitSetupFromRules, type Character, type NewCharacter, type Script } from "../common/gameData";
+import { rulesWithSetup, splitSetupFromRules, wakesFirstNight, wakesOtherNights, type Character, type NewCharacter, type Script } from "../common/gameData";
 import { addCharacter, addReminderToken, findCharacterByLooseName, getCharacterById } from "./characters";
 import { createScript, getScriptById, setScriptCharacters, type ScriptCharacterInput } from "./scripts";
 
@@ -87,8 +87,8 @@ export function importScriptFromSchema(data: unknown, fallbackName: string): Scr
         const character = getCharacterById(characterId)!;
         return {
             characterId,
-            firstNightOrder: character.wakes_first_night ? firstNight.get(characterId) ?? null : null,
-            otherNightOrder: character.wakes_other_nights ? otherNight.get(characterId) ?? null : null
+            scriptFirstNightOrder: wakesFirstNight(character) ? firstNight.get(characterId) ?? null : null,
+            scriptOtherNightOrder: wakesOtherNights(character) ? otherNight.get(characterId) ?? null : null
         };
     });
 
@@ -158,10 +158,8 @@ function planCharacter(item: unknown, problems: string[], unknownIds: string[]):
             category,
             ...splitSetupFromRules(ability),
             player_count: 1,
-            wakes_first_night: firstNight !== null,
-            wakes_other_nights: otherNight !== null,
-            defaultFirstNightOrder: firstNight,
-            defaultOtherNightOrder: otherNight,
+            firstNightOrder: firstNight,
+            otherNightOrder: otherNight,
             firstNightReminder: typeof entry.firstNightReminder === 'string' ? entry.firstNightReminder.trim() : '',
             otherNightReminder: typeof entry.otherNightReminder === 'string' ? entry.otherNightReminder.trim() : ''
         },

@@ -280,7 +280,11 @@
     }
 
     .field-group input[type="number"] {
-        width: 6em;
+        width: 8em;
+    }
+
+    .clear-order-button {
+        padding: 0.2em 0.6em;
     }
 
     #add-reminder-token-button {
@@ -504,14 +508,6 @@
                                 <td>
                                     <div class="field-group">
                                         <label>
-                                            <input type="checkbox" name="wakes_first_night" bind:checked={selectedCharacter.wakes_first_night} />
-                                            Wakes First Night
-                                        </label>
-                                        <label>
-                                            <input type="checkbox" name="wakes_other_nights" bind:checked={selectedCharacter.wakes_other_nights} />
-                                            Wakes Other Nights
-                                        </label>
-                                        <label>
                                             <input type="checkbox" name="counts_as_player" checked={selectedCharacter.player_count > 0} onchange={(e)=>selectedCharacter.player_count = (e.target as HTMLInputElement).checked ? 1 : 0}/>
                                             Counts as Player
                                         </label>
@@ -519,16 +515,19 @@
                                 </td>
                             </tr>
                             <tr>
-                                <th>Default Night Order</th>
+                                <th>Night Order</th>
                                 <td>
+                                    <!-- Empty means the character doesn't wake that night -->
                                     <div class="field-group">
                                         <label>
                                             First Night
-                                            <input type="number" name="defaultFirstNightOrder" value={selectedCharacter.defaultFirstNightOrder ?? ''} />
+                                            <input type="number" name="firstNightOrder" placeholder="Doesn't wake" bind:value={selectedCharacter.firstNightOrder} />
+                                            <button type="button" class="button-style clear-order-button" title="Doesn't wake on the first night" disabled={selectedCharacter.firstNightOrder == null} onclick={() => selectedCharacter.firstNightOrder = null}>✕</button>
                                         </label>
                                         <label>
                                             Other Nights
-                                            <input type="number" name="defaultOtherNightOrder" value={selectedCharacter.defaultOtherNightOrder ?? ''} />
+                                            <input type="number" name="otherNightOrder" placeholder="Doesn't wake" bind:value={selectedCharacter.otherNightOrder} />
+                                            <button type="button" class="button-style clear-order-button" title="Doesn't wake on other nights" disabled={selectedCharacter.otherNightOrder == null} onclick={() => selectedCharacter.otherNightOrder = null}>✕</button>
                                         </label>
                                     </div>
                                 </td>

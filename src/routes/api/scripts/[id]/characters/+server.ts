@@ -24,8 +24,8 @@ export async function PUT({ params, request }) {
         }
         entries = body.characters.map((c: any) => ({
             characterId: c.characterId,
-            firstNightOrder: c.firstNightOrder ?? null,
-            otherNightOrder: c.otherNightOrder ?? null,
+            scriptFirstNightOrder: c.scriptFirstNightOrder ?? null,
+            scriptOtherNightOrder: c.scriptOtherNightOrder ?? null,
         }));
     } else if (Array.isArray(body.characterIds)) {
         if (!body.characterIds.every((cid: any) => typeof cid === 'string')) {
@@ -33,8 +33,8 @@ export async function PUT({ params, request }) {
         }
         entries = body.characterIds.map((cid: string) => ({
             characterId: cid,
-            firstNightOrder: null,
-            otherNightOrder: null,
+            scriptFirstNightOrder: null,
+            scriptOtherNightOrder: null,
         }));
     } else {
         return json({ error: 'characters or characterIds array is required' }, { status: 400 });

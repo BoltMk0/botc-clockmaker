@@ -50,7 +50,7 @@ export function isSchemaMeta(item: unknown): item is SchemaMeta {
 
 // Every character is written out in full, so the file stands alone, including any homebrew characters.
 export function scriptToSchema(script: ScriptWithCharacters): SchemaScriptItem[] {
-    const wakeOrder = (field: 'firstNightOrder' | 'otherNightOrder') => script.characters
+    const wakeOrder = (field: 'scriptFirstNightOrder' | 'scriptOtherNightOrder') => script.characters
         .filter(c => c[field] !== null)
         .sort((a, b) => a[field]! - b[field]!)
         .map(c => c.id);
@@ -59,8 +59,8 @@ export function scriptToSchema(script: ScriptWithCharacters): SchemaScriptItem[]
         id: '_meta',
         name: script.name,
         hue: script.hue,
-        firstNight: wakeOrder('firstNightOrder'),
-        otherNight: wakeOrder('otherNightOrder')
+        firstNight: wakeOrder('scriptFirstNightOrder'),
+        otherNight: wakeOrder('scriptOtherNightOrder')
     };
     const characters: SchemaCharacter[] = script.characters.map(c => ({
         id: c.id,
