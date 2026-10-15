@@ -1544,6 +1544,8 @@
     }
 
     .night-sheet-rules {
+        /* Keep the line breaks in reminders and abilities */
+        white-space: pre-line;
         font-size: 0.85em;
         opacity: 0.85;
     }
