@@ -146,7 +146,8 @@ export class SpotifyHelper extends EventEmitter {
             pendingContextUri: this.#pendingContextUri,
             adaptivePresetId: this.#adaptivePresetId,
             adaptivePresetSilent: this.#silenced,
-            scheduledPresetId: this.#scheduledPresetId
+            scheduledPresetId: this.#scheduledPresetId,
+            handedOver: this.#handedOver
         };
     }
 
@@ -425,7 +426,10 @@ export class SpotifyHelper extends EventEmitter {
 
     /** Has the music player fade out, as this starts playing. */
     private takeOver() {
-        this.#handedOver = false;
+        if (this.#handedOver) {
+            this.#handedOver = false;
+            this.changed();
+        }
         getMusicHelperInstance().handOver(HANDOVER_FADE_MS);
     }
 

@@ -38,6 +38,27 @@ export type NowPlaying = {
     presetName: string | null;
 };
 
+/** A Spotify player is running somewhere and can take commands. */
+function spotifyAvailable(spotify: SpotifyPlayer) {
+    const model = spotify.model;
+    return !!model?.hostClientId && model.hostReady;
+}
+
+/**
+ * The selected player, whose preset is the selected one: the one playing, or else the one the other's handed over to,
+ * or else the one with something loaded. The remote shows and controls it, and the mixer's strips highlight only its preset.
+ */
+export function selectedMusicSource(music: MusicPlayer, spotify: SpotifyPlayer): MusicSource | null {
+    const spotifyReady = spotifyAvailable(spotify);
+    if (music.playing) return 'music';
+    if (spotifyReady && spotify.playback?.playing) return 'spotify';
+    if (music.active && music.track && !music.model?.handedOver) return 'music';
+    if (spotifyReady && spotify.playback && !spotify.model?.handedOver) return 'spotify';
+    if (music.active && music.track) return 'music';
+    if (spotifyReady && spotify.playback) return 'spotify';
+    return null;
+}
+
 /**
  * The uploaded-music player and Spotify as one music source for the remote: whichever's playing (or has something
  * loaded) is what's shown and controlled, and their presets are one list. Both players are remote-only here, so a
@@ -58,22 +79,13 @@ export class RemoteMusic {
 
     get musicAvailable() { return this.#music.active; }
     /** A Spotify player is running somewhere and can take commands. */
-    get spotifyAvailable() {
-        const model = this.#spotify.model;
-        return !!model?.hostClientId && model.hostReady;
-    }
+    get spotifyAvailable() { return spotifyAvailable(this.#spotify); }
 
     get #spotifyPlaying() { return this.spotifyAvailable && this.#spotify.playback?.playing === true; }
     get anyPlaying() { return this.#music.playing || this.#spotifyPlaying; }
 
-    /** The player shown and controlled: the one playing, or else the one with something loaded. */
-    readonly source: MusicSource | null = $derived.by(() => {
-        if (this.#music.playing) return 'music';
-        if (this.#spotifyPlaying) return 'spotify';
-        if (this.musicAvailable && this.#music.track) return 'music';
-        if (this.spotifyAvailable && this.#spotify.playback) return 'spotify';
-        return null;
-    });
+    /** The player shown and controlled (see selectedMusicSource). */
+    readonly source: MusicSource | null = $derived.by(() => selectedMusicSource(this.#music, this.#spotify));
 
     readonly nowPlaying: NowPlaying | null = $derived.by(() => {
         const source = this.source;
@@ -99,7 +111,7 @@ export class RemoteMusic {
         const spotifyModel = this.#spotify.model;
         return [
             ...music.map((preset): RemotePreset => {
-                const current = musicModel?.presetId === preset.id;
+                const current = this.source === 'music' && musicModel?.presetId === preset.id;
                 const playing = current && this.#music.playing;
                 return {
                     key: `music:${preset.id}`,
@@ -123,7 +135,7 @@ export class RemoteMusic {
                 };
             }),
             ...spotify.map((preset): RemotePreset => {
-                const current = spotifyPresetMatches(preset, spotifyModel, this.#spotify.playback?.contextUri);
+                const current = this.source === 'spotify' && spotifyPresetMatches(preset, spotifyModel, this.#spotify.playback?.contextUri);
                 const playing = current && this.#spotify.playback?.playing === true;
                 return {
                     key: `spotify:${preset.id}`,

@@ -24,11 +24,14 @@
         presets = [],
         /** Whether the Spotify player is playing, so a preset picked here waits for the phase change, as one would mid-music. */
         otherPlaying = false,
+        /** Whether this is the selected player (see selectedMusicSource): only then is its loaded preset highlighted, as the selected one. */
+        selected = true,
         style = undefined
     }: {
         music: MusicPlayer;
         presets?: MusicPreset[];
         otherPlaying?: boolean;
+        selected?: boolean;
         style?: string;
     } = $props();
 
@@ -127,8 +130,7 @@
     {#if presets.length > 0}
     <div class="presets">
         {#each presets as preset (preset.id)}
-            <!-- Paused for Spotify, the loaded preset isn't the one in use (picked again, it waits for the phase change like the rest) -->
-            {@const current = !(otherPlaying && !music.playing) && model.presetId === preset.id}
+            {@const current = selected && model.presetId === preset.id}
             {@const playing = current && music.playing}
             {@const pending = model.pendingPresetId === preset.id}
             {@const kind = presetKind(preset)}

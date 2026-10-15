@@ -68,6 +68,8 @@ export class MusicHelper extends EventEmitter {
     /** Whether an adaptive preset has paused itself for a silent spell, so resumes by itself when it ends. */
     #silenced = false;
     #scheduledPresetId: string | null = null;
+    /** Whether Spotify has taken over since this last started something. */
+    #handedOver = false;
     #lastTimeOfDay: TimeOfDay;
     /** Tracks in a row that failed to play, so a playlist of broken files stops rather than spinning through them. */
     #failures = 0;
@@ -106,6 +108,7 @@ export class MusicHelper extends EventEmitter {
             pendingPresetId: this.#pendingPresetId,
             presetSilent: this.#silenced,
             scheduledPresetId: this.#scheduledPresetId,
+            handedOver: this.#handedOver,
             levelling: { ...this.#levelling },
             crossfade: { ...this.#crossfade }
         };
@@ -145,6 +148,7 @@ export class MusicHelper extends EventEmitter {
         this.#phaseKey = null;
         this.#silenced = false;
         this.#scheduledPresetId = null;
+        this.#handedOver = false;
         this.clearPending();
         if (this.#hostCheckTimer) {
             clearInterval(this.#hostCheckTimer);
@@ -256,10 +260,11 @@ export class MusicHelper extends EventEmitter {
      */
     handOver(fadeMs = HANDOVER_FADE_MS) {
         if (this.#hostClientId === null) return;
-        const wasSilenced = this.#silenced;
+        const changed = this.#silenced || !this.#handedOver;
         this.#silenced = false;
+        this.#handedOver = true;
         if (this.#playing) this.pause(fadeMs);
-        else if (wasSilenced) this.changed();
+        else if (changed) this.changed();
     }
 
     /** Drops the preset scheduled for the next phase change (one's been scheduled, or picked to play now, on Spotify). */
@@ -271,6 +276,7 @@ export class MusicHelper extends EventEmitter {
 
     /** Has the Spotify player fade out, as this starts playing. */
     private takeOver() {
+        this.#handedOver = false;
         getSpotifyHelperInstance().handOver(HANDOVER_FADE_MS);
     }
 

@@ -31,6 +31,8 @@ export type SpotifyModel = {
     adaptivePresetSilent: boolean;
     /** The preset to switch to at the next change of the games' phase, if one's been picked. */
     scheduledPresetId: string | null;
+    /** Whether the music player has taken over since this last started something, so what's loaded here isn't the selected preset. */
+    handedOver: boolean;
 };
 
 export type SpotifyControlAction =

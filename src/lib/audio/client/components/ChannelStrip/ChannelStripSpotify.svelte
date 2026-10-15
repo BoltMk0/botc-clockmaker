@@ -16,6 +16,8 @@
         presets = [],
         /** Whether the music player is playing, so a preset picked here waits for the phase change, as one would mid-Spotify. */
         otherPlaying = false,
+        /** Whether this is the selected player (see selectedMusicSource): only then is its loaded preset highlighted, as the selected one. */
+        selected = true,
         // (Spotify plays through its own device/SDK rather than the Web Audio master bus, so the server applies the
         // shared master fader, dim and time-of-day trim to the volume it sends the player instead - see SpotifyHelper.)
         style = undefined
@@ -23,6 +25,7 @@
         spotify: SpotifyPlayer;
         presets?: SpotifyPreset[];
         otherPlaying?: boolean;
+        selected?: boolean;
         style?: string;
     } = $props();
 
@@ -125,8 +128,7 @@
         {#if presets.length > 0}
         <div class="presets">
             {#each presets as preset (preset.id)}
-                <!-- Paused for the music player, the loaded preset isn't the one in use (picked again, it waits for the phase change like the rest) -->
-                {@const current = !(otherPlaying && spotify.playback?.playing !== true) && presetMatches(preset, spotify.playback?.contextUri)}
+                {@const current = selected && presetMatches(preset, spotify.playback?.contextUri)}
                 {@const playing = current && spotify.playback?.playing === true}
                 {@const pending = presetMatches(preset, model.pendingContextUri)}
                 {@const kind = presetKind(preset)}

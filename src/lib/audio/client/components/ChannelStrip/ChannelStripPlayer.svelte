@@ -5,6 +5,7 @@
     import type { MusicPreset } from "$lib/audio/common/musicPreset";
     import ChannelStripSpotify from "./ChannelStripSpotify.svelte";
     import ChannelStripMusic from "./ChannelStripMusic.svelte";
+    import { selectedMusicSource } from "$lib/components/remote/remoteMusic.svelte";
 
     /**
      * The mixer's music strips: one for the Spotify player and one for the uploaded-music player, each while it's
@@ -37,6 +38,8 @@
     /** Each strip's presets go by whether either player is playing, to schedule a pick rather than cut in. */
     const spotifyPlaying = $derived(spotifyRunning && spotify?.playback?.playing === true);
     const musicPlaying = $derived(musicRunning && music?.playing === true);
+    /** Only the selected player's strip highlights its preset, as the remote shows it. */
+    const selected = $derived(spotify && music ? selectedMusicSource(music, spotify) : spotify ? 'spotify' : 'music');
     /** Outlines for the players that aren't running (only those this client can start, or Spotify to link). */
     const spotifyOutline = $derived(!!spotify && offerSpotify && !spotifyRunning && (!spotifyModel?.authorized || spotify.canHost));
     const musicOutline = $derived(!!music && !musicRunning && music.canHost);
@@ -44,10 +47,10 @@
 </script>
 
 {#if spotify && spotifyRunning}
-<ChannelStripSpotify {spotify} presets={spotifyPresets} otherPlaying={musicPlaying} {style}/>
+<ChannelStripSpotify {spotify} presets={spotifyPresets} otherPlaying={musicPlaying} selected={selected === 'spotify'} {style}/>
 {/if}
 {#if music && musicRunning}
-<ChannelStripMusic {music} presets={musicPresets} otherPlaying={spotifyPlaying} {style}/>
+<ChannelStripMusic {music} presets={musicPresets} otherPlaying={spotifyPlaying} selected={selected === 'music'} {style}/>
 {/if}
 {#if (spotify || music) && (!eitherRunning || spotifyOutline || musicOutline)}
 <div class="player-slot" class:narrow={eitherRunning} {style}>
