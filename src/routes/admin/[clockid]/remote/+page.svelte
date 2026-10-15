@@ -2,7 +2,9 @@
     import { onMount } from 'svelte';
     import { browser } from '$app/environment';
     import { goto } from '$app/navigation';
+    import { page } from '$app/state';
     import ClockSetter from '$lib/components/ClockSetter.svelte';
+    import ShareLink from '$lib/components/remote/ShareLink.svelte';
     import { Clocktower } from '$lib/model/client/Clocktower.svelte';
     import type { PageData } from './$types';
 
@@ -18,6 +20,9 @@
             model?.close();
         }
     });
+
+    // This page, for another device: without the back link, which is about where this device came from
+    const shareUrl = $derived(new URL(page.url.pathname, page.url.origin).href);
 
     // The mixer as a remote control only (no sound plays on this device), with a way back to this page
     function openMixer(){
@@ -35,6 +40,8 @@
     </svg>
     {data.backUrl ? 'Back' : 'Town Square'}
 </a>
+
+<ShareLink url={shareUrl} title="Open this remote on another device" style="position: absolute; top: 8px; right: 10px;"/>
 
 <div class="remote-page">
     <h2 class="team-name">{data.teamName}</h2>
