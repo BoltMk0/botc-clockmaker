@@ -236,7 +236,7 @@
                 <span class="advance-text"><span>Enter the night phase</span><small>End day {model.day}</small></span>
             {:else}
                 <TimeOfDayIcon timeOfDay="morning" size={22}/>
-                <span class="advance-text"><span>End the night</span><small>Wake the players to begin day {nextDay}</small></span>
+                <span class="advance-text"><span>Wake up</span><small>End the night and begin day {nextDay}</small></span>
             {/if}
         </button>
 
