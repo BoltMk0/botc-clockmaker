@@ -5,7 +5,9 @@ FROM node:22-alpine AS build
 WORKDIR /repo
 COPY src/lib ./src/lib
 COPY lightscapes/package*.json ./lightscapes/
-RUN cd lightscapes && npm ci
+# No install scripts: esbuild's only optimises how it starts, and can fail to run its own binary (ETXTBSY) on some
+# storage drivers. It finds its binary without it
+RUN cd lightscapes && npm ci --ignore-scripts
 COPY lightscapes ./lightscapes
 RUN cd lightscapes && npm run build && npm prune --omit=dev
 

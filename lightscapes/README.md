@@ -93,6 +93,14 @@ The two pages listen on every network by default:
 - **Clockmaker can't be reached by its Tailscale name.** The container may not resolve MagicDNS names. Use the
   Tailscale IP address instead, or uncomment the `dns:` lines in `docker-compose.yml`.
 - **Zigbee2MQTT: offline.** Check `docker compose logs zigbee2mqtt`. It's usually the adapter path, or the adapter type.
+- **Rootless Docker** (Docker run as your own user) can only pass the adapter through if your user can open it. The
+  adapter belongs to `root:dialout` by default. A udev rule giving it to your user fixes that; use the `serial` from
+  `udevadm info -a -n /dev/ttyUSB0`, then unplug and replug the adapter:
+
+  ```sh
+  echo 'SUBSYSTEM=="tty", ATTRS{serial}=="<serial>", OWNER="<your user>"' | sudo tee /etc/udev/rules.d/99-zigbee-adapter.rules
+  sudo udevadm control --reload
+  ```
 - **A light ignores colours.** Some bulbs only do white, or only do brightness. The page warns when a light doesn't
   say it can do what's asked.
 

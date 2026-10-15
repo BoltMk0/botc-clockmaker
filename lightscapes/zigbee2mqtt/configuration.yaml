@@ -5,7 +5,7 @@ mqtt:
   base_topic: zigbee2mqtt
   server: mqtt://mosquitto:1883
 serial:
-  port: /dev/ttyACM0
+  # The port is ZIGBEE_ADAPTER, from .env
   # Uncomment the line for your adapter if Zigbee2MQTT can't tell what it is:
   # adapter: zstack   # Sonoff ZBDongle-P, and other TI CC2652/CC1352 ones
   # adapter: ember    # Sonoff ZBDongle-E, Home Assistant SkyConnect/ZBT-1, and other Silicon Labs EFR32 ones
