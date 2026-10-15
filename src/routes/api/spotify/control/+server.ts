@@ -3,7 +3,8 @@ import { error } from '@sveltejs/kit';
 
 /**
  * Remote-control the player: { action: 'play' | 'pause' | 'next' | 'previous' }, { action: 'volume', volume: 0..100 },
- * { action: 'playContext', uri }, { action: 'playAdaptivePreset', presetId } or { action: 'schedulePreset', presetId | null }
+ * { action: 'playContext', uri }, { action: 'playAdaptivePreset', presetId }, { action: 'schedulePreset', presetId | null } or
+ * { action: 'scheduleStartTrack', start: { contextUri, uri } | null }
  */
 export async function POST({ request }) {
     const command = await request.json().catch(() => null);

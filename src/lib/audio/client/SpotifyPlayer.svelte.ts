@@ -277,6 +277,8 @@ export class SpotifyPlayer {
     playAdaptivePreset(presetId: string) { this.control({ action: 'playAdaptivePreset', presetId }); }
     /** Switches to a preset at the next change of the games' phase rather than now (null cancels). */
     schedulePreset(presetId: string | null) { this.control({ action: 'schedulePreset', presetId }); }
+    /** Has the scheduled preset start with this track of one of its lists (null: wherever the shuffle lands). */
+    scheduleStartTrack(start: { contextUri: string, uri: string } | null) { this.control({ action: 'scheduleStartTrack', start }); }
     previous() { this.control({ action: 'previous' }); }
 
     /** @param volume 0..100. Rapid calls (a slider drag) are coalesced. */

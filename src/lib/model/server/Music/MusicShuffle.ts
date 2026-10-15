@@ -75,6 +75,20 @@ export class MusicShuffle {
         return order[index];
     }
 
+    /**
+     * Moves a track up to play next, the rest of the order carrying on as it was (one already heard this round is
+     * taken from where it was, so it isn't heard twice). Does nothing if it's not on the playlist.
+     */
+    playNext(playlistId: string, trackIds: string[], trackId: string) {
+        if (!trackIds.includes(trackId)) return;
+        let { order, index } = this.#current(playlistId, trackIds);
+        const at = order.indexOf(trackId);
+        order = order.filter(id => id !== trackId);
+        if (at <= index) index--;
+        order.splice(index + 1, 0, trackId);
+        this.#save(playlistId, { order, index });
+    }
+
     /** Steps back to the track before the last one started, or that one again if it was the first; null if empty. */
     previous(playlistId: string, trackIds: string[]): string | null {
         if (trackIds.length === 0) return null;

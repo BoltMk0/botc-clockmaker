@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { clampCrossfadeSeconds, clampLevellingTarget, DEFAULT_MUSIC_CROSSFADE, DEFAULT_MUSIC_GAIN, DEFAULT_MUSIC_LEVELLING, MAX_MUSIC_GAIN, type MusicCrossfadeModel, type MusicControlAction, type MusicHostEvent, type MusicLevellingModel, type MusicModel, type MusicTrackPlaybackModel } from "$lib/audio/common/model/musicModel";
+import { clampCrossfadeSeconds, clampLevellingTarget, DEFAULT_MUSIC_CROSSFADE, DEFAULT_MUSIC_GAIN, DEFAULT_MUSIC_LEVELLING, MAX_MUSIC_GAIN, type MusicCrossfadeModel, type MusicControlAction, type MusicHostEvent, type MusicLevellingModel, type MusicModel, type MusicStartTrack, type MusicTrackPlaybackModel } from "$lib/audio/common/model/musicModel";
 import { isMusicAdaptivePreset, type MusicAdaptivePreset, type MusicPreset } from "$lib/audio/common/musicPreset";
 import type { TimeOfDay } from "$lib/model/client/types";
 import { getMusicAlbum, getMusicPlaylist, getMusicTrack } from "$lib/resources/server/musicLibrary";
@@ -68,6 +68,8 @@ export class MusicHelper extends EventEmitter {
     /** Whether an adaptive preset has paused itself for a silent spell, so resumes by itself when it ends. */
     #silenced = false;
     #scheduledPresetId: string | null = null;
+    /** The track the scheduled preset starts with, if one's been picked. */
+    #scheduledStartTrack: MusicStartTrack | null = null;
     /** Whether Spotify has taken over since this last started something. */
     #handedOver = false;
     #lastTimeOfDay: TimeOfDay;
@@ -108,6 +110,7 @@ export class MusicHelper extends EventEmitter {
             pendingPresetId: this.#pendingPresetId,
             presetSilent: this.#silenced,
             scheduledPresetId: this.#scheduledPresetId,
+            scheduledStartTrack: this.#scheduledStartTrack,
             handedOver: this.#handedOver,
             levelling: { ...this.#levelling },
             crossfade: { ...this.#crossfade }
@@ -147,7 +150,7 @@ export class MusicHelper extends EventEmitter {
         this.#presetId = null;
         this.#phaseKey = null;
         this.#silenced = false;
-        this.#scheduledPresetId = null;
+        this.setScheduledPreset(null);
         this.#handedOver = false;
         this.clearPending();
         if (this.#hostCheckTimer) {
@@ -215,7 +218,7 @@ export class MusicHelper extends EventEmitter {
                 // Paused by hand, an adaptive preset stays paused rather than coming back by itself, and nothing
                 // scheduled (on either player) starts up at the next phase change either
                 this.#silenced = false;
-                this.#scheduledPresetId = null;
+                this.setScheduledPreset(null);
                 if (this.#playing) getSpotifyHelperInstance().clearScheduledPreset();
                 this.pause(PAUSE_FADE_MS);
                 break;
@@ -232,7 +235,7 @@ export class MusicHelper extends EventEmitter {
             }
             case 'playPreset':
                 // Picked to play now instead
-                this.#scheduledPresetId = null;
+                this.setScheduledPreset(null);
                 getSpotifyHelperInstance().clearScheduledPreset();
                 this.playPreset(command.presetId, FADE_MS);
                 break;
@@ -240,7 +243,11 @@ export class MusicHelper extends EventEmitter {
                 if (command.presetId !== null && !this.findPreset(command.presetId)) throw new Error('Unknown preset');
                 // Only one preset waits for the phase change, whichever player it's for
                 if (command.presetId !== null) getSpotifyHelperInstance().clearScheduledPreset();
-                this.#scheduledPresetId = command.presetId;
+                this.setScheduledPreset(command.presetId);
+                this.changed();
+                break;
+            case 'scheduleStartTrack':
+                this.#scheduledStartTrack = command.start === null ? null : this.startTrack(command.start);
                 this.changed();
                 break;
             case 'gain': {
@@ -270,8 +277,26 @@ export class MusicHelper extends EventEmitter {
     /** Drops the preset scheduled for the next phase change (one's been scheduled, or picked to play now, on Spotify). */
     clearScheduledPreset() {
         if (this.#scheduledPresetId === null) return;
-        this.#scheduledPresetId = null;
+        this.setScheduledPreset(null);
         this.changed();
+    }
+
+    /** Schedules a preset for the next phase change (or none), forgetting the track picked for the last one to start with. */
+    private setScheduledPreset(presetId: string | null) {
+        if (presetId !== this.#scheduledPresetId) this.#scheduledStartTrack = null;
+        this.#scheduledPresetId = presetId;
+    }
+
+    /** A track for the scheduled preset to start with: one on one of its playlists. Throws if it isn't. */
+    private startTrack(start: { playlistId: unknown, trackId: unknown }): MusicStartTrack {
+        const preset = this.findPreset(this.#scheduledPresetId);
+        if (!preset) throw new Error('No preset is waiting for the next phase');
+        const { playlistId, trackId } = start ?? {};
+        const playlistIds = isMusicAdaptivePreset(preset) ? Object.values(preset.phasePlaylistIds) : [preset.playlistId];
+        if (typeof playlistId !== 'string' || !playlistIds.includes(playlistId)) throw new Error(`That playlist isn't one of "${preset.name}"'s`);
+        const track = typeof trackId === 'string' && getMusicPlaylist(playlistId)?.trackIds.includes(trackId) ? getMusicTrack(trackId) : undefined;
+        if (!track) throw new Error("That track isn't on the playlist");
+        return { playlistId, trackId: track.id, title: track.title, artist: track.artist };
     }
 
     /** Has the Spotify player fade out, as this starts playing. */
@@ -333,23 +358,23 @@ export class MusicHelper extends EventEmitter {
     /**
      * Starts a preset: on its playlist for now (an adaptive preset's phase's - or silence, if that has none), carrying
      * on where it left off if that playlist is already loaded. Adaptive presets follow the phase from then on.
+     * @param start A track to start with instead, if it's on the playlist it starts on.
      */
-    private playPreset(presetId: string, fadeMs: number) {
+    private playPreset(presetId: string, fadeMs: number, start: MusicStartTrack | null = null) {
         const preset = this.findPreset(presetId);
         if (!preset) throw new Error('Unknown preset');
-        if (isMusicAdaptivePreset(preset)) return this.playAdaptivePreset(preset, fadeMs);
+        if (isMusicAdaptivePreset(preset)) return this.playAdaptivePreset(preset, fadeMs, start);
         const playlistId = this.existing(preset.playlistId);
         if (playlistId === null) throw new Error(`"${preset.name}" has no playlist to play`);
         this.takeOver();
         this.#presetId = presetId;
         this.#phaseKey = null;
         this.#silenced = false;
-        if (this.isLoaded(playlistId)) this.resume(fadeMs);
-        else this.switchTo(playlistId, fadeMs, presetId);
+        this.startOn(playlistId, fadeMs, presetId, start);
     }
 
     /** Starts an adaptive preset on the phase's playlist, or silences the player if the phase has none. */
-    private playAdaptivePreset(preset: MusicAdaptivePreset, fadeMs: number) {
+    private playAdaptivePreset(preset: MusicAdaptivePreset, fadeMs: number, start: MusicStartTrack | null) {
         const timeOfDay = getBOTCTClockInstanceManager().timeOfDay;
         // Picked, so it takes over even when it starts out silent
         this.takeOver();
@@ -363,8 +388,22 @@ export class MusicHelper extends EventEmitter {
             return;
         }
         this.#silenced = false;
-        if (this.isLoaded(playlistId)) this.resume(fadeMs);
-        else this.switchTo(playlistId, fadeMs, preset.id);
+        this.startOn(playlistId, fadeMs, preset.id, start);
+    }
+
+    /**
+     * Has a preset start on its playlist: with the track picked to start with, if it's on it (the shuffle carrying on
+     * from there), or else carrying on with the playlist if it's loaded already, or moving on to its next track.
+     */
+    private startOn(playlistId: string, fadeMs: number, presetId: string, start: MusicStartTrack | null) {
+        if (start?.playlistId === playlistId) {
+            this.#shuffle.playNext(playlistId, getMusicPlaylist(playlistId)?.trackIds ?? [], start.trackId);
+            this.switchTo(playlistId, fadeMs, presetId);
+        } else if (this.isLoaded(playlistId)) {
+            this.resume(fadeMs);
+        } else {
+            this.switchTo(playlistId, fadeMs, presetId);
+        }
     }
 
     /** On a change of the games' phase, switches to a scheduled preset, or has the playing preset follow the phase. */
@@ -383,10 +422,11 @@ export class MusicHelper extends EventEmitter {
 
     private applyScheduledPreset() {
         const preset = this.findPreset(this.#scheduledPresetId);
-        this.#scheduledPresetId = null;
+        const start = this.#scheduledStartTrack;
+        this.setScheduledPreset(null);
         if (!preset) return this.changed();
-        console.log(`Music: phase changed, switching to the scheduled preset "${preset.name}"`);
-        this.playPreset(preset.id, PHASE_SWITCH_FADE_MS);
+        console.log(`Music: phase changed, switching to the scheduled preset "${preset.name}"${start ? `, starting with "${start.title}"` : ''}`);
+        this.playPreset(preset.id, PHASE_SWITCH_FADE_MS, start);
     }
 
     /** Has the playing adaptive preset follow a change of phase. */

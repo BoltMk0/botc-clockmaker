@@ -8,6 +8,23 @@ export type SpotifyPlaybackModel = {
     contextUri: string | null;
 };
 
+/** A track of an album/playlist, as listed to pick one to start with. */
+export type SpotifyTrackItem = {
+    uri: string;
+    title: string;
+    artist: string;
+    imageUrl: string | null;
+};
+
+/** A track picked for a scheduled preset to start with, rather than wherever the shuffle lands. */
+export type SpotifyStartTrack = {
+    /** The album/playlist it's on. */
+    contextUri: string;
+    uri: string;
+    title: string;
+    artist: string;
+};
+
 /** Server-wide Spotify state, shared by every mixer client. */
 export type SpotifyModel = {
     /** Server has SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET. */
@@ -31,6 +48,8 @@ export type SpotifyModel = {
     adaptivePresetSilent: boolean;
     /** The preset to switch to at the next change of the games' phase, if one's been picked. */
     scheduledPresetId: string | null;
+    /** The track that preset starts with, if one's been picked (when the phase it switches at plays that list). */
+    scheduledStartTrack: SpotifyStartTrack | null;
     /** Whether the music player has taken over since this last started something, so what's loaded here isn't the selected preset. */
     handedOver: boolean;
 };
@@ -44,4 +63,6 @@ export type SpotifyControlAction =
     | { action: 'playAdaptivePreset', presetId: string }
     /** Switches to the preset at the next change of the games' phase (null cancels). */
     | { action: 'schedulePreset', presetId: string | null }
+    /** Has the scheduled preset start with this track of one of its lists (null: wherever the shuffle lands). */
+    | { action: 'scheduleStartTrack', start: { contextUri: string, uri: string } | null }
     | { action: 'volume', volume: number };

@@ -1,8 +1,8 @@
 <script lang="ts">
     import type { AudioDim } from "$lib/audio/client/AudioDim.svelte";
     import { DEFAULT_DIM_AMOUNT_DB } from "$lib/audio/common/model/audioDimModel";
-    import { TIMES_OF_DAY } from "$lib/model/client/types";
-    import type { RemoteMusic } from "./remoteMusic.svelte";
+    import { TIME_OF_DAY_LABELS, TIMES_OF_DAY, type TimeOfDay } from "$lib/model/client/types";
+    import type { RemoteMusic, StartTrackList } from "./remoteMusic.svelte";
     import MusicArt from "./MusicArt.svelte";
 
     /** The remote's music view: what's playing, full transport and volume, and the music and Spotify presets as one list. */
@@ -35,6 +35,43 @@
     const currentPreset = $derived(presets.find(p => p.pending) ?? presets.find(p => p.current && p.source === nowPlaying?.source) ?? presets.find(p => p.current));
     const scheduledPreset = $derived(presets.find(p => p.scheduled));
     let pickingPreset = $state(false);
+
+    // The track the waiting preset starts with: picked from its playlists' tracks, listed as the sheet opens
+    const scheduledStart = $derived(music.scheduledStart);
+    let pickingStart = $state(false);
+    let startLists = $state<StartTrackList[] | null>(null);
+    let startFilter = $state('');
+    /** Bumped for each opening, so a slow listing from an earlier one is dropped. */
+    let startLoad = 0;
+    /** A list long enough to scroll through gets a search box. */
+    const SEARCH_FROM_TRACKS = 12;
+
+    async function openStartPicker() {
+        pickingStart = true;
+        startLists = null;
+        startFilter = '';
+        const load = ++startLoad;
+        const lists = await music.loadStartTrackLists();
+        if (load === startLoad) startLists = lists;
+    }
+
+    function pickStart(start: { listKey: string, trackId: string } | null) {
+        music.pickStartTrack(start);
+        pickingStart = false;
+    }
+
+    // Nothing to pick a start for any more (the phase changed, or the preset was cancelled)
+    $effect(() => { if (!music.canPickStart) pickingStart = false; });
+
+    const filteredStartLists = $derived.by(() => {
+        const words = startFilter.trim().toLowerCase().split(/\s+/).filter(w => w);
+        if (!startLists || words.length === 0) return startLists;
+        return startLists.map(l => ({ ...l, tracks: l.tracks.filter(t => words.every(w => `${t.title} ${t.artist}`.toLowerCase().includes(w))) }));
+    });
+
+    function phaseList(phases: TimeOfDay[]) {
+        return phases.map(p => TIME_OF_DAY_LABELS[p]).join(', ');
+    }
 
     function presetStatus(preset: typeof presets[number]): string {
         if (preset.pending) return 'Loading…';
@@ -73,6 +110,21 @@
         </span>
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
     </button>
+
+    {#if music.canPickStart}
+    <button class="start-picker-btn" class:picked={scheduledStart} onclick={openStartPicker} aria-haspopup="dialog">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            {#if scheduledStart}
+            <path d="M5 4l12 8-12 8z"/><path d="M20 4v16"/>
+            {:else}
+            <path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/>
+            {/if}
+        </svg>
+        <span class="start-picker-text">
+            Starts with <b>{scheduledStart ? scheduledStart.title : 'a shuffled track'}</b>{#if scheduledStart?.phases}<span class="start-picker-phases"> · if {phaseList(scheduledStart.phases).toLowerCase()}</span>{/if}
+        </span>
+    </button>
+    {/if}
 
     <div class="hero">
         <MusicArt imageUrl={nowPlaying?.imageUrl ?? null} source={nowPlaying?.source ?? null} size={180}/>
@@ -127,6 +179,62 @@
     {#if music.error}<div class="error">{music.error}</div>{/if}
 
 </div>
+
+{#if pickingStart}
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<div class="sheet-backdrop" onclick={() => pickingStart = false} role="presentation">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="sheet" onclick={(e) => e.stopPropagation()} role="dialog" aria-label="First track" tabindex="-1">
+        <div class="sheet-header">
+            <h3>First track</h3>
+            <button class="sheet-close" onclick={() => pickingStart = false} aria-label="Close">✕</button>
+        </div>
+        <div class="hint">{scheduledPreset?.name ?? 'The next preset'} starts with this at the next phase, then shuffles</div>
+        {#if startLists && startLists.reduce((n, l) => n + l.tracks.length, 0) > SEARCH_FROM_TRACKS}
+        <input class="track-search" type="search" placeholder="Search tracks" aria-label="Search tracks" bind:value={startFilter}/>
+        {/if}
+        <div class="sheet-body">
+            <button class="track" class:chosen={!scheduledStart} onclick={() => pickStart(null)}>
+                <span class="track-shuffle" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
+                </span>
+                <span class="track-text"><span class="track-title">Shuffle</span><span class="track-artist">Whatever comes up next</span></span>
+            </button>
+            {#if !filteredStartLists}
+            <div class="empty">Loading tracks…</div>
+            {:else}
+            {#each filteredStartLists as list (list.key)}
+            {#if list.phases || filteredStartLists.length > 1}
+            <div class="list-header">
+                <span class="list-name">{list.name}</span>
+                {#if list.phases}<span class="list-phases">{phaseList(list.phases)}</span>{/if}
+            </div>
+            {/if}
+            {#if list.error}
+            <div class="empty">{list.error}</div>
+            {:else if list.tracks.length === 0}
+            <div class="empty">{startFilter.trim() ? 'No tracks match' : 'No tracks'}</div>
+            {:else}
+            <div class="tracks">
+                {#each list.tracks as track (track.id)}
+                {@const chosen = scheduledStart?.listKey === list.key && scheduledStart.trackId === track.id}
+                <button class="track" class:chosen onclick={() => pickStart({ listKey: list.key, trackId: track.id })}>
+                    <MusicArt imageUrl={track.imageUrl} source={null} size={36}/>
+                    <span class="track-text">
+                        <span class="track-title">{track.title}</span>
+                        {#if track.artist}<span class="track-artist">{track.artist}</span>{/if}
+                    </span>
+                    {#if chosen}<span class="preset-status">First</span>{/if}
+                </button>
+                {/each}
+            </div>
+            {/if}
+            {/each}
+            {/if}
+        </div>
+    </div>
+</div>
+{/if}
 
 {#if pickingPreset}
 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -278,6 +386,146 @@
     .preset-picker-next {
         font-size: 0.75em;
         color: #fc6;
+    }
+
+    /* What the waiting preset starts with, under the preset button, in the waiting colour once one's picked */
+    .start-picker-btn {
+        align-self: center;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        max-width: 100%;
+        box-sizing: border-box;
+        margin-top: -6px;
+        padding: 4px 12px;
+        border: none;
+        border-radius: 999px;
+        background: none;
+        color: inherit;
+        font: inherit;
+        font-size: 0.75em;
+        opacity: 0.75;
+        cursor: pointer;
+    }
+
+    .start-picker-btn:hover {
+        background: rgba(255, 255, 255, 0.08);
+        opacity: 1;
+    }
+
+    .start-picker-btn.picked {
+        color: #fc6;
+        opacity: 1;
+    }
+
+    .start-picker-btn svg {
+        flex: none;
+    }
+
+    .start-picker-text {
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .start-picker-phases {
+        opacity: 0.75;
+    }
+
+    .track-search {
+        margin-bottom: 8px;
+        padding: 8px 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.06);
+        color: inherit;
+        font: inherit;
+        font-size: 0.9em;
+    }
+
+    .list-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: 4px;
+        font-size: 0.8em;
+        font-weight: 600;
+    }
+
+    .list-phases {
+        flex: none;
+        font-weight: normal;
+        opacity: 0.6;
+    }
+
+    .tracks {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .track {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 6px 12px 6px 6px;
+        border: none;
+        border-radius: 10px;
+        background: none;
+        color: inherit;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .track:hover {
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .track.chosen {
+        box-shadow: inset 0 0 0 2px #fc6;
+    }
+
+    .track.chosen .preset-status {
+        color: #fc6;
+        opacity: 1;
+    }
+
+    .track-shuffle {
+        flex: none;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 4px;
+        background: #3a3a44;
+    }
+
+    .track-shuffle svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .track-text {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        font-size: 0.9em;
+    }
+
+    .track-title, .track-artist {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .track-artist {
+        font-size: 0.8em;
+        opacity: 0.6;
     }
 
     .sheet-backdrop {

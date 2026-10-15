@@ -429,6 +429,8 @@ export class MusicPlayer {
     playPreset(presetId: string) { this.control({ action: 'playPreset', presetId }); }
     /** Switches to a preset at the next change of the games' phase rather than now (null cancels). */
     schedulePreset(presetId: string | null) { this.control({ action: 'schedulePreset', presetId }); }
+    /** Has the scheduled preset start with this track of one of its playlists (null: the next in its shuffle). */
+    scheduleStartTrack(start: { playlistId: string, trackId: string } | null) { this.control({ action: 'scheduleStartTrack', start }); }
 
     /** @param gain Linear. Rapid calls (a fader drag) are coalesced. */
     setGain(gain: number) {
