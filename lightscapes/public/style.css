@@ -201,6 +201,8 @@ button:disabled { opacity: 0.5; cursor: default; }
 .stops td { padding: 0.25rem 0.4rem; vertical-align: middle; }
 .stops td.brightness { display: flex; align-items: center; gap: 0.4rem; }
 .stops td.color { display: flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+.stops td.color .brightness { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--muted); }
+.stops td.color .brightness input[type=range] { width: 7rem; }
 .stops td.brightness input { flex: 1; min-width: 5rem; }
 
 .targets { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; margin: 0.25rem 0 1rem; }

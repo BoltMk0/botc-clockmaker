@@ -1,6 +1,6 @@
 // The configuration page. Edits a working copy of the configuration, saved as a whole with the save bar.
 
-import { hexToMireds, miredsToHex } from './whites.js';
+import { COOLEST, WARMEST, hexToMireds, miredsToHex } from './whites.js';
 
 const PHASES = ['morning', 'day', 'dusk', 'night'];
 const PHASE_LABELS = { morning: 'Morning', day: 'Day', dusk: 'Dusk', night: 'Night' };
@@ -306,7 +306,7 @@ function renderPhases() {
 
 /** A spectrum stop's colour as the lights show it: its white's, if it's white. */
 function shownHex(stop) {
-    return stop.white ? miredsToHex(hexToMireds(stop.hex)) : stop.hex;
+    return stop.white ? miredsToHex(stop.mireds) : stop.hex;
 }
 
 function gradientCss(stops) {
@@ -360,7 +360,8 @@ function renderSpectrum() {
             h('thead', {}, h('tr', {}, h('th', {}, 'At'), h('th', {}, 'Colour'), h('th', {}, 'Brightness'), h('th', {}))),
             h('tbody', {}, stops.map((stop, i) => {
                 const brightness = h('span', { class: 'value' }, `${Math.round(stop.brightness / 254 * 100)}%`);
-                const whiteValue = h('span', { class: 'value' }, stop.white ? `${kelvin(hexToMireds(stop.hex))}K` : '');
+                const tempValue = h('span', { class: 'value' }, `${kelvin(stop.mireds)}K`);
+                const gradient = () => document.getElementById('gradient').style.background = gradientCss(stops);
                 return h('tr', {},
                     h('td', {}, h('input', {
                         type: 'number', min: 0, max: 100, step: 1, value: Math.round(stop.at * 1000) / 10,
@@ -373,20 +374,31 @@ function renderSpectrum() {
                     }), ' %'),
                     h('td', { class: 'color' },
                         h('select', {
-                            title: 'White uses the bulbs\' white light, at the temperature nearest the colour',
-                            onchange: e => { stop.white = e.target.value === 'white'; changed(); renderSpectrum(); }
-                        }, option('white', 'White', stop.white ? 'white' : 'rgb'), option('rgb', 'Colour', stop.white ? 'white' : 'rgb')),
-                        h('input', {
-                            type: 'color', value: stop.hex,
-                            title: stop.white ? 'The white nearest this colour is used' : 'Colour',
-                            oninput: e => {
-                                stop.hex = e.target.value;
-                                document.getElementById('gradient').style.background = gradientCss(stops);
-                                if (stop.white) whiteValue.textContent = `${kelvin(hexToMireds(stop.hex))}K`;
+                            title: 'White uses the bulbs\' white light',
+                            onchange: e => {
+                                stop.white = e.target.value === 'white';
+                                // Starting from the white nearest the colour
+                                if (stop.white) stop.mireds = hexToMireds(stop.hex);
                                 changed();
+                                renderSpectrum();
                             }
-                        }),
-                        whiteValue
+                        }, option('white', 'White', stop.white ? 'white' : 'rgb'), option('rgb', 'Colour', stop.white ? 'white' : 'rgb')),
+                        stop.white ? h('span', { class: 'brightness', title: 'Colour temperature: warm to cool' },
+                            h('input', {
+                                type: 'range', min: COOLEST, max: WARMEST, value: COOLEST + WARMEST - stop.mireds,
+                                // Reversed, so the slider goes warm (left) to cool (right)
+                                oninput: e => {
+                                    stop.mireds = COOLEST + WARMEST - Number(e.target.value);
+                                    tempValue.textContent = `${kelvin(stop.mireds)}K`;
+                                    gradient();
+                                    changed();
+                                }
+                            }),
+                            tempValue
+                        ) : h('input', {
+                            type: 'color', value: stop.hex,
+                            oninput: e => { stop.hex = e.target.value; gradient(); changed(); }
+                        })
                     ),
                     h('td', { class: 'brightness' }, h('input', {
                         type: 'range', min: 1, max: 254, value: stop.brightness,
@@ -414,7 +426,7 @@ function renderSpectrum() {
                         if (points[i + 1] - points[i] > widest) { widest = points[i + 1] - points[i]; at = (points[i] + points[i + 1]) / 2; }
                     }
                     const near = stops.reduce((best, s) => !best || Math.abs(s.at - at) < Math.abs(best.at - at) ? s : best, null);
-                    stops.push({ at: Math.round(at * 1000) / 1000, hex: near?.hex ?? '#ffffff', brightness: near?.brightness ?? 254, white: near?.white ?? true });
+                    stops.push({ at: Math.round(at * 1000) / 1000, hex: near?.hex ?? '#ffffff', brightness: near?.brightness ?? 254, white: near?.white ?? true, mireds: near?.mireds ?? 370 });
                     stops.sort((a, b) => a.at - b.at);
                     changed();
                     renderSpectrum();

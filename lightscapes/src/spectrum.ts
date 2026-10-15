@@ -18,11 +18,11 @@ export type SpectrumColor = { hex: string; brightness: number; mireds: number | 
 
 /** A stop's colour as the lights show it: its white's, if it's white. */
 function shown(stop: SpectrumStop): string {
-    return stop.white ? miredsToHex(hexToMireds(stop.hex)) : stop.hex;
+    return stop.white ? miredsToHex(stop.mireds) : stop.hex;
 }
 
 function atStop(stop: SpectrumStop): SpectrumColor {
-    return { hex: shown(stop), brightness: stop.brightness, mireds: stop.white ? hexToMireds(stop.hex) : null };
+    return { hex: shown(stop), brightness: stop.brightness, mireds: stop.white ? stop.mireds : null };
 }
 
 /**
@@ -44,8 +44,7 @@ export function spectrumAt(stops: readonly SpectrumStop[], progress: number): Sp
     const t = upper.at === lower.at ? 1 : (p - lower.at) / (upper.at - lower.at);
     const brightness = Math.round(lower.brightness + (upper.brightness - lower.brightness) * t);
     if(lower.white && upper.white){
-        const a = hexToMireds(lower.hex);
-        const mireds = Math.round(a + (hexToMireds(upper.hex) - a) * t);
+        const mireds = Math.round(lower.mireds + (upper.mireds - lower.mireds) * t);
         return { hex: miredsToHex(mireds), brightness, mireds };
     }
     const a = hexToRgb(shown(lower));
@@ -66,6 +65,7 @@ export function townSquareSpectrum(): SpectrumStop[] {
         at: point.progress,
         hex: rgbToHex(point),
         brightness: Math.max(1, Math.round(Math.max(point.r, point.g, point.b) / 255 * 254)),
-        white: true
+        white: true,
+        mireds: hexToMireds(rgbToHex(point))
     }));
 }

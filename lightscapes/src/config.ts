@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { join } from "node:path";
 import { TIMES_OF_DAY, type TimeOfDay } from "../../src/lib/model/client/types.ts";
 import { ENV } from "./env.ts";
+import { hexToMireds } from "../public/whites.js";
 
 /** What a light (or group) is set to. Anything left out is left as it is. */
 export type LightState = {
@@ -22,8 +23,10 @@ export type SpectrumStop = {
     hex: string;
     /** 1-254 */
     brightness: number;
-    /** Use the bulbs' white light, at the colour temperature nearest `hex`, rather than the colour itself. */
+    /** Use the bulbs' white light, at `mireds`, rather than the colour. */
     white: boolean;
+    /** The white's colour temperature. Kept when it's a colour, as `hex` is when it's white, for switching back. */
+    mireds: number;
 };
 
 /** The colours the day's lights fade through as the countdown runs, as the town square's sky does. */
@@ -171,11 +174,14 @@ export function normalizeConfig(value: unknown): Config {
         config.spectrum.stops = arr(spectrum.stops ?? [], 'spectrum.stops').map((stop, i) => {
             const path = `spectrum.stops[${i}]`;
             if(!isObject(stop)) fail(path, 'should be a colour stop');
+            const color = hex(stop.hex, `${path}.hex`);
             return {
                 at: num(stop.at, `${path}.at`, 0, 1),
-                hex: hex(stop.hex, `${path}.hex`),
+                hex: color,
                 brightness: Math.round(num(stop.brightness, `${path}.brightness`, 1, 254)),
-                white: stop.white !== false
+                white: stop.white !== false,
+                // Stops saved before they had one get the white nearest their colour
+                mireds: stop.mireds === undefined ? hexToMireds(color) : Math.round(num(stop.mireds, `${path}.mireds`, 50, 1000))
             };
         }).sort((a, b) => a.at - b.at);
         if(spectrum.intervalSeconds !== undefined) config.spectrum.intervalSeconds = num(spectrum.intervalSeconds, 'spectrum.intervalSeconds', 1, 300);

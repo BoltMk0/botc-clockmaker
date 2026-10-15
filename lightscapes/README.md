@@ -3,7 +3,7 @@
 Zigbee lighting for Clockmaker. Lightscapes follows one game's day cycle and sets your Zigbee lights to match:
 
 - a **scene** for each phase (morning, day, dusk and night)
-- a **day spectrum** that fades through the town square's sky colours as the countdown runs, each in the bulbs' white light (the nearest colour temperature) or in full colour
+- a **day spectrum** that fades through the town square's sky colours as the countdown runs, each a white (a colour temperature, on the bulbs' white light) or a colour
 - **flashes** when the bells ring
 
 It also turns Zigbee buttons into a clock remote.
