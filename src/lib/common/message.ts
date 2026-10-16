@@ -50,15 +50,27 @@ export function isMessagePresetList(data: any): data is MessagePreset[] {
     return Array.isArray(data) && data.every(isMessagePreset);
 }
 
-// Splits text into plain and bold parts: text between a pair of asterisks, as in *this*, is bold.
-export function boldParts(text: string): { text: string; bold: boolean }[] {
-    const parts: { text: string; bold: boolean }[] = [];
+export type MessageTextPart = { text: string; bold: boolean; alignment: 'good' | 'evil' | null };
+
+// Splits text into the parts it's shown in: text between a pair of asterisks, as in *this*, is bold, and the words
+// "good" and "evil" (in any case) are coloured as their alignment.
+export function messageTextParts(text: string): MessageTextPart[] {
+    const parts: MessageTextPart[] = [];
     let last = 0;
+    const addPlain = (plain: string, bold: boolean) => {
+        let lastWord = 0;
+        for (const match of plain.matchAll(/\b(good|evil)\b/gi)) {
+            if (match.index > lastWord) parts.push({ text: plain.slice(lastWord, match.index), bold, alignment: null });
+            parts.push({ text: match[0], bold, alignment: match[0].toLowerCase() as 'good' | 'evil' });
+            lastWord = match.index + match[0].length;
+        }
+        if (lastWord < plain.length) parts.push({ text: plain.slice(lastWord), bold, alignment: null });
+    };
     for (const match of text.matchAll(/\*([^*]+)\*/g)) {
-        if (match.index > last) parts.push({ text: text.slice(last, match.index), bold: false });
-        parts.push({ text: match[1], bold: true });
+        if (match.index > last) addPlain(text.slice(last, match.index), false);
+        addPlain(match[1], true);
         last = match.index + match[0].length;
     }
-    if (last < text.length) parts.push({ text: text.slice(last), bold: false });
+    if (last < text.length) addPlain(text.slice(last), false);
     return parts;
 }

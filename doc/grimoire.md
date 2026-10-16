@@ -137,7 +137,8 @@ In the builder, **✕** removes an element, tapping a row of characters changes 
 it between good and evil.
 
 **Back**, top left, goes back a step, and closes communications from the tabs. In any text, put asterisks round
-words to make them bold: *"You are \*drunk\*"* shows *"You are **drunk**"*.
+words to make them bold and underlined: *"You are \*drunk\*"* shows *"You are **drunk**"*. The words *good* and *evil* are
+shown in blue and red.
 
 ## The sidebar
 
