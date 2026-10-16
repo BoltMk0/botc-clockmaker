@@ -35,6 +35,21 @@ export function isMessageElement(data: any): data is MessageElement {
     return false;
 }
 
+// A ready-made message, set up in settings and shown from the grim's communications in one tap.
+export type MessagePreset = {
+    name: string;
+    elements: MessageElement[];
+};
+
+export function isMessagePreset(data: any): data is MessagePreset {
+    return typeof data === 'object' && data !== null && typeof data.name === 'string' &&
+        Array.isArray(data.elements) && data.elements.every(isMessageElement);
+}
+
+export function isMessagePresetList(data: any): data is MessagePreset[] {
+    return Array.isArray(data) && data.every(isMessagePreset);
+}
+
 // Splits text into plain and bold parts: text between a pair of asterisks, as in *this*, is bold.
 export function boldParts(text: string): { text: string; bold: boolean }[] {
     const parts: { text: string; bold: boolean }[] = [];

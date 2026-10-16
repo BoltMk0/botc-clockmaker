@@ -110,26 +110,34 @@ Hide or show the clock with the clock button in the sidebar.
 
 ## Communications: showing things to players
 
-The **Communications** button (speech bubble) in the sidebar opens the message builder, empty each time. Put
-together what you want to show a player from any number of **elements**, then press **Show**: they're drawn top to
-bottom on a clean full-screen page in large type to hold up; **✕** returns to the grim.
+The **Communications** button (speech bubble) in the sidebar opens two tabs of things to show a player. Each is shown
+on a clean full-screen page in large type to hold up; **✕** returns to the grim.
+
+### Preset
+
+Your [message presets](settings/communications.md#presets), each shown in one tap. **Bluffs** shows your bluff set (pick
+which, if there are several). With none yet, it lets you create one: choose at least three characters and press
+**Add bluff set**.
+
+### Custom
+
+A message builder, empty each time. Put together what you want to show from any number of **elements**, then press
+**Show**: they're drawn top to bottom. Tick **Save as a preset** above **Show** to add the message to your presets as
+well, under the name you give it (its first text, if you don't).
 
 Tap **Add element** (the dashed box), then choose:
 
 | Element | Shows |
 | --- | --- |
-| **Text** | A line of text. Pick one from the list — each is shown in its style: a **Header** large, in the title font, or **Text** smaller. The list is set in [Settings → Message Texts](settings/message-texts.md). **Custom…** writes a new one: choose its style, type the text, and tick **Save as a text option** to keep it in the list for next time (it's off by default). |
+| **Text** | A line of text. Pick one from the list — each is shown in its style: a **Header** large, in the title font, or **Text** smaller. The list is set in [Settings → Communications → Texts](settings/communications.md#texts). **Custom…** writes a new one: choose its style, type the text, and tick **Save as a text option** to keep it in the list for next time (it's off by default). |
 | **Character** | A row of character tokens. Pick as many as you like (tap again to unpick), laid out as in the token tray: those in play, then the script (faded if on the board), then travellers, loric and fabled. |
 | **Alignment** | A blue **GOOD** or a red **EVIL** — choose which. |
 
 In the builder, **✕** removes an element, tapping a row of characters changes them, and tapping an alignment switches
 it between good and evil.
 
-**Back**, top left, goes back a step, and closes the builder from the builder itself. In any text, put asterisks round
+**Back**, top left, goes back a step, and closes communications from the tabs. In any text, put asterisks round
 words to make them bold: *"You are \*drunk\*"* shows *"You are **drunk**"*.
-
-**Bluffs** shows your bluff set (pick which, if there are several). With none yet, it lets you create one: choose at
-least three characters and press **Add bluff set**.
 
 ## The sidebar
 

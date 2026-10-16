@@ -1,9 +1,9 @@
 <script lang="ts">
     import { fetchScriptWithSideCharacters } from "$lib/resources/client/scriptWithSideCharacters";
-    import { TEXT_STYLES, type MessageElement, type TextOption } from "$lib/common/message";
+    import type { MessageElement, MessagePreset, TextOption } from "$lib/common/message";
     import { alignmentForCategory, bluffSetsOf, ALL_CHARACTER_CATEGORIES, type Character, type CharacterCategory, type ReminderToken, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
-    import MessageText from "$lib/components/MessageText.svelte";
+    import MessageBuilder, { type MessageBuilderView } from "$lib/components/MessageBuilder.svelte";
     import ReminderTokenView from "$lib/components/ReminderTokenView.svelte";
     import { fetchReminderTokensForCharacter } from "$lib/resources/client/reminderTokens.js";
     import { browser } from "$app/environment";
@@ -682,110 +682,67 @@
         goto(`/admin/${data.clockid}/grim/bluffs?set=${setIndex}`);
     }
 
-    // Communications overlay: null when closed. 'builder' is the message being put together; 'text', 'customText'
-    // and 'character' add (or change) one of its elements; 'bluffs' picks between several bluff sets.
-    let commsView = $state<'builder' | 'text' | 'customText' | 'character' | 'bluffs' | null>(null);
+    // Communications overlay: null when closed, 'main' for its Preset and Custom tabs, and 'bluffs' to pick between
+    // several bluff sets.
+    let commsView = $state<'main' | 'bluffs' | null>(null);
+    let commsTab = $state<'preset' | 'custom'>('preset');
 
-    // The message being built, shown top to bottom on the message page (see grim/message/+page.svelte).
+    // The custom message being built, and which of the builder's screens is showing.
     let messageElements = $state<MessageElement[]>([]);
-    // What the "Add element" box shows: itself, the element types, or the two alignments.
-    let addElementStep = $state<'closed' | 'type' | 'alignment'>('closed');
+    let builderView = $state<MessageBuilderView>('builder');
+    let builder = $state<MessageBuilder>();
 
     // svelte-ignore state_referenced_locally
     let textOptions = $state<TextOption[]>(data.textOptions);
+    // svelte-ignore state_referenced_locally
+    let messagePresets = $state<MessagePreset[]>(data.messagePresets);
+
+    // Whether to add the custom message to the presets when it's shown, and under what name.
+    let saveAsPreset = $state(false);
+    let presetName = $state('');
+    const defaultPresetName = $derived(
+        messageElements.find((e): e is MessageElement & { type: 'text' } => e.type === 'text')?.value.replaceAll('*', '').trim() || 'Custom message'
+    );
 
     function openComms() {
         messageElements = [];
-        addElementStep = 'closed';
-        commsView = 'builder';
+        builderView = 'builder';
+        saveAsPreset = false;
+        presetName = '';
+        commsView = 'main';
     }
 
-    // Back from the builder closes communications; from custom text it returns to the text list, and from the others to the builder.
-    function commsBack() {
-        if (commsView === 'builder') commsView = null;
-        else if (commsView === 'customText') commsView = 'text';
-        else {
-            addElementStep = 'closed';
-            commsView = 'builder';
-        }
+    async function showCustomMessage() {
+        const elements = $state.snapshot(messageElements);
+        if (saveAsPreset) await savePreset({ name: presetName.trim() || defaultPresetName, elements });
+        showMessage(elements);
     }
 
-    function addElement(element: MessageElement) {
-        messageElements.push(element);
-        addElementStep = 'closed';
-        commsView = 'builder';
-    }
-
-    function toggleElementAlignment(elementIndex: number) {
-        const element = messageElements[elementIndex];
-        if (element.type === 'alignment') element.value = element.value === 'good' ? 'evil' : 'good';
-    }
-
-    // The custom text being written, and whether to keep it as a text option for next time.
-    let customText = $state<TextOption>({ text: '', style: 'Header' });
-    let saveCustomText = $state(false);
-
-    function openCustomText() {
-        customText = { text: '', style: 'Header' };
-        saveCustomText = false;
-        commsView = 'customText';
-    }
-
-    async function addCustomText() {
-        const option: TextOption = { text: customText.text.trim(), style: customText.style };
-        if (!option.text) return;
-        addElement({ type: 'text', value: option.text, style: option.style });
-        if (saveCustomText) await saveTextOption(option);
-    }
-
-    // Adds to the saved text options as they are now, so as not to undo changes made in settings since this page loaded.
-    async function saveTextOption(option: TextOption) {
+    // Adds to the saved presets as they are now, so as not to undo changes made in settings since this page loaded.
+    async function savePreset(preset: MessagePreset) {
         try {
-            const current = await fetch('/api/textOptions').then(r => {
+            const current = await fetch('/api/messagePresets').then(r => {
                 if (!r.ok) throw new Error(`${r.status}`);
-                return r.json() as Promise<TextOption[]>;
+                return r.json() as Promise<MessagePreset[]>;
             });
-            if (current.some(o => o.text === option.text && o.style === option.style)) {
-                textOptions = current;
-                return;
-            }
-            const updated = [...current, option];
-            const res = await fetch('/api/textOptions', {
+            const updated = [...current, preset];
+            const res = await fetch('/api/messagePresets', {
                 method: 'POST',
                 body: JSON.stringify(updated),
                 headers: { 'Content-Type': 'application/json' }
             });
             if (!res.ok) throw new Error(`${res.status}`);
-            textOptions = updated;
+            messagePresets = updated;
         } catch {
-            alert('Failed to save the text option');
+            alert('Failed to save the preset');
         }
     }
 
-    // The characters picked so far for a character element, and the element they replace (null to add a new one).
-    let pickedCharacterIds = $state<string[]>([]);
-    let editingElementIndex = $state<number | null>(null);
-
-    function openCharacterPicker(elementIndex: number | null) {
-        const element = elementIndex === null ? null : messageElements[elementIndex];
-        pickedCharacterIds = element?.type === 'character' ? [...element.value] : [];
-        editingElementIndex = elementIndex;
-        commsView = 'character';
-    }
-
-    function togglePickedCharacter(characterId: string) {
-        if (pickedCharacterIds.includes(characterId)) pickedCharacterIds = pickedCharacterIds.filter(id => id !== characterId);
-        else pickedCharacterIds = [...pickedCharacterIds, characterId];
-    }
-
-    function finishCharacterPicker() {
-        const element: MessageElement = { type: 'character', value: pickedCharacterIds };
-        if (editingElementIndex === null) {
-            addElement(element);
-        } else {
-            messageElements[editingElementIndex] = element;
-            commsView = 'builder';
-        }
+    // Back goes back a step in the builder or from the bluff sets, and otherwise closes communications.
+    function commsBack() {
+        if (commsView === 'bluffs') commsView = 'main';
+        else if (commsTab === 'custom' && builder?.back()) return;
+        else commsView = null;
     }
 
     async function showMessage(elements: MessageElement[]) {
@@ -1453,7 +1410,7 @@
     }
 
     /* The tab bar from the music settings */
-    .night-sheet-tabs {
+    .overlay-tabs {
         display: flex;
         align-items: center;
         gap: 0.25rem;
@@ -1461,7 +1418,7 @@
         border-bottom: 1px solid var(--theme-bg-tertiary);
     }
 
-    .night-sheet-tabs > button[role="tab"] {
+    .overlay-tabs > button[role="tab"] {
         flex: 1;
         padding: 0.6em 0.3em;
         font-size: 1rem;
@@ -1475,19 +1432,19 @@
         cursor: pointer;
     }
 
-    .night-sheet-tabs > button[role="tab"]:hover {
+    .overlay-tabs > button[role="tab"]:hover {
         opacity: 1;
         background-color: var(--theme-bg-tertiary);
     }
 
-    .night-sheet-tabs > button[role="tab"].selected {
+    .overlay-tabs > button[role="tab"].selected {
         opacity: 1;
         border-bottom-color: var(--theme-highlight);
         font-weight: bold;
     }
 
     /* In line with the tabs rather than in the corner */
-    .night-sheet-tabs > .overlay-close {
+    .overlay-tabs > .overlay-close {
         position: static;
         flex-shrink: 0;
         margin-left: 0.25rem;
@@ -1571,15 +1528,6 @@
         opacity: 0.85;
     }
 
-    .overlay-panel.comms-panel .comms-input {
-        width: 100%;
-        box-sizing: border-box;
-        padding: 0.7em;
-        font-size: 1.1em;
-        font-family: inherit;
-        flex-shrink: 0;
-    }
-
     .overlay-panel.comms-panel > button.button-style {
         width: 100%;
         flex-shrink: 0;
@@ -1608,168 +1556,35 @@
         fill: currentColor;
     }
 
-    .overlay-panel.comms-panel > .message-elements,
-    .overlay-panel.comms-panel > .text-options {
+    .comms-tabs {
         width: 100%;
+        margin-bottom: 0.5em;
+    }
+
+    .comms-empty {
+        opacity: 0.6;
+    }
+
+    .save-preset {
+        width: 100%;
+        margin-top: 1.2em;
         display: flex;
         flex-direction: column;
-        gap: 0.6em;
-    }
-
-    .message-element {
-        display: flex;
-        align-items: center;
+        align-items: flex-start;
         gap: 0.5em;
-        padding: 0.6em;
-        border-radius: 0.6em;
-        background: var(--theme-bg);
     }
 
-    .element-body {
-        flex: 1;
-        min-width: 0;
-        text-align: center;
-    }
-
-    /* Text in its style, as on the message page but smaller */
-    .text-preview, .text-option {
-        font-size: 1em;
-        white-space: pre-line;
-        overflow-wrap: anywhere;
-    }
-
-    .text-preview.header, .text-option.header {
-        font-size: 1.6em;
-    }
-
-    .element-tokens {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 0.4em;
-        cursor: pointer;
-    }
-
-    .alignment-preview {
-        font-size: 1.8em;
-        font-weight: bold;
-        letter-spacing: 0.08em;
-        cursor: pointer;
-    }
-
-    .alignment-preview.good {
-        color: #558bdf;
-    }
-
-    .alignment-preview.evil {
-        color: #ca4444;
-    }
-
-    .overlay-panel .button-style.alignment-choice {
-        font-size: 1.3em;
-        font-weight: bold;
-        color: #fff;
-    }
-
-    .alignment-choice.good {
-        background-color: #2563eb;
-    }
-
-    .alignment-choice.evil {
-        background-color: #b63737;
-    }
-
-    .remove-element {
-        flex-shrink: 0;
-        width: 1.8em;
-        height: 1.8em;
-        border-radius: 50%;
+    .save-preset label {
         display: flex;
         align-items: center;
-        justify-content: center;
-        background: rgba(0, 0, 0, 0.35);
-        color: inherit;
+        gap: 0.4em;
     }
 
-    /* The dashed "Add element" box, and the element types shown in its place */
-    button.add-element, button.element-type {
+    .save-preset .preset-name {
+        width: 100%;
         box-sizing: border-box;
-        padding: 2em 1em;
-        text-align: center;
-        border: 2px dashed currentColor;
-        border-radius: 0.6em;
-        opacity: 0.7;
-    }
-
-    button.add-element {
-        width: 100%;
-    }
-
-    button.add-element:hover, button.element-type:hover {
-        opacity: 1;
-    }
-
-    button.element-type:disabled {
-        opacity: 0.3;
-        cursor: not-allowed;
-    }
-
-    .add-element.choices {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-wrap: wrap;
-        gap: 0.5em;
-    }
-
-    .add-element.choices > button.element-type {
-        flex: 1;
-    }
-
-    /* GOOD and EVIL, as tall as the element types they replace (their font is 1.3x) */
-    .overlay-panel .add-element.choices > .button-style {
-        flex: 1;
-        padding: calc(2em / 1.3) 12px;
-        border: 2px solid transparent;
-    }
-
-    .custom-text-submit {
-        width: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 1em;
-    }
-
-    .custom-text-submit label {
-        display: flex;
-        align-items: center;
-        gap: 0.4em;
-    }
-
-    .picker-section {
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        gap: 0.4em;
-    }
-
-    /* Keeps the picker's buttons in reach below a long list of characters */
-    .comms-actions {
-        position: sticky;
-        /* Down over the panel's bottom padding, so nothing scrolls by beneath it */
-        bottom: -1.2em;
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        gap: 0.7em;
-        padding: 0.7em 0 1.2em;
-        background: var(--theme-bg-secondary);
-    }
-
-    .comms-actions > .button-style {
-        width: 100%;
+        padding: 0.7em;
+        font-size: 1.1em;
     }
 
     .overlay-close {
@@ -2752,7 +2567,7 @@
         <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 20};" onclick={() => nightOrderSheet = null}>
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <div class="overlay-panel night-sheet" onclick={(e) => e.stopPropagation()}>
-                <div class="night-sheet-tabs" role="tablist" aria-label="Night order">
+                <div class="overlay-tabs" role="tablist" aria-label="Night order">
                     <button role="tab" aria-selected={nightOrderSheet === 'first'} class:selected={nightOrderSheet === 'first'} onclick={() => nightOrderSheet = 'first'}>First night</button>
                     <button role="tab" aria-selected={nightOrderSheet === 'other'} class:selected={nightOrderSheet === 'other'} onclick={() => nightOrderSheet = 'other'}>Other nights</button>
                     <button class="overlay-close" onclick={() => nightOrderSheet = null} aria-label="Close">✕</button>
@@ -2803,99 +2618,50 @@
             </button>
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <div class="overlay-panel comms-panel" onclick={(e) => e.stopPropagation()}>
-                {#if commsView === 'builder'}
-                    <div class="overlay-name dumbledore-font">Communications</div>
-                    <div class="message-elements">
-                        {#each messageElements as element, elementIndex}
-                            <div class="message-element">
-                                {#if element.type === 'text'}
-                                    <div class="element-body text-preview" class:dumbledore-font={element.style === 'Header'} class:header={element.style === 'Header'}><MessageText text={element.value}/></div>
-                                {:else if element.type === 'character'}
-                                    <button class="no-button-style element-body element-tokens" title="Change characters" onclick={() => openCharacterPicker(elementIndex)}>
-                                        {#each element.value as characterId (characterId)}
-                                            {@const character = availableCharacters[characterId]}
-                                            {#if character}
-                                                <div style="position: relative; width: {trayTokenSize}px; height: {trayTokenSize}px;">
-                                                    <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" imageSize={TRAY_IMAGE_SIZE} norules/>
-                                                </div>
-                                            {/if}
-                                        {/each}
-                                    </button>
-                                {:else}
-                                    <button class="no-button-style element-body alignment-preview dumbledore-font {element.value}" title="Switch alignment" onclick={() => toggleElementAlignment(elementIndex)}>
-                                        {element.value === 'good' ? 'GOOD' : 'EVIL'}
-                                    </button>
-                                {/if}
-                                <button class="no-button-style remove-element" title="Remove" aria-label="Remove" onclick={() => messageElements.splice(elementIndex, 1)}>✕</button>
-                            </div>
-                        {/each}
-
-                        {#if addElementStep === 'type'}
-                            <div class="add-element choices">
-                                <button class="no-button-style element-type" onclick={() => commsView = 'text'}>Text</button>
-                                <button class="no-button-style element-type" disabled={!script} onclick={() => openCharacterPicker(null)}>Character</button>
-                                <button class="no-button-style element-type" onclick={() => addElementStep = 'alignment'}>Alignment</button>
-                                <button class="no-button-style remove-element" title="Cancel" aria-label="Cancel" onclick={() => addElementStep = 'closed'}>✕</button>
-                            </div>
-                        {:else if addElementStep === 'alignment'}
-                            <div class="add-element choices">
-                                <button class="button-style alignment-choice good dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'good' })}>GOOD</button>
-                                <button class="button-style alignment-choice evil dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'evil' })}>EVIL</button>
-                                <button class="no-button-style remove-element" title="Back" aria-label="Back" onclick={() => addElementStep = 'type'}>✕</button>
-                            </div>
-                        {:else}
-                            <button class="no-button-style add-element" onclick={() => addElementStep = 'type'}>Add element</button>
-                        {/if}
-                    </div>
-                    <button class="button-style highlight" style="margin-top: 1.2em;" disabled={messageElements.length === 0} onclick={() => showMessage(messageElements)}>Show</button>
-                    <button class="button-style" disabled={bluffSets.length === 0 && !(script && loadedPreset)} onclick={chooseBluffs}>
-                        {bluffSets.length === 0 ? 'Bluffs (create a bluff set)' : 'Bluffs'}
-                    </button>
-                {:else if commsView === 'text'}
-                    <div class="overlay-name dumbledore-font">Add text</div>
-                    <div class="text-options">
-                        {#each textOptions as option}
-                            <button class="button-style text-option" class:dumbledore-font={option.style === 'Header'} class:header={option.style === 'Header'} onclick={() => addElement({ type: 'text', value: option.text, style: option.style })}><MessageText text={option.text}/></button>
-                        {/each}
-                    </div>
-                    <button class="button-style" onclick={openCustomText}>Custom...</button>
-                {:else if commsView === 'customText'}
-                    <div class="overlay-name dumbledore-font">Custom text</div>
-                    <select class="comms-input" bind:value={customText.style} aria-label="Style">
-                        {#each TEXT_STYLES as style}
-                            <option value={style}>{style}</option>
-                        {/each}
-                    </select>
-                    <!-- svelte-ignore a11y_autofocus -->
-                    <textarea class="comms-input" rows="3" placeholder="Text" bind:value={customText.text} autofocus></textarea>
-                    <div class="custom-text-submit">
-                        <label><input type="checkbox" bind:checked={saveCustomText} /> Save as a text option</label>
-                        <button class="button-style highlight" disabled={!customText.text.trim()} onclick={addCustomText}>Add</button>
-                    </div>
-                {:else if commsView === 'character'}
-                    <div class="overlay-name dumbledore-font">Choose characters</div>
-                    {#each traySections as section (section.key)}
-                        <div class="picker-section">
-                            <div>{section.title}</div>
-                            <div class="picker-grid">
-                                {#each section.characters as character (character.id)}
-                                    <button class="no-button-style tray-token" class:picked={pickedCharacterIds.includes(character.id)} class:in-play={isInPlay(character.id)} aria-label={character.name} onclick={() => togglePickedCharacter(character.id)}>
-                                        <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" imageSize={TRAY_IMAGE_SIZE} norules/>
-                                    </button>
-                                {/each}
-                            </div>
-                        </div>
-                    {/each}
-                    <div class="comms-actions">
-                        <button class="button-style highlight" disabled={pickedCharacterIds.length === 0} onclick={finishCharacterPicker}>
-                            {editingElementIndex === null ? 'Add' : 'Done'} ({pickedCharacterIds.length} chosen)
-                        </button>
-                    </div>
-                {:else}
+                {#if commsView === 'bluffs'}
                     <div class="overlay-name dumbledore-font">Which bluffs?</div>
                     {#each bluffSets as _, setIndex}
                         <button class="button-style" onclick={() => { commsView = null; showBluffs(setIndex); }}>Bluff set {setIndex + 1}</button>
                     {/each}
+                {:else}
+                    {#if commsTab === 'preset' || builderView === 'builder'}
+                        <div class="overlay-name dumbledore-font">Communications</div>
+                        <div class="overlay-tabs comms-tabs" role="tablist" aria-label="Communications">
+                            <button role="tab" aria-selected={commsTab === 'preset'} class:selected={commsTab === 'preset'} onclick={() => commsTab = 'preset'}>Preset</button>
+                            <button role="tab" aria-selected={commsTab === 'custom'} class:selected={commsTab === 'custom'} onclick={() => commsTab = 'custom'}>Custom</button>
+                        </div>
+                    {/if}
+                    {#if commsTab === 'preset'}
+                        {#each messagePresets as preset}
+                            <button class="button-style" onclick={() => showMessage(preset.elements)}>{preset.name || 'Untitled'}</button>
+                        {:else}
+                            <p class="comms-empty">No presets yet. Add them in Settings → Communications.</p>
+                        {/each}
+                        <button class="button-style" disabled={bluffSets.length === 0 && !(script && loadedPreset)} onclick={chooseBluffs}>
+                            {bluffSets.length === 0 ? 'Bluffs (create a bluff set)' : 'Bluffs'}
+                        </button>
+                    {:else}
+                        <MessageBuilder
+                            bind:this={builder}
+                            bind:elements={messageElements}
+                            bind:view={builderView}
+                            bind:textOptions
+                            sections={traySections}
+                            characters={availableCharacters}
+                            faded={isInPlay}
+                            tokenSize={trayTokenSize}
+                            imageSize={TRAY_IMAGE_SIZE}
+                        />
+                        {#if builderView === 'builder'}
+                            <div class="save-preset">
+                                <label><input type="checkbox" bind:checked={saveAsPreset} /> Save as a preset</label>
+                                {#if saveAsPreset}
+                                    <input type="text" class="preset-name" placeholder={defaultPresetName} bind:value={presetName} aria-label="Preset name" />
+                                {/if}
+                            </div>
+                            <button class="button-style highlight" disabled={messageElements.length === 0} onclick={showCustomMessage}>Show</button>
+                        {/if}
+                    {/if}
                 {/if}
             </div>
         </div>

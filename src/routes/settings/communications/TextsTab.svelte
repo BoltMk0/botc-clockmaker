@@ -49,7 +49,7 @@
 <div class="center-content main">
 <div class="panel">
 <div class="panel-header">
-    <h2>Message texts</h2>
+    <h2>Texts</h2>
     <button class="save" disabled={!dirty} onclick={save}>Save changes</button>
 </div>
 <p class="description">The text the grim's communications builder offers, in this order, in all games. A Header is shown large, as a title; Text is shown smaller.</p>

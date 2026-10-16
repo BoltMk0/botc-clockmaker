@@ -5,6 +5,7 @@ import { PRESETS_MANAGER } from "./presets";
 import { DRAW_SESSION_MANAGER } from "./draw-sessions";
 import { GRIM_STATE_MANAGER } from "./jsonResourceManager";
 import { listResources, renameResource } from "./resources";
+import { getMessagePresets, saveMessagePresets } from "./messagePresets";
 import type { GrimoireStateHistory } from "../common/grimoireState";
 import type { DrawSession } from "../common/drawSession";
 import type { Preset, Script } from "../common/gameData";
@@ -85,6 +86,13 @@ export function migrateCharacterIds(): void {
             saveslots: history.saveslots.map(snapshot)
         });
     }
+
+    const presets = getMessagePresets();
+    const renamedPresets = presets.map(preset => ({
+        ...preset,
+        elements: preset.elements.map(e => e.type === 'character' ? { ...e, value: e.value.map(id) } : e)
+    }));
+    if (JSON.stringify(renamedPresets) !== JSON.stringify(presets)) saveMessagePresets(renamedPresets);
 }
 
 function updateIfChanged<T>(manager: { add(obj: unknown): T }, before: T, after: T): void {
