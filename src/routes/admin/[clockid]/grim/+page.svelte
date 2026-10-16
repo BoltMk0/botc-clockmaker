@@ -745,6 +745,12 @@
         else commsView = null;
     }
 
+    async function openChalkboard() {
+        commsView = null;
+        await saveGrimoire();
+        goto(`/admin/${data.clockid}/grim/chalkboard`);
+    }
+
     async function showMessage(elements: MessageElement[]) {
         commsView = null;
         await saveGrimoire();
@@ -2629,6 +2635,8 @@
                         <div class="overlay-tabs comms-tabs" role="tablist" aria-label="Communications">
                             <button role="tab" aria-selected={commsTab === 'preset'} class:selected={commsTab === 'preset'} onclick={() => commsTab = 'preset'}>Preset</button>
                             <button role="tab" aria-selected={commsTab === 'custom'} class:selected={commsTab === 'custom'} onclick={() => commsTab = 'custom'}>Custom</button>
+                            <!-- Not a tab of its own: opens the chalkboard page -->
+                            <button role="tab" aria-selected="false" onclick={openChalkboard}>Chalkboard</button>
                         </div>
                     {/if}
                     {#if commsTab === 'preset'}

@@ -111,7 +111,8 @@ Hide or show the clock with the clock button in the sidebar.
 ## Communications: showing things to players
 
 The **Communications** button (speech bubble) in the sidebar opens two tabs of things to show a player. Each is shown
-on a clean full-screen page in large type to hold up; **✕** returns to the grim.
+on a clean full-screen page in large type to hold up; **✕** returns to the grim. A third, **Chalkboard**, opens a blank
+board to draw on instead.
 
 ### Preset
 
@@ -139,6 +140,12 @@ it between good and evil.
 **Back**, top left, goes back a step, and closes communications from the tabs. In any text, put asterisks round
 words to make them bold and underlined: *"You are \*drunk\*"* shows *"You are **drunk**"*. The words *good* and *evil* are
 shown in blue and red.
+
+### Chalkboard
+
+A blank, near-black board to draw on in white, for anything easier drawn than written. The buttons top left switch
+between the **pen** and the **eraser** (which rubs out whole lines), and **✕** returns to the grim. The drawing isn't
+kept once you close it.
 
 ## The sidebar
 
