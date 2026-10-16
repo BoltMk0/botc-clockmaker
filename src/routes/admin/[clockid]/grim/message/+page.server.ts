@@ -1,22 +1,22 @@
 import { getCharacterById } from '$lib/resources/server/characters';
-import type { MessageField } from '$lib/common/customMessage';
+import { isMessageElement, type MessageElement } from '$lib/common/message';
 
 export function load({ params, url }) {
-    const raw = url.searchParams.get('fields');
-    let fields: MessageField[] = [];
+    const raw = url.searchParams.get('elements');
+    let elements: MessageElement[] = [];
     if (raw) {
         try {
             const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed)) fields = parsed;
+            if (Array.isArray(parsed)) elements = parsed.filter(isMessageElement);
         } catch {
-            fields = [];
+            elements = [];
         }
     }
 
     const characterIds = new Set<string>();
-    for (const field of fields) {
-        if (field.type === 'character') {
-            for (const id of field.value) if (id) characterIds.add(id);
+    for (const element of elements) {
+        if (element.type === 'character') {
+            for (const id of element.value) characterIds.add(id);
         }
     }
 
@@ -26,7 +26,7 @@ export function load({ params, url }) {
 
     return {
         clockid: params.clockid,
-        fields,
+        elements,
         characters
     };
 }

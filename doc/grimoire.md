@@ -110,19 +110,23 @@ Hide or show the clock with the clock button in the sidebar.
 
 ## Communications: showing things to players
 
-The **Communications** button (speech bubble) in the sidebar opens a menu of things to show a player. Each opens a
-clean full-screen page in large type to hold up; **✕** returns to the grim.
+The **Communications** button (speech bubble) in the sidebar opens the message builder, empty each time. Put
+together what you want to show a player from any number of **elements**, then press **Show**: they're drawn top to
+bottom on a clean full-screen page in large type to hold up; **✕** returns to the grim.
 
-| Option | Shows |
+Tap **Add element** (the dashed box), then choose:
+
+| Element | Shows |
 | --- | --- |
-| **This is your demon** | That text. |
-| **These are your minions** | That text. |
-| **This character has selected you…** | Pick an in-play character, then optionally a suffix: *…to be mad that this player is evil…*, *…and is this player…*, or *…to be mad that you are this character…* (then pick that second character). |
-| **You are…** | Pick a character, then optionally *…and you are on the EVIL team* or *…and you are on the GOOD team*. |
-| **Bluffs** | Your bluff set (pick which, if there are several). With none yet, it lets you create one: choose at least three characters and press **Add bluff set**. |
-| **Speak to me tomorrow** | That text. |
-| *Your saved messages* | Every message from [Settings → Grim Messages](settings/grim-messages.md). If one has blank character slots, you're asked to fill each in first. |
-| **Custom message…** | Build a one-off message from text and character-token rows, then **Show message**. |
+| **Text** | A line of text. Pick one from the list — each is shown in its style: a **Header** large, in the title font, or **Text** smaller. The list is set in [Settings → Message Texts](settings/message-texts.md). **Custom…** writes a new one: choose its style, type the text, and tick **Save as a text option** to keep it in the list for next time (it's off by default). |
+| **Character** | A row of character tokens. Pick as many as you like (tap again to unpick), laid out as in the token tray: those in play, then the script (faded if on the board), then travellers, loric and fabled. |
+| **Alignment** | A blue **GOOD** or a red **EVIL** — choose which. |
+
+In the builder, **✕** removes an element, tapping a row of characters changes them, and tapping an alignment switches
+it between good and evil.
+
+**Bluffs** shows your bluff set (pick which, if there are several). With none yet, it lets you create one: choose at
+least three characters and press **Add bluff set**.
 
 ## The sidebar
 

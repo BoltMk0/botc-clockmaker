@@ -6,7 +6,7 @@
         '/settings/characters',
         '/settings/scripts',
         '/settings/timerOptions',
-        '/settings/customMessages',
+        '/settings/textOptions',
         '/settings/qrCodes',
         '/settings/audio',
         '/settings/music',
@@ -18,7 +18,7 @@
 
     /** For the paths whose label isn't just their name. */
     const LABELS: Record<string, string> = {
-        '/settings/customMessages': 'Grim Messages',
+        '/settings/textOptions': 'Message Texts',
         '/settings/rulesSlides': 'Rules Slides',
         '/settings/apiToken': 'API Token'
     };

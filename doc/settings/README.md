@@ -13,7 +13,7 @@ On a phone, the list of pages is behind the ☰ button at the top left.
 | [Characters](characters.md) | Build the character library: scrape official characters from the wiki, create homebrew ones, set token images, abilities, night order defaults and reminder tokens. |
 | [Scripts](scripts.md) | Create, import, scrape and export scripts; choose their characters and night order; manage setup presets and their win records. |
 | [Timer Options](timer-options.md) | Set the countdown buttons on the clock remote, and their reminder bells. |
-| [Grim Messages](grim-messages.md) | Save messages to show players from the grimoire's communications menu. |
+| [Message Texts](message-texts.md) | The lines of text offered when building a message to show players in the grimoire. |
 | [QR Codes](qr-codes.md) | Show QR codes (a feedback form, a website, Wi-Fi details…) on the town square. |
 | [Audio](audio.md) | Set the dim strength, music loudness levelling and crossfade; make clock bell presets; upload ambience and sting sounds. |
 | [Music](music.md) | Upload music, make playlists, and set up music and Spotify presets. |

@@ -1,6 +1,6 @@
 <script lang="ts">
     import { fetchScriptWithSideCharacters } from "$lib/resources/client/scriptWithSideCharacters";
-    import type { CustomMessage, MessageField } from "$lib/common/customMessage";
+    import { TEXT_STYLES, type MessageElement, type TextOption } from "$lib/common/message";
     import { alignmentForCategory, bluffSetsOf, ALL_CHARACTER_CATEGORIES, type Character, type CharacterCategory, type ReminderToken, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import ReminderTokenView from "$lib/components/ReminderTokenView.svelte";
@@ -505,6 +505,31 @@
         return placedCharIds.has(characterId);
     }
 
+    // The token tray's sections, in order: the in-play characters (with a preset loaded), the script's characters (or
+    // all of them, without one), then travellers, loric and fabled. The communications character picker lists them
+    // the same way.
+    const traySections = $derived.by((): { key: string; title: string; characters: ScriptCharacter[] }[] => {
+        if (!script) return [];
+        const characters = script.characters;
+        const sections = [];
+        if (loadedPreset && seatedCharacterIds.length > 0) {
+            const inPlay = seatedCharacterIds.map(id => characters.find(c => c.id === id)).filter((c): c is ScriptCharacter => !!c);
+            sections.push({ key: 'in-play', title: 'In-play', characters: inPlay });
+        }
+        sections.push({
+            key: 'script',
+            title: loadedPreset ? script.name : 'All Characters',
+            characters: sortedScriptCharacters.filter(c => !isSideCategory(c))
+        });
+        for (const side of SIDE_CATEGORIES) {
+            const sideCharacters = loadedPreset
+                ? characters.filter(c => c.category === side.category && !loadedPreset.character_ids.includes(c.id) && !bluffSets.some(set => set.includes(c.id)))
+                : sortedScriptCharacters.filter(c => c.category === side.category);
+            if (sideCharacters.length > 0) sections.push({ key: side.category, title: side.title, characters: sideCharacters });
+        }
+        return sections;
+    });
+
     let dragging = $state<{ character: ScriptCharacter | null; source: 'tray' | 'board'; sourceToken?: PlacedToken } | null>(null);
     let draggingReminder = $state<{ token: ReminderToken; characterId: string; source: 'popup' | 'board' } | null>(null);
     const isDraggingAnything = $derived(dragging !== null || draggingReminder !== null);
@@ -656,122 +681,107 @@
         goto(`/admin/${data.clockid}/grim/bluffs?set=${setIndex}`);
     }
 
-    // Communications overlay: null when closed; 'menu' shows the options, 'bluffs' picks between several bluff sets.
-    let commsView = $state<'menu' | 'bluffs' | 'selected' | 'suffix' | 'custom' | 'customCharacter' | 'customCharacter2' | 'secondCharacter' | 'resolveBlank' | null>(null);
+    // Communications overlay: null when closed. 'builder' is the message being put together; 'text', 'customText'
+    // and 'character' add (or change) one of its elements; 'bluffs' picks between several bluff sets.
+    let commsView = $state<'builder' | 'text' | 'customText' | 'character' | 'bluffs' | null>(null);
 
-    // Picking this suffix asks for a second character to show under the subtitle.
-    const MAD_YOU_ARE_SUFFIX = '...to be mad that you are this character...';
+    // The message being built, shown top to bottom on the message page (see grim/message/+page.svelte).
+    let messageElements = $state<MessageElement[]>([]);
+    // What the "Add element" box shows: itself, the element types, or the two alignments.
+    let addElementStep = $state<'closed' | 'type' | 'alignment'>('closed');
 
-    // Character-based messages: pick an in-play character, then an optional suffix.
-    const characterMessages = {
-        selected: {
-            title: 'This character has selected you',
-            prompt: 'Who was selected?',
-            suffixes: ['...to be mad that this player is evil...', '...and is this player...', MAD_YOU_ARE_SUFFIX]
-        },
-        youAre: {
-            title: 'You are',
-            prompt: 'Which character are they?',
-            suffixes: ['...and you are on the EVIL team', '...and you are on the GOOD team']
+    // svelte-ignore state_referenced_locally
+    let textOptions = $state<TextOption[]>(data.textOptions);
+
+    function openComms() {
+        messageElements = [];
+        addElementStep = 'closed';
+        commsView = 'builder';
+    }
+
+    function addElement(element: MessageElement) {
+        messageElements.push(element);
+        addElementStep = 'closed';
+        commsView = 'builder';
+    }
+
+    function toggleElementAlignment(elementIndex: number) {
+        const element = messageElements[elementIndex];
+        if (element.type === 'alignment') element.value = element.value === 'good' ? 'evil' : 'good';
+    }
+
+    // The custom text being written, and whether to keep it as a text option for next time.
+    let customText = $state<TextOption>({ text: '', style: 'Header' });
+    let saveCustomText = $state(false);
+
+    function openCustomText() {
+        customText = { text: '', style: 'Header' };
+        saveCustomText = false;
+        commsView = 'customText';
+    }
+
+    async function addCustomText() {
+        const option: TextOption = { text: customText.text.trim(), style: customText.style };
+        if (!option.text) return;
+        addElement({ type: 'text', value: option.text, style: option.style });
+        if (saveCustomText) await saveTextOption(option);
+    }
+
+    // Adds to the saved text options as they are now, so as not to undo changes made in settings since this page loaded.
+    async function saveTextOption(option: TextOption) {
+        try {
+            const current = await fetch('/api/textOptions').then(r => {
+                if (!r.ok) throw new Error(`${r.status}`);
+                return r.json() as Promise<TextOption[]>;
+            });
+            if (current.some(o => o.text === option.text && o.style === option.style)) {
+                textOptions = current;
+                return;
+            }
+            const updated = [...current, option];
+            const res = await fetch('/api/textOptions', {
+                method: 'POST',
+                body: JSON.stringify(updated),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (!res.ok) throw new Error(`${res.status}`);
+            textOptions = updated;
+        } catch {
+            alert('Failed to save the text option');
         }
-    };
-    let characterMessageKind = $state<keyof typeof characterMessages>('selected');
-    const characterMessage = $derived(characterMessages[characterMessageKind]);
-
-    // Message the storyteller builds live, in the same field-stack shape as the messages
-    // configured in settings/customMessages - see CustomMessage.
-    let customFields = $state<MessageField[]>([]);
-    // Shows the text/character choice in place of the "Add field" button.
-    let addingCustomField = $state(false);
-    // The character-row slot currently open in the 'customCharacter' picker.
-    let customFieldPicker = $state<{ fieldIndex: number, valueIndex: number } | null>(null);
-
-    function addCustomField(type: MessageField['type']) {
-        customFields.push(type === 'text' ? { type: 'text', value: '' } : { type: 'character', value: [] });
-        addingCustomField = false;
     }
 
-    function pickCustomFieldCharacter(characterId: string | null) {
-        if (!customFieldPicker) return;
-        const field = customFields[customFieldPicker.fieldIndex];
-        if (field.type === 'character') field.value[customFieldPicker.valueIndex] = characterId;
-        customFieldPicker = null;
-        commsView = 'custom';
+    // The characters picked so far for a character element, and the element they replace (null to add a new one).
+    let pickedCharacterIds = $state<string[]>([]);
+    let editingElementIndex = $state<number | null>(null);
+
+    function openCharacterPicker(elementIndex: number | null) {
+        const element = elementIndex === null ? null : messageElements[elementIndex];
+        pickedCharacterIds = element?.type === 'character' ? [...element.value] : [];
+        editingElementIndex = elementIndex;
+        commsView = 'character';
     }
 
-    // The character picked, awaiting an optional suffix.
-    let selectedCharacterId = $state('');
+    function togglePickedCharacter(characterId: string) {
+        if (pickedCharacterIds.includes(characterId)) pickedCharacterIds = pickedCharacterIds.filter(id => id !== characterId);
+        else pickedCharacterIds = [...pickedCharacterIds, characterId];
+    }
 
-    function showSelected(suffix = '', subtitleCharacterId = '') {
+    function finishCharacterPicker() {
+        const element: MessageElement = { type: 'character', value: pickedCharacterIds };
+        if (editingElementIndex === null) {
+            addElement(element);
+        } else {
+            messageElements[editingElementIndex] = element;
+            commsView = 'builder';
+        }
+    }
+
+    async function showMessage(elements: MessageElement[]) {
         commsView = null;
-        const fields: MessageField[] = [{ type: 'text', value: characterMessage.title }];
-        if (selectedCharacterId) fields.push({ type: 'character', value: [selectedCharacterId] });
-        if (suffix) fields.push({ type: 'text', value: suffix });
-        if (subtitleCharacterId) fields.push({ type: 'character', value: [subtitleCharacterId] });
-        showMessageFields(fields);
-    }
-
-    const inPlayCharacters = $derived(sortedScriptCharacters.filter(c => seatedCharacterIds.includes(c.id)));
-
-    // Every message the grim shows - the built-in ones below, the storyteller's own custom one,
-    // and the presets from settings/customMessages - goes through this single fields-based route,
-    // so they're all rendered by the one message page (see grim/message/+page.svelte).
-    async function showMessageFields(fields: MessageField[]) {
         await saveGrimoire();
-        const params = new URLSearchParams({ fields: JSON.stringify(fields) });
+        const params = new URLSearchParams({ elements: JSON.stringify(elements) });
         goto(`/admin/${data.clockid}/grim/message?${params}`);
-    }
-
-    function showTextMessage(text: string) {
-        showMessageFields([{ type: 'text', value: text }]);
-    }
-
-    // A predefined message's button label: its first text field (or a generic fallback for a
-    // message made only of character tokens), with an ellipsis appended whenever the message
-    // has more to it than just that title.
-    function messageLabel(message: CustomMessage): string {
-        const textField = message.fields.find((f): f is MessageField & { type: 'text' } => f.type === 'text');
-        const title = textField?.value.trim() || 'Message';
-        return message.fields.length > 1 ? `${title}…` : title;
-    }
-
-    // The predefined message currently having its blank character slots filled in, one at a time,
-    // before it's shown - see commsView === 'resolveBlank'.
-    let resolvingFields = $state<MessageField[] | null>(null);
-
-    function findNextBlank(fields: MessageField[]): { fieldIndex: number, valueIndex: number } | null {
-        for (let fieldIndex = 0; fieldIndex < fields.length; fieldIndex++) {
-            const field = fields[fieldIndex];
-            if (field.type !== 'character') continue;
-            const valueIndex = field.value.indexOf(null);
-            if (valueIndex >= 0) return { fieldIndex, valueIndex };
-        }
-        return null;
-    }
-
-    function useCustomMessage(message: CustomMessage) {
-        const nextBlank = findNextBlank(message.fields);
-        if (!nextBlank) {
-            commsView = null;
-            showMessageFields(message.fields);
-            return;
-        }
-        // Deep-copy so filling in blanks doesn't mutate the saved message.
-        resolvingFields = message.fields.map(f => f.type === 'character' ? { ...f, value: [...f.value] } : { ...f });
-        commsView = 'resolveBlank';
-    }
-
-    function fillNextBlank(characterId: string) {
-        if (!resolvingFields) return;
-        const nextBlank = findNextBlank(resolvingFields);
-        if (!nextBlank) return;
-        const field = resolvingFields[nextBlank.fieldIndex];
-        if (field.type === 'character') field.value[nextBlank.valueIndex] = characterId;
-        if (findNextBlank(resolvingFields)) return;
-        const fields = resolvingFields;
-        resolvingFields = null;
-        commsView = null;
-        showMessageFields(fields);
     }
 
     function chooseBluffs() {
@@ -1555,6 +1565,7 @@
         box-sizing: border-box;
         padding: 0.7em;
         font-size: 1.1em;
+        font-family: inherit;
         flex-shrink: 0;
     }
 
@@ -1563,72 +1574,78 @@
         flex-shrink: 0;
     }
 
-    .overlay-panel.comms-panel > .field-stack {
+    .overlay-panel.comms-panel > .message-elements,
+    .overlay-panel.comms-panel > .text-options {
         width: 100%;
         display: flex;
         flex-direction: column;
         gap: 0.6em;
     }
 
-    .field-row {
+    .message-element {
         display: flex;
         align-items: center;
         gap: 0.5em;
+        padding: 0.6em;
+        border-radius: 0.6em;
+        background: var(--theme-bg);
     }
 
-    .field-row .comms-input {
+    .element-body {
         flex: 1;
-        font-size: 1.3em;
+        min-width: 0;
+        text-align: center;
     }
 
-    .token-row {
-        flex: 1;
+    /* Text in its style, as on the message page but smaller */
+    .text-preview, .text-option {
+        font-size: 1em;
+        white-space: pre-line;
+        overflow-wrap: anywhere;
+    }
+
+    .text-preview.header, .text-option.header {
+        font-size: 1.6em;
+    }
+
+    .element-tokens {
         display: flex;
         flex-wrap: wrap;
-        align-items: center;
-        gap: 0.5em;
-    }
-
-    .token-chip {
-        flex-shrink: 0;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
         justify-content: center;
-        border: 2px solid var(--theme-slider-trim, rgba(255, 255, 255, 0.35));
-        background-color: var(--theme-bg);
-        overflow: hidden;
+        gap: 0.4em;
+        cursor: pointer;
     }
 
-    .token-chip-mark {
-        font-size: 1.4em;
+    .alignment-preview {
+        font-size: 1.8em;
         font-weight: bold;
-        opacity: 0.85;
+        letter-spacing: 0.08em;
+        cursor: pointer;
     }
 
-    .token-chip.add-token {
-        border-style: dashed;
-        background-color: transparent;
-        opacity: 0.7;
+    .alignment-preview.good {
+        color: #558bdf;
     }
 
-    .token-chip.add-token:hover {
-        opacity: 1;
-        border-color: var(--theme-highlight);
+    .alignment-preview.evil {
+        color: #ca4444;
     }
 
-    .blank-token-large {
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 2em;
+    .overlay-panel .button-style.alignment-choice {
+        font-size: 1.3em;
         font-weight: bold;
-        border: 2px solid var(--theme-slider-trim, rgba(255, 255, 255, 0.35));
-        background-color: var(--theme-bg);
+        color: #fff;
     }
 
-    .remove-field {
+    .alignment-choice.good {
+        background-color: #2563eb;
+    }
+
+    .alignment-choice.evil {
+        background-color: #b63737;
+    }
+
+    .remove-element {
         flex-shrink: 0;
         width: 1.8em;
         height: 1.8em;
@@ -1640,23 +1657,85 @@
         color: inherit;
     }
 
-    button.add-field {
-        width: 100%;
-        background-color: transparent;
+    /* The dashed "Add element" box, and the element types shown in its place */
+    button.add-element, button.element-type {
+        box-sizing: border-box;
+        padding: 2em 1em;
+        text-align: center;
         border: 2px dashed currentColor;
+        border-radius: 0.6em;
         opacity: 0.7;
     }
 
-    button.add-field:hover {
+    button.add-element {
+        width: 100%;
+    }
+
+    button.add-element:hover, button.element-type:hover {
         opacity: 1;
     }
 
-    .add-field-choice {
+    button.element-type:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+
+    .add-element.choices {
         display: flex;
         align-items: center;
         justify-content: center;
         flex-wrap: wrap;
         gap: 0.5em;
+    }
+
+    .add-element.choices > button.element-type {
+        flex: 1;
+    }
+
+    /* GOOD and EVIL, as tall as the element types they replace (their font is 1.3x) */
+    .overlay-panel .add-element.choices > .button-style {
+        flex: 1;
+        padding: calc(2em / 1.3) 12px;
+        border: 2px solid transparent;
+    }
+
+    .custom-text-submit {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1em;
+    }
+
+    .custom-text-submit label {
+        display: flex;
+        align-items: center;
+        gap: 0.4em;
+    }
+
+    .picker-section {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4em;
+    }
+
+    /* Keeps the picker's buttons in reach below a long list of characters */
+    .comms-actions {
+        position: sticky;
+        /* Down over the panel's bottom padding, so nothing scrolls by beneath it */
+        bottom: -1.2em;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 0.7em;
+        padding: 0.7em 0 1.2em;
+        background: var(--theme-bg-secondary);
+    }
+
+    .comms-actions > .button-style {
+        width: 100%;
     }
 
     .overlay-close {
@@ -2186,7 +2265,7 @@
         </button>
 
         <!-- Communications: things to show a player -->
-        <button class="sidebar-btn" class:active={commsView !== null} onclick={() => commsView = 'menu'} title="Communications">
+        <button class="sidebar-btn" class:active={commsView !== null} onclick={openComms} title="Communications">
             <svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM6.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0zM10.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0zM14.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0z"/></svg>
         </button>
 
@@ -2506,141 +2585,53 @@
             <div class="token-tray">
                 {#if !script}
                     <div style="text-align: center; opacity: 0.6; padding: 1em;">Select a script to begin.</div>
-                {:else if loadedPreset}
-                {#if seatedCharacterIds.length > 0}
-                <div>
-                    <div style="text-align: center;">In-play</div>
-                    <div class="sub-tray">
-                        {#each seatedCharacterIds as character_id (character_id)}
-                        {@const character = script?.characters.find(c => c.id === character_id)}
-                        {#if character}
-                                <div
-                                    class="tray-token"
-                                    class:dragging={dragging?.character?.id === character.id}
-                                    class:in-play={isInPlay(character.id)}
-                                    role="button"
-                                    tabindex="0"
-                                    aria-label={character.name}
-                                    onclick={() => openCharacterOverlay(character)}
-                                    onkeydown={(e) => onActivateKey(e, () => openCharacterOverlay(character))}
-                                >
-                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} imageSize={TRAY_IMAGE_SIZE} norules/>
-                                </div>
-                        {/if}
-                        {/each}
-                    </div>
-                </div>
-                {/if}
-                <div class="bluff-set">
-                    <div style="text-align: center;">Bluffs</div>
-                    <div class="bluff-set-buttons">
-                    {#each bluffSets as bluffSet, setIndex}
-                    <div class="bluff-set-item">
-                    <button class="button-style show-bluffs-btn" onclick={() => showBluffs(setIndex)} title="Show bluffs">
-                        <span class="show-bluffs-icon">
-                            {#each bluffSet.slice(0, 3) as bluffId (bluffId)}
-                                {@const bluff = script?.characters.find(c => c.id === bluffId)}
-                                {#if bluff}
-                                    <div style="position: relative; width: 56px; height: 56px;">
-                                        <CharacterToken character={bluff} style="position: relative;" size="56px" imageSize={TRAY_IMAGE_SIZE} norules/>
-                                    </div>
-                                {/if}
-                            {/each}
-                        </span>
-                        {bluffSets.length > 1 ? `Show bluffs ${setIndex + 1}` : 'Show bluffs'}
-                    </button>
-                    <button class="delete-bluff-set-btn" onclick={() => deleteBluffSet(setIndex)} title="Delete bluff set" aria-label="Delete bluff set">✕</button>
-                    </div>
-                    {/each}
-                    <button class="button-style add-bluff-set-btn" onclick={() => newBluffSet = []}>+ Add bluff set</button>
-                    </div>
-                </div>
-                <div>
-                    <div style="text-align: center;">{script.name}</div>
-                    <div class="sub-tray">
-                        {#each sortedScriptCharacters.filter(c => !isSideCategory(c)) as character (character.id)}
-                                <div
-                                    class="tray-token"
-                                    class:dragging={dragging?.character?.id === character.id}
-                                    class:in-play={isInPlay(character.id)}
-                                    role="button"
-                                    tabindex="0"
-                                    aria-label={character.name}
-                                    onclick={() => openCharacterOverlay(character)}
-                                    onkeydown={(e) => onActivateKey(e, () => openCharacterOverlay(character))}
-                                >
-                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} imageSize={TRAY_IMAGE_SIZE} norules/>
-                                </div>
-                        {/each}
-                    </div>
-                </div>
-                {#each SIDE_CATEGORIES as side (side.category)}
-                {@const sideCharacters = script.characters.filter(c => c.category === side.category && !loadedPreset?.character_ids.includes(c.id) && !bluffSets.some(set => set.includes(c.id)))}
-                {#if sideCharacters.length > 0}
-                <div>
-                    <div style="text-align: center;">{side.title}</div>
-                    <div class="sub-tray">
-                        {#each sideCharacters as character (character.id)}
-                                <div
-                                    class="tray-token"
-                                    class:dragging={dragging?.character?.id === character.id}
-                                    class:in-play={isInPlay(character.id)}
-                                    role="button"
-                                    tabindex="0"
-                                    aria-label={character.name}
-                                    onclick={() => openCharacterOverlay(character)}
-                                    onkeydown={(e) => onActivateKey(e, () => openCharacterOverlay(character))}
-                                >
-                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} imageSize={TRAY_IMAGE_SIZE} norules/>
-                                </div>
-                        {/each}
-                    </div>
-                </div>
-                {/if}
-                {/each}
                 {:else}
-                <div>
-                    <div style="text-align: center;">All Characters</div>
-                    <div class="sub-tray">
-                        {#each sortedScriptCharacters.filter(c => !isSideCategory(c)) as character (character.id)}
-                                <div
-                                    class="tray-token"
-                                    class:dragging={dragging?.character?.id === character.id}
-                                    class:in-play={isInPlay(character.id)}
-                                    role="button"
-                                    tabindex="0"
-                                    aria-label={character.name}
-                                    onclick={() => openCharacterOverlay(character)}
-                                    onkeydown={(e) => onActivateKey(e, () => openCharacterOverlay(character))}
-                                >
-                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} imageSize={TRAY_IMAGE_SIZE} norules/>
-                                </div>
+                {#each traySections as section (section.key)}
+                {#if section.key === 'script' && loadedPreset}
+                    <div class="bluff-set">
+                        <div style="text-align: center;">Bluffs</div>
+                        <div class="bluff-set-buttons">
+                        {#each bluffSets as bluffSet, setIndex}
+                        <div class="bluff-set-item">
+                        <button class="button-style show-bluffs-btn" onclick={() => showBluffs(setIndex)} title="Show bluffs">
+                            <span class="show-bluffs-icon">
+                                {#each bluffSet.slice(0, 3) as bluffId (bluffId)}
+                                    {@const bluff = script?.characters.find(c => c.id === bluffId)}
+                                    {#if bluff}
+                                        <div style="position: relative; width: 56px; height: 56px;">
+                                            <CharacterToken character={bluff} style="position: relative;" size="56px" imageSize={TRAY_IMAGE_SIZE} norules/>
+                                        </div>
+                                    {/if}
+                                {/each}
+                            </span>
+                            {bluffSets.length > 1 ? `Show bluffs ${setIndex + 1}` : 'Show bluffs'}
+                        </button>
+                        <button class="delete-bluff-set-btn" onclick={() => deleteBluffSet(setIndex)} title="Delete bluff set" aria-label="Delete bluff set">✕</button>
+                        </div>
                         {/each}
+                        <button class="button-style add-bluff-set-btn" onclick={() => newBluffSet = []}>+ Add bluff set</button>
+                        </div>
                     </div>
-                </div>
-                {#each SIDE_CATEGORIES as side (side.category)}
-                {@const sideCharacters = sortedScriptCharacters.filter(c => c.category === side.category)}
-                {#if sideCharacters.length > 0}
-                <div>
-                    <div style="text-align: center;">{side.title}</div>
-                    <div class="sub-tray">
-                        {#each sideCharacters as character (character.id)}
-                                <div
-                                    class="tray-token"
-                                    class:dragging={dragging?.character?.id === character.id}
-                                    class:in-play={isInPlay(character.id)}
-                                    role="button"
-                                    tabindex="0"
-                                    aria-label={character.name}
-                                    onclick={() => openCharacterOverlay(character)}
-                                    onkeydown={(e) => onActivateKey(e, () => openCharacterOverlay(character))}
-                                >
-                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} imageSize={TRAY_IMAGE_SIZE} norules/>
-                                </div>
-                        {/each}
-                    </div>
-                </div>
                 {/if}
+                <div>
+                    <div style="text-align: center;">{section.title}</div>
+                    <div class="sub-tray">
+                        {#each section.characters as character (character.id)}
+                                <div
+                                    class="tray-token"
+                                    class:dragging={dragging?.character?.id === character.id}
+                                    class:in-play={isInPlay(character.id)}
+                                    role="button"
+                                    tabindex="0"
+                                    aria-label={character.name}
+                                    onclick={() => openCharacterOverlay(character)}
+                                    onkeydown={(e) => onActivateKey(e, () => openCharacterOverlay(character))}
+                                >
+                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} imageSize={TRAY_IMAGE_SIZE} norules/>
+                                </div>
+                        {/each}
+                    </div>
+                </div>
                 {/each}
                 {/if}
             </div>
@@ -2768,129 +2759,109 @@
         </div>
     {/if}
 
-    {#if commsView === 'menu' || commsView === 'bluffs' || commsView === 'selected' || commsView === 'suffix' || commsView === 'custom' || commsView === 'customCharacter' || commsView === 'customCharacter2' || commsView === 'secondCharacter' || commsView === 'resolveBlank'}
+    {#if commsView !== null}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 20};" onclick={() => { commsView = null; resolvingFields = null; }}>
+        <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 20};" onclick={() => commsView = null}>
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <div class="overlay-panel comms-panel" onclick={(e) => e.stopPropagation()}>
-                <button class="overlay-close" onclick={() => { commsView = null; resolvingFields = null; }} aria-label="Close">✕</button>
-                {#if commsView === 'menu'}
+                <button class="overlay-close" onclick={() => commsView = null} aria-label="Close">✕</button>
+                {#if commsView === 'builder'}
                     <div class="overlay-name dumbledore-font">Communications</div>
-                    <button class="button-style" onclick={() => showTextMessage('This is your demon')}>This is your demon</button>
-                    <button class="button-style" onclick={() => showTextMessage('These are your minions')}>These are your minions</button>
-                    <button class="button-style" disabled={inPlayCharacters.length === 0} onclick={() => { characterMessageKind = 'selected'; commsView = 'selected'; }}>This character has selected you...</button>
-                    <button class="button-style" disabled={inPlayCharacters.length === 0} onclick={() => { characterMessageKind = 'youAre'; commsView = 'selected'; }}>You are...</button>
-                    <button class="button-style" disabled={bluffSets.length === 0 && !(script && loadedPreset)} onclick={chooseBluffs}>
-                        {bluffSets.length === 0 ? 'Bluffs (create a bluff set)' : 'Bluffs'}
-                    </button>
-                    <button class="button-style" onclick={() => showTextMessage('Speak to me tomorrow')}>Speak to me tomorrow</button>
-                    {#each data.customMessages as message}
-                        <button class="button-style" onclick={() => useCustomMessage(message)}>{messageLabel(message)}</button>
-                    {/each}
-                    <button class="button-style" onclick={() => commsView = 'custom'}>Custom message...</button>
-                {:else if commsView === 'resolveBlank'}
-                    <div class="overlay-name dumbledore-font">Which character fills the blank?</div>
-                    <div class="picker-grid">
-                        {#each sortedScriptCharacters as character (character.id)}
-                            <button class="no-button-style tray-token" onclick={() => fillNextBlank(character.id)}>
-                                <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" imageSize={TRAY_IMAGE_SIZE} norules/>
-                            </button>
-                        {/each}
-                    </div>
-                    <button class="button-style" onclick={() => { commsView = 'menu'; resolvingFields = null; }}>Cancel</button>
-                {:else if commsView === 'customCharacter'}
-                    <div class="overlay-name dumbledore-font">Choose a character</div>
-                    <div class="picker-grid">
-                        <button class="no-button-style tray-token" title="Empty" onclick={() => pickCustomFieldCharacter(null)}>
-                            <div class="blank-token-large" style="width: {trayTokenSize}px; height: {trayTokenSize}px;">?</div>
-                        </button>
-                        {#each sortedScriptCharacters as character (character.id)}
-                            <button class="no-button-style tray-token" onclick={() => pickCustomFieldCharacter(character.id)}>
-                                <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" imageSize={TRAY_IMAGE_SIZE} norules/>
-                            </button>
-                        {/each}
-                    </div>
-                    <button class="button-style" onclick={() => { customFieldPicker = null; commsView = 'custom'; }}>Back</button>
-                {:else if commsView === 'secondCharacter'}
-                    <div class="overlay-name dumbledore-font">Which character do they think you are?</div>
-                    <div class="picker-grid">
-                        {#each sortedScriptCharacters as character (character.id)}
-                            <button class="no-button-style tray-token" onclick={() => showSelected(MAD_YOU_ARE_SUFFIX, character.id)}>
-                                <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" imageSize={TRAY_IMAGE_SIZE} norules/>
-                            </button>
-                        {/each}
-                    </div>
-                    <button class="button-style" onclick={() => commsView = 'suffix'}>Back</button>
-                {:else if commsView === 'custom'}
-                    <div class="overlay-name dumbledore-font">Custom message</div>
-                    <div class="field-stack">
-                        {#each customFields as field, fieldIndex}
-                            <div class="field-row">
-                                {#if field.type === 'text'}
-                                    <input type="text" class="comms-input" placeholder="Text" bind:value={field.value} />
-                                {:else}
-                                    <div class="token-row">
-                                        {#each field.value as characterId, valueIndex}
-                                            {@const character = characterId ? sortedScriptCharacters.find(c => c.id === characterId) : undefined}
-                                            <button
-                                                class="no-button-style token-chip"
-                                                class:blank={!characterId}
-                                                style={characterId ? undefined : `width: ${trayTokenSize}px; height: ${trayTokenSize}px;`}
-                                                title={character?.name ?? 'Blank - fill in when shown'}
-                                                onclick={() => { customFieldPicker = { fieldIndex, valueIndex }; commsView = 'customCharacter'; }}
-                                            >
-                                                {#if character}
+                    <div class="message-elements">
+                        {#each messageElements as element, elementIndex}
+                            <div class="message-element">
+                                {#if element.type === 'text'}
+                                    <div class="element-body text-preview" class:dumbledore-font={element.style === 'Header'} class:header={element.style === 'Header'}>{element.value}</div>
+                                {:else if element.type === 'character'}
+                                    <button class="no-button-style element-body element-tokens" title="Change characters" onclick={() => openCharacterPicker(elementIndex)}>
+                                        {#each element.value as characterId (characterId)}
+                                            {@const character = availableCharacters[characterId]}
+                                            {#if character}
+                                                <div style="position: relative; width: {trayTokenSize}px; height: {trayTokenSize}px;">
                                                     <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" imageSize={TRAY_IMAGE_SIZE} norules/>
-                                                {:else}
-                                                    <span class="token-chip-mark">?</span>
-                                                {/if}
-                                            </button>
+                                                </div>
+                                            {/if}
                                         {/each}
-                                        <button class="no-button-style token-chip add-token" title="Add a token" style="width: {trayTokenSize}px; height: {trayTokenSize}px;" onclick={() => field.value.push(null)}>
-                                            <span class="token-chip-mark">+</span>
-                                        </button>
-                                    </div>
+                                    </button>
+                                {:else}
+                                    <button class="no-button-style element-body alignment-preview dumbledore-font {element.value}" title="Switch alignment" onclick={() => toggleElementAlignment(elementIndex)}>
+                                        {element.value === 'good' ? 'GOOD' : 'EVIL'}
+                                    </button>
                                 {/if}
-                                <button class="no-button-style remove-field" title="Remove field" onclick={() => customFields.splice(fieldIndex, 1)}>✕</button>
+                                <button class="no-button-style remove-element" title="Remove" aria-label="Remove" onclick={() => messageElements.splice(elementIndex, 1)}>✕</button>
                             </div>
                         {/each}
 
-                        {#if addingCustomField}
-                            <div class="add-field-choice">
-                                <span>Add a…</span>
-                                <button class="button-style" onclick={() => addCustomField('text')}>Text</button>
-                                <button class="button-style" onclick={() => addCustomField('character')}>Character</button>
-                                <button class="button-style" onclick={() => addingCustomField = false}>Cancel</button>
+                        {#if addElementStep === 'type'}
+                            <div class="add-element choices">
+                                <button class="no-button-style element-type" onclick={() => commsView = 'text'}>Text</button>
+                                <button class="no-button-style element-type" disabled={!script} onclick={() => openCharacterPicker(null)}>Character</button>
+                                <button class="no-button-style element-type" onclick={() => addElementStep = 'alignment'}>Alignment</button>
+                                <button class="no-button-style remove-element" title="Cancel" aria-label="Cancel" onclick={() => addElementStep = 'closed'}>✕</button>
+                            </div>
+                        {:else if addElementStep === 'alignment'}
+                            <div class="add-element choices">
+                                <button class="button-style alignment-choice good dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'good' })}>GOOD</button>
+                                <button class="button-style alignment-choice evil dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'evil' })}>EVIL</button>
+                                <button class="no-button-style remove-element" title="Back" aria-label="Back" onclick={() => addElementStep = 'type'}>✕</button>
                             </div>
                         {:else}
-                            <button class="button-style add-field" onclick={() => addingCustomField = true}>+ Add field</button>
+                            <button class="no-button-style add-element" onclick={() => addElementStep = 'type'}>Add element</button>
                         {/if}
                     </div>
-                    <button class="button-style highlight" style="margin-top: 1.2em;" disabled={customFields.length === 0} onclick={() => { commsView = null; showMessageFields(customFields); }}>Show message</button>
-                    <button class="button-style" onclick={() => commsView = 'menu'}>Back</button>
-                {:else if commsView === 'selected'}
-                    <div class="overlay-name dumbledore-font">{characterMessage.prompt}</div>
-                    <div class="picker-grid">
-                        {#each inPlayCharacters as character (character.id)}
-                            <button class="no-button-style tray-token" onclick={() => { selectedCharacterId = character.id; commsView = 'suffix'; }}>
-                                <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" imageSize={TRAY_IMAGE_SIZE} norules/>
-                            </button>
+                    <button class="button-style highlight" style="margin-top: 1.2em;" disabled={messageElements.length === 0} onclick={() => showMessage(messageElements)}>Show</button>
+                    <button class="button-style" disabled={bluffSets.length === 0 && !(script && loadedPreset)} onclick={chooseBluffs}>
+                        {bluffSets.length === 0 ? 'Bluffs (create a bluff set)' : 'Bluffs'}
+                    </button>
+                {:else if commsView === 'text'}
+                    <div class="overlay-name dumbledore-font">Add text</div>
+                    <div class="text-options">
+                        {#each textOptions as option}
+                            <button class="button-style text-option" class:dumbledore-font={option.style === 'Header'} class:header={option.style === 'Header'} onclick={() => addElement({ type: 'text', value: option.text, style: option.style })}>{option.text}</button>
                         {/each}
                     </div>
-                    <button class="button-style" onclick={() => commsView = 'menu'}>Back</button>
-                {:else if commsView === 'suffix'}
-                    <div class="overlay-name dumbledore-font">Add a suffix?</div>
-                    <button class="button-style" onclick={() => showSelected()}>None</button>
-                    {#each characterMessage.suffixes as suffix}
-                        <button class="button-style" onclick={() => suffix === MAD_YOU_ARE_SUFFIX ? commsView = 'secondCharacter' : showSelected(suffix)}>{suffix}</button>
+                    <button class="button-style" onclick={openCustomText}>Custom...</button>
+                    <button class="button-style" onclick={() => commsView = 'builder'}>Back</button>
+                {:else if commsView === 'customText'}
+                    <div class="overlay-name dumbledore-font">Custom text</div>
+                    <select class="comms-input" bind:value={customText.style} aria-label="Style">
+                        {#each TEXT_STYLES as style}
+                            <option value={style}>{style}</option>
+                        {/each}
+                    </select>
+                    <!-- svelte-ignore a11y_autofocus -->
+                    <textarea class="comms-input" rows="3" placeholder="Text" bind:value={customText.text} autofocus></textarea>
+                    <div class="custom-text-submit">
+                        <label><input type="checkbox" bind:checked={saveCustomText} /> Save as a text option</label>
+                        <button class="button-style highlight" disabled={!customText.text.trim()} onclick={addCustomText}>Add</button>
+                    </div>
+                    <button class="button-style" onclick={() => commsView = 'text'}>Back</button>
+                {:else if commsView === 'character'}
+                    <div class="overlay-name dumbledore-font">Choose characters</div>
+                    {#each traySections as section (section.key)}
+                        <div class="picker-section">
+                            <div>{section.title}</div>
+                            <div class="picker-grid">
+                                {#each section.characters as character (character.id)}
+                                    <button class="no-button-style tray-token" class:picked={pickedCharacterIds.includes(character.id)} class:in-play={isInPlay(character.id)} aria-label={character.name} onclick={() => togglePickedCharacter(character.id)}>
+                                        <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" imageSize={TRAY_IMAGE_SIZE} norules/>
+                                    </button>
+                                {/each}
+                            </div>
+                        </div>
                     {/each}
-                    <button class="button-style" onclick={() => commsView = 'selected'}>Back</button>
+                    <div class="comms-actions">
+                        <button class="button-style highlight" disabled={pickedCharacterIds.length === 0} onclick={finishCharacterPicker}>
+                            {editingElementIndex === null ? 'Add' : 'Done'} ({pickedCharacterIds.length} chosen)
+                        </button>
+                        <button class="button-style" onclick={() => commsView = 'builder'}>Back</button>
+                    </div>
                 {:else}
                     <div class="overlay-name dumbledore-font">Which bluffs?</div>
                     {#each bluffSets as _, setIndex}
                         <button class="button-style" onclick={() => { commsView = null; showBluffs(setIndex); }}>Bluff set {setIndex + 1}</button>
                     {/each}
-                    <button class="button-style" onclick={() => commsView = 'menu'}>Back</button>
+                    <button class="button-style" onclick={() => commsView = 'builder'}>Back</button>
                 {/if}
             </div>
         </div>

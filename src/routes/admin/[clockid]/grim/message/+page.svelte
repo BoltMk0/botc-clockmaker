@@ -57,31 +57,48 @@
     p {
         margin: 0;
         font-size: 1.5em;
+        white-space: pre-line;
     }
 
-    p.title {
+    p.header {
         font-size: 3em;
+    }
+
+    .alignment {
+        font-size: 4em;
+        font-weight: bold;
+        letter-spacing: 0.08em;
+    }
+
+    .alignment.good {
+        color: #558bdf;
+    }
+
+    .alignment.evil {
+        color: #ca4444;
     }
 </style>
 
 <div class="message-view">
     <button class="close-btn" onclick={() => goto(`/admin/${data.clockid}/grim`)} aria-label="Close" title="Back to the grim">✕</button>
 
-    {#each data.fields as field, i}
-        {#if field.type === 'text'}
-            {#if field.value}
-                <p class="dumbledore-font" class:title={i === 0}>{field.value}</p>
+    {#each data.elements as element}
+        {#if element.type === 'text'}
+            {#if element.value}
+                <p class:dumbledore-font={element.style === 'Header'} class:header={element.style === 'Header'}>{element.value}</p>
             {/if}
-        {:else}
+        {:else if element.type === 'character'}
             <div class="character-row">
-                {#each field.value as characterId}
-                    {#if characterId && data.characters[characterId]}
+                {#each element.value as characterId}
+                    {#if data.characters[characterId]}
                         <div class="character-slot">
                             <CharacterToken character={data.characters[characterId]} style="position: relative;" size="min(40vw, 240px)" norules/>
                         </div>
                     {/if}
                 {/each}
             </div>
+        {:else}
+            <div class="alignment dumbledore-font {element.value}">{element.value === 'good' ? 'GOOD' : 'EVIL'}</div>
         {/if}
     {/each}
 </div>

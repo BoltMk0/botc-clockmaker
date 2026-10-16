@@ -42,7 +42,7 @@ straight to a page:
 | [Characters](settings/characters.md) | The character library, token images, reminder tokens and the wiki scraper |
 | [Scripts](settings/scripts.md) | Scripts, their character lists and night order, import/export, and setup presets |
 | [Timer Options](settings/timer-options.md) | The countdown buttons offered on the clock remote |
-| [Grim Messages](settings/grim-messages.md) | Reusable messages for the grimoire's communications menu |
+| [Message Texts](settings/message-texts.md) | The text offered by the grimoire's communications builder |
 | [QR Codes](settings/qr-codes.md) | QR codes shown on the town square |
 | [Audio](settings/audio.md) | Dim strength, loudness levelling, crossfade, clock bell sounds, ambience and sting libraries |
 | [Music](settings/music.md) | The music library, playlists, music presets and Spotify presets |
