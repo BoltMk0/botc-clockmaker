@@ -54,7 +54,8 @@ Pick the number of players, 4 to 15. Don't count travellers: they're added later
 A **preset** is a saved setup for a script and player count: the characters, which tokens go on the grim rather
 than in the bag, and bluff sets. This step lists the presets for this script that match your player count.
 
-- Each preset shows its characters (demons first) and its record, e.g. *"Played 7 times · Good 57% / Evil 43%"*.
+- Each preset shows its star rating, its characters (demons first), its storyteller notes and its record, e.g.
+  *"Played 7 times · Good 57% / Evil 43%"*.
 - Pick one to load it and jump straight to [Finish](#step-6-finish). (You can still go back and change it.)
 - Or press **New Game** to choose characters yourself.
 

@@ -2,6 +2,7 @@
     import { CHARACTER_CATEGORIES, presetDisplayName, presetGrimCharacterIds, type Preset, type ScriptCharacter } from "$lib/resources/common/gameData.js";
     import CharacterThumb from "$lib/components/CharacterThumb.svelte";
     import PresetStats from "./PresetStats.svelte";
+    import StarRating from "./StarRating.svelte";
     import { onMount } from "svelte";
     import { fetchAllCharacters, withSideCharacters } from "$lib/resources/client/scriptWithSideCharacters.js";
 
@@ -64,6 +65,20 @@
         gap: 2px;
     }
 
+    .preset-title {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5em;
+        min-width: 0;
+    }
+
+    .preset-notes {
+        font-style: italic;
+        opacity: 0.6;
+        font-size: 0.9em;
+        white-space: pre-line;
+    }
+
     .bag-grim-divider {
         align-self: stretch;
         width: 0;
@@ -75,7 +90,10 @@
 
 <div class="preset-summary">
     <div class="preset-heading">
-        <span>{presetDisplayName(preset, index)}</span>
+        <span class="preset-title">
+            <span>{presetDisplayName(preset, index)}</span>
+            <StarRating rating={preset.rating} />
+        </span>
         <PresetStats {preset} />
     </div>
     <div class="preset-tokens">
@@ -89,4 +107,7 @@
             {/each}
         {/if}
     </div>
+    {#if preset.notes}
+        <div class="preset-notes">{preset.notes}</div>
+    {/if}
 </div>

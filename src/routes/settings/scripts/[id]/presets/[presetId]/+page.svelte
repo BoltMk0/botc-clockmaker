@@ -2,6 +2,7 @@
     import { goto } from "$app/navigation";
     import type { PresetFull } from "$lib/resources/common/gameData.js";
     import PresetStats from "$lib/components/setup/PresetStats.svelte";
+    import StarRating from "$lib/components/setup/StarRating.svelte";
     import BuilderSteps from "$lib/components/setup/BuilderSteps.svelte";
     import CharacterCounts from "$lib/components/setup/CharacterCounts.svelte";
     import CharacterList from "$lib/components/CharacterList.svelte";
@@ -28,6 +29,8 @@
     // svelte-ignore state_referenced_locally
     const initial = data.preset;
     let name = $state(initial?.name ?? '');
+    let rating = $state<number | null>(initial?.rating ?? null);
+    let notes = $state(initial?.notes ?? '');
     let step = $state<string>('players');
     let saving = $state(false);
     let body = $state<HTMLElement>();
@@ -90,7 +93,9 @@
                     name: name.trim() || null,
                     character_ids: builder.chosenCharacterIds,
                     grim_character_ids: builder.grimCharacterIds,
-                    bluff_sets: builder.bluffSets
+                    bluff_sets: builder.bluffSets,
+                    rating,
+                    notes: notes.trim()
                 })
             });
             if (!response.ok) throw new Error(`${response.status}`);
@@ -209,7 +214,11 @@
         {#if step === 'summary'}
             <div class="section">
                 <h2 style="margin-top: 0;">Summary</h2>
-                <input type="text" bind:value={name} placeholder="Preset name (optional)" style="font-size: 1.2em;" class="input-style"/>
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.5em 1em;">
+                    <input type="text" bind:value={name} placeholder="Preset name (optional)" style="font-size: 1.2em;" class="input-style"/>
+                    <StarRating {rating} onchange={(r) => rating = r} />
+                </div>
+                <textarea bind:value={notes} placeholder="Storyteller notes (optional)" rows="3" class="input-style" style="width: 100%; box-sizing: border-box; margin-top: 0.5em; resize: vertical;"></textarea>
                 <p style="opacity: 0.7;">
                     {builder.playerCount} player{builder.playerCount === 1 ? '' : 's'},
                     {builder.bluffSets.length} bluff set{builder.bluffSets.length === 1 ? '' : 's'}

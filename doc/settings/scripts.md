@@ -94,7 +94,9 @@ The **Presets** page lists them grouped by player count, with **Edit** and **Del
 
 The preset editor walks through the same steps as the grimoire setup — **Players**, **Characters**, **Bluffs** and
 a **Summary** — which you can jump between from the step list at the top. On the summary, give the preset a name,
-sort any surplus tokens into the bag and the grim, and press **Save**.
+a star rating out of 5 (click the current rating again to clear it) and storyteller notes, sort any surplus tokens
+into the bag and the grim, and press **Save**. Every preset list shows the rating next to the preset's name and the
+notes in italics below its characters.
 
 ## Deleting a script
 

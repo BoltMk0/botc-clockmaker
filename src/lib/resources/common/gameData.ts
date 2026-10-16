@@ -103,9 +103,20 @@ export type Preset = {
     bluff_sets: string[][];
     /** Legacy: a single bluff set, from before multiple sets were supported. Use bluffSetsOf. */
     bluff_ids?: string[];
+    /** The storyteller's rating out of PRESET_MAX_RATING stars; absent or null when unrated. */
+    rating?: number | null;
+    /** The storyteller's own notes on running the preset; absent on presets saved before notes were kept. */
+    notes?: string;
     evil_victories: number;
     good_victories: number;
 };
+
+export const PRESET_MAX_RATING = 5;
+
+/** True for a whole number of stars from 1 to PRESET_MAX_RATING. */
+export function isValidPresetRating(value: unknown): value is number {
+    return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= PRESET_MAX_RATING;
+}
 
 /** The bluff sets of a preset (or loaded preset), upgrading the legacy single `bluff_ids` list. */
 export function bluffSetsOf(obj: { bluff_sets?: string[][]; bluff_ids?: string[] }): string[][] {
@@ -228,6 +239,8 @@ export function isPreset(obj: any): obj is Preset {
         Array.isArray(obj.character_ids) && obj.character_ids.every((id: any) => typeof id === "string") &&
         (obj.grim_character_ids === undefined || (Array.isArray(obj.grim_character_ids) && obj.grim_character_ids.every((id: any) => typeof id === "string"))) &&
         hasValidBluffs(obj) &&
+        (obj.rating === undefined || obj.rating === null || isValidPresetRating(obj.rating)) &&
+        (obj.notes === undefined || typeof obj.notes === "string") &&
         // Absent on presets saved before victories were tracked; presets.ts fills in 0.
         (obj.evil_victories === undefined || (typeof obj.evil_victories === "number" && isFinite(obj.evil_victories) && obj.evil_victories >= 0)) &&
         (obj.good_victories === undefined || (typeof obj.good_victories === "number" && isFinite(obj.good_victories) && obj.good_victories >= 0));
