@@ -34,3 +34,16 @@ export function isMessageElement(data: any): data is MessageElement {
     if (data.type === 'alignment') return data.value === 'good' || data.value === 'evil';
     return false;
 }
+
+// Splits text into plain and bold parts: text between a pair of asterisks, as in *this*, is bold.
+export function boldParts(text: string): { text: string; bold: boolean }[] {
+    const parts: { text: string; bold: boolean }[] = [];
+    let last = 0;
+    for (const match of text.matchAll(/\*([^*]+)\*/g)) {
+        if (match.index > last) parts.push({ text: text.slice(last, match.index), bold: false });
+        parts.push({ text: match[1], bold: true });
+        last = match.index + match[0].length;
+    }
+    if (last < text.length) parts.push({ text: text.slice(last), bold: false });
+    return parts;
+}

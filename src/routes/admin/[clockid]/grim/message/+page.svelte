@@ -1,6 +1,7 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
+    import MessageText from "$lib/components/MessageText.svelte";
     import type { PageData } from "./$types";
 
     let { data }: { data: PageData } = $props();
@@ -85,7 +86,7 @@
     {#each data.elements as element}
         {#if element.type === 'text'}
             {#if element.value}
-                <p class:dumbledore-font={element.style === 'Header'} class:header={element.style === 'Header'}>{element.value}</p>
+                <p class:dumbledore-font={element.style === 'Header'} class:header={element.style === 'Header'}><MessageText text={element.value}/></p>
             {/if}
         {:else if element.type === 'character'}
             <div class="character-row">

@@ -3,6 +3,7 @@
     import { TEXT_STYLES, type MessageElement, type TextOption } from "$lib/common/message";
     import { alignmentForCategory, bluffSetsOf, ALL_CHARACTER_CATEGORIES, type Character, type CharacterCategory, type ReminderToken, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
+    import MessageText from "$lib/components/MessageText.svelte";
     import ReminderTokenView from "$lib/components/ReminderTokenView.svelte";
     import { fetchReminderTokensForCharacter } from "$lib/resources/client/reminderTokens.js";
     import { browser } from "$app/environment";
@@ -697,6 +698,16 @@
         messageElements = [];
         addElementStep = 'closed';
         commsView = 'builder';
+    }
+
+    // Back from the builder closes communications; from custom text it returns to the text list, and from the others to the builder.
+    function commsBack() {
+        if (commsView === 'builder') commsView = null;
+        else if (commsView === 'customText') commsView = 'text';
+        else {
+            addElementStep = 'closed';
+            commsView = 'builder';
+        }
     }
 
     function addElement(element: MessageElement) {
@@ -1572,6 +1583,29 @@
     .overlay-panel.comms-panel > button.button-style {
         width: 100%;
         flex-shrink: 0;
+    }
+
+    .comms-back {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        gap: 0.1em;
+        padding: 0.45em 0.9em 0.45em 0.5em;
+        border: none;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.5);
+        color: white;
+        font-size: 1em;
+        cursor: pointer;
+    }
+
+    .comms-back svg {
+        width: 1.3em;
+        height: 1.3em;
+        fill: currentColor;
     }
 
     .overlay-panel.comms-panel > .message-elements,
@@ -2762,16 +2796,20 @@
     {#if commsView !== null}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 20};" onclick={() => commsView = null}>
+            <!-- Outside the panel, so it stays put while the panel scrolls -->
+            <button class="comms-back" onclick={(e) => { e.stopPropagation(); commsBack(); }}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z"/></svg>
+                Back
+            </button>
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <div class="overlay-panel comms-panel" onclick={(e) => e.stopPropagation()}>
-                <button class="overlay-close" onclick={() => commsView = null} aria-label="Close">✕</button>
                 {#if commsView === 'builder'}
                     <div class="overlay-name dumbledore-font">Communications</div>
                     <div class="message-elements">
                         {#each messageElements as element, elementIndex}
                             <div class="message-element">
                                 {#if element.type === 'text'}
-                                    <div class="element-body text-preview" class:dumbledore-font={element.style === 'Header'} class:header={element.style === 'Header'}>{element.value}</div>
+                                    <div class="element-body text-preview" class:dumbledore-font={element.style === 'Header'} class:header={element.style === 'Header'}><MessageText text={element.value}/></div>
                                 {:else if element.type === 'character'}
                                     <button class="no-button-style element-body element-tokens" title="Change characters" onclick={() => openCharacterPicker(elementIndex)}>
                                         {#each element.value as characterId (characterId)}
@@ -2817,11 +2855,10 @@
                     <div class="overlay-name dumbledore-font">Add text</div>
                     <div class="text-options">
                         {#each textOptions as option}
-                            <button class="button-style text-option" class:dumbledore-font={option.style === 'Header'} class:header={option.style === 'Header'} onclick={() => addElement({ type: 'text', value: option.text, style: option.style })}>{option.text}</button>
+                            <button class="button-style text-option" class:dumbledore-font={option.style === 'Header'} class:header={option.style === 'Header'} onclick={() => addElement({ type: 'text', value: option.text, style: option.style })}><MessageText text={option.text}/></button>
                         {/each}
                     </div>
                     <button class="button-style" onclick={openCustomText}>Custom...</button>
-                    <button class="button-style" onclick={() => commsView = 'builder'}>Back</button>
                 {:else if commsView === 'customText'}
                     <div class="overlay-name dumbledore-font">Custom text</div>
                     <select class="comms-input" bind:value={customText.style} aria-label="Style">
@@ -2835,7 +2872,6 @@
                         <label><input type="checkbox" bind:checked={saveCustomText} /> Save as a text option</label>
                         <button class="button-style highlight" disabled={!customText.text.trim()} onclick={addCustomText}>Add</button>
                     </div>
-                    <button class="button-style" onclick={() => commsView = 'text'}>Back</button>
                 {:else if commsView === 'character'}
                     <div class="overlay-name dumbledore-font">Choose characters</div>
                     {#each traySections as section (section.key)}
@@ -2854,14 +2890,12 @@
                         <button class="button-style highlight" disabled={pickedCharacterIds.length === 0} onclick={finishCharacterPicker}>
                             {editingElementIndex === null ? 'Add' : 'Done'} ({pickedCharacterIds.length} chosen)
                         </button>
-                        <button class="button-style" onclick={() => commsView = 'builder'}>Back</button>
                     </div>
                 {:else}
                     <div class="overlay-name dumbledore-font">Which bluffs?</div>
                     {#each bluffSets as _, setIndex}
                         <button class="button-style" onclick={() => { commsView = null; showBluffs(setIndex); }}>Bluff set {setIndex + 1}</button>
                     {/each}
-                    <button class="button-style" onclick={() => commsView = 'builder'}>Back</button>
                 {/if}
             </div>
         </div>

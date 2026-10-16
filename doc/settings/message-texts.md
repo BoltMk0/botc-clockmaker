@@ -13,7 +13,8 @@ Each text has a **style**:
 
 The communications builder shows each text in its style, and so does the message players see.
 
-- Choose the style from the dropdown and type the text beside it. Line breaks are kept.
+- Choose the style from the dropdown and type the text beside it. Line breaks are kept, and words between asterisks
+  are bold: `You are *drunk*` shows *"You are **drunk**"*.
 - **↑** / **↓** move a text up or down the list; **✕** deletes it.
 - **+ Add text** adds a new one.
 

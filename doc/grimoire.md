@@ -125,6 +125,9 @@ Tap **Add element** (the dashed box), then choose:
 In the builder, **✕** removes an element, tapping a row of characters changes them, and tapping an alignment switches
 it between good and evil.
 
+**Back**, top left, goes back a step, and closes the builder from the builder itself. In any text, put asterisks round
+words to make them bold: *"You are \*drunk\*"* shows *"You are **drunk**"*.
+
 **Bluffs** shows your bluff set (pick which, if there are several). With none yet, it lets you create one: choose at
 least three characters and press **Add bluff set**.
 
