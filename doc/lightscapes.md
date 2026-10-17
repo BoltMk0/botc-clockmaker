@@ -6,8 +6,9 @@ Lightscapes sets the room's lights to follow a game. It's a separate program tha
 computer with a Zigbee USB adapter (a Raspberry Pi is plenty), and talks to Clockmaker over the network. Installing it
 is covered in [lightscapes/README.md](../lightscapes/README.md). This page is about setting it up for your games.
 
-Lightscapes has its own page, on port 8090 of the computer it runs on. Changes there are kept when you click **Save**
-in the bar at the bottom.
+Lightscapes has its own page, on port 8090 of the computer it runs on. The menu down the side (along the top, on a
+phone) has its pages: **Phases & bells**, **Spectrums**, **Buttons**, **Activity** and **Settings**. Changes on any
+of them are kept when you click **Save** in the bar at the bottom.
 
 ## The status bar
 
@@ -20,7 +21,9 @@ The top of the page shows what Lightscapes is connected to:
 A red chip says what's wrong; hover it for more. If Clockmaker can't be reached, the lights stay as they are until it
 can. Lightscapes then sets them to the game's phase straight away.
 
-## Clockmaker
+## Settings
+
+Settings has the Clockmaker to follow. Until it's set up, the page opens on Settings.
 
 - **Address:** Clockmaker's address, as the Lightscapes computer reaches it.
 - **API token:** made in Clockmaker's [Settings → API Token](settings/api-token.md). Once saved it isn't shown again.
@@ -42,7 +45,8 @@ Each phase has a **scene**: a list of lights or groups, and what to set each one
 For each light you choose:
 - **On or off.**
 - **Brightness:** leave it unticked to keep the light's brightness as it is.
-- **Colour:** *Keep colour*, a *Colour*, or a *White* from warm to cool.
+- **Colour:** *Keep colour*, a *Colour*, a *White* from warm to cool, or one of the [spectrums](#spectrums). A light
+  following a spectrum takes its brightness from the spectrum too.
 
 Lights not in a phase's scene are left as they are. **Fade between phases over** sets how long the lights take to
 change when the phase does.
@@ -50,33 +54,41 @@ change when the phase does.
 **Preview** shows a phase's lights now, including changes you haven't saved. The lights go back to following the game
 after a minute, or when you click **Back to the game** in the banner.
 
-## The day spectrum
+## Spectrums
 
-The spectrum fades lights through a list of colours as the day's countdown runs. **Use the town square's sky** fills
-it in from the sky behind the town square's clocktower:
-- pale dawn blue at the start
-- a clear midday blue
-- an orange sunset
-- deep purple twilight as the time runs out
+A spectrum fades lights through a list of colours as the day's countdown runs. You can make as many as you like, say a
+sky for the main lights and a firelight for the lamps, and each one is a colour a phase's light can pick.
 
-Each colour has its own brightness, so the room darkens with the sky.
+What a light following a spectrum shows depends on the phase:
 
-- **Lights that follow it:** tick the lights and groups that follow the spectrum. In the day (and in the morning, with
-  **Show the first colour in the morning**), these follow the spectrum instead of the phase's scene. The others still
-  follow the scene, so you can keep, say, a reading light steady while the rest change with the sky.
+| Phase | Shows |
+| --- | --- |
+| Morning | The first colour |
+| Day | The colours in turn, as the countdown runs |
+| Dusk, Night | The last colour |
+
+**+ Add a spectrum** adds one, and **Delete** removes it. Lights that followed a deleted spectrum keep their colour as
+it is. Under each spectrum's name is the list of lights that follow it, in each phase.
+
 - **Colours:** each one is placed at a point in the countdown, from 0% at the start to 100% at the end. You can edit
   them, add your own, or remove them. The bar above shows the result, with a line marking where the game is now.
+  **Use the town square's sky** fills them in from the sky behind the town square's clocktower:
+  - pale dawn blue at the start
+  - a clear midday blue
+  - an orange sunset
+  - deep purple twilight as the time runs out
+
+  Each colour has its own brightness, so the room darkens with the sky.
 - **Move the lights along every:** how often the lights are sent their next colour. They fade smoothly from each
   colour to the next, and always reach each listed colour on time, so 5–15 seconds is smooth without crowding the
   Zigbee network.
-- **Preview at:** shows the spectrum at a point in the day.
+- **Preview the day at:** shows the day phase's lights at a point in the countdown.
 
-As on the town square, the spectrum stops just short of the night sky's colour. When the countdown runs out, the
-lights change to the dusk scene.
+As on the town square, a spectrum stops just short of its last colour until the countdown runs out.
 
 ## Bells
 
-A bell's lights flash when it rings, then go back to the phase's after **Hold for** seconds.
+The bells are on the **Phases & bells** page. A bell's lights flash when it rings, then go back to the phase's after **Hold for** seconds.
 - **Start of day bell:** rings when night turns to day.
 - **Reminder bell:** rings when the countdown gets to the reminder time its [timer option](settings/timer-options.md)
   has.
@@ -103,4 +115,4 @@ that press isn't acted on.
 
 ## Activity
 
-Lists what Lightscapes did recently: phase changes, bells, button presses, and anything that went wrong.
+The Activity page lists what Lightscapes did recently: phase changes, bells, button presses, and anything that went wrong.

@@ -3,7 +3,7 @@
 Zigbee lighting for Clockmaker. Lightscapes follows one game's day cycle and sets your Zigbee lights to match:
 
 - a **scene** for each phase (morning, day, dusk and night)
-- a **day spectrum** that fades through the town square's sky colours as the countdown runs, each a white (a colour temperature, on the bulbs' white light) or a colour
+- **spectrums**, which lights can follow to fade through colours (like the town square's sky) as the countdown runs, each a white (a colour temperature, on the bulbs' white light) or a colour
 - **flashes** when the bells ring
 
 It also turns Zigbee buttons into a clock remote.
@@ -57,9 +57,9 @@ built from the repository root, because Lightscapes shares some of Clockmaker's 
      in step.
 
 6. **Set up Lightscapes** in its page, `http://<this computer>:8090`:
-   - Enter Clockmaker's address (as this computer reaches it, e.g. `http://homelab:3000`) and the token.
+   - In **Settings**, enter Clockmaker's address (as this computer reaches it, e.g. `http://homelab:3000`) and the token.
    - Click **Find games** and pick the game, then save.
-   - Set the scenes, spectrum, bells and buttons.
+   - Set the scenes, spectrums, bells and buttons.
 
 From then on, Lightscapes starts with the computer and sets the lights to the game's phase as soon as it connects.
 

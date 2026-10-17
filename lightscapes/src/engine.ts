@@ -1,6 +1,6 @@
 import type { ClocktowerClockModel } from "../../src/lib/model/common/ClocktowerClockModel.ts";
 import type { TimeOfDay } from "../../src/lib/model/client/types.ts";
-import type { BellEvent, Command, Config, LightState, SceneEntry } from "./config.ts";
+import type { BellEvent, Command, Config, LightState, SceneEntry, Spectrum } from "./config.ts";
 import type { ClockFollower } from "./clock.ts";
 import type { Zigbee } from "./zigbee.ts";
 import { spectrumAt, type SpectrumColor } from "./spectrum.ts";
@@ -25,6 +25,16 @@ function lightPayload(light: LightState, transition: number): Record<string, unk
     return payload;
 }
 
+/** The spectrums a phase's lights follow, with the lights that follow each. */
+function spectrumsIn(phase: TimeOfDay, config: Config): { spectrum: Spectrum; targets: string[] }[] {
+    return config.spectrums.map(spectrum => ({
+        spectrum,
+        targets: config.phases[phase]
+            .filter(e => e.light.on && e.light.color?.kind === 'spectrum' && e.light.color.id === spectrum.id)
+            .map(e => e.target)
+    })).filter(s => s.targets.length > 0);
+}
+
 const COMMAND_LABELS: Record<Command, string> = {
     day: 'Day', startPause: 'Start/pause', dusk: 'Dusk', night: 'Night', ringBell: 'Ring the bell', sting: 'Sting'
 };
@@ -34,7 +44,7 @@ const BELL_LABELS: Record<BellEvent, string> = {
 };
 
 /**
- * Keeps the lights in step with the game: each phase's scene, the day's spectrum and the bells' effects. The lights
+ * Keeps the lights in step with the game: each phase's scene, the spectrums its lights follow and the bells' effects. The lights
  * are set from the clock's state rather than from what changed, so reconnecting (to Clockmaker or Zigbee2MQTT) puts
  * them right again.
  */
@@ -47,9 +57,10 @@ export class Engine {
 
     /** The phase whose scene the lights are showing, or null to set them again on the next update. */
     #appliedPhase: TimeOfDay | null = null;
-    /** What the spectrum's lights were last sent, so they're not sent the same again. */
-    #lastSpectrum: SpectrumColor | null = null;
-    #spectrumTimer: ReturnType<typeof setTimeout> | null = null;
+    /** What each spectrum's lights (by its id) were last sent, so they're not sent the same again. */
+    #lastSpectrum = new Map<string, SpectrumColor>();
+    /** When each spectrum's lights are next moved along, each at its own interval. */
+    #spectrumTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
     #reminderTimer: ReturnType<typeof setTimeout> | null = null;
     /** The countdown (by its start time) whose reminder bell has rung, so it only rings once. */
@@ -110,30 +121,29 @@ export class Engine {
 
     #reset() {
         this.#appliedPhase = null;
-        this.#lastSpectrum = null;
+        this.#lastSpectrum.clear();
+    }
+
+    #clearSpectrumTimers() {
+        for(const timer of this.#spectrumTimers.values()) clearTimeout(timer);
+        this.#spectrumTimers.clear();
     }
 
     #held(): boolean {
         return this.#holdTimer !== null || this.#previewTimer !== null;
     }
 
-    /** Whether the spectrum's lights follow the spectrum in this phase, rather than the phase's scene. */
-    #spectrumActive(phase: TimeOfDay, config = this.#config): boolean {
-        const spectrum = config.spectrum;
-        return spectrum.enabled && spectrum.stops.length > 0 && spectrum.targets.length > 0 &&
-            (phase === 'day' || (phase === 'morning' && spectrum.holdInMorning));
-    }
-
-    #setScene(entries: SceneEntry[], transition: number, skip: readonly string[] = []) {
+    /** Sets the lights, except those following a spectrum, which are set by it. */
+    #setScene(entries: SceneEntry[], transition: number) {
         for(const entry of entries){
-            if(skip.includes(entry.target)) continue;
+            if(entry.light.on && entry.light.color?.kind === 'spectrum') continue;
             this.#zigbee.set(entry.target, lightPayload(entry.light, transition));
             if(entry.light.effect) this.#zigbee.set(entry.target, { effect: entry.light.effect });
         }
     }
 
-    #setSpectrum(color: SpectrumColor, transition: number, config = this.#config) {
-        for(const target of config.spectrum.targets){
+    #setSpectrum(color: SpectrumColor, transition: number, targets: readonly string[]) {
+        for(const target of targets){
             // A light that says it does colours but not whites gets the white's colour
             const device = this.#zigbee.devices.find(d => d.name === target);
             const white = color.mireds !== null && !(device?.color && !device.colorTemp);
@@ -149,29 +159,42 @@ export class Engine {
         const clock = this.#clock.clock;
         if(!clock) return;
         this.#scheduleReminder(clock);
+        this.#clearSpectrumTimers();
         if(this.#held()) return;
 
         const phase = clock.timeOfDay;
-        const spectrumActive = this.#spectrumActive(phase);
         if(phase !== this.#appliedPhase){
             this.#log(`${phase[0].toUpperCase()}${phase.slice(1)}: setting the lights`);
-            this.#setScene(this.#config.phases[phase], this.#config.transitionSeconds,
-                spectrumActive ? this.#config.spectrum.targets : []);
+            this.#setScene(this.#config.phases[phase], this.#config.transitionSeconds);
             this.#appliedPhase = phase;
-            this.#lastSpectrum = null;
+            this.#lastSpectrum.clear();
         }
-        this.#updateSpectrum(clock, spectrumActive);
+        for(const { spectrum, targets } of spectrumsIn(phase, this.#config)) this.#updateSpectrum(clock, spectrum, targets);
     }
 
-    #updateSpectrum(clock: ClocktowerClockModel, active: boolean) {
-        if(this.#spectrumTimer !== null) clearTimeout(this.#spectrumTimer);
-        this.#spectrumTimer = null;
-        if(!active) return;
+    /** Moves one spectrum's lights along, when its timer's up. */
+    #tickSpectrum(id: string) {
+        this.#spectrumTimers.delete(id);
+        const clock = this.#clock.clock;
+        if(!clock || this.#held()) return;
+        if(clock.timeOfDay !== this.#appliedPhase) return this.#update();
+        const following = spectrumsIn(clock.timeOfDay, this.#config).find(s => s.spectrum.id === id);
+        if(following) this.#updateSpectrum(clock, following.spectrum, following.targets);
+    }
 
-        const { stops, intervalSeconds } = this.#config.spectrum;
+    /** How far along a spectrum its lights are in a phase: the first colour in the morning, the last at dusk and night. */
+    #spectrumProgress(phase: TimeOfDay, at: number): number {
+        if(phase === 'morning') return 0;
+        if(phase === 'day') return Math.min(this.progress(at), DAY_PROGRESS_CAP);
+        return 1;
+    }
+
+    #updateSpectrum(clock: ClocktowerClockModel, spectrum: Spectrum, targets: readonly string[]) {
+        const { id, stops, intervalSeconds } = spectrum;
         const startTime = clock.timeOfDay === 'day' ? clock.time.serverStartTime : null;
         const now = this.#clock.serverNow();
-        const first = this.#lastSpectrum === null;
+        const last = this.#lastSpectrum.get(id);
+        const first = last === undefined;
 
         // Straight to where the sky is to begin with. Once going, each colour is the one due at the end of its fade, so
         // the lights arrive with the sky rather than after it - and a fade ends on any stop before the next update, so
@@ -189,19 +212,14 @@ export class Engine {
             }
         }
         const transition = first ? this.#config.transitionSeconds : (target - now) / 1000;
-        const progress = startTime === null ? 0 : Math.min(this.progress(target), DAY_PROGRESS_CAP);
-        const color = spectrumAt(stops, progress);
-        const last = this.#lastSpectrum;
+        const color = spectrumAt(stops, this.#spectrumProgress(clock.timeOfDay, target));
         if(color.hex !== last?.hex || color.brightness !== last.brightness || color.mireds !== last.mireds){
-            this.#setSpectrum(color, Math.round(transition * 10) / 10);
-            this.#lastSpectrum = color;
+            this.#setSpectrum(color, Math.round(transition * 10) / 10, targets);
+            this.#lastSpectrum.set(id, color);
         }
         if(startTime !== null && this.progress(now) < DAY_PROGRESS_CAP){
             const next = first ? Math.max(this.#config.transitionSeconds * 1000, MIN_STEP_MS) : target - now;
-            this.#spectrumTimer = setTimeout(() => {
-                this.#spectrumTimer = null;
-                this.#update();
-            }, next);
+            this.#spectrumTimers.set(id, setTimeout(() => this.#tickSpectrum(id), next));
         }
     }
 
@@ -239,14 +257,14 @@ export class Engine {
     }
 
     /**
-     * Shows a phase's lights (at `progress` through the day, for the spectrum) for a while, whatever the game's doing.
+     * Shows a phase's lights (at `progress` through the day, for the spectrums) for a while, whatever the game's doing.
      * From `config` if given, to try out changes before they're saved.
      */
     preview(phase: TimeOfDay, progress = 0, config = this.#config) {
         this.#startPreview(`${phase}${phase === 'day' ? ` at ${Math.round(progress * 100)}%` : ''}`);
-        const spectrumActive = this.#spectrumActive(phase, config);
-        this.#setScene(config.phases[phase], config.transitionSeconds, spectrumActive ? config.spectrum.targets : []);
-        if(spectrumActive) this.#setSpectrum(spectrumAt(config.spectrum.stops, phase === 'day' ? progress : 0), 1, config);
+        this.#setScene(config.phases[phase], config.transitionSeconds);
+        const at = phase === 'day' ? progress : phase === 'morning' ? 0 : 1;
+        for(const { spectrum, targets } of spectrumsIn(phase, config)) this.#setSpectrum(spectrumAt(spectrum.stops, at), 1, targets);
     }
 
     previewBell(bell: BellEvent, config = this.#config) {
@@ -255,8 +273,7 @@ export class Engine {
 
     #startPreview(what: string) {
         if(this.#previewTimer !== null) clearTimeout(this.#previewTimer);
-        if(this.#spectrumTimer !== null) clearTimeout(this.#spectrumTimer);
-        this.#spectrumTimer = null;
+        this.#clearSpectrumTimers();
         this.previewing = what;
         this.#previewTimer = setTimeout(() => this.endPreview(), PREVIEW_MS);
     }

@@ -37,6 +37,8 @@ let status = null;
 let clocks = [];
 let phaseTab = 'morning';
 let previewProgress = 0.5;
+/** Where each spectrum (by id) is previewed at. */
+const spectrumPreview = {};
 let learning = false;
 let learnMessage = '';
 
@@ -120,10 +122,11 @@ function targetSelect(value, onChange) {
 
 // --- Scene editor (a list of lights and what to set them to) ------------------------------------------------------
 
-function sceneEditor(entries, rerender, { effects = false } = {}) {
+/** `phase` is the phase it's for, whose lights can follow a spectrum, or null. */
+function sceneEditor(entries, rerender, { effects = false, phase = null } = {}) {
     const list = h('div', { class: 'entries' },
         entries.length === 0 ? h('div', { class: 'empty' }, 'No lights: they\'re left as they are.') : null,
-        entries.map((entry, i) => entryRow(entry, entries, i, rerender, effects))
+        entries.map((entry, i) => entryRow(entry, entries, i, rerender, effects, phase))
     );
     return h('div', {},
         list,
@@ -140,10 +143,18 @@ function sceneEditor(entries, rerender, { effects = false } = {}) {
     );
 }
 
-function entryRow(entry, entries, index, rerender, effects) {
+const SPECTRUM_IN_PHASE = {
+    morning: 'Its first colour',
+    day: 'Follows the countdown',
+    dusk: 'Its last colour',
+    night: 'Its last colour'
+};
+
+function entryRow(entry, entries, index, rerender, effects, phase) {
     const light = entry.light;
     const device = zigbee.devices.find(d => d.name === entry.target);
-    const colorMode = light.color?.kind ?? 'keep';
+    const colorMode = light.color?.kind === 'spectrum' ? `spectrum:${light.color.id}` : light.color?.kind ?? 'keep';
+    const spectrum = light.color?.kind === 'spectrum' ? config.spectrums.find(s => s.id === light.color.id) : null;
 
     const brightnessValue = h('span', { class: 'value' }, light.brightness === undefined ? '' : `${Math.round(light.brightness / 254 * 100)}%`);
     const tempValue = h('span', { class: 'value' }, light.color?.kind === 'temp' ? `${kelvin(light.color.mireds)}K` : '');
@@ -159,7 +170,8 @@ function entryRow(entry, entries, index, rerender, effects) {
             }
         }, option('on', 'On', light.on ? 'on' : 'off'), option('off', 'Off', light.on ? 'on' : 'off')),
         light.on ? [
-            h('label', { class: 'inline brightness', title: 'Brightness (leave unticked to keep it as it is)' },
+            // A spectrum has its own brightness
+            spectrum ? null : h('label', { class: 'inline brightness', title: 'Brightness (leave unticked to keep it as it is)' },
                 h('input', {
                     type: 'checkbox', checked: light.brightness !== undefined,
                     onchange: e => {
@@ -185,11 +197,23 @@ function entryRow(entry, entries, index, rerender, effects) {
                     const mode = e.target.value;
                     if (mode === 'keep') delete light.color;
                     else if (mode === 'rgb') light.color = { kind: 'rgb', hex: '#ffb46b' };
-                    else light.color = { kind: 'temp', mireds: 370 };
+                    else if (mode === 'temp') light.color = { kind: 'temp', mireds: 370 };
+                    else {
+                        light.color = { kind: 'spectrum', id: mode.slice('spectrum:'.length) };
+                        delete light.brightness;
+                    }
                     changed();
                     rerender();
                 }
-            }, option('keep', 'Keep colour', colorMode), option('rgb', 'Colour', colorMode), option('temp', 'White', colorMode)),
+            },
+                option('keep', 'Keep colour', colorMode), option('rgb', 'Colour', colorMode), option('temp', 'White', colorMode),
+                phase && config.spectrums.length ? h('optgroup', { label: 'Spectrums' },
+                    config.spectrums.map(s => option(`spectrum:${s.id}`, s.name, colorMode))) : null
+            ),
+            spectrum ? [
+                h('span', { class: 'swatch', style: `background: ${gradientCss(spectrum.stops)}`, title: spectrum.name }),
+                h('span', { class: 'message' }, SPECTRUM_IN_PHASE[phase])
+            ] : null,
             light.color?.kind === 'rgb' ? h('input', {
                 type: 'color', value: light.color.hex,
                 oninput: e => { light.color.hex = e.target.value; changed(); }
@@ -274,8 +298,6 @@ function renderClockmaker() {
 
 function renderPhases() {
     const entries = config.phases[phaseTab];
-    const spectrumHere = config.spectrum.enabled && (phaseTab === 'day' || (phaseTab === 'morning' && config.spectrum.holdInMorning));
-    const overridden = spectrumHere ? entries.filter(e => config.spectrum.targets.includes(e.target)).map(e => e.target) : [];
 
     fill('phases', 
         h('div', { class: 'row center' },
@@ -293,10 +315,8 @@ function renderPhases() {
                 onclick: () => { phaseTab = phase; renderPhases(); }
             }, PHASE_LABELS[phase]))
         ),
-        h('p', { class: 'hint' }, PHASE_HINTS[phaseTab],
-            spectrumHere ? ' The day spectrum\'s lights follow the spectrum here.' : ''),
-        sceneEditor(entries, renderPhases),
-        overridden.length ? h('p', { class: 'note' }, `${overridden.join(', ')} follow${overridden.length === 1 ? 's' : ''} the day spectrum in this phase instead.`) : null,
+        h('p', { class: 'hint' }, PHASE_HINTS[phaseTab]),
+        sceneEditor(entries, renderPhases, { phase: phaseTab }),
         h('div', { class: 'actions' },
             h('button', { type: 'button', onclick: () => preview({ phase: phaseTab, progress: phaseTab === 'day' ? previewProgress : 0 }) },
                 `Preview ${PHASE_LABELS[phaseTab].toLowerCase()}`)
@@ -315,53 +335,88 @@ function gradientCss(stops) {
     return `linear-gradient(to right, ${stops.map(s => `${shownHex(s)} ${s.at * 100}%`).join(', ')})`;
 }
 
-function renderSpectrum() {
-    const spectrum = config.spectrum;
-    const stops = spectrum.stops;
-    const { groups, devices } = lightTargets();
-    const missing = spectrum.targets.filter(t => !groups.includes(t) && !devices.includes(t));
-    const progressLabel = h('span', { class: 'value' }, `${Math.round(previewProgress * 100)}%`);
+/** Where the live marker goes on the spectrums: how far through the day it is, or null if it isn't day. */
+function liveProgress() {
+    return status?.clock?.timeOfDay === 'day' ? status.clock.progress : null;
+}
 
-    const targetBox = name => h('label', { class: 'inline' },
-        h('input', {
-            type: 'checkbox', checked: spectrum.targets.includes(name),
-            onchange: e => {
-                spectrum.targets = e.target.checked ? [...spectrum.targets, name] : spectrum.targets.filter(t => t !== name);
-                changed();
-                renderPhases();
-            }
-        }),
-        name
+/** The phases' lights that follow a spectrum, as "Day: Hall, Bar". */
+function spectrumUse(spectrum) {
+    return PHASES.map(phase => {
+        const targets = config.phases[phase]
+            .filter(e => e.light.on && e.light.color?.kind === 'spectrum' && e.light.color.id === spectrum.id)
+            .map(e => e.target || 'a light not picked yet');
+        return targets.length ? `${PHASE_LABELS[phase]}: ${targets.join(', ')}` : null;
+    }).filter(use => use);
+}
+
+function addSpectrum() {
+    const names = new Set(config.spectrums.map(s => s.name));
+    let n = config.spectrums.length + 1;
+    while (names.has(`Spectrum ${n}`)) n++;
+    config.spectrums.push({
+        // Not crypto.randomUUID(): the page may not be served securely
+        id: Math.random().toString(36).slice(2, 10),
+        name: `Spectrum ${n}`,
+        stops: [{ at: 0, hex: miredsToHex(370), brightness: 254, white: true, mireds: 370 }],
+        intervalSeconds: 10
+    });
+    changed();
+    renderSpectrums();
+}
+
+function removeSpectrum(spectrum) {
+    const use = spectrumUse(spectrum);
+    if (use.length && !confirm(`Delete ${spectrum.name}? The lights following it will keep their colour instead.\n\n${use.join('\n')}`)) return;
+    config.spectrums = config.spectrums.filter(s => s !== spectrum);
+    for (const phase of PHASES) {
+        for (const entry of config.phases[phase]) {
+            if (entry.light.color?.kind === 'spectrum' && entry.light.color.id === spectrum.id) delete entry.light.color;
+        }
+    }
+    changed();
+    renderSpectrums();
+}
+
+function renderSpectrums() {
+    fill('spectrums',
+        config.spectrums.length === 0 ? h('section', { class: 'card' }, h('p', { class: 'empty' }, 'No spectrums yet.')) : null,
+        config.spectrums.map(spectrumCard),
+        h('div', { class: 'actions' }, h('button', { type: 'button', onclick: addSpectrum }, '+ Add a spectrum'))
     );
+}
 
-    const live = status?.clock?.timeOfDay === 'day' ? status.clock.progress : null;
+function spectrumCard(spectrum) {
+    const stops = spectrum.stops;
+    const use = spectrumUse(spectrum);
+    const at = spectrumPreview[spectrum.id] ?? 0.5;
+    const progressLabel = h('span', { class: 'value' }, `${Math.round(at * 100)}%`);
+    const live = liveProgress();
+    const gradientEl = h('div', { class: 'gradient', style: `background: ${gradientCss(stops)}` },
+        stops.map(s => h('span', { class: 'tick', style: `left: ${s.at * 100}%`, title: `${Math.round(s.at * 100)}%` })),
+        h('span', { class: 'marker', style: `left: ${(live ?? 0) * 100}%`, title: 'Now', hidden: live === null })
+    );
+    const usedInDay = use.some(u => u.startsWith(`${PHASE_LABELS.day}:`));
 
-    fill('spectrum', 
-        h('label', { class: 'inline' },
+    return h('section', { class: 'card' },
+        h('div', { class: 'row center spectrum-head' },
             h('input', {
-                type: 'checkbox', checked: spectrum.enabled,
-                onchange: e => { spectrum.enabled = e.target.checked; changed(); renderPhases(); }
+                type: 'text', class: 'name', value: spectrum.name, 'aria-label': 'Name',
+                oninput: e => { spectrum.name = e.target.value; changed(); }
             }),
-            'Use the day spectrum'
+            h('span', { class: 'spacer' }),
+            h('button', { type: 'button', class: 'secondary', onclick: () => removeSpectrum(spectrum) }, 'Delete')
         ),
-        h('div', { class: 'gradient', id: 'gradient', style: `background: ${gradientCss(stops)}` },
-            stops.map(s => h('span', { class: 'tick', style: `left: ${s.at * 100}%`, title: `${Math.round(s.at * 100)}%` })),
-            live !== null ? h('span', { class: 'marker', id: 'gradient-marker', style: `left: ${live * 100}%`, title: 'Now' }) : null
-        ),
-
-        h('h3', {}, 'Lights that follow it'),
-        groups.length + devices.length + missing.length === 0
-            ? h('p', { class: 'empty' }, 'No lights found yet: pair some in Zigbee2MQTT.')
-            : h('div', { class: 'targets' }, [...groups, ...devices, ...missing].map(targetBox)),
+        h('p', { class: 'hint small' }, use.length ? `Followed in ${use.join(' · ')}` : 'Not followed yet: pick it as a light\'s colour in a phase.'),
+        gradientEl,
 
         h('h3', {}, 'Colours'),
-        stops.length === 0 ? h('p', { class: 'empty' }, 'No colours yet: start from the town square\'s sky, or add your own.') :
-        h('table', { class: 'stops' },
+        h('div', { class: 'stops-wrap' }, h('table', { class: 'stops' },
             h('thead', {}, h('tr', {}, h('th', {}, 'At'), h('th', {}, 'Colour'), h('th', {}, 'Brightness'), h('th', {}))),
             h('tbody', {}, stops.map((stop, i) => {
                 const brightness = h('span', { class: 'value' }, `${Math.round(stop.brightness / 254 * 100)}%`);
                 const tempValue = h('span', { class: 'value' }, `${kelvin(stop.mireds)}K`);
-                const gradient = () => document.getElementById('gradient').style.background = gradientCss(stops);
+                const gradient = () => gradientEl.style.background = gradientCss(stops);
                 return h('tr', {},
                     h('td', {}, h('input', {
                         type: 'number', min: 0, max: 100, step: 1, value: Math.round(stop.at * 1000) / 10,
@@ -369,10 +424,10 @@ function renderSpectrum() {
                             stop.at = Math.min(Math.max(Number(e.target.value) || 0, 0), 100) / 100;
                             stops.sort((a, b) => a.at - b.at);
                             changed();
-                            renderSpectrum();
+                            renderSpectrums();
                         }
                     }), ' %'),
-                    h('td', { class: 'color' },
+                    h('td', {}, h('div', { class: 'cell' },
                         h('select', {
                             title: 'White uses the bulbs\' white light',
                             onchange: e => {
@@ -380,7 +435,7 @@ function renderSpectrum() {
                                 // Starting from the white nearest the colour
                                 if (stop.white) stop.mireds = hexToMireds(stop.hex);
                                 changed();
-                                renderSpectrum();
+                                renderSpectrums();
                             }
                         }, option('white', 'White', stop.white ? 'white' : 'rgb'), option('rgb', 'Colour', stop.white ? 'white' : 'rgb')),
                         stop.white ? h('span', { class: 'brightness', title: 'Colour temperature: warm to cool' },
@@ -399,22 +454,23 @@ function renderSpectrum() {
                             type: 'color', value: stop.hex,
                             oninput: e => { stop.hex = e.target.value; gradient(); changed(); }
                         })
-                    ),
-                    h('td', { class: 'brightness' }, h('input', {
+                    )),
+                    h('td', {}, h('div', { class: 'cell brightness' }, h('input', {
                         type: 'range', min: 1, max: 254, value: stop.brightness,
                         oninput: e => {
                             stop.brightness = Number(e.target.value);
                             brightness.textContent = `${Math.round(stop.brightness / 254 * 100)}%`;
                             changed();
                         }
-                    }), brightness),
+                    }), brightness)),
                     h('td', {}, h('button', {
-                        type: 'button', class: 'icon', title: 'Remove',
-                        onclick: () => { stops.splice(i, 1); changed(); renderSpectrum(); }
+                        // A spectrum needs a colour
+                        type: 'button', class: 'icon', title: 'Remove', disabled: stops.length === 1,
+                        onclick: () => { stops.splice(i, 1); changed(); renderSpectrums(); }
                     }, '×'))
                 );
             }))
-        ),
+        )),
         h('div', { class: 'actions' },
             h('button', {
                 type: 'button', class: 'secondary',
@@ -429,17 +485,17 @@ function renderSpectrum() {
                     stops.push({ at: Math.round(at * 1000) / 1000, hex: near?.hex ?? '#ffffff', brightness: near?.brightness ?? 254, white: near?.white ?? true, mireds: near?.mireds ?? 370 });
                     stops.sort((a, b) => a.at - b.at);
                     changed();
-                    renderSpectrum();
+                    renderSpectrums();
                 }
             }, '+ Add a colour'),
             h('button', {
                 type: 'button', class: 'secondary',
                 onclick: async () => {
-                    if (stops.length && !confirm('Replace these colours with the town square\'s sky?')) return;
+                    if (!confirm('Replace these colours with the town square\'s sky?')) return;
                     try {
                         spectrum.stops = await api('/api/townsquare-spectrum');
                         changed();
-                        renderSpectrum();
+                        renderSpectrums();
                     } catch (err) { toast(err.message); }
                 }
             }, 'Use the town square\'s sky')
@@ -454,27 +510,23 @@ function renderSpectrum() {
                     }),
                     'seconds'
                 )
-            ),
-            h('label', { class: 'inline', style: 'padding-bottom: 0.5rem' },
-                h('input', {
-                    type: 'checkbox', checked: spectrum.holdInMorning,
-                    onchange: e => { spectrum.holdInMorning = e.target.checked; changed(); renderPhases(); }
-                }),
-                'Show the first colour in the morning, as the town square does'
             )
         ),
         h('p', { class: 'hint small' }, 'The lights fade from one update to the next. Every few seconds is smooth without flooding the Zigbee network.'),
 
         h('div', { class: 'row center', style: 'margin-top: 1rem' },
-            h('label', { class: 'inline' }, 'Preview at',
+            h('label', { class: 'inline' }, 'Preview the day at',
                 h('input', {
-                    type: 'range', min: 0, max: 100, value: previewProgress * 100,
-                    oninput: e => { previewProgress = Number(e.target.value) / 100; progressLabel.textContent = `${e.target.value}%`; },
-                    onchange: () => preview({ phase: 'day', progress: previewProgress })
+                    type: 'range', min: 0, max: 100, value: at * 100, disabled: !usedInDay,
+                    oninput: e => { spectrumPreview[spectrum.id] = Number(e.target.value) / 100; progressLabel.textContent = `${e.target.value}%`; },
+                    onchange: () => preview({ phase: 'day', progress: spectrumPreview[spectrum.id] })
                 }),
                 progressLabel
             ),
-            h('button', { type: 'button', onclick: () => preview({ phase: 'day', progress: previewProgress }) }, 'Preview')
+            h('button', {
+                type: 'button', disabled: !usedInDay, title: usedInDay ? null : 'No light follows it in the day',
+                onclick: () => preview({ phase: 'day', progress: spectrumPreview[spectrum.id] ?? 0.5 })
+            }, 'Preview')
         )
     );
 }
@@ -595,10 +647,11 @@ function renderStatus() {
     banner.hidden = !status?.previewing;
     document.getElementById('preview-text').textContent = status?.previewing ? `Previewing ${status.previewing}. The lights go back to the game after a minute.` : '';
 
-    const marker = document.getElementById('gradient-marker');
-    const live = status?.clock?.timeOfDay === 'day' ? status.clock.progress : null;
-    if ((marker === null) !== (live === null)) renderSpectrum();
-    else if (marker) marker.style.left = `${live * 100}%`;
+    const live = liveProgress();
+    for (const marker of document.querySelectorAll('#spectrums .marker')) {
+        marker.hidden = live === null;
+        if (live !== null) marker.style.left = `${live * 100}%`;
+    }
 
     fill('activity', ...(status?.activity ?? []).map(a =>
         h('li', {}, h('time', {}, new Date(a.at).toLocaleTimeString()), a.text)
@@ -609,7 +662,7 @@ function renderStatus() {
 function renderAll() {
     renderClockmaker();
     renderPhases();
-    renderSpectrum();
+    renderSpectrums();
     renderBells();
     renderButtons();
     changed();
@@ -659,11 +712,25 @@ async function refreshZigbee() {
         zigbeeJson = json;
         // Only the lists change, so the sections are redrawn without losing any edits
         renderPhases();
-        renderSpectrum();
         renderBells();
         if (!learning) renderButtons();
     } catch { /* shown by the status */ }
 }
+
+// --- Pages ---------------------------------------------------------------------------------------------------------
+
+const PAGES = ['phases', 'spectrums', 'buttons', 'activity', 'settings'];
+/** Redrawn on the way in, for anything changed on another page (such as a spectrum's name). */
+const PAGE_RENDERS = { phases: () => { renderPhases(); renderBells(); }, spectrums: renderSpectrums };
+
+function showPage() {
+    const page = PAGES.find(p => `#${p}` === location.hash) ?? 'phases';
+    for (const el of document.querySelectorAll('.page')) el.hidden = el.dataset.page !== page;
+    for (const link of document.querySelectorAll('#nav a')) link.classList.toggle('active', link.dataset.page === page);
+    if (config) PAGE_RENDERS[page]?.();
+}
+
+window.addEventListener('hashchange', showPage);
 
 document.getElementById('save').addEventListener('click', save);
 document.getElementById('discard').addEventListener('click', () => {
@@ -678,9 +745,12 @@ window.addEventListener('beforeunload', e => {
     if (config && JSON.stringify(config) !== saved) e.preventDefault();
 });
 
+showPage();
 const loaded = await api('/api/config');
 saved = JSON.stringify(loaded);
 config = JSON.parse(saved);
+// Not set up yet: to the settings first
+if (!location.hash && !config.clockmaker.url) location.hash = '#settings';
 await refreshZigbee();
 renderAll();
 // Names for the games, if Clockmaker's set up (quietly: the status shows if it can't be reached)
