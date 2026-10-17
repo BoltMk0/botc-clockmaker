@@ -83,6 +83,9 @@ it is. Under each spectrum's name is the list of lights that follow it, in each 
   colour to the next, and always reach each listed colour on time, so 5–15 seconds is smooth without crowding the
   Zigbee network.
 - **Preview the day at:** shows the day phase's lights at a point in the countdown.
+- **Play it through over:** plays the spectrum from its first colour to its last over 10, 20, 30 or 60 seconds, on
+  every light that follows it. A line moves along the bar to show where it's got to, and **Stop** ends it early. The
+  lights hold the last colour for a few seconds, then go back to the game.
 
 As on the town square, a spectrum stops just short of its last colour until the countdown runs out.
 

@@ -39,6 +39,15 @@ let phaseTab = 'morning';
 let previewProgress = 0.5;
 /** Where each spectrum (by id) is previewed at. */
 const spectrumPreview = {};
+/** What each spectrum (by id) is played through over, in seconds. */
+const playSeconds = {};
+const PLAY_SECONDS = [10, 20, 30, 60];
+/** Matches the server's: the lights fade to the first colour before it starts. */
+const PLAY_LEAD_MS = 1000;
+/** The spectrum being played through, and when it started (as performance.now()), for the marker. */
+let playing = null;
+/** When the status shown was asked for (as performance.now()). */
+let statusAskedAt = 0;
 let learning = false;
 let learnMessage = '';
 
@@ -392,13 +401,15 @@ function spectrumCard(spectrum) {
     const at = spectrumPreview[spectrum.id] ?? 0.5;
     const progressLabel = h('span', { class: 'value' }, `${Math.round(at * 100)}%`);
     const live = liveProgress();
+    const isPlaying = playing?.id === spectrum.id;
     const gradientEl = h('div', { class: 'gradient', style: `background: ${gradientCss(stops)}` },
         stops.map(s => h('span', { class: 'tick', style: `left: ${s.at * 100}%`, title: `${Math.round(s.at * 100)}%` })),
-        h('span', { class: 'marker', style: `left: ${(live ?? 0) * 100}%`, title: 'Now', hidden: live === null })
+        h('span', { class: 'marker', style: `left: ${(live ?? 0) * 100}%`, title: 'Now', hidden: live === null }),
+        h('span', { class: 'play-marker', hidden: !isPlaying })
     );
     const usedInDay = use.some(u => u.startsWith(`${PHASE_LABELS.day}:`));
 
-    return h('section', { class: 'card' },
+    return h('section', { class: 'card', 'data-spectrum': spectrum.id },
         h('div', { class: 'row center spectrum-head' },
             h('input', {
                 type: 'text', class: 'name', value: spectrum.name, 'aria-label': 'Name',
@@ -527,8 +538,54 @@ function spectrumCard(spectrum) {
                 type: 'button', disabled: !usedInDay, title: usedInDay ? null : 'No light follows it in the day',
                 onclick: () => preview({ phase: 'day', progress: spectrumPreview[spectrum.id] ?? 0.5 })
             }, 'Preview')
+        ),
+        h('div', { class: 'row center', style: 'margin-top: 0.75rem' },
+            h('label', { class: 'inline' }, 'Play it through over',
+                h('select', { onchange: e => { playSeconds[spectrum.id] = Number(e.target.value); } },
+                    PLAY_SECONDS.map(n => option(String(n), `${n} seconds`, String(playSeconds[spectrum.id] ?? 20))))
+            ),
+            h('button', {
+                type: 'button', class: 'play', disabled: use.length === 0, title: use.length ? null : 'No light follows it',
+                onclick: () => playing?.id === spectrum.id ? stopPlaying() : play(spectrum)
+            }, isPlaying ? '■ Stop' : '▶ Play')
         )
     );
+}
+
+async function play(spectrum) {
+    const seconds = playSeconds[spectrum.id] ?? 20;
+    try {
+        await api('/api/preview', { method: 'POST', body: { play: spectrum.id, seconds, config } });
+    } catch (err) {
+        toast(`Couldn't play it: ${err.message}`);
+        return;
+    }
+    playing = { id: spectrum.id, since: performance.now(), start: performance.now() + PLAY_LEAD_MS, seconds };
+    showPlaying();
+    requestAnimationFrame(movePlayMarker);
+    await refreshStatus();
+}
+
+async function stopPlaying() {
+    await api('/api/preview', { method: 'DELETE' }).catch(err => toast(err.message));
+    await refreshStatus();
+}
+
+/** Shows which spectrum's playing, without redrawing the cards (and losing what's being edited). */
+function showPlaying() {
+    for (const card of document.querySelectorAll('#spectrums [data-spectrum]')) {
+        const isPlaying = playing?.id === card.dataset.spectrum;
+        card.querySelector('.play-marker').hidden = !isPlaying;
+        card.querySelector('button.play').textContent = isPlaying ? '■ Stop' : '▶ Play';
+    }
+}
+
+function movePlayMarker() {
+    if (!playing) return;
+    const progress = Math.min(Math.max((performance.now() - playing.start) / (playing.seconds * 1000), 0), 1);
+    const marker = document.querySelector(`#spectrums [data-spectrum="${CSS.escape(playing.id)}"] .play-marker`);
+    if (marker) marker.style.left = `${progress * 100}%`;
+    requestAnimationFrame(movePlayMarker);
 }
 
 function renderBells() {
@@ -645,7 +702,13 @@ function renderStatus() {
 
     const banner = document.getElementById('preview-banner');
     banner.hidden = !status?.previewing;
-    document.getElementById('preview-text').textContent = status?.previewing ? `Previewing ${status.previewing}. The lights go back to the game after a minute.` : '';
+    document.getElementById('preview-text').textContent = status?.previewing ? `Previewing ${status.previewing}. The lights go back to the game ${status.playing ? 'once it\'s played' : 'after a minute'}.` : '';
+
+    // Ended, or replaced by another preview (by a status asked for since it started)
+    if (playing && statusAskedAt > playing.since && status?.playing !== playing.id) {
+        playing = null;
+        showPlaying();
+    }
 
     const live = liveProgress();
     for (const marker of document.querySelectorAll('#spectrums .marker')) {
@@ -695,11 +758,13 @@ async function save() {
 }
 
 async function refreshStatus() {
+    const asked = performance.now();
     try {
         status = await api('/api/status');
     } catch {
         status = null;
     }
+    statusAskedAt = asked;
     renderStatus();
 }
 

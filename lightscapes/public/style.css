@@ -216,6 +216,16 @@ button:disabled { opacity: 0.5; cursor: default; }
     border-radius: 2px;
     box-shadow: 0 0 0 1px var(--bg);
 }
+.gradient .play-marker {
+    position: absolute;
+    top: -0.35rem;
+    bottom: -0.35rem;
+    width: 3px;
+    margin-left: -1.5px;
+    background: var(--accent);
+    border-radius: 2px;
+    box-shadow: 0 0 0 1px var(--bg);
+}
 .gradient .tick {
     position: absolute;
     bottom: -0.25rem;

@@ -12,6 +12,8 @@ import { ENV } from "./env.ts";
 
 const MAX_BODY_BYTES = 1024 * 1024;
 const LEARN_TIMEOUT_MS = 30_000;
+/** The lengths a spectrum can be played through over, in seconds, as the page offers them. */
+const PLAY_SECONDS = [10, 20, 30, 60];
 
 const CONTENT_TYPES: Record<string, string> = {
     '.html': 'text/html; charset=utf-8',
@@ -79,6 +81,7 @@ export function startServer(engine: Engine, clock: ClockFollower, zigbee: Zigbee
                     progress: engine.progress()
                 },
                 previewing: engine.previewing,
+                playing: engine.playing,
                 activity: engine.activity
             });
         }
@@ -123,7 +126,7 @@ export function startServer(engine: Engine, clock: ClockFollower, zigbee: Zigbee
         }
 
         if(path === '/api/preview' && method === 'POST'){
-            const body = await readJson(req) as { phase?: unknown; progress?: unknown; bell?: unknown; config?: unknown };
+            const body = await readJson(req) as { phase?: unknown; progress?: unknown; bell?: unknown; play?: unknown; seconds?: unknown; config?: unknown };
             // The page's unsaved configuration, if it sent it
             const config = body.config === undefined ? engine.config : normalizeConfig(body.config);
             if(isTimeOfDay(body.phase)){
@@ -131,7 +134,12 @@ export function startServer(engine: Engine, clock: ClockFollower, zigbee: Zigbee
                 engine.preview(body.phase, progress, config);
             } else if(BELL_EVENTS.includes(body.bell as BellEvent)){
                 engine.previewBell(body.bell as BellEvent, config);
-            } else throw new HttpError(400, 'Preview a phase or a bell');
+            } else if(typeof body.play === 'string'){
+                const spectrum = config.spectrums.find(s => s.id === body.play);
+                if(!spectrum) throw new HttpError(400, 'No such spectrum');
+                if(!PLAY_SECONDS.includes(body.seconds as number)) throw new HttpError(400, `Play it over ${PLAY_SECONDS.join(', ')} seconds`);
+                engine.playSpectrum(spectrum, body.seconds as number, config);
+            } else throw new HttpError(400, 'Preview a phase, a bell or a spectrum');
             return send(res, 200, {});
         }
 

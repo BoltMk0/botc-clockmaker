@@ -1,5 +1,5 @@
 import type { ClocktowerClockModel } from "../../src/lib/model/common/ClocktowerClockModel.ts";
-import type { TimeOfDay } from "../../src/lib/model/client/types.ts";
+import { TIMES_OF_DAY, type TimeOfDay } from "../../src/lib/model/client/types.ts";
 import type { BellEvent, Command, Config, LightState, SceneEntry, Spectrum } from "./config.ts";
 import type { ClockFollower } from "./clock.ts";
 import type { Zigbee } from "./zigbee.ts";
@@ -7,6 +7,12 @@ import { spectrumAt, type SpectrumColor } from "./spectrum.ts";
 
 /** How long a preview from the configuration page holds the lights before they go back to following the game. */
 const PREVIEW_MS = 60_000;
+/** A spectrum being played through starts after this, so its lights can fade to the first colour first. */
+const PLAY_LEAD_MS = 1000;
+/** How often a spectrum being played through moves its lights along. */
+const PLAY_STEP_MS = 1000;
+/** How long a spectrum played through holds its last colour before the lights go back to the game. */
+const PLAY_HOLD_MS = 5000;
 const ACTIVITY_LENGTH = 30;
 /** The town square's sky stops just short of night until the day's over, so the spectrum does too. */
 const DAY_PROGRESS_CAP = 0.99;
@@ -70,6 +76,9 @@ export class Engine {
     #holdTimer: ReturnType<typeof setTimeout> | null = null;
     #previewTimer: ReturnType<typeof setTimeout> | null = null;
     previewing: string | null = null;
+    /** The spectrum being played through (by its id), for the page to follow. */
+    playing: string | null = null;
+    #playTimer: ReturnType<typeof setTimeout> | null = null;
 
     #learners: ((press: { device: string; action: string } | null) => void)[] = [];
 
@@ -267,21 +276,60 @@ export class Engine {
         for(const { spectrum, targets } of spectrumsIn(phase, config)) this.#setSpectrum(spectrumAt(spectrum.stops, at), 1, targets);
     }
 
+    /**
+     * Plays a spectrum through from its first colour to its last over `seconds`, on the lights that follow it in any
+     * phase, then holds the last a moment before going back to the game.
+     */
+    playSpectrum(spectrum: Spectrum, seconds: number, config = this.#config) {
+        const targets = [...new Set(TIMES_OF_DAY.flatMap(phase =>
+            spectrumsIn(phase, config).find(s => s.spectrum.id === spectrum.id)?.targets ?? []))];
+        const durationMs = seconds * 1000;
+        this.#startPreview(`${spectrum.name}, played over ${seconds}s`, PLAY_LEAD_MS + durationMs + PLAY_HOLD_MS);
+        this.playing = spectrum.id;
+        const start = Date.now() + PLAY_LEAD_MS;
+        const end = start + durationMs;
+        this.#setSpectrum(spectrumAt(spectrum.stops, 0), PLAY_LEAD_MS / 1000, targets);
+
+        // As in the game: each colour is the one due at the end of its fade, and a fade ends on any stop before then
+        const step = () => {
+            const now = Date.now();
+            let target = Math.min(now + PLAY_STEP_MS, end);
+            for(const stop of spectrum.stops){
+                const at = start + stop.at * durationMs;
+                if(at > now + MIN_STEP_MS && at < target){
+                    target = at;
+                    break;
+                }
+            }
+            this.#setSpectrum(spectrumAt(spectrum.stops, (target - start) / durationMs), Math.round((target - now) / 100) / 10, targets);
+            this.#playTimer = target < end ? setTimeout(step, target - now) : null;
+        };
+        this.#playTimer = setTimeout(step, PLAY_LEAD_MS);
+    }
+
     previewBell(bell: BellEvent, config = this.#config) {
         this.#ringBell(bell, config);
     }
 
-    #startPreview(what: string) {
+    #stopPlaying() {
+        if(this.#playTimer !== null) clearTimeout(this.#playTimer);
+        this.#playTimer = null;
+        this.playing = null;
+    }
+
+    #startPreview(what: string, ms = PREVIEW_MS) {
         if(this.#previewTimer !== null) clearTimeout(this.#previewTimer);
+        this.#stopPlaying();
         this.#clearSpectrumTimers();
         this.previewing = what;
-        this.#previewTimer = setTimeout(() => this.endPreview(), PREVIEW_MS);
+        this.#previewTimer = setTimeout(() => this.endPreview(), ms);
     }
 
     /** Back to following the game. */
     endPreview() {
         if(this.#previewTimer !== null) clearTimeout(this.#previewTimer);
         this.#previewTimer = null;
+        this.#stopPlaying();
         this.previewing = null;
         this.#reset();
         this.#update();
