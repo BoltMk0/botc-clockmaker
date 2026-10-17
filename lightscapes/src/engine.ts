@@ -72,6 +72,9 @@ export class Engine {
     /** The countdown (by its start time) whose reminder bell has rung, so it only rings once. */
     #reminderRungFor: number | null = null;
 
+    /** How long the lights take to go back to the phase's after a bell, in place of the phase's own fade. */
+    #returnTransition: number | null = null;
+
     /** While a bell's effect or a preview holds the lights, the game's changes wait. */
     #holdTimer: ReturnType<typeof setTimeout> | null = null;
     #previewTimer: ReturnType<typeof setTimeout> | null = null;
@@ -166,6 +169,8 @@ export class Engine {
     /** Puts the lights in step with the clock, if they aren't already. */
     #update() {
         const clock = this.#clock.clock;
+        const transition = this.#returnTransition ?? this.#config.transitionSeconds;
+        this.#returnTransition = null;
         if(!clock) return;
         this.#scheduleReminder(clock);
         this.#clearSpectrumTimers();
@@ -174,11 +179,11 @@ export class Engine {
         const phase = clock.timeOfDay;
         if(phase !== this.#appliedPhase){
             this.#log(`${phase[0].toUpperCase()}${phase.slice(1)}: setting the lights`);
-            this.#setScene(this.#config.phases[phase], this.#config.transitionSeconds);
+            this.#setScene(this.#config.phases[phase], transition);
             this.#appliedPhase = phase;
             this.#lastSpectrum.clear();
         }
-        for(const { spectrum, targets } of spectrumsIn(phase, this.#config)) this.#updateSpectrum(clock, spectrum, targets);
+        for(const { spectrum, targets } of spectrumsIn(phase, this.#config)) this.#updateSpectrum(clock, spectrum, targets, transition);
     }
 
     /** Moves one spectrum's lights along, when its timer's up. */
@@ -188,7 +193,7 @@ export class Engine {
         if(!clock || this.#held()) return;
         if(clock.timeOfDay !== this.#appliedPhase) return this.#update();
         const following = spectrumsIn(clock.timeOfDay, this.#config).find(s => s.spectrum.id === id);
-        if(following) this.#updateSpectrum(clock, following.spectrum, following.targets);
+        if(following) this.#updateSpectrum(clock, following.spectrum, following.targets, this.#config.transitionSeconds);
     }
 
     /** How far along a spectrum its lights are in a phase: the first colour in the morning, the last at dusk and night. */
@@ -198,7 +203,8 @@ export class Engine {
         return 1;
     }
 
-    #updateSpectrum(clock: ClocktowerClockModel, spectrum: Spectrum, targets: readonly string[]) {
+    /** `firstTransition` is how long the lights take to get to the spectrum, if they aren't following it yet. */
+    #updateSpectrum(clock: ClocktowerClockModel, spectrum: Spectrum, targets: readonly string[], firstTransition: number) {
         const { id, stops, intervalSeconds } = spectrum;
         const startTime = clock.timeOfDay === 'day' ? clock.time.serverStartTime : null;
         const now = this.#clock.serverNow();
@@ -220,14 +226,14 @@ export class Engine {
                 }
             }
         }
-        const transition = first ? this.#config.transitionSeconds : (target - now) / 1000;
+        const transition = first ? firstTransition : (target - now) / 1000;
         const color = spectrumAt(stops, this.#spectrumProgress(clock.timeOfDay, target));
         if(color.hex !== last?.hex || color.brightness !== last.brightness || color.mireds !== last.mireds){
             this.#setSpectrum(color, Math.round(transition * 10) / 10, targets);
             this.#lastSpectrum.set(id, color);
         }
         if(startTime !== null && this.progress(now) < DAY_PROGRESS_CAP){
-            const next = first ? Math.max(this.#config.transitionSeconds * 1000, MIN_STEP_MS) : target - now;
+            const next = first ? Math.max(firstTransition * 1000, MIN_STEP_MS) : target - now;
             this.#spectrumTimers.set(id, setTimeout(() => this.#tickSpectrum(id), next));
         }
     }
@@ -252,17 +258,18 @@ export class Engine {
         const effect = config.bells[bell];
         if(effect.entries.length === 0) return;
         this.#log(`${BELL_LABELS[bell]}: flashing the lights`);
-        this.#setScene(effect.entries, 0);
+        this.#setScene(effect.entries, effect.fadeSeconds);
         if(effect.holdSeconds <= 0) return;
         if(this.#holdTimer !== null) clearTimeout(this.#holdTimer);
         this.#holdTimer = setTimeout(() => {
             this.#holdTimer = null;
             // Back to the phase's lights (or what's being previewed, if that's still on)
             if(this.previewing === null){
+                this.#returnTransition = effect.fadeSeconds;
                 this.#reset();
                 this.#update();
             }
-        }, effect.holdSeconds * 1000);
+        }, (effect.fadeSeconds + effect.holdSeconds) * 1000);
     }
 
     /**

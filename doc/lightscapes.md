@@ -91,7 +91,8 @@ As on the town square, a spectrum stops just short of its last colour until the 
 
 ## Bells
 
-The bells are on the **Phases & bells** page. A bell's lights flash when it rings, then go back to the phase's after **Hold for** seconds.
+The bells are on the **Phases & bells** page. When a bell rings, its lights fade to the bell's over **Fade over**
+seconds (0 to switch at once), stay for **Hold for** seconds, then fade back to the phase's over the same time.
 - **Start of day bell:** rings when night turns to day.
 - **Reminder bell:** rings when the countdown gets to the reminder time its [timer option](settings/timer-options.md)
   has.

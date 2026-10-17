@@ -46,8 +46,11 @@ export type Spectrum = {
 export const BELL_EVENTS = ['startBell', 'reminderBell', 'handBell'] as const;
 export type BellEvent = typeof BELL_EVENTS[number];
 
-/** Lights set when a bell rings, held for a while before going back to the phase's. */
-export type BellEffect = { entries: SceneEntry[]; holdSeconds: number };
+/**
+ * Lights set when a bell rings, fading to them over `fadeSeconds`, held for `holdSeconds`, then fading back to the
+ * phase's over `fadeSeconds` again.
+ */
+export type BellEffect = { entries: SceneEntry[]; fadeSeconds: number; holdSeconds: number };
 
 export const COMMANDS = ['day', 'startPause', 'dusk', 'night', 'ringBell', 'sting'] as const;
 export type Command = typeof COMMANDS[number];
@@ -78,9 +81,9 @@ export function defaultConfig(): Config {
         phases: { morning: [], day: [], dusk: [], night: [] },
         spectrums: [],
         bells: {
-            startBell: { entries: [], holdSeconds: 2 },
-            reminderBell: { entries: [], holdSeconds: 2 },
-            handBell: { entries: [], holdSeconds: 2 }
+            startBell: { entries: [], fadeSeconds: 1, holdSeconds: 2 },
+            reminderBell: { entries: [], fadeSeconds: 1, holdSeconds: 2 },
+            handBell: { entries: [], fadeSeconds: 1, holdSeconds: 2 }
         },
         buttons: []
     };
@@ -232,6 +235,7 @@ export function normalizeConfig(value: unknown): Config {
             if(!isObject(effect)) fail(`bells.${bell}`, 'should be an object');
             config.bells[bell] = {
                 entries: sceneEntries(effect.entries, `bells.${bell}.entries`),
+                fadeSeconds: effect.fadeSeconds === undefined ? 1 : num(effect.fadeSeconds, `bells.${bell}.fadeSeconds`, 0, 2),
                 holdSeconds: effect.holdSeconds === undefined ? 2 : num(effect.holdSeconds, `bells.${bell}.holdSeconds`, 0, 120)
             };
         }

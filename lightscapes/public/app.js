@@ -595,6 +595,13 @@ function renderBells() {
             h('div', { class: 'row center' },
                 h('div', {}, h('h3', {}, bell.label), h('span', { class: 'message' }, bell.hint)),
                 h('span', { class: 'spacer' }),
+                h('label', { class: 'inline', title: 'How long the lights take to change to the bell\'s, and back' }, 'Fade over',
+                    h('input', {
+                        type: 'number', min: 0, max: 2, step: 0.1, value: effect.fadeSeconds,
+                        oninput: e => { effect.fadeSeconds = Number(e.target.value) || 0; changed(); }
+                    }),
+                    's'
+                ),
                 h('label', { class: 'inline' }, 'Hold for',
                     h('input', {
                         type: 'number', min: 0, max: 120, step: 0.5, value: effect.holdSeconds,
