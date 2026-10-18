@@ -13,7 +13,7 @@
     import { GrimoireSync } from "$lib/model/client/GrimoireSync";
     import { GrimoireUndo } from "$lib/model/client/GrimoireUndo.svelte";
     import FullDisplay from "$lib/components/FullDisplay/FullDisplay.svelte";
-    import { onMount } from "svelte";
+    import { flushSync, onMount } from "svelte";
     import { fly } from "svelte/transition";
     import { cubicIn, cubicOut } from "svelte/easing";
     import ClockSetter from "$lib/components/ClockSetter.svelte";
@@ -22,6 +22,7 @@
     import PlayerToken from "$lib/components/PlayerToken.svelte";
     import { ALIGNMENT_RING_FACTORS, BOARD_TOKEN_SIZE, hasDeadVote, isPlayerToken, layoutTokensAtDefaultPositions, newGrimoireStateHistory, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
     import { v7 } from "uuid";
+    import PencilIcon from "$lib/components/PencilIcon.svelte";
     import { characterImageUrl } from "$lib/resources/common/characterImages";
     import type { PageData } from "./$types";
 
@@ -956,6 +957,35 @@
         activeReminderPos = null;
     }
 
+    // The popup's player name is shown as text until its edit button is pressed. Its buttons are in two pages.
+    let editingPlayerName = $state(false);
+    let popupButtonPage = $state<1 | 2>(1);
+    let playerNameInput = $state<HTMLInputElement | null>(null);
+
+    // Each token's popup opens on its first page, not editing the name
+    $effect(() => {
+        void activeTokenId;
+        editingPlayerName = false;
+        popupButtonPage = 1;
+    });
+
+    function startEditingPlayerName() {
+        editingPlayerName = true;
+        // Rendered and focused in the same tap, or iOS won't raise the keyboard. All selected, so typing replaces it.
+        flushSync();
+        playerNameInput?.focus();
+        playerNameInput?.select();
+    }
+
+    function toggleCustomWake() {
+        if (!activeToken) return;
+        const target = activeToken;
+        gameState.present.placedTokens = gameState.present.placedTokens.map(t =>
+            t === target ? { ...t, customWake: !t.customWake } : t
+        );
+        saveGrimoire();
+    }
+
     function isNearEdge(_x: number, y: number): boolean {
         return y < EDGE_THRESHOLD || y > window.innerHeight - EDGE_THRESHOLD;
     }
@@ -1632,13 +1662,15 @@
         font-size: 0.85em;
     }
 
+    /* Wraps onto a second line when they don't all fit (e.g. a dead player's ghost vote as well) */
     .overlay-toggles {
         display: flex;
-        flex-wrap: nowrap;
+        flex-wrap: wrap;
+        justify-content: center;
         gap: 6px;
     }
 
-    /* Alive / Good / Show share one line, so trim the horizontal padding to fit. */
+    /* Trim the horizontal padding so more of them fit on a line. */
     .overlay-panel .overlay-toggles > button {
         padding: 16px 16px;
         white-space: nowrap;
@@ -1766,6 +1798,103 @@
         background: #3a1515;
         color: #fecaca;
         border-color: #7f1d1d;
+    }
+    /* Two by two, every button the same size: a long label wraps rather than widening its column */
+    .popup-buttons {
+        display: grid;
+        /* A fixed width, so the popup doesn't change size between the pages */
+        grid-template-columns: repeat(2, 6.2em);
+        grid-auto-rows: 1fr;
+        gap: 6px;
+    }
+    /* Two lines tall, so "Change character" fits on two */
+    .popup-buttons .popup-toggle {
+        white-space: normal;
+        line-height: 1.2;
+        min-height: max(40px, calc(2.4em + 1.2em));
+    }
+    .popup-toggle:disabled {
+        opacity: 0.4;
+        cursor: default;
+    }
+    .popup-page-switch {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+    .page-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        border: 1.5px solid #e5e7eb;
+        box-sizing: border-box;
+    }
+    .page-dot.current {
+        background: #e5e7eb;
+    }
+    /* A button with an icon before its label */
+    .with-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5em;
+    }
+    .with-icon .button-icon {
+        width: 1.4em;
+        height: 1.4em;
+        flex-shrink: 0;
+    }
+    .popup-wake {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5em;
+    }
+    .popup-wake.active {
+        border-color: rgb(230, 140, 30);
+        color: #fde3bd;
+    }
+    /* As the night order badge */
+    .popup-wake-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.6em;
+        height: 1.6em;
+        flex-shrink: 0;
+        border-radius: 50%;
+        border: 2px solid white;
+        box-sizing: border-box;
+        background: rgb(150, 85, 5);
+        color: white;
+        box-shadow: 0 2px 3px #0008;
+    }
+    .popup-name-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 40px;
+    }
+    .popup-name-text {
+        flex: 1;
+        color: #f3f4f6;
+        font-size: 0.95em;
+        font-weight: 600;
+        padding: 0 0.2em;
+    }
+    .popup-name-text.unnamed {
+        color: #9ca3af;
+        font-weight: 400;
+        font-style: italic;
+    }
+    .popup-name-edit {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        width: 40px;
+        flex-shrink: 0;
     }
     .popup-player-name {
         background: #1f2937;
@@ -2314,11 +2443,19 @@
 
         {#each placedTokens as token (token.id)}
             {@const order = token.characterId ? nightOrderByCharacterId.indexOf(token.characterId) : -1}
-            {#if order >= 0 && script?.characters.some(c => c.id === token.characterId)}
+            {@const numbered = order >= 0 && !!script?.characters.some(c => c.id === token.characterId)}
+            {#if numbered}
             <div
                 class="night-order-badge"
                 style="left: calc(50% + {token.x + tokenSize * 0.45}px); top: calc(50% + {token.y}px); font-size: {tokenSize / 6}px; border-width: {tokenSize / 70}px; z-index: {z_indecies.nightOrder};"
             >{order + 1}</div>
+            {/if}
+            <!-- A custom wake: below the night order number, if they have one too -->
+            {#if token.customWake}
+            <div
+                class="night-order-badge"
+                style="left: calc(50% + {token.x + tokenSize * 0.45}px); top: calc(50% + {token.y + (numbered ? tokenSize * 0.28 : 0)}px); font-size: {tokenSize / 6}px; border-width: {tokenSize / 70}px; z-index: {z_indecies.nightOrder};"
+            >?</div>
             {/if}
         {/each}
 
@@ -2353,6 +2490,16 @@
     </AnotatableViewV2>
 
 
+        {#snippet eyeIcon()}
+            <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>
+        {/snippet}
+        {#snippet popupPageSwitch()}
+            <button type="button" class="popup-toggle popup-page-switch" onclick={() => popupButtonPage = popupButtonPage === 1 ? 2 : 1}
+                title={popupButtonPage === 1 ? 'More' : 'Back'} aria-label={popupButtonPage === 1 ? 'More buttons' : 'Back to the first buttons'}>
+                <span class="page-dot" class:current={popupButtonPage === 1}></span>
+                <span class="page-dot" class:current={popupButtonPage === 2}></span>
+            </button>
+        {/snippet}
         {#if activeTokenId !== null && activeReminderPos && (activeCharacterId === null || reminderCache[activeCharacterId])}
             <div bind:this={reminderPopupEl} class="reminder-popup" class:above={activeReminderAbove} style="font-size: {tokenSize * 0.12}px; left: {activeReminderPos.x}px; top: {activeReminderPos.y}px; z-index: {z_indecies.ui};">
                 {#if activeToken}
@@ -2360,36 +2507,58 @@
                     {@const sideRole = isSideRoleCategory(activeChar?.category)}
                     <div class="popup-meta" bind:clientHeight={popupMetaHeight}>
                         {#if !sideRole}
-                        <input
-                            type="text"
-                            class="popup-player-name"
-                            placeholder="Player name"
-                            value={activeToken.playerName ?? ''}
-                            oninput={(e) => setPlayerName((e.target as HTMLInputElement).value)}
-                            onpointerdown={(e) => e.stopPropagation()}
-                        />
-                        {/if}
-                        <div class="popup-toggles">
-                            {#if !sideRole}
-                            <button type="button" class="popup-toggle" class:dead={activeToken.isDead} onclick={toggleAlive}>
-                                {activeToken.isDead ? 'Dead' : 'Alive'}
-                            </button>
-                            <button type="button" class="popup-toggle" class:evil={activeToken.alignment === 'evil'} onclick={toggleAlignment}>
-                                {activeToken.alignment === 'evil' ? 'Evil' : 'Good'}
-                            </button>
-                            {#if activeToken.isDead}
-                                <button type="button" class="popup-toggle" onclick={toggleDeadVote}>
-                                    {activeToken.deadVoteUsed ? 'Vote used' : 'Has vote'}
+                            {#if editingPlayerName}
+                            <input
+                                bind:this={playerNameInput}
+                                type="text"
+                                class="popup-player-name"
+                                placeholder="Player name"
+                                value={activeToken.playerName ?? ''}
+                                oninput={(e) => setPlayerName((e.target as HTMLInputElement).value)}
+                                onkeydown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') (e.target as HTMLInputElement).blur(); }}
+                                onblur={() => editingPlayerName = false}
+                                onpointerdown={(e) => e.stopPropagation()}
+                            />
+                            {:else}
+                            <div class="popup-name-row">
+                                <span class="popup-name-text" class:unnamed={!activeToken.playerName?.trim()}>{activeToken.playerName?.trim() || 'No player name'}</span>
+                                <button type="button" class="popup-toggle popup-name-edit" onclick={startEditingPlayerName} title="Edit player name" aria-label="Edit player name">
+                                    <PencilIcon size={18}/>
                                 </button>
+                            </div>
                             {/if}
-                            {/if}
-                            {#if activeChar}
-                                <button type="button" class="popup-toggle" onclick={() => viewCharacter(activeChar.id)}>Show</button>
+                        {/if}
+                        <div class="popup-buttons">
+                            {#if sideRole}
+                                {#if activeChar}
+                                    <button type="button" class="popup-toggle with-icon" onclick={() => viewCharacter(activeChar.id)}>{@render eyeIcon()}Show</button>
+                                {/if}
+                                <button type="button" class="popup-toggle" onclick={() => pickingCharacter = true}>Change character</button>
+                            {:else if popupButtonPage === 1}
+                                <button type="button" class="popup-toggle" class:dead={activeToken.isDead} onclick={toggleAlive}>
+                                    {activeToken.isDead ? 'Dead' : 'Alive'}
+                                </button>
+                                <!-- Only dead players have a ghost vote -->
+                                <button type="button" class="popup-toggle" disabled={!activeToken.isDead} onclick={toggleDeadVote}>
+                                    {activeToken.isDead && activeToken.deadVoteUsed ? 'Vote used' : 'Has vote'}
+                                </button>
+                                <button type="button" class="popup-toggle with-icon" disabled={!activeChar} onclick={() => activeChar && viewCharacter(activeChar.id)}>{@render eyeIcon()}Show</button>
+                                {@render popupPageSwitch()}
+                            {:else}
+                                <button type="button" class="popup-toggle" class:evil={activeToken.alignment === 'evil'} onclick={toggleAlignment}>
+                                    {activeToken.alignment === 'evil' ? 'Evil' : 'Good'}
+                                </button>
+                                <button type="button" class="popup-toggle" onclick={() => pickingCharacter = true}>
+                                    {activeChar ? 'Change character' : 'Choose character'}
+                                </button>
+                                <button type="button" class="popup-toggle popup-wake" class:active={activeToken.customWake} onclick={toggleCustomWake}
+                                    title={activeToken.customWake ? 'Remove the wake reminder' : 'Add a wake reminder, to wake them tonight'}>
+                                    <span class="popup-wake-badge">?</span>
+                                    {activeToken.customWake ? 'Waking' : 'Wake'}
+                                </button>
+                                {@render popupPageSwitch()}
                             {/if}
                         </div>
-                        <button type="button" class="popup-toggle" onclick={() => pickingCharacter = true}>
-                            {activeChar ? 'Change character' : 'Choose character'}
-                        </button>
                         {#if activeChar?.rules}
                             <div class="popup-rules">
                                 <div class="popup-rules-name">{activeChar.name}</div>
@@ -2541,9 +2710,13 @@
                                 {activeToken.deadVoteUsed ? 'Vote used' : 'Has vote'}
                             </button>
                         {/if}
+                        <button type="button" class="popup-toggle popup-wake" class:active={activeToken.customWake} onclick={() => { toggleCustomWake(); closeOverlay(); }}>
+                            <span class="popup-wake-badge">?</span>
+                            {activeToken.customWake ? 'Waking' : 'Wake'}
+                        </button>
                         {/if}
                         {#if oc}
-                            <button type="button" class="button-style" onclick={() => viewCharacter(oc.id)}>Show</button>
+                            <button type="button" class="button-style with-icon" onclick={() => viewCharacter(oc.id)}>{@render eyeIcon()}Show</button>
                         {/if}
                     </div>
                     <button type="button" class="button-style" onclick={(e) => { e.stopPropagation(); pickingCharacter = true; }}>
@@ -2552,7 +2725,7 @@
                 {/if}
                 {#if oc}
                     {#if !overlayFromBoard}
-                        <button class="button-style" onclick={() => viewCharacter(oc.id)}>Show</button>
+                        <button class="button-style with-icon" onclick={() => viewCharacter(oc.id)}>{@render eyeIcon()}Show</button>
                     {/if}
                     <div class="overlay-drag-hint">{overlayFromBoard ? 'Drag a reminder onto the grim' : 'Drag onto the grim'}</div>
                     <div class="overlay-tokens">

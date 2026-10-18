@@ -42,20 +42,23 @@ How tokens look:
 
 ## Player tokens
 
-Tap a token to open its popup:
+Tap a token to open its popup. At the top is the **player name**: tap the pencil beside it to change it (what's there
+is selected, so typing replaces it; Enter or tapping elsewhere finishes). A token only counts as a seated player (for
+the night order, the town square and framing the view) once it has a name.
 
-- **Player name** — type to set it. A token only counts as a seated player (for the night order, the town square
-  and framing the view) once it has a name.
-- **Alive / Dead** — toggles death. Dead players are shown as dead on the 3D town square.
-- **Good / Evil** — toggles alignment.
-- **Has vote / Vote used** — appears for dead players; tracks their ghost vote (also shown on the town square).
-- **Show** — shows this character full-screen, with its ability, to hold up to a player. ✕ returns to the grim.
-- **Change character** / **Choose character** — gives the player a different character (or none), keeping their
-  name, seat and life status. For example after a Pit-Hag or a Snake Charmer swap.
-- The character's **ability text** and setup note.
-- The character's **reminder tokens**, ready to drag onto the board.
+Below are four buttons. The bottom-right one switches between two pages of them:
 
-Loric and fabled tokens have no name, alive/dead or alignment controls.
+| Page 1 | Page 2 |
+| --- | --- |
+| **Alive / Dead** — toggles death. Dead players are shown as dead on the 3D town square. | **Good / Evil** — toggles alignment. |
+| **Has vote / Vote used** — tracks a dead player's ghost vote (also shown on the town square). Greyed out while they're alive. | **Change character** / **Choose character** — gives the player a different character (or none), keeping their name, seat and life status. For example after a Pit-Hag or a Snake Charmer swap. |
+| **Show** — shows this character full-screen, with its ability, to hold up to a player. ✕ returns to the grim. | **Wake** — marks the player to wake tonight for some other reason than their character, with a **?** in an orange circle beside their token (below their night order number, if they have one). Tap again (**Waking**) to take it off. |
+
+Then the character's **ability text** and setup note, and its **reminder tokens**, ready to drag onto the board.
+
+On a phone, tapping a token opens a full-screen overlay with the same controls in one list.
+
+Loric and fabled tokens have no name, alive/dead, alignment or wake controls: just **Show** and **Change character**.
 
 Tap anywhere else to close the popup.
 
@@ -88,7 +91,8 @@ Opening the tray unlocks the tokens.
 
 ## Night order
 
-Each living, seated character that wakes tonight gets a **number badge** showing its position in the night order:
+Each living, seated character that wakes tonight gets a **number badge** showing its position in the night order
+(and any player marked to **Wake** from their popup gets a **?** badge):
 
 - On **day 0** it uses the script's **first night** order; from day 1 on, the **other nights** order.
 - Dead players and characters that don't wake are left out, so the badges count 1, 2, 3… down the real wake order.
@@ -196,7 +200,7 @@ changes once it has finished. If the grimoire is deleted on one device, the othe
 
 The **undo** button (curved arrow, on the board whenever there's something to undo) takes back your changes one at a
 time, newest first: moving, adding or removing a token or reminder, a player's name, alive/dead, ghost vote,
-alignment or character, resetting token positions, drawing, erasing or clearing lines, and adding or deleting a
+alignment, character or wake, resetting token positions, drawing, erasing or clearing lines, and adding or deleting a
 bluff set. A two-finger tap while drawing does the same. Changing a name counts as one change however many letters
 you type, as long as you don't pause for more than a second.
 

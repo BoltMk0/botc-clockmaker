@@ -17,6 +17,9 @@ export type PlacedToken = {
     x: number;
     y: number;
     playerName?: string;
+    // The storyteller has marked them to wake tonight for some other reason than their character's night order
+    // (shown as a "?" night order badge).
+    customWake?: boolean;
 };
 
 export function hasDeadVote(token: { isDead: boolean; deadVoteUsed?: boolean }): boolean {
@@ -83,7 +86,8 @@ function isPlacedToken(obj: any): obj is PlacedToken {
         typeof obj.isDead === "boolean" &&
         (obj.deadVoteUsed === undefined || typeof obj.deadVoteUsed === "boolean") &&
         (obj.alignment === undefined || obj.alignment === "good" || obj.alignment === "evil") &&
-        (obj.playerName === undefined || typeof obj.playerName === "string");
+        (obj.playerName === undefined || typeof obj.playerName === "string") &&
+        (obj.customWake === undefined || typeof obj.customWake === "boolean");
     if(!result){
         console.error("Invalid PlacedToken object:", obj);
     }
