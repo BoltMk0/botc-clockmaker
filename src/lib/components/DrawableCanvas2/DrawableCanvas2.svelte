@@ -11,6 +11,8 @@
         canvasStyle?: string;
         exportedDimensions?: { width: number; height: number };
         onchange?: () => void;
+        /** Called once a change is finished: a stroke or erase lifted, an undo or a clear. onchange also fires mid-stroke. */
+        oncommit?: () => void;
         activeLayerIndex: number;
         layers: CanvasLayer[];
         tool: CanvasToolType | null;
@@ -37,6 +39,7 @@
         canvasStyle,
         exportedDimensions,
         onchange,
+        oncommit,
         activeLayerIndex,
         layers = $bindable<CanvasLayer[]>([]),
         tool = $bindable<CanvasToolType|null>(null),
@@ -335,6 +338,7 @@
         }
 
         onchange?.();
+        oncommit?.();
     }
 
     function redrawFromStrokes() {
@@ -387,6 +391,7 @@
         activeLayer.strokes.pop();
         redrawFromStrokes();
         onchange?.();
+        oncommit?.();
     }
 
     function replayStrokes() {
@@ -607,6 +612,7 @@
             }
 
             activePointerId = null;
+            oncommit?.();
             return;
         }
 
@@ -621,6 +627,7 @@
             // Ignore if capture was already released.
         }
         activePointerId = null;
+        oncommit?.();
     }
 
 
@@ -826,6 +833,7 @@
             idlePenStroke = null;
             idleSuppressClickUntil = Date.now() + 400; // lifting the pen must not count as a tap on a token
             event.stopPropagation();
+            oncommit?.();
             return;
         }
         if (!idleTouches.delete(event.pointerId)) return;

@@ -119,19 +119,21 @@ their character in private, and types their name.
 5. When every number is taken, the screen says *"Please return this device to the storyteller"*. The **Finish Setup**
    button unlocks after five seconds (so a player doesn't tap it by accident) and builds the grimoire.
 
-When the draw finishes:
+The grimoire fills up as the draw goes, so you can watch it on another device:
 
-- every player is placed round the circle **in the order they drew**, with their name, character and default
-  alignment (evil for minions and demons). They're spread evenly from the bottom left (the first to draw), clockwise
-  over the top, to the bottom right (the last), leaving a gap at the bottom of the circle;
-- tokens you put "on the grim", and any loric/fabled, are placed on the board;
-- your bluff sets are ready in the token tray;
-- the game's **player count** is set (travellers not included), the day is reset to **0**, the clock is cleared and
-  the game is at **dusk**, ready for the first night. Going to the morning then starts day 1, with a 5 minute timer set
-  up (pick another from the timer list if you want).
+- as soon as the draw starts, the grimoire is made, with the tokens you put "on the grim" and any loric/fabled placed
+  on the board, and your bluff sets ready in the token tray;
+- each player is added the moment they confirm their name, with their character and default alignment (evil for
+  minions and demons), in their seat **in the order they drew**. The seats are spread evenly from the bottom left
+  (the first to draw), clockwise over the top, to the bottom right (the last), leaving a gap at the bottom of the
+  circle. The game's **player count** goes up with each one (travellers not included).
 
-Characters stay hidden from the storyteller's device until the draw is finished, and each slot only reveals its
-character to the player who taps it.
+When the draw finishes, the day is reset to **0**, the clock is cleared and the game is at **dusk**, ready for the
+first night. Going to the morning then starts day 1, with a 5 minute timer set up (pick another from the timer list if
+you want).
+
+Each slot only reveals its character to the player who taps it, on the draw device. A grimoire open elsewhere shows
+each character as its player confirms, so keep it out of sight during the draw.
 
 ## Going straight to the grim
 

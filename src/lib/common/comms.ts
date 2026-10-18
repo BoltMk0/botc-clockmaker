@@ -10,6 +10,7 @@ import type { MusicModel } from "$lib/audio/common/model/musicModel";
 import type { ClocktowerAudioTrackModel } from "$lib/audio/common/model/clocktowerAudioTrackModel.svelte";
 import type { ClockSfxSlot } from "$lib/audio/common/clockSfxPreset";
 import type { ClocktowerModel } from "$lib/model/common/ClocktowerModel";
+import type { GrimoireStateHistory } from "$lib/resources/common/grimoireState";
 
 export type WSMessageBase = {
     type: string;
@@ -101,6 +102,13 @@ export type StingTriggerMessage = WSMessageBase & {
     slot: 0 | 1;
 };
 
+/** A clock's grimoire was saved (null: deleted). `origin` is the client id of the grim page that saved it, if any. Grim events only. */
+export type GrimoireStateMessage = WSMessageBase & {
+    type: 'grimoireState',
+    history: GrimoireStateHistory | null;
+    origin: string | null;
+};
+
 export type WSMessage =
     |ClockMessage
     |SyncMessage
@@ -118,4 +126,5 @@ export type WSMessage =
     |StingEngineUpdateMessage
     |StingTrackUpdateMessage
     |StingTriggerMessage
+    |GrimoireStateMessage
     ;

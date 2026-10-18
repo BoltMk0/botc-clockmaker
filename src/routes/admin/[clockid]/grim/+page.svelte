@@ -10,6 +10,7 @@
 
     import { goto } from '$app/navigation';
     import { Clocktower } from "$lib/model/client/Clocktower.svelte.js";
+    import { GrimoireSync } from "$lib/model/client/GrimoireSync";
     import FullDisplay from "$lib/components/FullDisplay/FullDisplay.svelte";
     import { onMount } from "svelte";
     import { fly } from "svelte/transition";
@@ -66,36 +67,59 @@
             loadedPreset: hist.loadedPreset ?? null,
             saveslots: hist.saveslots.map(s => s ? normaliseSnapshot(s) : null),
             present: normaliseSnapshot(hist.present),
+            revision: hist.revision,
         };
     }
 
-    function getLocallyStoredGrimoireState(): GrimoireStateHistory | null {
-        if (!browser) return null;
-        const key = `grimoire-state-${data.clockid}`;
-        try {
-            const saved = localStorage.getItem(key);
-            if (!saved) return null;
-            return JSON.parse(saved) as GrimoireStateHistory;
-        } catch {
-            return null;
-        }
-    }
-
-    function getInitialGameState(data: PageData): GrimoireStateHistory {
-        const locallySavedState = getLocallyStoredGrimoireState();
-
-        const selectedState = (data.grimoireState?.present.timestamp || 0) > (locallySavedState?.present.timestamp || 0) ? data.grimoireState : locallySavedState;
-        if(selectedState) {
-            console.log("Using grimoire state with timestamp", selectedState.present.timestamp);
-            return normaliseHistory(selectedState);
-        } else {
-            console.log("No existing grimoire state found, initializing new state");
-            return newGrimoireStateHistory(data.clockid);
-        }
-    }
-
     // svelte-ignore state_referenced_locally
-    const gameState = $state(getInitialGameState(data));
+    const gameState = $state(normaliseHistory(browser ? GrimoireSync.initialState(data.clockid, data.grimoireState) : data.grimoireState));
+
+    // Keeps this grim in step with the same grim open on other devices (see GrimoireSync).
+    // svelte-ignore state_referenced_locally
+    const grimSync = new GrimoireSync({
+        clockid: data.clockid,
+        serverState: data.grimoireState,
+        getLocal: () => $state.snapshot(gameState) as GrimoireStateHistory,
+        setLocal: (history) => {
+            const next = normaliseHistory(history);
+            gameState.scriptId = next.scriptId;
+            gameState.loadedPreset = next.loadedPreset;
+            gameState.saveslots = next.saveslots;
+            gameState.present = next.present;
+            gameState.revision = next.revision;
+            activeCanvasLayerIndex = Math.min(activeCanvasLayerIndex, next.present.canvas.layers.length - 1);
+        },
+        isBusy: () => dragging !== null || draggingReminder !== null || drawingStroke,
+        onstatus: (status) => {
+            // Changes made since the save began are still to go
+            saveStatus = status === 'saved' && saveGrimoireTimeout ? 'unsaved' : status;
+        },
+        ondeleted: () => {
+            if (saveGrimoireTimeout) clearTimeout(saveGrimoireTimeout);
+            localStorage.removeItem(`grimoire-state-${data.clockid}`);
+            alert('This grimoire has been deleted on another device.');
+            goto('/play', { replaceState: true });
+        }
+    });
+
+    // A line is being drawn on the canvas (from its first change to its commit). In case a stroke is abandoned
+    // without a commit (e.g. it turned into a pinch), it also counts as finished after a while with no change.
+    let drawingStroke = false;
+    let drawingStrokeTimer: ReturnType<typeof setTimeout> | null = null;
+
+    function onCanvasChange() {
+        drawingStroke = true;
+        saveStatus = 'unsaved';
+        if (drawingStrokeTimer) clearTimeout(drawingStrokeTimer);
+        drawingStrokeTimer = setTimeout(onCanvasCommit, 5000);
+    }
+
+    function onCanvasCommit() {
+        if (drawingStrokeTimer) clearTimeout(drawingStrokeTimer);
+        drawingStrokeTimer = null;
+        drawingStroke = false;
+        saveGrimoire();
+    }
 
     // SCRIPT / PRESET SELECTION
     let script = $state<ScriptWithCharacters | null>(null);
@@ -190,7 +214,7 @@
         const layer = canvasLayers[activeCanvasLayerIndex];
         if (!layer || layer.strokes.length === 0) return;
         layer.strokes.pop();
-        rescheduleSaveGrimoire();
+        saveGrimoire();
     }
 
     let sidebarOpen = $state(false);
@@ -398,32 +422,7 @@
             clearTimeout(saveGrimoireTimeout);
             saveGrimoireTimeout = null;
         }
-
-        gameState.present.timestamp = Date.now();
-        saveStatus = 'saving';
-
-        if(browser){
-            // Also save to localStorage immediately so that if the user reloads before the debounced save, they won't lose more than a few seconds of changes
-            localStorage.setItem(`grimoire-state-${data.clockid}`, JSON.stringify(gameState));
-        }
-
-        try {
-            const response = await fetch(`grim/state`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(gameState),
-            });
-            if (!response.ok) {
-                console.error("Failed to save grimoire state:", response.statusText);
-                saveStatus = 'error';
-            } else {
-                console.log("Grimoire state saved successfully");
-                saveStatus = 'saved';
-            }
-        } catch (er) {
-            console.error(`Failed to save grimoire state: ${er}`);
-            saveStatus = 'error';
-        }
+        await grimSync.save();
     }
 
     let saveGrimoireTimeout: NodeJS.Timeout | null = null;
@@ -591,6 +590,7 @@
             clearTimeout(saveGrimoireTimeout);
             saveGrimoireTimeout = null;
         }
+        grimSync.close();
         const query = winner ? `?winner=${winner}` : '';
         try {
             const response = await fetch(`grim/state${query}`, { method: 'DELETE' });
@@ -617,7 +617,7 @@
         const laidOut = layoutTokensAtDefaultPositions(placedTokens, placedReminders, isSideRoleToken, radius);
         gameState.present.placedTokens = laidOut.tokens;
         gameState.present.placedReminders = laidOut.reminders;
-        rescheduleSaveGrimoire();
+        saveGrimoire();
         fitView();
     }
 
@@ -902,7 +902,7 @@
         gameState.present.placedTokens = gameState.present.placedTokens.map(t =>
             t === target ? { ...t, isDead: !t.isDead } : t
         );
-        rescheduleSaveGrimoire();
+        saveGrimoire();
     }
 
     function toggleDeadVote() {
@@ -911,7 +911,7 @@
         gameState.present.placedTokens = gameState.present.placedTokens.map(t =>
             t === target ? { ...t, deadVoteUsed: !t.deadVoteUsed } : t
         );
-        rescheduleSaveGrimoire();
+        saveGrimoire();
     }
 
     function toggleAlignment() {
@@ -920,7 +920,7 @@
         gameState.present.placedTokens = gameState.present.placedTokens.map(t =>
             t === target ? { ...t, alignment: t.alignment === 'evil' ? 'good' : 'evil' } : t
         );
-        rescheduleSaveGrimoire();
+        saveGrimoire();
     }
 
     function setPlayerName(name: string) {
@@ -944,7 +944,7 @@
         if (characterId) loadRemindersForCharacter(characterId).then(() => { reminderCache = reminderCache; });
         closeOverlay();
         closeReminderTray();
-        rescheduleSaveGrimoire();
+        saveGrimoire();
     }
 
     function closeReminderTray() {
@@ -996,12 +996,11 @@
                 const x = (dropX - centre.x) / viewScale;
                 const y = (dropY - centre.y) / viewScale;
                 gameState.present.placedReminders = [...placedReminders, { tokenId: draggingReminder.token.id, x, y }];
-                rescheduleSaveGrimoire();
             }
             // If near edge, it's deleted (not re-added)
             draggingReminder = null;
             ghostPos = null;
-            rescheduleSaveGrimoire();
+            saveGrimoire();
             return;
         }
 
@@ -1035,19 +1034,19 @@
                         alignment: defaultAlignmentForCharacterId(dragging.character?.id ?? null),
                     };
                 gameState.present.placedTokens = [...gameState.present.placedTokens, newPlacedToken];
-                rescheduleSaveGrimoire();
             }
             // If near edge or over footer: token returns to tray (not re-added)
         }
 
         dragging = null;
         ghostPos = null;
-        rescheduleSaveGrimoire();
+        saveGrimoire();
     }
 
     onMount(()=>{
         if(!browser) return;
         clockClient = new Clocktower(data.model);
+        grimSync.connect();
         fitView();
 
         // Refit the zoom when the screen space changes (rotation, window resize). Only the board's layout size is
@@ -1075,6 +1074,7 @@
                 clearTimeout(saveGrimoireTimeout);
             }
             clockClient?.close();
+            grimSync.close();
         }
     });
 
@@ -2275,7 +2275,7 @@
         {/if}
     </div>
 
-    <AnotatableViewV2 ongesturestart={cancelPendingBoardTap} onresetview={fitView} bind:viewScale bind:viewTx bind:viewTy idleGestures={!dragging && !draggingReminder} idleIgnore=".sidebar button, .undo-stroke-btn, .grimoire-footer, .reminder-popup, [role='dialog']" idlePanIgnore=".board-token, .board-reminder, button, a, input, [role='dialog']" tool={editing ? activeTool : null} penTool={lastPenTool} eraserTool={penEraserTool} onchange={rescheduleSaveGrimoire} layers={canvasLayers} activeLayerIndex={activeCanvasLayerIndex} canvasStyle="z-index: {z_indecies.canvas};">
+    <AnotatableViewV2 ongesturestart={cancelPendingBoardTap} onresetview={fitView} bind:viewScale bind:viewTx bind:viewTy idleGestures={!dragging && !draggingReminder} idleIgnore=".sidebar button, .undo-stroke-btn, .grimoire-footer, .reminder-popup, [role='dialog']" idlePanIgnore=".board-token, .board-reminder, button, a, input, [role='dialog']" tool={editing ? activeTool : null} penTool={lastPenTool} eraserTool={penEraserTool} onchange={onCanvasChange} oncommit={onCanvasCommit} layers={canvasLayers} activeLayerIndex={activeCanvasLayerIndex} canvasStyle="z-index: {z_indecies.canvas};">
 
     <div class="grimoire-board" bind:this={boardEl}>
         {#each ALIGNMENT_RING_FACTORS as factor}

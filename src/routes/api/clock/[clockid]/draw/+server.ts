@@ -1,6 +1,8 @@
 import { json } from '@sveltejs/kit';
 import { newDrawSession, get_draw_session_for_clock, delete_draw_session_for_clock } from '$lib/resources/server/draw-sessions';
 import { redactDrawSession } from '$lib/resources/common/drawSession';
+import { set_grimoire_state_history_resource_for_clock } from '$lib/resources/server/grimoire-state';
+import { newGrimoireForDrawSession } from '$lib/resources/server/draw-grimoire';
 
 export async function GET({ params }) {
     const session = get_draw_session_for_clock(params.clockid);
@@ -32,6 +34,8 @@ export async function POST({ params, request }) {
     }
 
     const session = newDrawSession(params.clockid, scriptId, characterIds, bluffSets, offSeatIds, presetId);
+    // The grimoire starts now, so it can be watched filling up as players take their tokens.
+    set_grimoire_state_history_resource_for_clock(params.clockid, newGrimoireForDrawSession(params.clockid, session));
     return json(redactDrawSession(session), { status: 201 });
 }
 

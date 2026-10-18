@@ -1,8 +1,6 @@
 import { get_grimoire_state_history_resource_for_clock, set_grimoire_state_history_resource_for_clock, delete_grimoire_state_history_resource_for_clock } from '$lib/resources/server/grimoire-state.js';
 import { json } from '@sveltejs/kit';
-import { isGrimoireStateHistory, isPlayerToken } from '$lib/resources/common/grimoireState';
-import { getBOTCTClockInstanceManager } from '$lib/model/server/model.js';
-import { getCharacterById } from '$lib/resources/server/characters';
+import { isGrimoireStateHistory } from '$lib/resources/common/grimoireState';
 import { recordPresetVictory } from '$lib/resources/server/presets';
 
 export async function GET({params}){
@@ -13,6 +11,10 @@ export async function GET({params}){
     return json(data);
 }
 
+// The body is the whole grimoire, its `revision` the one it was based on. If someone else has saved since (it's no
+// longer the current revision), it's refused with a 409 carrying the current state, for the client to merge its
+// changes into and send again (null if the grimoire has been deleted). A grimoire with no revision (a brand new one, from setup) is always accepted.
+// The `X-Grim-Client` header names the grim page saving it, so it can ignore its own save when it's broadcast.
 export async function POST({params, request}){
     try{
         const body = await request.json();
@@ -21,17 +23,16 @@ export async function POST({params, request}){
             return json({error: "Invalid grimoire state history data"}, {status: 400});
         }
 
-        set_grimoire_state_history_resource_for_clock(params.clockid, body);
+        const current = get_grimoire_state_history_resource_for_clock(params.clockid);
+        // (Including when it's since been deleted: a save from a device still open on it mustn't bring it back.)
+        if(body.revision !== undefined && current?.revision !== body.revision){
+            return json({error: "The grimoire has changed since this was based on it", current}, {status: 409});
+        }
 
-        // Keep the clock's player count in sync with the characters currently placed on the
-        // board, so the storyteller doesn't have to set it by hand as they seat players.
-        // Every token carrying a player name is a seated player, except travellers (who don't count towards the player count).
-        const playerCount = body.present.placedTokens.filter(t => isPlayerToken(t) && (!t.characterId || !['traveler', 'loric', 'fabled'].includes(getCharacterById(t.characterId)?.category ?? ''))).length;
-        const clock = getBOTCTClockInstanceManager().getInstance(params.clockid);
-        if (clock) clock.playerCount = playerCount;
+        const revision = set_grimoire_state_history_resource_for_clock(params.clockid, body, request.headers.get('X-Grim-Client'));
 
         console.log("Saved grimoire state history for clock", params.clockid);
-        return json({message: "Grimoire state history saved successfully"});
+        return json({message: "Grimoire state history saved successfully", revision});
     }catch(e){
         console.error("Error saving grimoire state history:", e);
         return json({error: "Invalid JSON data"}, {status: 400});

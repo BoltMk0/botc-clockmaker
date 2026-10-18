@@ -69,6 +69,9 @@ export type GrimoireStateHistory = {
     loadedPreset: LoadedPreset | null;
     saveslots: (GrimoireStateSnapshot | null)[];
     present: GrimoireStateSnapshot;
+    // Set by the server each time it saves the grimoire. A save is only accepted from a client that has seen the
+    // current revision, so one device can't overwrite another's changes without having merged them first.
+    revision?: string;
 };
 
 function isPlacedToken(obj: any): obj is PlacedToken {
@@ -129,6 +132,7 @@ export function isGrimoireStateHistory(obj: any): obj is GrimoireStateHistory {
     return obj !== null && obj !== undefined && typeof obj === "object" &&
         (obj.scriptId === null || typeof obj.scriptId === "string") &&
         (obj.loadedPreset === null || isLoadedPreset(obj.loadedPreset)) &&
+        (obj.revision === undefined || typeof obj.revision === "string") &&
         Array.isArray(obj.saveslots) &&
         obj.saveslots.every((slot: any) => slot === null || validateGrimoireState(slot)) &&
         validateGrimoireState(obj.present);
@@ -269,29 +273,20 @@ export function layoutTokensAtDefaultPositions(
     };
 }
 
-export function newGrimoireStateFromDraw(
+// The grimoire for a draw that's just starting: the tokens sorted onto the grim rather than into the bag, and no
+// players yet - each is added by addDrawnSeatToken as they take their token.
+export function newGrimoireStateForDraw(
     clockId: string,
     scriptId: string,
-    seats: { characterId: string, playerName: string, alignment: Alignment }[],
+    bagCharacterIds: string[],
     bluffSets: string[][],
     offSeats: { characterId: string, alignment: Alignment }[] = [],
     presetId: string | null = null
 ): GrimoireStateHistory {
     const history = newGrimoireStateHistory(clockId, scriptId);
-    // Round the arc clockwise in seating order, the first player at its start
-    const positions = computeArcPositions(seats.length, DRAW_SEAT_ARC.fromDegrees, DRAW_SEAT_ARC.toDegrees);
-    const seatTokens: PlacedToken[] = seats.map((seat, i) => ({
-        id: v7(),
-        characterId: seat.characterId,
-        isDead: false,
-        alignment: seat.alignment,
-        x: positions[i].x,
-        y: positions[i].y,
-        playerName: seat.playerName
-    }));
     // Tokens sorted onto the grim rather than into the bag sit in a row at the top left, apart from the town.
     const rowPositions = computeRowPositions(offSeats.length, OFF_SEAT_ROW_START);
-    const offSeatTokens: PlacedToken[] = offSeats.map((off, i) => ({
+    history.present.placedTokens = offSeats.map((off, i) => ({
         id: v7(),
         characterId: off.characterId,
         isDead: false,
@@ -299,13 +294,35 @@ export function newGrimoireStateFromDraw(
         x: rowPositions[i].x,
         y: rowPositions[i].y
     }));
-    history.present.placedTokens = [...seatTokens, ...offSeatTokens];
     history.loadedPreset = {
-        character_ids: [...seats.map(s => s.characterId), ...offSeats.map(o => o.characterId)],
+        character_ids: [...bagCharacterIds, ...offSeats.map(o => o.characterId)],
         bluff_sets: bluffSets,
         preset_id: presetId
     };
     return history;
+}
+
+// Seats the `seatIndex`th player (0-based, in the order they drew) of `seatCount` on the grimoire, round the arc
+// clockwise in seating order, the first player at its start. Returns their token's id.
+export function addDrawnSeatToken(
+    history: GrimoireStateHistory,
+    seat: { characterId: string, playerName: string, alignment: Alignment },
+    seatIndex: number,
+    seatCount: number
+): string {
+    const position = computeArcPositions(seatCount, DRAW_SEAT_ARC.fromDegrees, DRAW_SEAT_ARC.toDegrees)[seatIndex];
+    const token: PlacedToken = {
+        id: v7(),
+        characterId: seat.characterId,
+        isDead: false,
+        alignment: seat.alignment,
+        x: position.x,
+        y: position.y,
+        playerName: seat.playerName
+    };
+    history.present.placedTokens = [...history.present.placedTokens, token];
+    history.present.timestamp = Date.now();
+    return token.id;
 }
 
 // Used when going straight to the grim without a draw: every chosen character becomes an unseated

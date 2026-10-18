@@ -182,8 +182,14 @@ Opening the token tray or the audio menu leaves annotate mode.
 
 ## Saving
 
-The grimoire saves automatically: about a second after each change it's sent to the server, and it's also kept in
-the browser straight away. You can close the tablet, reload or open the same grimoire on another device and carry on.
+The grimoire saves automatically. Dropping a token or reminder, finishing a line, and the popup's buttons save
+straight away; typing a name saves about a second after you stop. Changes are also kept in the browser straight away,
+so you can close the tablet, reload or open the same grimoire on another device and carry on.
+
+The grimoire can be open on several devices at once, and they keep each other up to date: each change appears on the
+others as soon as it's saved. If two devices change it at the same moment, both changes are kept (one moving a token
+while the other renames it, say). A device in the middle of dragging a token or drawing a line takes in the other's
+changes once it has finished. If the grimoire is deleted on one device, the others go back to the Play page.
 
 ## Ending a game
 
