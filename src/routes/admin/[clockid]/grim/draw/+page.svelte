@@ -34,6 +34,19 @@
         node.focus();
     }
 
+    // maxlength isn't reliable on every keyboard (Android IMEs compose past it, and it counts UTF-16 units,
+    // so an emoji takes two), so trim the name to 15 characters on every input instead.
+    const NAME_MAX_LENGTH = 15;
+    const segmenter = new Intl.Segmenter();
+
+    function limitName(e: Event) {
+        const input = e.currentTarget as HTMLInputElement;
+        const chars = Array.from(segmenter.segment(input.value), s => s.segment);
+        if (chars.length <= NAME_MAX_LENGTH) return;
+        input.value = chars.slice(0, NAME_MAX_LENGTH).join('');
+        nameInput = input.value;
+    }
+
     // iOS Safari doesn't shrink the layout viewport when the keyboard opens, so a fixed full-screen overlay
     // ends up half hidden. Track the visual viewport (the area actually visible) and fit the overlay to it.
     let visibleArea = $state<{ top: number; height: number } | null>(null);
@@ -314,7 +327,7 @@
                     <div>Unknown character</div>
                 {/if}
                 <div class="name-row">
-                    <input type="text" class="input-style name-input" placeholder="Your name" bind:value={nameInput} use:focusOnMount onkeydown={(e) => { if (e.key === 'Enter') confirmName(); }}/>
+                    <input type="text" class="input-style name-input" placeholder="Your name" bind:value={nameInput} use:focusOnMount oninput={limitName} oncompositionend={limitName} onkeydown={(e) => { if (e.key === 'Enter') confirmName(); }}/>
                     <button class="tick-btn" aria-label="Confirm" onclick={confirmName} disabled={confirming || !nameInput.trim()}>✓</button>
                 </div>
             {/if}
