@@ -13,6 +13,8 @@
         onchange?: () => void;
         /** Called once a change is finished: a stroke or erase lifted, an undo or a clear. onchange also fires mid-stroke. */
         oncommit?: () => void;
+        /** Replaces what a two-finger tap does (default: removes the active layer's last stroke). */
+        onundo?: () => void;
         activeLayerIndex: number;
         layers: CanvasLayer[];
         tool: CanvasToolType | null;
@@ -40,6 +42,7 @@
         exportedDimensions,
         onchange,
         oncommit,
+        onundo,
         activeLayerIndex,
         layers = $bindable<CanvasLayer[]>([]),
         tool = $bindable<CanvasToolType|null>(null),
@@ -368,10 +371,25 @@
     }
 
     function undoLastStroke() {
+        if (onundo) {
+            cancelStroke();
+            oncommit?.();
+            onundo();
+            return;
+        }
         if(!activeLayer) return;
         if (activeLayer.strokes.length === 0) return;
         console.debug("Undoing last stroke...");
+        cancelStroke();
 
+        activeLayer.strokes.pop();
+        redrawFromStrokes();
+        onchange?.();
+        oncommit?.();
+    }
+
+    // Stops tracking a stroke in progress, if there is one.
+    function cancelStroke() {
         // If a stroke is currently in progress, cancel it.
         cancelPendingTouch();
         if (activePointerId !== null) {
@@ -387,11 +405,6 @@
         activePointers.clear();
         touchScreenPos.clear();
         pinchPrevMid = null;
-
-        activeLayer.strokes.pop();
-        redrawFromStrokes();
-        onchange?.();
-        oncommit?.();
     }
 
     function replayStrokes() {

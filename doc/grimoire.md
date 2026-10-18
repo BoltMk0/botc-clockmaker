@@ -15,6 +15,7 @@ The grimoire is designed for a tablet (it works on phones and desktops too, and 
 - [The sidebar](#the-sidebar)
 - [Annotate mode (drawing)](#annotate-mode-drawing)
 - [Saving](#saving)
+- [Undo](#undo)
 - [Ending a game](#ending-a-game)
 
 ## The board
@@ -174,7 +175,7 @@ Draw freehand notes over the board — a quick way to note who claimed what or w
 - **Pens**: red, green, blue and yellow, plus an **eraser** (which removes whole strokes).
 - **Layers**: drawings live on layers. Pick a layer to draw on it; **clear** wipes a layer; **delete** removes it
   (when there's more than one); **+** adds a new one. Use layers to keep, say, claims and nominations apart.
-- **Undo** (curved arrow, while the layer has strokes) removes the last pen stroke on the current layer.
+- **Undo** (curved arrow) undoes your last change; see [Undo](#undo). A two-finger tap while drawing does the same.
 - **With a stylus**, you can draw at any time, even outside annotate mode, using the last pen you picked. The stylus's
   side button switches to the eraser.
 
@@ -190,6 +191,20 @@ The grimoire can be open on several devices at once, and they keep each other up
 others as soon as it's saved. If two devices change it at the same moment, both changes are kept (one moving a token
 while the other renames it, say). A device in the middle of dragging a token or drawing a line takes in the other's
 changes once it has finished. If the grimoire is deleted on one device, the others go back to the Play page.
+
+## Undo
+
+The **undo** button (curved arrow, on the board whenever there's something to undo) takes back your changes one at a
+time, newest first: moving, adding or removing a token or reminder, a player's name, alive/dead, ghost vote,
+alignment or character, resetting token positions, drawing, erasing or clearing lines, and adding or deleting a
+bluff set. A two-finger tap while drawing does the same. Changing a name counts as one change however many letters
+you type, as long as you don't pause for more than a second.
+
+Undo only takes back changes made on this device, and keeps what other devices have changed since: if you move a
+token and someone else then renames it, undoing puts it back where it was, under its new name. A change that has
+since been undone elsewhere (say, the token has been removed) is skipped for the one before it. Adding and deleting
+layers can't be undone, and the lines drawn before a layer is added or deleted can no longer be undone either. The undo
+list starts empty each time the page loads.
 
 ## Ending a game
 

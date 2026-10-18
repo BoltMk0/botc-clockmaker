@@ -23,6 +23,7 @@
         children: Snippet;
         onchange?: ()=>void;
         oncommit?: ()=>void;
+        onundo?: ()=>void;
     }
 
     let {
@@ -36,6 +37,7 @@
         activeLayerIndex,
         onchange,
         oncommit,
+        onundo,
         idleGestures = true,
         idleIgnore = '',
         idlePanIgnore = '',
@@ -78,7 +80,7 @@
     <div class="content-wrapper" style="transform: translate({viewTx}px, {viewTy}px) scale({viewScale});">
         {@render children?.()}
     </div>
-    <DrawableCanvas2 {onchange} {oncommit} bind:viewTx bind:viewTy bind:viewScale {tool} {penTool} {eraserTool} {idleGestures} {idleIgnore} {idlePanIgnore} {ongesturestart} {onresetview} {canvasStyle} {exportedDimensions} {layers} {activeLayerIndex}/>
+    <DrawableCanvas2 {onchange} {oncommit} {onundo} bind:viewTx bind:viewTy bind:viewScale {tool} {penTool} {eraserTool} {idleGestures} {idleIgnore} {idlePanIgnore} {ongesturestart} {onresetview} {canvasStyle} {exportedDimensions} {layers} {activeLayerIndex}/>
 </div>
 
 

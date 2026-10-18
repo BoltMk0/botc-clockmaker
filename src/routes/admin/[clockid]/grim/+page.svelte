@@ -11,6 +11,7 @@
     import { goto } from '$app/navigation';
     import { Clocktower } from "$lib/model/client/Clocktower.svelte.js";
     import { GrimoireSync } from "$lib/model/client/GrimoireSync";
+    import { GrimoireUndo } from "$lib/model/client/GrimoireUndo.svelte";
     import FullDisplay from "$lib/components/FullDisplay/FullDisplay.svelte";
     import { onMount } from "svelte";
     import { fly } from "svelte/transition";
@@ -81,6 +82,8 @@
         serverState: data.grimoireState,
         getLocal: () => $state.snapshot(gameState) as GrimoireStateHistory,
         setLocal: (history) => {
+            // This device's changes so far are its own to undo; what comes in from others isn't.
+            undo.checkpoint();
             const next = normaliseHistory(history);
             gameState.scriptId = next.scriptId;
             gameState.loadedPreset = next.loadedPreset;
@@ -88,6 +91,7 @@
             gameState.present = next.present;
             gameState.revision = next.revision;
             activeCanvasLayerIndex = Math.min(activeCanvasLayerIndex, next.present.canvas.layers.length - 1);
+            undo.reset();
         },
         isBusy: () => dragging !== null || draggingReminder !== null || drawingStroke,
         onstatus: (status) => {
@@ -101,6 +105,14 @@
             goto('/play', { replaceState: true });
         }
     });
+
+    // Undo for this device's changes: each save is a step (see GrimoireUndo).
+    const undo = new GrimoireUndo(() => gameState);
+
+    function undoLastChange() {
+        closeReminderTray();
+        if (undo.undo()) saveGrimoire();
+    }
 
     // A line is being drawn on the canvas (from its first change to its commit). In case a stroke is abandoned
     // without a commit (e.g. it turned into a pinch), it also counts as finished after a while with no change.
@@ -207,16 +219,6 @@
     let viewTx = $state(0);
     let viewTy = $state(0);
     let activeCanvasLayerIndex = $state<number>(0); // Set on mount by AnotatableView, source of truth for active layer index
-    // Only pen strokes are stored (the eraser removes strokes rather than adding its own), so any stroke can be undone.
-    const activeLayerHasStrokes = $derived((canvasLayers[activeCanvasLayerIndex]?.strokes.length ?? 0) > 0);
-
-    function undoLastPenStroke() {
-        const layer = canvasLayers[activeCanvasLayerIndex];
-        if (!layer || layer.strokes.length === 0) return;
-        layer.strokes.pop();
-        saveGrimoire();
-    }
-
     let sidebarOpen = $state(false);
     // Board token size in board px; the zoom does the fitting to the screen.
     const tokenSize = BOARD_TOKEN_SIZE;
@@ -422,6 +424,8 @@
             clearTimeout(saveGrimoireTimeout);
             saveGrimoireTimeout = null;
         }
+        // Not mid-drag (the dragged token or reminder is off the board until it's dropped) or mid-line
+        if (!dragging && !draggingReminder && !drawingStroke) undo.checkpoint();
         await grimSync.save();
     }
 
@@ -2083,9 +2087,9 @@
         {/if}
     </div>
 
-    {#if activeLayerHasStrokes}
-    <!-- Undo the active layer's last pen stroke -->
-    <button class="sidebar-btn undo-stroke-btn" class:drag-hidden={isDraggingAnything} style="z-index: {z_indecies.ui};" onclick={undoLastPenStroke} title="Undo last pen stroke" aria-label="Undo last pen stroke">
+    {#if undo.canUndo}
+    <!-- Undo this device's last change -->
+    <button class="sidebar-btn undo-stroke-btn" class:drag-hidden={isDraggingAnything} style="z-index: {z_indecies.ui};" onclick={undoLastChange} title="Undo" aria-label="Undo">
         <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
     </button>
     {/if}
@@ -2275,7 +2279,7 @@
         {/if}
     </div>
 
-    <AnotatableViewV2 ongesturestart={cancelPendingBoardTap} onresetview={fitView} bind:viewScale bind:viewTx bind:viewTy idleGestures={!dragging && !draggingReminder} idleIgnore=".sidebar button, .undo-stroke-btn, .grimoire-footer, .reminder-popup, [role='dialog']" idlePanIgnore=".board-token, .board-reminder, button, a, input, [role='dialog']" tool={editing ? activeTool : null} penTool={lastPenTool} eraserTool={penEraserTool} onchange={onCanvasChange} oncommit={onCanvasCommit} layers={canvasLayers} activeLayerIndex={activeCanvasLayerIndex} canvasStyle="z-index: {z_indecies.canvas};">
+    <AnotatableViewV2 ongesturestart={cancelPendingBoardTap} onresetview={fitView} bind:viewScale bind:viewTx bind:viewTy idleGestures={!dragging && !draggingReminder} idleIgnore=".sidebar button, .undo-stroke-btn, .grimoire-footer, .reminder-popup, [role='dialog']" idlePanIgnore=".board-token, .board-reminder, button, a, input, [role='dialog']" tool={editing ? activeTool : null} penTool={lastPenTool} eraserTool={penEraserTool} onchange={onCanvasChange} oncommit={onCanvasCommit} onundo={undoLastChange} layers={canvasLayers} activeLayerIndex={activeCanvasLayerIndex} canvasStyle="z-index: {z_indecies.canvas};">
 
     <div class="grimoire-board" bind:this={boardEl}>
         {#each ALIGNMENT_RING_FACTORS as factor}
