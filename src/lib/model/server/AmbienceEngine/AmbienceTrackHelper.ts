@@ -39,6 +39,17 @@ export class AmbienceTrackHelper {
             if(typeof patch.activeAtNight !== 'boolean') throw new Error('Invalid activeAtNight');
             clean.activeAtNight = patch.activeAtNight;
         }
+        if(patch.outputFront !== undefined){
+            if(typeof patch.outputFront !== 'boolean') throw new Error('Invalid outputFront');
+            clean.outputFront = patch.outputFront;
+        }
+        if(patch.outputRear !== undefined){
+            if(typeof patch.outputRear !== 'boolean') throw new Error('Invalid outputRear');
+            clean.outputRear = patch.outputRear;
+        }
+        if(!(clean.outputFront ?? m.outputFront) && !(clean.outputRear ?? m.outputRear)){
+            throw new Error('A track must play from the front or the rear');
+        }
         if(patch.loadedResourceId !== undefined){
             if(patch.loadedResourceId !== null){
                 if(typeof patch.loadedResourceId !== 'string' || findResourceById(patch.loadedResourceId) === null){

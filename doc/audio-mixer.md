@@ -6,6 +6,7 @@ The mixer controls every sound in the room. Its levels are shared: move a fader 
 them.
 
 - [Opening the mixer](#opening-the-mixer)
+- [Speakers (stereo or 4.0)](#speakers-stereo-or-40)
 - [Common controls](#common-controls)
 - [Music & Ambience](#music--ambience)
   - [Ambience](#ambience)
@@ -22,6 +23,55 @@ them.
 | The clock remote's mixer button, or the grimoire's audio menu → **Open mixer** | No — always a remote (`/admin/mixer?remote_only=1`). A **Back** button returns you. |
 
 The mixer is wider than a phone screen; scroll sideways to see all of it.
+
+## Speakers (stereo or 4.0)
+
+On a device that plays sound, the top of the mixer shows **Output: N channels** — how many channels the device's
+audio output has, as the browser sees it — and a choice of speakers. Like the mutes, this is **local to the device**:
+it describes the speakers plugged into it.
+
+- **Stereo** — the usual two speakers.
+- **4.0** — four speakers: front left, front right, rear left and rear right. Music, stings and bells play from the
+  front pair; the [ambience](#ambience) can play from the rear pair too. 4.0 can only be chosen if the device's audio
+  output has at least four channels. If it's chosen but the output then has fewer (say, the speakers were unplugged),
+  a note says so and the device plays in stereo.
+- **Test speakers** — plays a short burst of noise from each speaker in turn, naming each as it plays, so you can check
+  the wiring. It plays past every fader, mute and the dim. Tap **Stop test** to stop it early.
+
+On Linux:
+
+- **Use Firefox** on the device that plays the 4.0 sound. Chrome and Chromium on Linux only ever offer a web page two
+  channels, whatever the output, so the mixer there shows **Output: 2 channels**.
+- The browser's default sound output has to be set up as 4.0 (front left, front right, rear left, rear right). An audio
+  interface whose channels have no speaker positions (such as a Focusrite Scarlett on its "Direct" profile, with
+  channels `AUX0`, `AUX1`…) needs a 4.0 output made for it in PipeWire, passing on to its first four channels. Save
+  this as `~/.config/pipewire/pipewire.conf.d/clockmaker-quad.conf`, with your interface's output name from
+  `wpctl inspect` in `target.object`:
+
+  ```
+  context.modules = [
+      {   name = libpipewire-module-loopback
+          args = {
+              node.description = "Clockmaker 4.0"
+              capture.props = {
+                  node.name      = "clockmaker_quad"
+                  media.class    = "Audio/Sink"
+                  audio.position = [ FL FR RL RR ]
+              }
+              playback.props = {
+                  node.name         = "clockmaker_quad.playback"
+                  audio.position    = [ AUX0 AUX1 AUX2 AUX3 ]
+                  target.object     = "<your interface's output name>"
+                  stream.dont-remix = true
+                  node.passive      = true
+              }
+          }
+      }
+  ]
+  ```
+
+  Then restart PipeWire (`systemctl --user restart pipewire pipewire-pulse wireplumber`), make **Clockmaker 4.0** the
+  default output in Settings → Sound, and restart the browser.
 
 ## Common controls
 
@@ -51,9 +101,16 @@ The ambience engine plays looping background sounds. Its strips sit under an **A
   - **Morning / Day / Dusk / Night** switches (two by two) choose which phases it plays in: the ones it plays in
     are lit blue, brighter for the current phase, which is also outlined. A track fades in and out over three
     seconds as the phase changes.
+  - **F** and **R** switches choose which speakers it plays from in [4.0](#speakers-stereo-or-40): the front, the rear,
+    or both. With both, the rear plays the same sound half its length apart from the front, so the room is filled
+    without the two sounding alike — best for even sounds like rain or wind. A sound with moments that stand out
+    (a crow, a bell) is heard twice as often that way, so set it to just one of them. One is always on. A device in
+    stereo plays the track at the front if either is on, so these switches are dimmed there.
   - Its own pan and gain.
 - **+ Ambience Track** adds another track (up to 16). New installs start with four.
-- **BUS** — the level and pan of all the ambience together.
+- **BUS** — the level and pan of all the ambience together, and its **F/R** balance in 4.0: in the middle (**F=R**)
+  the front and rear are both at full level, and moving it one way turns the other pair down. Devices in stereo
+  ignore it.
 
 The ambience follows the phase of the games this mixer is for: all games on the mixer page and the split screen,
 or just that game on a game's own town square.

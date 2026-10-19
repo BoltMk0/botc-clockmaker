@@ -7,12 +7,15 @@
     import type { AmbienceEngine } from '../../AmbienceEngine.svelte';
     import type { TimeOfDay } from '$lib/model/client/types';
     import { MAX_AMBIENCE_TRACKS } from '$lib/audio/common/model/ambienceEngineModel';
+    import HSlider from '../HSlider.svelte';
+    import { formatFrontRear } from '../util';
 
     const {
         engine,
         resources,
         title = undefined,
         timeOfDay,
+        stereoHere = false,
         onTitleClick = undefined,
         onChildTitleClick = undefined,
         fxSnippet = undefined,
@@ -23,6 +26,8 @@
         engine: AmbienceEngine;
         resources: AmbienceResource[];
         timeOfDay: TimeOfDay;
+        /** This device plays sound in stereo, so the 4.0 controls make no difference to what it plays. */
+        stereoHere?: boolean;
         onTitleClick?: ()=>void;
         onChildTitleClick?: (index: number)=>void;
         fxSnippet?: Snippet<[T|undefined]>;
@@ -31,6 +36,14 @@
     } = $props();
 
 </script>
+
+{#snippet frontRearBalance()}
+    <!-- The balance between the front and rear speakers in 4.0 -->
+    <div class="front-rear" class:stereoHere title={stereoHere ? 'This device plays in stereo, so it ignores the front/rear balance' : 'Front/rear balance in 4.0 (double-click to reset)'}>
+        <AudioMixerText>F/R<br/>{formatFrontRear(engine.frontRear)}</AudioMixerText>
+        <HSlider bind:value={engine.frontRear} min={-1} max={1} step={0.1} onchange={()=>engine.frontRear = engine.frontRear}/>
+    </div>
+{/snippet}
 
 <div style="display: flex; flex-direction: column; gap: 5px; {style}">
     <AudioMixerText onclick={onTitleClick}>
@@ -46,7 +59,7 @@
         <div class="channel-strip-group-audio-tracks-container">
             <!-- Keyed by track, so removing one doesn't hand its strip's state (e.g. an open picker) to the next -->
             {#each engine.tracks as audioTrack, i (audioTrack)}
-                <ChannelStripAmbience {timeOfDay} track={audioTrack} title={resources.find(r=>r.id === audioTrack.loadedResourceId)?.title ?? '(empty)'} resources={resources} onTitleClick={()=>{onChildTitleClick?.(i);}} onRemove={()=>engine.removeTrack(i)}/>
+                <ChannelStripAmbience {timeOfDay} {stereoHere} track={audioTrack} title={resources.find(r=>r.id === audioTrack.loadedResourceId)?.title ?? '(empty)'} resources={resources} onTitleClick={()=>{onChildTitleClick?.(i);}} onRemove={()=>engine.removeTrack(i)}/>
             {/each}
         </div>
         {#if engine.tracks.length < MAX_AMBIENCE_TRACKS}
@@ -54,10 +67,18 @@
             <div class="add-track-text">+<br/>Ambience<br/>Track</div>
         </button>
         {/if}
-        <ChannelStrip audioTrack={engine} title="BUS" style="--theme-slider-accent: #DCC;"/>
+        <ChannelStrip audioTrack={engine} title="BUS" fxSnippet={frontRearBalance} style="--theme-slider-accent: #DCC;"/>
     </div>
 </div>
 <style>
+    .front-rear {
+        width: 100%;
+    }
+
+    .front-rear.stereoHere {
+        opacity: 0.45;
+    }
+
     .channel-strip-group-audio-tracks-container {
         display: flex;
         gap: 5px;

@@ -9,9 +9,10 @@ export class AudioTrackGroup<T extends AudioTrack = AudioTrack> extends AudioTra
         model: AudioTrackGroupModel,
         outputNode: AudioNode,
         title: string,
-        newAudioTrackFn: (model: any, outputNode: AudioNode, index: number)=>T
+        newAudioTrackFn: (model: any, outputNode: AudioNode, index: number)=>T,
+        options: {quad?: boolean} = {}
     ) {
-        super(model, outputNode, title);
+        super(model, outputNode, title, options);
         this.#tracks = Array.from(model.tracks, (t, i)=>newAudioTrackFn(t, this.input, i));
     }
 

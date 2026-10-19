@@ -58,6 +58,9 @@
     }
 
     $effect(() => () => { if (trimBubbleTimer !== null) clearTimeout(trimBubbleTimer); });
+
+    const SPEAKER_NAMES_QUAD = ['Front left', 'Front right', 'Rear left', 'Rear right'];
+    const SPEAKER_NAMES_STEREO = ['Left', 'Right'];
 </script>
 
 <style>
@@ -158,6 +161,44 @@
         font-weight: bold;
     }
 
+    .speaker-output {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 8px 12px;
+        margin-bottom: 14px;
+        font-size: 0.8em;
+        color: #ccc;
+    }
+
+    .speaker-layout {
+        display: flex;
+    }
+
+    .speaker-layout button {
+        border-radius: 0;
+        opacity: 0.6;
+    }
+
+    .speaker-layout button:first-child {
+        border-radius: 6px 0 0 6px;
+    }
+
+    .speaker-layout button:last-child {
+        border-radius: 0 6px 6px 0;
+    }
+
+    .speaker-layout button.selected {
+        opacity: 1;
+        outline: 2px solid var(--theme-highlight);
+        outline-offset: -2px;
+    }
+
+    .speaker-note {
+        opacity: 0.7;
+    }
+
     .mixer-channel-strips {
         display: flex;
         gap: 5px;
@@ -177,6 +218,24 @@
 {/if}
 
 <div class="mixer-main">
+    {#if audioEngine.playsHere}
+    <!-- This device's speakers: local to it, unlike the rest of the mixer -->
+    <div class="speaker-output">
+        <span>Output: {audioEngine.maxOutputChannels} {audioEngine.maxOutputChannels === 1 ? 'channel' : 'channels'}</span>
+        <div class="speaker-layout">
+            <button class="button-style" class:selected={audioEngine.speakerLayout === 'stereo'} onclick={()=>audioEngine.speakerLayout = 'stereo'}>Stereo</button>
+            <button class="button-style" class:selected={audioEngine.speakerLayout === 'quad'} onclick={()=>audioEngine.speakerLayout = 'quad'}
+                disabled={audioEngine.maxOutputChannels < 4 && audioEngine.speakerLayout !== 'quad'}
+                title={audioEngine.maxOutputChannels < 4 ? `This device's audio output has only ${audioEngine.maxOutputChannels} channels` : 'Front left, front right, rear left, rear right'}>4.0</button>
+        </div>
+        <button class="button-style" onclick={()=>audioEngine.testSpeakers()}>{audioEngine.speakerTestChannel === null ? 'Test speakers' : 'Stop test'}</button>
+        {#if audioEngine.speakerTestChannel !== null}
+            <span>🔊 {(audioEngine.surround ? SPEAKER_NAMES_QUAD : SPEAKER_NAMES_STEREO)[audioEngine.speakerTestChannel]}</span>
+        {:else if audioEngine.speakerLayout === 'quad' && !audioEngine.surround}
+            <span class="speaker-note">Too few channels for 4.0, so this plays in stereo</span>
+        {/if}
+    </div>
+    {/if}
     <div class="mixer-groups">
         {#if audioEngine}
         <div class="mixer-group">
@@ -194,7 +253,7 @@
                     {/if}
                 </div>
             {/snippet}
-            <ChannelStripGroupAmbience engine={audioEngine.ambienceEngine} timeOfDay={audioEngine.timeOfDay} resources={ambienceResources} onTitleClick={()=>{audioEngine?.ambienceEngine?.togglePlayPause()}} style="--theme-slider-accent: #FAA;" title={ambienceEngineTitle}/>
+            <ChannelStripGroupAmbience engine={audioEngine.ambienceEngine} stereoHere={audioEngine.playsHere && !audioEngine.surround} timeOfDay={audioEngine.timeOfDay} resources={ambienceResources} onTitleClick={()=>{audioEngine?.ambienceEngine?.togglePlayPause()}} style="--theme-slider-accent: #FAA;" title={ambienceEngineTitle}/>
             {/if}
             {#if spotify || music}
             <!-- The music strip, shared by Spotify and the uploaded-music player (whichever is running). Spotify plays

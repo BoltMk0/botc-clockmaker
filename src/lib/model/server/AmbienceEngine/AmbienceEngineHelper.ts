@@ -40,7 +40,7 @@ export class AmbienceEngineHelper extends EventEmitter {
         }, SAVE_DEBOUNCE_MS);
     }
 
-    /** Validates and applies an engine-level patch (playing / gain / pan). Throws on an invalid field. */
+    /** Validates and applies an engine-level patch (playing / gain / pan / frontRear). Throws on an invalid field. */
     updateEngine(patch: Record<string, unknown>){
         const m = this.#model;
         let changed = false;
@@ -57,6 +57,11 @@ export class AmbienceEngineHelper extends EventEmitter {
             if(typeof patch.pan !== 'number' || isNaN(patch.pan)) throw new Error('Invalid pan');
             const pan = Math.min(1, Math.max(-1, patch.pan));
             if(m.pan !== pan){ m.pan = pan; changed = true; }
+        }
+        if(patch.frontRear !== undefined){
+            if(typeof patch.frontRear !== 'number' || isNaN(patch.frontRear)) throw new Error('Invalid frontRear');
+            const frontRear = Math.min(1, Math.max(-1, patch.frontRear));
+            if(m.frontRear !== frontRear){ m.frontRear = frontRear; changed = true; }
         }
         if(changed){
             this.emit('engineUpdate', m);

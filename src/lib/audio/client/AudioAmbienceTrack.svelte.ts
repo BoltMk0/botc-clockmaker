@@ -5,19 +5,26 @@ import { AudioTrack } from "./AudioTrack.svelte";
 /** Duration of the fade when a track becomes active / inactive. */
 const FADE_MS = 3000;
 const FADE_CURVE_POINTS = 128;
+/** Time constant of the change in level when the front or rear is switched on or off (or the speaker layout changes). */
+const OUTPUT_TIME_CONSTANT_S = 0.15;
 
 /**
  * Plays by decoding the whole file into an AudioBuffer and looping it with an AudioBufferSourceNode, rather than
  * via <audio loop>: buffer looping is sample-accurate, so compressed formats (AAC/MP3) loop without the gap their
  * encoder padding otherwise leaves at the loop point.
+ *
+ * Four channels (4.0): the loop plays twice, from the same buffer - once to the front pair, and once to the rear pair half
+ * its length further on, so the two don't sound alike. Both always play, in step; which pairs are heard is only a matter
+ * of their levels (see `outputFront` and `outputRear`).
  */
 export class AudioAmbienceTrack extends AudioTrack {
     readonly #context: BaseAudioContext;
     readonly #model: AmbienceTrackModel;
     readonly #stopEffects: ()=>void;
-    readonly #fadeNode: GainNode; // Separate from the fader gain, so fades don't fight user gain changes
+    // Separate from the fader gain, so fades don't fight user gain changes. One for each of the front and rear loops.
+    readonly #fadeNodes: [GainNode, GainNode];
     #buffer: AudioBuffer|null = null;
-    #source: AudioBufferSourceNode|null = null;
+    #sources: AudioBufferSourceNode[] = [];
     #loadAbort: AbortController|null = null;
     #wantPlaying = false;
     #pauseTimer: ReturnType<typeof setTimeout>|null = null;
@@ -25,25 +32,41 @@ export class AudioAmbienceTrack extends AudioTrack {
     /** Called with the changed fields whenever the user edits this track locally (used to sync to the server). */
     onLocalChange: ((patch: AmbienceTrackPatch)=>void)|null = null;
 
-    /** @param options.silent Never plays, so its audio is never fetched either. */
+    /**
+     * @param options.silent Never plays, so its audio is never fetched either.
+     * @param options.surround Reactive getter for whether this device plays 4.0: if not, the track plays once, at the
+     *   front, if it's set to play from either.
+     */
     constructor(
         model: AmbienceTrackModel,
         outputNode: AudioNode,
         title: string,
-        options: {silent?: boolean} = {}
+        options: {silent?: boolean, surround?: ()=>boolean} = {}
     ) {
-        super(model, outputNode, title);
+        super(model, outputNode, title, {quad: true});
         this.#model = model;
         this.#context = outputNode.context;
 
-        this.#fadeNode = this.#context.createGain();
-        this.#fadeNode.gain.value = 0;
-        this.#fadeNode.connect(this.input);
+        const quad = this.quad!;
+        this.#fadeNodes = [this.#context.createGain(), this.#context.createGain()];
+        for(const fade of this.#fadeNodes) fade.gain.value = 0;
+        this.#fadeNodes[0].connect(quad.frontInput);
+        this.#fadeNodes[1].connect(quad.rearInput);
 
+        const surround = options.surround ?? (()=>false);
         this.#stopEffects = options.silent ? ()=>{} : $effect.root(()=>{
             $effect(()=>{
                 const id = this.#model.loadedResourceId;
                 this.load(id);
+            });
+            $effect(()=>{
+                const {outputFront, outputRear} = this.#model;
+                const quadOutput = surround();
+                const front = quadOutput ? outputFront : outputFront || outputRear;
+                const rear = quadOutput && outputRear;
+                const now = this.#context.currentTime;
+                quad.front.gain.setTargetAtTime(front ? 1 : 0, now, OUTPUT_TIME_CONSTANT_S);
+                quad.rear.gain.setTargetAtTime(rear ? 1 : 0, now, OUTPUT_TIME_CONSTANT_S);
             });
         });
     }
@@ -80,10 +103,11 @@ export class AudioAmbienceTrack extends AudioTrack {
     }
 
     private stopSource(){
-        if(this.#source === null) return;
-        try { this.#source.stop(); } catch { /* never started */ }
-        this.#source.disconnect();
-        this.#source = null;
+        for(const source of this.#sources){
+            try { source.stop(); } catch { /* never started */ }
+            source.disconnect();
+        }
+        this.#sources = [];
     }
 
     get gain(): number { return super.gain; }
@@ -120,6 +144,22 @@ export class AudioAmbienceTrack extends AudioTrack {
     set activeInDay(value: boolean){
         this.#model.activeInDay = value;
         this.onLocalChange?.({activeInDay: value});
+    }
+
+    get outputFront(): boolean { return this.#model.outputFront; }
+    /** Ignored if it would leave the track playing from neither the front nor the rear. */
+    set outputFront(value: boolean){
+        if(!value && !this.#model.outputRear) return;
+        this.#model.outputFront = value;
+        this.onLocalChange?.({outputFront: value});
+    }
+
+    get outputRear(): boolean { return this.#model.outputRear; }
+    /** Ignored if it would leave the track playing from neither the front nor the rear. */
+    set outputRear(value: boolean){
+        if(!value && !this.#model.outputFront) return;
+        this.#model.outputRear = value;
+        this.onLocalChange?.({outputRear: value});
     }
 
     get loadedResourceId(): string|null { return this.#model.loadedResourceId; }
@@ -159,16 +199,17 @@ export class AudioAmbienceTrack extends AudioTrack {
      * (e.g. at the day/night switch) sum to constant power rather than dipping in the middle like linear ramps.
      */
     private fadeTo(target: 0|1){
-        const param = this.#fadeNode.gain;
-        const now = this.#fadeNode.context.currentTime;
-        const current = Math.min(1, Math.max(0, param.value)); // Reflects any fade in progress
-        param.cancelScheduledValues(now);
+        // The front and rear loops fade together, so both fade nodes always hold the same value
+        const params = this.#fadeNodes.map(fade=>fade.gain);
+        const now = this.#context.currentTime;
+        const current = Math.min(1, Math.max(0, params[0].value)); // Reflects any fade in progress
+        for(const param of params) param.cancelScheduledValues(now);
 
         // Where on the curve the current gain sits, so a reversed fade continues smoothly from it
         const start = target === 1 ? Math.asin(current) / (Math.PI / 2) : Math.acos(current) / (Math.PI / 2);
         const remaining = 1 - start;
         if(remaining < 0.001){
-            param.setValueAtTime(target, now);
+            for(const param of params) param.setValueAtTime(target, now);
             return;
         }
         const curve = new Float32Array(FADE_CURVE_POINTS);
@@ -179,8 +220,10 @@ export class AudioAmbienceTrack extends AudioTrack {
         // As ramps between the curve's points rather than setValueCurveAtTime: Firefox doesn't cancel a curve already
         // under way, and then refuses any event during it, so turning a fade round partway would throw
         const step = FADE_MS / 1000 * remaining / (FADE_CURVE_POINTS - 1);
-        param.setValueAtTime(curve[0], now);
-        for(let i = 1; i < FADE_CURVE_POINTS; i++) param.linearRampToValueAtTime(curve[i], now + i * step);
+        for(const param of params){
+            param.setValueAtTime(curve[0], now);
+            for(let i = 1; i < FADE_CURVE_POINTS; i++) param.linearRampToValueAtTime(curve[i], now + i * step);
+        }
     }
 
     /**
@@ -193,16 +236,22 @@ export class AudioAmbienceTrack extends AudioTrack {
             return;
         }
         if(!this.#wantPlaying) return; // Stopping after a fade-out is handled by setPlaying
-        if(this.#source !== null) return;
+        if(this.#sources.length > 0) return;
         if(this.#buffer === null) return; // load() will call back in once decoded
 
-        const source = this.#context.createBufferSource();
-        source.buffer = this.#buffer;
-        source.loop = true;
-        source.connect(this.#fadeNode);
-        // Random start position, so tracks don't always open on the same moment
-        source.start(0, this.#buffer.duration * Math.random());
-        this.#source = source;
+        const buffer = this.#buffer;
+        // Random start position, so tracks don't always open on the same moment; the rear loop half its length on.
+        // Both start at the same time, so they stay in step.
+        const offset = buffer.duration * Math.random();
+        const when = this.#context.currentTime;
+        this.#sources = this.#fadeNodes.map((fade, i)=>{
+            const source = this.#context.createBufferSource();
+            source.buffer = buffer;
+            source.loop = true;
+            source.connect(fade);
+            source.start(when, (offset + i * buffer.duration / 2) % buffer.duration);
+            return source;
+        });
     }
 
     close(): void {
@@ -211,7 +260,7 @@ export class AudioAmbienceTrack extends AudioTrack {
         this.#loadAbort?.abort();
         this.stopSource();
         this.#buffer = null;
-        this.#fadeNode.disconnect();
+        for(const fade of this.#fadeNodes) fade.disconnect();
         super.close();
     }
 }

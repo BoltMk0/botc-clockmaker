@@ -1,12 +1,11 @@
-import { isAmbienceEngineModel, type AmbienceEngineModel } from "$lib/audio/common/model/ambienceEngineModel";
-import { migrateLegacyAmbienceTrack } from "$lib/audio/common/model/ambienceTrackModel";
+import { isAmbienceEngineModel, migrateLegacyAmbienceEngine, type AmbienceEngineModel } from "$lib/audio/common/model/ambienceEngineModel";
 import { getMimeTypeForExtension } from "../common/util";
 import { encodeResourceId, findResourceById, getResourceData } from "./resources";
 import { JSONSingletonResourceManager } from "./jsonResourceManager";
 
-/** Upgrades a saved model from before the dusk or morning phase, so it validates. It's written back on the next save. */
+/** Upgrades a saved model from before the dusk or morning phase or 4.0 output, so it validates. It's written back on the next save. */
 function isAmbienceEngineModelMigrating(data: any): data is AmbienceEngineModel {
-    if(Array.isArray(data?.tracks)) data.tracks.forEach(migrateLegacyAmbienceTrack);
+    migrateLegacyAmbienceEngine(data);
     return isAmbienceEngineModel(data);
 }
 

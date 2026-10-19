@@ -12,11 +12,23 @@ import { AudioDim } from "./AudioDim.svelte";
 import { DIM_FADE_MS } from "../common/model/audioDimModel";
 import { StingEngine } from "./StingEngine.svelte";
 import type { StingEngineModel } from "../common/model/stingEngineModel";
+import { createMeterFold } from "./QuadPanner";
 
 /** Time constant of the ramp while the dim amount is being changed: quick, just enough to avoid zipper noise. */
 const DIM_AMOUNT_TIME_CONSTANT_S = 0.03;
 
 const MUTE_STORAGE_KEY = 'mixer.mute.master';
+const SPEAKER_LAYOUT_STORAGE_KEY = 'audio.speakerLayout';
+
+/** The speakers this device plays to: a stereo pair, or 4.0 - front left, front right, rear left, rear right. */
+export type SpeakerLayout = 'stereo'|'quad';
+
+/** How long the speaker test sounds each speaker for, and the gap between them. */
+const SPEAKER_TEST_TONE_S = 1;
+const SPEAKER_TEST_GAP_S = 0.25;
+/** Level of the speaker test's pink noise (about -12dB at its peaks): clearly heard, without startling anyone. */
+const SPEAKER_TEST_GAIN = 0.25;
+const SPEAKER_TEST_RAMP_S = 0.02;
 
 /** How long the level takes to fade into the new phase's trim when the phase changes - in step with the ambience tracks' own fades. */
 const TIME_OF_DAY_TRIM_PHASE_FADE_S = 3;
@@ -54,6 +66,11 @@ export class AudioEngine implements AudioTrackBase {
     #stingEngine: StingEngine|null;
     #timeOfDay: TimeOfDay;
     readonly #silent: boolean;
+    /** This device's choice of speakers - local to it, like the mutes, since it's about what's plugged into it. */
+    #speakerLayout = $state<SpeakerLayout>('stereo');
+    /** Channel the speaker test is sounding (0 = front left, 1 = front right, 2 = rear left, 3 = rear right), or null. */
+    #speakerTestChannel = $state<number|null>(null);
+    #speakerTestStop: (()=>void)|null = null;
 
     /**
      * @param options.silent Nothing ever plays on this client: the output isn't connected, ambience never starts and
@@ -73,7 +90,14 @@ export class AudioEngine implements AudioTrackBase {
             this.#sfxOutputNode.connect(this.#context.destination);
         }
         this.#analyser = this.#context.createAnalyser();
-        this.#timeOfDayNode.connect(this.#analyser);
+        // The ambience is four channels (4.0) even on a stereo device, so meter it as two
+        const meterFold = createMeterFold(this.#context);
+        this.#timeOfDayNode.connect(meterFold.input);
+        meterFold.output.connect(this.#analyser);
+        try {
+            if(localStorage.getItem(SPEAKER_LAYOUT_STORAGE_KEY) === 'quad') this.#speakerLayout = 'quad';
+        } catch { /* storage unavailable */ }
+        this.applySpeakerLayout();
         // The bus reads and writes its fader through the shared masters (it follows the model's changes itself)
         const masters = this.#masters;
         const clocksMasterModel: AudioTrackModel = {
@@ -89,7 +113,7 @@ export class AudioEngine implements AudioTrackBase {
         this.#timeOfDay = $derived(combineTimesOfDay(clocks.map(clock=>clock.timeOfDay)));
         this.#timeOfDayNode.gain.value = this.timeOfDayGain;
         this.#ambienceEngineModel = $state(ambienceEngineModel ?? null)
-        this.#ambienceEngine = this.#ambienceEngineModel ? new AmbienceEngine(this.#ambienceEngineModel, this.#gainNode, ()=>this.#timeOfDay, {silent: this.#silent}) : null;
+        this.#ambienceEngine = this.#ambienceEngineModel ? new AmbienceEngine(this.#ambienceEngineModel, this.#gainNode, ()=>this.#timeOfDay, {silent: this.#silent, surround: ()=>this.surround}) : null;
         this.#stingEngineModel = $state(stingEngineModel ?? null)
         this.#stingEngine = this.#stingEngineModel ? new StingEngine(this.#stingEngineModel, this.#clocksMasterBus.input, {silent: this.#silent}) : null;
         try {
@@ -155,6 +179,94 @@ export class AudioEngine implements AudioTrackBase {
         this.#ambienceEngine?.retryPlayback();
     }
 
+    /** Whether this device plays sound at all (it's false for a remote-only mixer). */
+    get playsHere(){ return !this.#silent; }
+
+    /** Most channels this device's audio output can take; 4.0 needs at least four. */
+    get maxOutputChannels(){ return this.#context.destination.maxChannelCount; }
+
+    /** This device's chosen speaker layout, even if its output can't currently take it (see `surround`). */
+    get speakerLayout(){ return this.#speakerLayout; }
+    set speakerLayout(value: SpeakerLayout){
+        this.#speakerLayout = value;
+        try {
+            if(value === 'quad') localStorage.setItem(SPEAKER_LAYOUT_STORAGE_KEY, 'quad');
+            else localStorage.removeItem(SPEAKER_LAYOUT_STORAGE_KEY);
+        } catch { /* storage unavailable; the layout just won't persist */ }
+        this.stopSpeakerTest();
+        this.applySpeakerLayout();
+    }
+
+    /** Whether this device is playing 4.0: it's set to, and its output has the channels for it. */
+    get surround(){ return !this.#silent && this.#speakerLayout === 'quad' && this.maxOutputChannels >= 4; }
+
+    /**
+     * Sets the output to two or four channels. The ambience is four channels either way, so they're taken as they are
+     * ('discrete'), not mixed as speakers: in stereo that drops the rear pair, rather than folding it into the front at
+     * half level, and in 4.0 a stereo signal (music, SFX) goes to the front pair only.
+     */
+    private applySpeakerLayout(){
+        const channels = this.surround ? 4 : 2;
+        for(const node of [this.#context.destination, this.#dimNode]){
+            node.channelCount = channels;
+            node.channelCountMode = 'explicit';
+            node.channelInterpretation = 'discrete';
+        }
+    }
+
+    /** The speaker the speaker test is sounding (0 = front left, 1 = front right, 2 = rear left, 3 = rear right), or null. */
+    get speakerTestChannel(){ return this.#speakerTestChannel; }
+
+    /**
+     * Plays a burst of pink noise from each speaker in turn (front left, front right, then the rear pair in 4.0), straight
+     * to the output - past every fader, mute and the dim - so the wiring can be checked. Stops the test if it's running.
+     */
+    testSpeakers(){
+        if(this.#silent) return;
+        if(this.#speakerTestStop !== null){
+            this.stopSpeakerTest();
+            return;
+        }
+        this.resume();
+        const context = this.#context;
+        const channels = this.surround ? 4 : 2;
+        const noise = createPinkNoise(context, SPEAKER_TEST_TONE_S);
+        const merger = context.createChannelMerger(channels);
+        merger.connect(context.destination);
+        const start = context.currentTime + 0.05;
+        const sources: AudioBufferSourceNode[] = [];
+        const timers: ReturnType<typeof setTimeout>[] = [];
+        for(let channel = 0; channel < channels; channel++){
+            const at = start + channel * (SPEAKER_TEST_TONE_S + SPEAKER_TEST_GAP_S);
+            const source = context.createBufferSource();
+            source.buffer = noise;
+            const envelope = context.createGain();
+            envelope.gain.setValueAtTime(0, at);
+            envelope.gain.linearRampToValueAtTime(SPEAKER_TEST_GAIN, at + SPEAKER_TEST_RAMP_S);
+            envelope.gain.setValueAtTime(SPEAKER_TEST_GAIN, at + SPEAKER_TEST_TONE_S - SPEAKER_TEST_RAMP_S);
+            envelope.gain.linearRampToValueAtTime(0, at + SPEAKER_TEST_TONE_S);
+            source.connect(envelope).connect(merger, 0, channel);
+            source.start(at);
+            sources.push(source);
+            timers.push(setTimeout(()=>{ this.#speakerTestChannel = channel; }, (at - context.currentTime) * 1000));
+        }
+        const duration = channels * (SPEAKER_TEST_TONE_S + SPEAKER_TEST_GAP_S);
+        timers.push(setTimeout(()=>this.stopSpeakerTest(), (start + duration - context.currentTime) * 1000));
+        this.#speakerTestStop = ()=>{
+            for(const timer of timers) clearTimeout(timer);
+            for(const source of sources){
+                try { source.stop(); } catch { /* never started */ }
+            }
+            merger.disconnect();
+        };
+    }
+
+    private stopSpeakerTest(){
+        this.#speakerTestStop?.();
+        this.#speakerTestStop = null;
+        this.#speakerTestChannel = null;
+    }
+
     get clockAudioTracks(){ return this.#clockAudioTracks; }
     get ambienceEngine(){ return this.#ambienceEngine; }
     get stingEngine(){ return this.#stingEngine; }
@@ -191,6 +303,7 @@ export class AudioEngine implements AudioTrackBase {
     set pan(value: number){ return; }
 
     close(): void {
+        this.stopSpeakerTest();
         for(const clock of this.#clockAudioTracks){
             clock.close();
         }
@@ -204,4 +317,23 @@ export class AudioEngine implements AudioTrackBase {
         this.#clocksMasterBus.close();
         this.#context.close();
     }
+}
+
+/** Mono pink noise (Paul Kellet's filter), peaking at about full scale. */
+function createPinkNoise(context: BaseAudioContext, seconds: number): AudioBuffer {
+    const buffer = context.createBuffer(1, Math.ceil(context.sampleRate * seconds), context.sampleRate);
+    const data = buffer.getChannelData(0);
+    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+    for(let i = 0; i < data.length; i++){
+        const white = Math.random() * 2 - 1;
+        b0 = 0.99886 * b0 + white * 0.0555179;
+        b1 = 0.99332 * b1 + white * 0.0750759;
+        b2 = 0.96900 * b2 + white * 0.1538520;
+        b3 = 0.86650 * b3 + white * 0.3104856;
+        b4 = 0.55000 * b4 + white * 0.5329522;
+        b5 = -0.7616 * b5 - white * 0.0168980;
+        data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+        b6 = white * 0.115926;
+    }
+    return buffer;
 }

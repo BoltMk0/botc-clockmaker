@@ -9,15 +9,18 @@ import { subscribeMixerEvents } from "./MixerEventsClient";
 const SEND_DELAY_MS = 80;
 /** Incoming values for a field are ignored for this long after editing it locally, so stale echoes don't fight the user's slider. */
 const LOCAL_EDIT_HOLD_MS = 500;
+/** Time constant of the change in level as the front/rear balance moves. */
+const FRONT_REAR_TIME_CONSTANT_S = 0.03;
 
-const ENGINE_KEYS = ['playing', 'gain', 'pan'] as const;
-const TRACK_KEYS = ['gain', 'pan', 'activeInMorning', 'activeInDay', 'activeAtDusk', 'activeAtNight', 'loadedResourceId'] as const;
+const ENGINE_KEYS = ['playing', 'gain', 'pan', 'frontRear'] as const;
+const TRACK_KEYS = ['gain', 'pan', 'activeInMorning', 'activeInDay', 'activeAtDusk', 'activeAtNight', 'outputFront', 'outputRear', 'loadedResourceId'] as const;
 
 export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
 
     readonly #model: AmbienceEngineModel;
     readonly #timeOfDay: ()=>TimeOfDay;
     readonly #silent: boolean;
+    readonly #trackOptions: {silent?: boolean, surround?: ()=>boolean};
     readonly #unsubscribeEvents: () => void;
     readonly #stopEffects: ()=>void;
 
@@ -30,21 +33,26 @@ export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
      * @param model Must be a reactive ($state) model; the tracks hold references into it.
      * @param timeOfDay Reactive getter for the current time of day (across all games).
      * @param options.silent Track the shared state (and let it be edited) but never actually play anything.
+     * @param options.surround Reactive getter for whether this device plays 4.0. The output is four channels either way;
+     *   in stereo the rear pair is silent, and the front/rear balance is ignored.
      */
     constructor(
         model: AmbienceEngineModel,
         outputNode: AudioNode,
         timeOfDay: ()=>TimeOfDay,
-        options: {silent?: boolean} = {}
+        options: {silent?: boolean, surround?: ()=>boolean} = {}
     ) {
         super(
             model,
             outputNode, '',
-            (model: AmbienceTrackModel, outputNode: AudioNode, index: number)=>new AudioAmbienceTrack(model, outputNode, `Track ${index + 1}`, options)
+            (model: AmbienceTrackModel, outputNode: AudioNode, index: number)=>new AudioAmbienceTrack(model, outputNode, `Track ${index + 1}`, options),
+            {quad: true}
         );
         this.#model = model;
         this.#timeOfDay = timeOfDay;
         this.#silent = options.silent ?? false;
+        this.#trackOptions = options;
+        const surround = options.surround ?? (()=>false);
 
         this.persistMute('ambience.bus');
         this.tracks.forEach((track, index)=>this.setupTrack(track, index));
@@ -58,6 +66,15 @@ export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
                 for(const t of this.tracks){
                     t.setPlaying(!this.#silent && playing && t[AMBIENCE_ACTIVE_KEYS[timeOfDay]]);
                 }
+            });
+            // The front/rear balance: full level in the middle, the other pair turned down as it's moved towards one
+            $effect(()=>{
+                const balance = surround() ? this.#model.frontRear : 0;
+                const quad = this.quad!;
+                const now = outputNode.context.currentTime;
+                // Quick, just enough to avoid zipper noise while the slider moves
+                quad.front.gain.setTargetAtTime(Math.min(1, 1 - balance), now, FRONT_REAR_TIME_CONSTANT_S);
+                quad.rear.gain.setTargetAtTime(Math.min(1, 1 + balance), now, FRONT_REAR_TIME_CONSTANT_S);
             });
         });
 
@@ -101,6 +118,12 @@ export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
         this.queueEnginePatch({pan: this.#model.pan});
     }
 
+    get frontRear(): number { return this.#model.frontRear; }
+    set frontRear(val: number) {
+        this.#model.frontRear = Math.min(1, Math.max(-1, val));
+        this.queueEnginePatch({frontRear: this.#model.frontRear});
+    }
+
     play(){ this.playing = true; }
     pause(){ this.playing = false; }
     togglePlayPause() { this.playing = !this.playing; }
@@ -139,7 +162,7 @@ export class AmbienceEngine extends AudioTrackGroup<AudioAmbienceTrack> {
         this.#model.tracks.push(model);
         const index = this.#model.tracks.length - 1;
         // Pass the reactive proxy the model array now holds, not the plain object pushed into it
-        const track = new AudioAmbienceTrack(this.#model.tracks[index], this.input, `Track ${index + 1}`, {silent: this.#silent});
+        const track = new AudioAmbienceTrack(this.#model.tracks[index], this.input, `Track ${index + 1}`, this.#trackOptions);
         this.tracks.push(track);
         this.setupTrack(track, index);
     }

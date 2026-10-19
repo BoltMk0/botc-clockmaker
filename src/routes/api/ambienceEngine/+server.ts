@@ -1,7 +1,7 @@
 import { getAmbienceEngineHelperInstance } from '$lib/model/server/AmbienceEngine/AmbienceEngineHelper.js';
 import { error } from '@sveltejs/kit';
 
-/** Patch engine-level state: { playing?, gain?, pan? } */
+/** Patch engine-level state: { playing?, gain?, pan?, frontRear? } */
 export async function POST({request}){
     const patch = await request.json().catch(()=>null);
     if(typeof patch !== 'object' || patch === null) return error(400, {message: 'Invalid body'});

@@ -1,4 +1,5 @@
 import type { AudioTrackModel } from "../common/model/audioTrackModel.svelte";
+import { createMeterFold, QuadPanner } from "./QuadPanner";
 
 export interface AudioTrackBase {
     get input(): AudioNode;
@@ -15,32 +16,53 @@ export interface AudioTrackBase {
 
 export class AudioTrack implements AudioTrackBase {
     private gainNode: GainNode;
-    private panNode: StereoPannerNode;
+    readonly #input: AudioNode;
+    readonly #setPan: (value: number)=>void;
+    readonly #quad: QuadPanner|null;
     readonly #analyser: AnalyserNode;
     readonly #disconnect: ()=>void;
     readonly #model: AudioTrackModel;
     #muted = $state(false);
     #muteStorageKey: string|null = null;
 
+    /**
+     * @param options.quad Carry four channels (4.0) rather than stereo, panning the front and rear pairs alike, with a
+     *   level for each pair (see `quad`).
+     */
     constructor(
         model: AudioTrackModel,
         outputNode:     AudioNode, 
-        readonly title: string
+        readonly title: string,
+        options: {quad?: boolean} = {}
     ) {
         const context = outputNode.context;
         
         this.#model = model
         this.gainNode = context.createGain();
         this.gainNode.gain.value = model.gain;
-        this.panNode = context.createStereoPanner();
-        this.panNode.pan.value = model.pan;
-        this.panNode.connect(this.gainNode).connect(outputNode);
         this.#analyser = context.createAnalyser();
-        this.gainNode.connect(this.#analyser); // Side branch; the analyser has no output
+        if(options.quad){
+            const quad = this.#quad = new QuadPanner(context);
+            quad.pan = model.pan;
+            quad.output.connect(this.gainNode).connect(outputNode);
+            this.#input = quad.input;
+            this.#setPan = (value)=>{ quad.pan = value; };
+            const fold = createMeterFold(context);
+            this.gainNode.connect(fold.input);
+            fold.output.connect(this.#analyser); // Side branch; the analyser has no output
+        } else {
+            this.#quad = null;
+            const panNode = context.createStereoPanner();
+            panNode.pan.value = model.pan;
+            panNode.connect(this.gainNode).connect(outputNode);
+            this.#input = panNode;
+            this.#setPan = (value)=>{ panNode.pan.value = value; };
+            this.gainNode.connect(this.#analyser); // Side branch; the analyser has no output
+        }
         // Keep the audio nodes in step with the model when it's changed from elsewhere (e.g. a server update).
         const stopSync = $effect.root(()=>{
             $effect(()=>{ this.gainNode.gain.value = this.#muted ? 0 : model.gain; });
-            $effect(()=>{ this.panNode.pan.value = model.pan; });
+            $effect(()=>{ this.#setPan(model.pan); });
         });
         this.#disconnect = ()=>{
             console.debug("Disconnecting AudioTrack from destination");
@@ -49,8 +71,10 @@ export class AudioTrack implements AudioTrackBase {
         }
     }
 
-    get input(): AudioNode { return this.panNode; }
+    get input(): AudioNode { return this.#input; }
     get analyser(): AnalyserNode { return this.#analyser; }
+    /** The four-channel panner, for a track made with `quad`; null for a stereo one. */
+    protected get quad(): QuadPanner|null { return this.#quad; }
 
     get gain() { return this.#model.gain; }
     get pan() {return this.#model.pan; }
@@ -87,7 +111,7 @@ export class AudioTrack implements AudioTrackBase {
     }
     set pan(val: number) {
         this.#model.pan = Math.min(1, Math.max(-1, val)); 
-        this.panNode.pan.value = this.#model.pan;
+        this.#setPan(this.#model.pan);
     }
 
     getGainDB(): number {

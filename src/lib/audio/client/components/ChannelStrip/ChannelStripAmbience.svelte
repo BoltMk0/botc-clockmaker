@@ -12,6 +12,7 @@
         track,
         title,
         timeOfDay,
+        stereoHere = false,
         onTitleClick = undefined,
         onRemove = undefined
     }: {
@@ -19,6 +20,8 @@
         track: AudioAmbienceTrack;
         title: string;
         timeOfDay: TimeOfDay;
+        /** This device plays sound in stereo, so the front and rear switches make no difference to what it plays. */
+        stereoHere?: boolean;
         onTitleClick?: (ev?: any)=>void;
         /** Shows a "Remove ambience track" button at the bottom of the track picker when set. */
         onRemove?: ()=>void;
@@ -36,6 +39,14 @@
             {@const key = AMBIENCE_ACTIVE_KEYS[phase]}
             <button class="daynight-btn button-style" onclick={()=>{track[key] = !track[key]}} class:isEnabled={track[key]} class:isCurrent={timeOfDay === phase} title="{track[key] ? 'Plays' : 'Silent'} at {TIME_OF_DAY_LABELS[phase].toLowerCase()}">
                 <TimeOfDayIcon timeOfDay={phase} color={track[key] ? 'white' : '#FFF5'}/>
+            </button>
+        {/each}
+    </div>
+    <!-- Which speakers it plays from in 4.0. One is always on: turning off the last does nothing -->
+    <div class="output-selection" class:stereoHere title={stereoHere ? 'This device plays in stereo: the track plays at the front if either is on' : undefined}>
+        {#each [['outputFront', 'F', 'front'], ['outputRear', 'R', 'rear']] as const as [key, label, pair]}
+            <button class="daynight-btn output-btn button-style" onclick={()=>{track[key] = !track[key]}} class:isEnabled={track[key]} title="{track[key] ? 'Plays' : 'Silent'} from the {pair} speakers in 4.0">
+                {label}
             </button>
         {/each}
     </div>
@@ -81,6 +92,32 @@
         margin-top: 0.7em;
         background-color: var(--theme-error);
         color: var(--theme-on-error);
+    }
+
+    /* Laid out like the phase switches above */
+    .output-selection {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 2em));
+        gap: 4px;
+        justify-content: center;
+        padding: 0 3px 5px;
+        box-sizing: border-box;
+        width: 100%;
+        overflow: hidden;
+    }
+
+    .output-selection.stereoHere {
+        opacity: 0.45;
+    }
+
+    button.output-btn {
+        font-family: 'Courier New', Courier, monospace;
+        font-weight: bold;
+        color: #FFF5;
+    }
+
+    button.output-btn.isEnabled {
+        color: white;
     }
 
     button.daynight-btn {
