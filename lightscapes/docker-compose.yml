@@ -11,6 +11,17 @@ services:
       - ./mosquitto/mosquitto.conf:/etc/mosquitto/mosquitto.conf:ro
     # No ports: only Zigbee2MQTT and Lightscapes use it, over Compose's own network
 
+  # For developing Lightscapes without the adapter: a broker on localhost:1883 for `npm run dev`.
+  # Only started when named: docker compose up mosquitto-dev
+  mosquitto-dev:
+    image: eclipse-mosquitto:2
+    profiles: [dev]
+    command: mosquitto -c /etc/mosquitto/mosquitto.conf
+    volumes:
+      - ./mosquitto/mosquitto.conf:/etc/mosquitto/mosquitto.conf:ro
+    ports:
+      - 127.0.0.1:1883:1883
+
   zigbee2mqtt:
     image: koenkk/zigbee2mqtt:2
     restart: unless-stopped
@@ -18,14 +29,15 @@ services:
       - mosquitto
     devices:
       # The Zigbee adapter: set ZIGBEE_ADAPTER in .env to its /dev/serial/by-id/... path. It keeps that path in the
-      # container, as rootless Docker can only pass a device through under its own path
-      - ${ZIGBEE_ADAPTER:?Set ZIGBEE_ADAPTER in .env}:${ZIGBEE_ADAPTER}
+      # container, as rootless Docker can only pass a device through under its own path. Unset, the path is one that
+      # says so when Zigbee2MQTT starts (a required variable would stop every service starting, mosquitto-dev too)
+      - ${ZIGBEE_ADAPTER:-/dev/set-ZIGBEE_ADAPTER-in-.env}:${ZIGBEE_ADAPTER:-/dev/set-ZIGBEE_ADAPTER-in-.env}
     volumes:
       - ./data/zigbee2mqtt:/app/data
       - /run/udev:/run/udev:ro
     environment:
       - TZ=${TZ:-UTC}
-      - ZIGBEE2MQTT_CONFIG_SERIAL_PORT=${ZIGBEE_ADAPTER}
+      - ZIGBEE2MQTT_CONFIG_SERIAL_PORT=${ZIGBEE_ADAPTER:-/dev/set-ZIGBEE_ADAPTER-in-.env}
     ports:
       # Zigbee2MQTT's own page, for pairing devices
       - ${BIND_ADDRESS:-0.0.0.0}:8080:8080

@@ -109,7 +109,8 @@ The two pages listen on every network by default:
 ```sh
 npm install
 npm run check     # type-checks, along with the Clockmaker files it shares
-npm run dev       # builds, then runs on :8090 with DRY_RUN, against an MQTT broker on localhost:1883
+docker compose up -d mosquitto-dev   # an MQTT broker on localhost:1883, without Zigbee2MQTT or the adapter
+npm run dev       # builds, then runs on :8090 with DRY_RUN, against the broker on localhost:1883
 ```
 
 - **Clockmaker:** point it at a Clockmaker dev server (`npm run dev` in the repository root) with an API token.
