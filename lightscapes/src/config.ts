@@ -7,7 +7,7 @@ import { hexToMireds } from "../public/whites.js";
 /** What a light (or group) is set to. Anything left out is left as it is. */
 export type LightState = {
     on: boolean;
-    /** 1-254 */
+    /** 1-254. Following a spectrum, it scales the spectrum's brightness instead (254, or left out, for as it is). */
     brightness?: number;
     /** A spectrum's colour follows the spectrum (in a phase only), its brightness too. */
     color?: { kind: 'rgb'; hex: string } | { kind: 'temp'; mireds: number } | { kind: 'spectrum'; id: string };
@@ -139,8 +139,6 @@ function lightState(value: unknown, path: string, spectrums: ReadonlySet<string>
             const id = str(color.id, `${path}.color.id`);
             if(!spectrums.has(id)) fail(`${path}.color`, 'pick a spectrum');
             light.color = { kind: 'spectrum', id };
-            // The spectrum has its own
-            delete light.brightness;
         }
         else fail(`${path}.color.kind`, 'should be rgb, temp or spectrum');
     }

@@ -31,13 +31,16 @@ function lightPayload(light: LightState, transition: number): Record<string, unk
     return payload;
 }
 
+/** A light following a spectrum, at `scale` (0-1) of the spectrum's brightness. */
+type SpectrumTarget = { name: string; scale: number };
+
 /** The spectrums a phase's lights follow, with the lights that follow each. */
-function spectrumsIn(phase: TimeOfDay, config: Config): { spectrum: Spectrum; targets: string[] }[] {
+function spectrumsIn(phase: TimeOfDay, config: Config): { spectrum: Spectrum; targets: SpectrumTarget[] }[] {
     return config.spectrums.map(spectrum => ({
         spectrum,
         targets: config.phases[phase]
             .filter(e => e.light.on && e.light.color?.kind === 'spectrum' && e.light.color.id === spectrum.id)
-            .map(e => e.target)
+            .map(e => ({ name: e.target, scale: (e.light.brightness ?? 254) / 254 }))
     })).filter(s => s.targets.length > 0);
 }
 
@@ -154,14 +157,14 @@ export class Engine {
         }
     }
 
-    #setSpectrum(color: SpectrumColor, transition: number, targets: readonly string[]) {
-        for(const target of targets){
+    #setSpectrum(color: SpectrumColor, transition: number, targets: readonly SpectrumTarget[]) {
+        for(const { name, scale } of targets){
             // A light that says it does colours but not whites gets the white's colour
-            const device = this.#zigbee.devices.find(d => d.name === target);
+            const device = this.#zigbee.devices.find(d => d.name === name);
             const white = color.mireds !== null && !(device?.color && !device.colorTemp);
-            this.#zigbee.set(target, {
+            this.#zigbee.set(name, {
                 state: 'ON', ...(white ? { color_temp: color.mireds } : { color: { hex: color.hex } }),
-                brightness: color.brightness, transition
+                brightness: Math.max(1, Math.round(color.brightness * scale)), transition
             });
         }
     }
@@ -204,7 +207,7 @@ export class Engine {
     }
 
     /** `firstTransition` is how long the lights take to get to the spectrum, if they aren't following it yet. */
-    #updateSpectrum(clock: ClocktowerClockModel, spectrum: Spectrum, targets: readonly string[], firstTransition: number) {
+    #updateSpectrum(clock: ClocktowerClockModel, spectrum: Spectrum, targets: readonly SpectrumTarget[], firstTransition: number) {
         const { id, stops, intervalSeconds } = spectrum;
         const startTime = clock.timeOfDay === 'day' ? clock.time.serverStartTime : null;
         const now = this.#clock.serverNow();
@@ -288,8 +291,10 @@ export class Engine {
      * phase, then holds the last a moment before going back to the game.
      */
     playSpectrum(spectrum: Spectrum, seconds: number, config = this.#config) {
-        const targets = [...new Set(TIMES_OF_DAY.flatMap(phase =>
-            spectrumsIn(phase, config).find(s => s.spectrum.id === spectrum.id)?.targets ?? []))];
+        // A light following it in several phases plays at its brightness in the first
+        const targets = [...new Map(TIMES_OF_DAY.flatMap(phase =>
+            spectrumsIn(phase, config).find(s => s.spectrum.id === spectrum.id)?.targets ?? []).reverse()
+            .map(t => [t.name, t])).values()];
         const durationMs = seconds * 1000;
         this.#startPreview(`${spectrum.name}, played over ${seconds}s`, PLAY_LEAD_MS + durationMs + PLAY_HOLD_MS);
         this.playing = spectrum.id;

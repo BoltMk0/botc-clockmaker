@@ -152,20 +152,23 @@ function sceneEditor(entries, rerender, { effects = false, phase = null } = {}) 
     );
 }
 
-const SPECTRUM_IN_PHASE = {
-    morning: 'Its first colour',
-    day: 'Follows the countdown',
-    dusk: 'Its last colour',
-    night: 'Its last colour'
-};
-
 function entryRow(entry, entries, index, rerender, effects, phase) {
     const light = entry.light;
     const device = zigbee.devices.find(d => d.name === entry.target);
     const colorMode = light.color?.kind === 'spectrum' ? `spectrum:${light.color.id}` : light.color?.kind ?? 'keep';
     const spectrum = light.color?.kind === 'spectrum' ? config.spectrums.find(s => s.id === light.color.id) : null;
 
-    const brightnessValue = h('span', { class: 'value' }, light.brightness === undefined ? '' : `${Math.round(light.brightness / 254 * 100)}%`);
+    // Following a spectrum, it's the spectrum's brightness scaled by this, all of it if it's not set
+    const brightnessValue = h('span', { class: 'value' },
+        light.brightness === undefined ? (spectrum ? '100%' : '') : `${Math.round(light.brightness / 254 * 100)}%`);
+    const brightnessSlider = () => h('input', {
+        type: 'range', min: 1, max: 254, value: light.brightness ?? 254,
+        oninput: e => {
+            light.brightness = Number(e.target.value);
+            brightnessValue.textContent = `${Math.round(light.brightness / 254 * 100)}%`;
+            changed();
+        }
+    });
     const tempValue = h('span', { class: 'value' }, light.color?.kind === 'temp' ? `${kelvin(light.color.mireds)}K` : '');
 
     return h('div', { class: 'entry' },
@@ -179,7 +182,7 @@ function entryRow(entry, entries, index, rerender, effects, phase) {
             }
         }, option('on', 'On', light.on ? 'on' : 'off'), option('off', 'Off', light.on ? 'on' : 'off')),
         light.on ? [
-            // A spectrum has its own brightness
+            // A spectrum's is next to it
             spectrum ? null : h('label', { class: 'inline brightness', title: 'Brightness (leave unticked to keep it as it is)' },
                 h('input', {
                     type: 'checkbox', checked: light.brightness !== undefined,
@@ -190,14 +193,7 @@ function entryRow(entry, entries, index, rerender, effects, phase) {
                     }
                 }),
                 'Brightness',
-                light.brightness !== undefined ? h('input', {
-                    type: 'range', min: 1, max: 254, value: light.brightness,
-                    oninput: e => {
-                        light.brightness = Number(e.target.value);
-                        brightnessValue.textContent = `${Math.round(light.brightness / 254 * 100)}%`;
-                        changed();
-                    }
-                }) : null,
+                light.brightness !== undefined ? brightnessSlider() : null,
                 brightnessValue
             ),
             h('select', {
@@ -220,8 +216,14 @@ function entryRow(entry, entries, index, rerender, effects, phase) {
                     config.spectrums.map(s => option(`spectrum:${s.id}`, s.name, colorMode))) : null
             ),
             spectrum ? [
-                h('span', { class: 'swatch', style: `background: ${gradientCss(spectrum.stops)}`, title: spectrum.name }),
-                h('span', { class: 'message' }, SPECTRUM_IN_PHASE[phase])
+                // Only the day follows it through; the morning shows its first colour, dusk and night its last
+                h('span', {
+                    class: 'swatch', title: spectrum.name,
+                    style: `background: ${phase === 'day' ? gradientCss(spectrum.stops)
+                        : shownHex(phase === 'morning' ? spectrum.stops[0] : spectrum.stops[spectrum.stops.length - 1])}`
+                }),
+                h('label', { class: 'inline brightness', title: 'Brightness: how much of the spectrum\'s own brightness this light shows' },
+                    'Brightness', brightnessSlider(), brightnessValue)
             ] : null,
             light.color?.kind === 'rgb' ? h('input', {
                 type: 'color', value: light.color.hex,
