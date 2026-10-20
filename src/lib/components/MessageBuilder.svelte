@@ -1,11 +1,11 @@
 <script lang="ts" module>
-    export type MessageBuilderView = 'builder' | 'text' | 'customText' | 'character';
+    export type MessageBuilderView = 'builder' | 'text' | 'customText' | 'characterRules' | 'character';
     export type CharacterSection = { key: string; title: string; characters: Character[] };
 </script>
 
 <script lang="ts">
     import { TEXT_STYLES, type MessageElement, type TextOption } from "$lib/common/message";
-    import type { Character } from "$lib/resources/common/gameData";
+    import { rulesWithSetup, type Character } from "$lib/resources/common/gameData";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import MessageText from "$lib/components/MessageText.svelte";
 
@@ -41,7 +41,7 @@
     /** Goes back a step: true if it did, false if already at the builder (for the host to close it). */
     export function back(): boolean {
         if (view === 'builder') return false;
-        if (view === 'customText') {
+        if (view === 'customText' || view === 'characterRules') {
             view = 'text';
         } else {
             addElementStep = 'closed';
@@ -100,6 +100,11 @@
         } catch {
             alert('Failed to save the text option');
         }
+    }
+
+    // Adds a character's ability, as scripts print it, as a line of Text.
+    function addCharacterRules(character: Character) {
+        addElement({ type: 'text', value: rulesWithSetup(character), style: 'Text' });
     }
 
     // The characters picked so far for a character element, and the element they replace (null to add a new one).
@@ -181,6 +186,7 @@
             {/each}
         </div>
         <button class="no-button-style add-element" onclick={openCustomText}>Custom...</button>
+        <button class="no-button-style add-element" disabled={sections.length === 0} onclick={() => view = 'characterRules'}>Character's ability...</button>
     {:else if view === 'customText'}
         <div class="builder-title dumbledore-font">Custom text</div>
         <select class="builder-input" bind:value={customText.style} aria-label="Style">
@@ -194,6 +200,20 @@
             <label><input type="checkbox" bind:checked={saveCustomText} /> Save as a text option</label>
             <button class="button-style highlight" disabled={!customText.text.trim()} onclick={addCustomText}>Add</button>
         </div>
+    {:else if view === 'characterRules'}
+        <div class="builder-title dumbledore-font">Choose a character</div>
+        {#each sections as section (section.key)}
+            <div class="picker-section">
+                <div>{section.title}</div>
+                <div class="picker-grid">
+                    {#each section.characters as character (character.id)}
+                        <button class="no-button-style picker-token" class:faded={faded(character.id)} aria-label={character.name} title={character.name} onclick={() => addCharacterRules(character)}>
+                            <CharacterToken {character} style="position: relative;" size="{tokenSize}px" {imageSize} norules/>
+                        </button>
+                    {/each}
+                </div>
+            </div>
+        {/each}
     {:else}
         <div class="builder-title dumbledore-font">Choose characters</div>
         {#each sections as section (section.key)}
@@ -335,7 +355,7 @@
         opacity: 1;
     }
 
-    button.element-type:disabled {
+    button.add-element:disabled, button.element-type:disabled {
         opacity: 0.3;
         cursor: not-allowed;
     }

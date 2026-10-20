@@ -135,7 +135,7 @@ Tap **Add element** (the dashed box), then choose:
 
 | Element | Shows |
 | --- | --- |
-| **Text** | A line of text. Pick one from the list — each is shown in its style: a **Header** large, in the title font, or **Text** smaller. The list is set in [Settings → Communications → Texts](settings/communications.md#texts). **Custom…** writes a new one: choose its style, type the text, and tick **Save as a text option** to keep it in the list for next time (it's off by default). |
+| **Text** | A line of text. Pick one from the list — each is shown in its style: a **Header** large, in the title font, or **Text** smaller. The list is set in [Settings → Communications → Texts](settings/communications.md#texts). **Custom…** writes a new one: choose its style, type the text, and tick **Save as a text option** to keep it in the list for next time (it's off by default). **Character's ability…** adds a character's ability as a line of Text: tap the character. |
 | **Character** | A row of character tokens. Pick as many as you like (tap again to unpick), laid out as in the token tray: those in play, then the script (faded if on the board), then travellers, loric and fabled. |
 | **Alignment** | A blue **GOOD** or a red **EVIL** — choose which. |
 
