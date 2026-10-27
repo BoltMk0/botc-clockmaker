@@ -24,6 +24,7 @@
     import { v7 } from "uuid";
     import PencilIcon from "$lib/components/PencilIcon.svelte";
     import { characterImageUrl } from "$lib/resources/common/characterImages";
+    import { MessageQueue } from "$lib/model/client/messageQueue.svelte";
     import type { PageData } from "./$types";
 
     const z_indecies = {
@@ -687,10 +688,48 @@
         goto(`/admin/${data.clockid}/grim/bluffs?set=${setIndex}`);
     }
 
-    // Communications overlay: null when closed, 'main' for its Preset and Custom tabs, and 'bluffs' to pick between
-    // several bluff sets.
+    // Communications overlay: null when closed, 'main' for its Preset, Custom and Queue tabs, and 'bluffs' to pick
+    // between several bluff sets.
     let commsView = $state<'main' | 'bluffs' | null>(null);
-    let commsTab = $state<'preset' | 'custom'>('preset');
+    let commsTab = $state<'preset' | 'custom' | 'queue'>('preset');
+
+    // With the queue on, messages are added to it rather than shown, and then shown together from the Queue tab.
+    // svelte-ignore state_referenced_locally
+    const messageQueue = new MessageQueue(data.clockid);
+    const QUEUED_TOAST_MS = 1800;
+    let queuedToast = $state<string | null>(null);
+    let queuedToastTimer: ReturnType<typeof setTimeout> | null = null;
+    function showQueuedToast(name: string) {
+        queuedToast = name;
+        if (queuedToastTimer !== null) clearTimeout(queuedToastTimer);
+        queuedToastTimer = setTimeout(() => { queuedToast = null; queuedToastTimer = null; }, QUEUED_TOAST_MS);
+    }
+    $effect(() => () => { if (queuedToastTimer !== null) clearTimeout(queuedToastTimer); });
+
+    function queueMessage(name: string, elements: MessageElement[]) {
+        messageQueue.add(name, elements);
+        showQueuedToast(name);
+    }
+
+    // What's in a queued message, in a line: its text, characters and alignments.
+    function messageSummary(elements: MessageElement[]): string {
+        return elements.map(e => {
+            if (e.type === 'text') return e.value.replaceAll('*', '').trim();
+            if (e.type === 'character') return e.value.map(id => availableCharacters[id]?.name ?? id).join(', ');
+            return e.value === 'good' ? 'Good' : 'Evil';
+        }).filter(Boolean).join(' · ');
+    }
+
+    async function showQueue() {
+        if (messageQueue.messages.length === 0) return;
+        commsView = null;
+        await saveGrimoire();
+        const params = new URLSearchParams({ messages: JSON.stringify(messageQueue.messages.map(m => $state.snapshot(m.elements))) });
+        // They're in the message page's address from here, so the queue is empty again when the storyteller comes
+        // back to the grim. Queueing stays on or off as it was.
+        messageQueue.clear();
+        goto(`/admin/${data.clockid}/grim/message?${params}`);
+    }
 
     // The custom message being built, and which of the builder's screens is showing.
     let messageElements = $state<MessageElement[]>([]);
@@ -719,8 +758,17 @@
 
     async function showCustomMessage() {
         const elements = $state.snapshot(messageElements);
-        if (saveAsPreset) await savePreset({ name: presetName.trim() || defaultPresetName, elements });
-        showMessage(elements);
+        const name = presetName.trim() || defaultPresetName;
+        if (saveAsPreset) await savePreset({ name, elements });
+        if (messageQueue.enabled) {
+            queueMessage(name, elements);
+            // Ready for the next one
+            messageElements = [];
+            saveAsPreset = false;
+            presetName = '';
+        } else {
+            showMessage(elements);
+        }
     }
 
     // Adds to the saved presets as they are now, so as not to undo changes made in settings since this page loaded.
@@ -750,12 +798,6 @@
         else commsView = null;
     }
 
-    async function openChalkboard() {
-        commsView = null;
-        await saveGrimoire();
-        goto(`/admin/${data.clockid}/grim/chalkboard`);
-    }
-
     async function showMessage(elements: MessageElement[]) {
         commsView = null;
         await saveGrimoire();
@@ -763,10 +805,28 @@
         goto(`/admin/${data.clockid}/grim/message?${params}`);
     }
 
+    function showPreset(preset: MessagePreset) {
+        if (messageQueue.enabled) queueMessage(preset.name || 'Untitled', preset.elements);
+        else showMessage(preset.elements);
+    }
+
+    // The bluffs from communications: queued as a message like the bluffs page, or shown on that page.
+    function showCommsBluffs(setIndex: number) {
+        if (messageQueue.enabled) {
+            queueMessage(bluffSets.length > 1 ? `Bluff set ${setIndex + 1}` : 'Bluffs', [
+                { type: 'text', value: 'These roles are not in play', style: 'Header' },
+                { type: 'character', value: [...bluffSets[setIndex]] }
+            ]);
+            commsView = 'main';
+        } else {
+            commsView = null;
+            showBluffs(setIndex);
+        }
+    }
+
     function chooseBluffs() {
         if (bluffSets.length === 1) {
-            commsView = null;
-            showBluffs(0);
+            showCommsBluffs(0);
         } else if (bluffSets.length > 1) {
             commsView = 'bluffs';
         } else if (script && loadedPreset) {
@@ -1603,6 +1663,115 @@
 
     .comms-empty {
         opacity: 0.6;
+    }
+
+    /* As the tab buttons beside it, with the checkbox that turns the queue on */
+    .overlay-tabs > .queue-tab {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35em;
+        padding: 0.6em 0.3em;
+        border-bottom: 3px solid transparent;
+        border-radius: 6px 6px 0 0;
+        opacity: 0.7;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+
+    .overlay-tabs > .queue-tab:hover {
+        opacity: 1;
+        background-color: var(--theme-bg-tertiary);
+    }
+
+    .overlay-tabs > .queue-tab.selected {
+        opacity: 1;
+        border-bottom-color: var(--theme-highlight);
+        font-weight: bold;
+    }
+
+    .queue-tab input {
+        margin: 0;
+        width: 1.1em;
+        height: 1.1em;
+    }
+
+    .queue-item {
+        width: 100%;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        gap: 0.4em;
+        padding: 0.5em 0.6em;
+        border-radius: 8px;
+        background: var(--theme-bg-tertiary);
+        text-align: left;
+    }
+
+    .queue-item-text {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .queue-item-name {
+        font-weight: bold;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .queue-item-summary {
+        font-size: 0.85em;
+        opacity: 0.7;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .queue-item-btn {
+        flex-shrink: 0;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.25);
+        color: inherit;
+        font-size: 1em;
+        cursor: pointer;
+        touch-action: manipulation;
+    }
+
+    .queue-item-btn:disabled {
+        opacity: 0.3;
+        cursor: default;
+    }
+
+    .queue-item-btn svg {
+        width: 22px;
+        height: 22px;
+        fill: currentColor;
+    }
+
+    .overlay-panel.comms-panel > button.queue-clear {
+        margin-top: 0.8em;
+    }
+
+    /* Over the communications panel, which fills the screen, and below its Back button. Doubled up to win over
+       .locked-toast's position, which comes later. */
+    .locked-toast.queued-toast {
+        top: 60px;
+        z-index: 2;
+        max-width: calc(100% - 32px);
+        box-sizing: border-box;
+    }
+
+    .queued-toast span {
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .save-preset {
@@ -2804,7 +2973,7 @@
                 {#if commsView === 'bluffs'}
                     <div class="overlay-name dumbledore-font">Which bluffs?</div>
                     {#each bluffSets as _, setIndex}
-                        <button class="button-style" onclick={() => { commsView = null; showBluffs(setIndex); }}>Bluff set {setIndex + 1}</button>
+                        <button class="button-style" onclick={() => showCommsBluffs(setIndex)}>Bluff set {setIndex + 1}</button>
                     {/each}
                 {:else}
                     {#if commsTab === 'preset' || builderView === 'builder'}
@@ -2812,13 +2981,41 @@
                         <div class="overlay-tabs comms-tabs" role="tablist" aria-label="Communications">
                             <button role="tab" aria-selected={commsTab === 'preset'} class:selected={commsTab === 'preset'} onclick={() => commsTab = 'preset'}>Preset</button>
                             <button role="tab" aria-selected={commsTab === 'custom'} class:selected={commsTab === 'custom'} onclick={() => commsTab = 'custom'}>Custom</button>
-                            <!-- Not a tab of its own: opens the chalkboard page -->
-                            <button role="tab" aria-selected="false" onclick={openChalkboard}>Chalkboard</button>
+                            <!-- Not a button, so it can hold the checkbox that turns queueing on -->
+                            <div role="tab" tabindex="0" class="queue-tab" aria-selected={commsTab === 'queue'} class:selected={commsTab === 'queue'}
+                                onclick={() => commsTab = 'queue'} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); commsTab = 'queue'; } }}>
+                                <input type="checkbox" checked={messageQueue.enabled} onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}
+                                    onchange={(e) => messageQueue.setEnabled(e.currentTarget.checked)} aria-label="Add messages to the queue" title="Add messages to the queue instead of showing them" />
+                                Queue{messageQueue.messages.length ? ` (${messageQueue.messages.length})` : ''}
+                            </div>
                         </div>
                     {/if}
-                    {#if commsTab === 'preset'}
+                    {#if commsTab === 'queue'}
+                        <p class="comms-empty">
+                            {messageQueue.enabled ? 'Messages are added here instead of being shown.' : 'Tick Queue to add messages here instead of showing them.'}
+                        </p>
+                        {#each messageQueue.messages as message, i (message.id)}
+                            <div class="queue-item">
+                                <div class="queue-item-text">
+                                    <div class="queue-item-name">{message.name}</div>
+                                    <div class="queue-item-summary">{messageSummary(message.elements)}</div>
+                                </div>
+                                <button class="queue-item-btn" disabled={i === 0} onclick={() => messageQueue.move(message.id, -1)} aria-label="Move up" title="Move up">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.4 15.4 12 10.8l4.6 4.6L18 14l-6-6-6 6z"/></svg>
+                                </button>
+                                <button class="queue-item-btn" disabled={i === messageQueue.messages.length - 1} onclick={() => messageQueue.move(message.id, 1)} aria-label="Move down" title="Move down">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z"/></svg>
+                                </button>
+                                <button class="queue-item-btn" onclick={() => messageQueue.remove(message.id)} aria-label="Remove" title="Remove">✕</button>
+                            </div>
+                        {/each}
+                        {#if messageQueue.messages.length > 0}
+                            <button class="button-style queue-clear" onclick={() => messageQueue.clear()}>Clear</button>
+                        {/if}
+                        <button class="button-style highlight" disabled={messageQueue.messages.length === 0} onclick={showQueue}>Show</button>
+                    {:else if commsTab === 'preset'}
                         {#each messagePresets as preset}
-                            <button class="button-style" onclick={() => showMessage(preset.elements)}>{preset.name || 'Untitled'}</button>
+                            <button class="button-style" onclick={() => showPreset(preset)}>{preset.name || 'Untitled'}</button>
                         {:else}
                             <p class="comms-empty">No presets yet. Add them in Settings → Communications.</p>
                         {/each}
@@ -2844,11 +3041,18 @@
                                     <input type="text" class="preset-name" placeholder={defaultPresetName} bind:value={presetName} aria-label="Preset name" />
                                 {/if}
                             </div>
-                            <button class="button-style highlight" disabled={messageElements.length === 0} onclick={showCustomMessage}>Show</button>
+                            <button class="button-style highlight" disabled={messageElements.length === 0} onclick={showCustomMessage}>{messageQueue.enabled ? 'Add to queue' : 'Show'}</button>
                         {/if}
                     {/if}
                 {/if}
             </div>
+            {#if queuedToast !== null}
+                <div class="locked-toast queued-toast" role="status"
+                    in:fly={{ y: -24, opacity: 0, duration: 300, easing: cubicOut }}
+                    out:fly={{ y: -24, opacity: 0, duration: 250, easing: cubicIn }}>
+                    <span>Queued: {queuedToast}</span>
+                </div>
+            {/if}
         </div>
     {/if}
 

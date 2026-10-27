@@ -1,6 +1,8 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
+    import { page } from "$app/state";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
+    import ChalkboardButton from "$lib/components/ChalkboardButton.svelte";
     import type { PageData } from "./$types";
 
     let { data }: { data: PageData } = $props();
@@ -51,6 +53,7 @@
 </style>
 
 <div class="bluffs-view">
+    <ChalkboardButton clockid={data.clockid} returnTo={page.url.pathname + page.url.search}/>
     <button class="close-btn" onclick={() => goto(`/admin/${data.clockid}/grim`)} aria-label="Close" title="Back to the grim">✕</button>
 
     <h1 class="dumbledore-font">These roles are not in play</h1>

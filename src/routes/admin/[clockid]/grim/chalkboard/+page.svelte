@@ -4,7 +4,8 @@
     import DrawableCanvas2 from "$lib/components/DrawableCanvas2/DrawableCanvas2.svelte";
     import type { CanvasLayer, CanvasToolType } from "$lib/components/DrawableCanvas2/types";
 
-    // A blank board to draw on for a player, opened from the grim's communications. Nothing is kept once it's closed.
+    // A blank board to draw on for a player, opened from a message or the bluffs being shown. Closing it goes back to
+    // what was being shown (to the grim if there wasn't anything). Nothing is kept once it's closed.
     const PEN: CanvasToolType = { type: 'pen', color: '#ffffff', width: 4 };
     const ERASER: CanvasToolType = { type: 'eraser', width: 30 };
 
@@ -13,6 +14,14 @@
     let viewScale = $state(1);
     let viewTx = $state(0);
     let viewTy = $state(0);
+
+    // Only back to a page of this grim
+    const grim = `/admin/${page.params.clockid}/grim`;
+    const returnParam = page.url.searchParams.get('return');
+    const returnTo = returnParam?.startsWith(`${grim}/`) ? returnParam : grim;
+
+    // In place of the chalkboard, so the browser's back button doesn't come back to it
+    const close = () => goto(returnTo, { replaceState: true });
 </script>
 
 <div class="chalkboard">
@@ -27,7 +36,7 @@
         </button>
     </div>
 
-    <button class="close-btn" onclick={() => goto(`/admin/${page.params.clockid}/grim`)} aria-label="Close" title="Back to the grim">✕</button>
+    <button class="close-btn" onclick={close} aria-label="Close" title="Back">✕</button>
 </div>
 
 <style>
