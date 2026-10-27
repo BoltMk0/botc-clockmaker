@@ -1671,8 +1671,8 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 0.35em;
-        padding: 0.6em 0.3em;
+        gap: 0.45em;
+        padding: 0.4em 0.3em;
         border-bottom: 3px solid transparent;
         border-radius: 6px 6px 0 0;
         opacity: 0.7;
@@ -1693,8 +1693,9 @@
 
     .queue-tab input {
         margin: 0;
-        width: 1.1em;
-        height: 1.1em;
+        width: 1.6em;
+        height: 1.6em;
+        flex-shrink: 0;
     }
 
     .queue-item {
