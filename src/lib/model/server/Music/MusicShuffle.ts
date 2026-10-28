@@ -120,11 +120,11 @@ export class MusicShuffle {
 
     /**
      * Where the playlist is up to: the track it last started, those still to play this round, in order, and those it's
-     * played this round before that (or that were heard on other playlists), the latest first.
+     * played this round before that (or that were heard on other playlists), the earliest first.
      */
     queue(playlistId: string): { lastPlayed: string | null, upcoming: string[], played: string[] } {
         const { played, heard, upcoming } = this.#current(playlistId);
-        const earlier = [...played.slice(0, -1).reverse(), ...[...heard].reverse()].filter(id => !upcoming.includes(id));
+        const earlier = [...heard, ...played.slice(0, -1)].filter(id => !upcoming.includes(id));
         return { lastPlayed: played.at(-1) ?? null, upcoming, played: earlier };
     }
 

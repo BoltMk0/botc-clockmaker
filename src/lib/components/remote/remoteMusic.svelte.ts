@@ -60,7 +60,7 @@ export type UpcomingList = {
     /** The one playing (or paused) now, so its first track plays after the current one. */
     current: boolean;
     tracks: UpcomingTrack[];
-    /** The tracks played this round (the one playing, for the current one, and those before it), the latest first. */
+    /** The tracks played this round (those before the one playing, for the current one, then it), the earliest first. */
     played: UpcomingTrack[];
 };
 
@@ -250,7 +250,7 @@ export class RemoteMusic {
                     scheduled: isScheduled,
                     current,
                     tracks: queue.upcoming.flatMap(trackId => upcomingTrack(trackId) ?? []),
-                    played: [...new Set([...(lastPlayed === null ? [] : [lastPlayed]), ...queue.played])].flatMap(trackId => upcomingTrack(trackId) ?? [])
+                    played: [...new Set([...queue.played, ...(lastPlayed === null ? [] : [lastPlayed])])].flatMap(trackId => upcomingTrack(trackId) ?? [])
                 });
             }
         }

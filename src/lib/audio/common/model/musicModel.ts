@@ -101,7 +101,7 @@ export type MusicQueueModel = {
      * one a playlist starts on when switched to.
      */
     upcoming: string[];
-    /** The rest of its round: those played before the last (or heard on other playlists since), the latest first. */
+    /** The rest of its round: those played before the last (or heard on other playlists since), the earliest first. */
     played: string[];
 };
 
