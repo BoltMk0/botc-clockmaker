@@ -522,6 +522,7 @@ export class MusicHelper extends EventEmitter {
     private load(trackId: string, playlistId: string, fadeMs: number, crossfade = false) {
         const track = getMusicTrack(trackId);
         if (!track) return;
+        this.#shuffle.played(trackId);
         const album = track.albumId === null ? undefined : getMusicAlbum(track.albumId);
         this.#crossfading = crossfade && this.#playing;
         this.#fadeMs = this.#playing ? fadeMs : 0;
