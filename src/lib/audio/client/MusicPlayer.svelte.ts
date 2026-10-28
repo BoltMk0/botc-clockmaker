@@ -429,7 +429,7 @@ export class MusicPlayer {
     playPreset(presetId: string) { this.control({ action: 'playPreset', presetId }); }
     /** Switches to a preset at the next change of the games' phase rather than now (null cancels). */
     schedulePreset(presetId: string | null) { this.control({ action: 'schedulePreset', presetId }); }
-    /** Moves a track to a place in what's coming up on a playlist (0: play next), as MusicModel.upcoming. */
+    /** Moves a track to a place in what's coming up on a playlist (0: play next), as MusicQueueModel.upcoming. */
     moveTrack(playlistId: string, trackId: string, to: number) { this.control({ action: 'moveTrack', playlistId, trackId, to }); }
 
     /** @param gain Linear. Rapid calls (a fader drag) are coalesced. */

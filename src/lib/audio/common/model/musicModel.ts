@@ -84,16 +84,25 @@ export type MusicModel = {
     presetSilent: boolean;
     /** The preset to switch to at the next change of the games' phase, if one's been picked. */
     scheduledPresetId: string | null;
-    /**
-     * The tracks still to play this round on each playlist of the preset loaded and the one scheduled, by playlist id,
-     * in the order they will: the first is next on the playlist playing, or the one a playlist starts on when switched
-     * to.
-     */
-    upcoming: Record<string, string[]>;
+    /** Where each playlist of the preset loaded and the one scheduled is up to, by playlist id. */
+    queues: Record<string, MusicQueueModel>;
     /** Whether the Spotify player has taken over since this last started something, so what's loaded here isn't the selected preset. */
     handedOver: boolean;
     levelling: MusicLevellingModel;
     crossfade: MusicCrossfadeModel;
+};
+
+/** Where a playlist is up to in its shuffle. */
+export type MusicQueueModel = {
+    /** The track it last started (the one playing, if it's the playlist playing), if any. */
+    lastPlayed: string | null;
+    /**
+     * The tracks still to play this round, in the order they will: the first is next on the playlist playing, or the
+     * one a playlist starts on when switched to.
+     */
+    upcoming: string[];
+    /** The rest of its round: those played before the last (or heard on other playlists since), the latest first. */
+    played: string[];
 };
 
 export type MusicControlAction =
@@ -104,7 +113,7 @@ export type MusicControlAction =
     | { action: 'playPreset', presetId: string }
     /** Switches to the preset at the next change of the games' phase (null cancels). */
     | { action: 'schedulePreset', presetId: string | null }
-    /** Moves a track to a place in what's coming up on one of those playlists (0: play next), as MusicModel.upcoming. */
+    /** Moves a track to a place in what's coming up on one of those playlists (0: play next), as MusicQueueModel.upcoming. */
     | { action: 'moveTrack', playlistId: string, trackId: string, to: number }
     | { action: 'gain', gain: number };
 

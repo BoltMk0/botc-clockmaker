@@ -60,6 +60,8 @@ export type UpcomingList = {
     /** The one playing (or paused) now, so its first track plays after the current one. */
     current: boolean;
     tracks: UpcomingTrack[];
+    /** The tracks played this round (the one playing, for the current one, and those before it), the latest first. */
+    played: UpcomingTrack[];
 };
 
 /** A music preset's playlists (each once), with the phases each plays in for an adaptive one. */
@@ -225,25 +227,30 @@ export class RemoteMusic {
         const scheduled = music.find(p => p.id === model.scheduledPresetId);
         const tracks = new Map(library?.tracks.map(t => [t.id, t]));
         const albums = new Map(library?.albums.map(a => [a.id, a]));
+        /** A track to show, if the library has it (or as a placeholder till it's loaded). */
+        const upcomingTrack = (trackId: string): UpcomingTrack | null => {
+            const track = tracks.get(trackId);
+            if (!track) return library ? null : { id: trackId, title: '…', artist: '', imageUrl: null };
+            const artwork = track.albumId === null ? null : albums.get(track.albumId)?.artwork ?? null;
+            return { id: trackId, title: track.title, artist: track.artist, imageUrl: artwork ? `/api/resources/${artwork}` : null };
+        };
         const lists: UpcomingList[] = [];
         for (const [preset, isScheduled] of [[loaded, false], [scheduled, true]] as const) {
             if (!preset) continue;
             for (const { id, phases } of presetLists(preset)) {
-                const upcoming = model.upcoming[id];
-                if (!upcoming || lists.some(l => l.playlistId === id)) continue;
+                const queue = model.queues[id];
+                if (!queue || lists.some(l => l.playlistId === id)) continue;
+                const current = !isScheduled && model.track?.playlistId === id;
+                const lastPlayed = current ? model.track!.trackId : queue.lastPlayed;
                 lists.push({
                     playlistId: id,
                     name: library?.playlists.find(p => p.id === id)?.name ?? 'Playlist',
                     presetName: preset.name,
                     phases,
                     scheduled: isScheduled,
-                    current: !isScheduled && model.track?.playlistId === id,
-                    tracks: upcoming.flatMap(trackId => {
-                        const track = tracks.get(trackId);
-                        if (!track) return library ? [] : [{ id: trackId, title: '…', artist: '', imageUrl: null }];
-                        const artwork = track.albumId === null ? null : albums.get(track.albumId)?.artwork ?? null;
-                        return [{ id: trackId, title: track.title, artist: track.artist, imageUrl: artwork ? `/api/resources/${artwork}` : null }];
-                    })
+                    current,
+                    tracks: queue.upcoming.flatMap(trackId => upcomingTrack(trackId) ?? []),
+                    played: [...new Set([...(lastPlayed === null ? [] : [lastPlayed]), ...queue.played])].flatMap(trackId => upcomingTrack(trackId) ?? [])
                 });
             }
         }

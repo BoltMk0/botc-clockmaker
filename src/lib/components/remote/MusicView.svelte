@@ -77,11 +77,15 @@
         return localOrder.ids.flatMap(id => byId.get(id) ?? []);
     });
 
-    const filteredTracks = $derived.by(() => {
+    function matchingFilter<T extends { title: string, artist: string }>(tracks: T[]): T[] {
         const words = upcomingFilter.trim().toLowerCase().split(/\s+/).filter(w => w);
-        if (words.length === 0) return shownTracks;
-        return shownTracks.filter(t => words.every(w => `${t.title} ${t.artist}`.toLowerCase().includes(w)));
-    });
+        if (words.length === 0) return tracks;
+        return tracks.filter(t => words.every(w => `${t.title} ${t.artist}`.toLowerCase().includes(w)));
+    }
+
+    const filteredTracks = $derived(matchingFilter(shownTracks));
+    /** The tracks played earlier this round, which can be put back in it. */
+    const filteredPlayed = $derived(matchingFilter(shownList?.played ?? []));
 
     // The server's order changing (the move landing, or a track starting) takes over from the one shown meanwhile
     const serverOrder = $derived(shownList?.tracks.map(t => t.id).join(',') ?? '');
@@ -321,13 +325,14 @@
         </div>
         {/if}
         <div class="hint">{upcomingHint(shownList)} · drag to reorder, or tap ⤒ to play it first</div>
-        {#if shownTracks.length > SEARCH_FROM_TRACKS}
+        {#if shownTracks.length + shownList.played.length > SEARCH_FROM_TRACKS}
         <input class="track-search" type="search" placeholder="Search tracks" aria-label="Search tracks" bind:value={upcomingFilter}/>
         {/if}
         <div class="sheet-body" bind:this={bodyEl}>
-            {#if filteredTracks.length === 0}
+            {#if filteredTracks.length === 0 && filteredPlayed.length === 0}
             <div class="empty">{upcomingFilter.trim() ? 'No tracks match' : 'No tracks'}</div>
             {:else}
+            {#if filteredPlayed.length > 0 && filteredTracks.length > 0}<span class="section-label">Next</span>{/if}
             <div class="tracks" bind:this={listEl}>
                 {#each filteredTracks as track, i (track.id)}
                 {@const dragging = drag?.trackId === track.id}
@@ -354,6 +359,26 @@
                 </div>
                 {/each}
             </div>
+            {#if filteredPlayed.length > 0}
+            <div class="played">
+                <span class="section-label">Played</span>
+                {#each filteredPlayed as track (track.id)}
+                <div class="queue-track">
+                    <span class="track-number" aria-hidden="true">–</span>
+                    <MusicArt imageUrl={track.imageUrl} source={null} size={36}/>
+                    <span class="track-text">
+                        <span class="track-title">{track.title}</span>
+                        {#if track.artist}<span class="track-artist">{track.artist}</span>{/if}
+                    </span>
+                    <button class="queue-action" onclick={() => moveTrack(track.id, 0)} disabled={drag !== null}
+                        title="Play first" aria-label="Play {track.title} first">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14M12 20V9M7 13l5-5 5 5"/></svg>
+                    </button>
+                    <span class="drag-handle-space" aria-hidden="true"></span>
+                </div>
+                {/each}
+            </div>
+            {/if}
             {/if}
         </div>
     </div>
@@ -629,6 +654,27 @@
         z-index: 1;
         background: var(--theme-bg-secondary);
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), inset 0 0 0 2px #fc6;
+    }
+
+    .section-label {
+        padding-left: 4px;
+        font-size: 0.7em;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        opacity: 0.55;
+    }
+
+    .played {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    /* Played tracks can't be dragged, so line up with the queue's rows without a handle */
+    .drag-handle-space {
+        flex: none;
+        width: 36px;
     }
 
     .track-number {

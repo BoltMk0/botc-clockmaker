@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { clampCrossfadeSeconds, clampLevellingTarget, DEFAULT_MUSIC_CROSSFADE, DEFAULT_MUSIC_GAIN, DEFAULT_MUSIC_LEVELLING, MAX_MUSIC_GAIN, type MusicCrossfadeModel, type MusicControlAction, type MusicHostEvent, type MusicLevellingModel, type MusicModel, type MusicTrackPlaybackModel } from "$lib/audio/common/model/musicModel";
+import { clampCrossfadeSeconds, clampLevellingTarget, DEFAULT_MUSIC_CROSSFADE, DEFAULT_MUSIC_GAIN, DEFAULT_MUSIC_LEVELLING, MAX_MUSIC_GAIN, type MusicCrossfadeModel, type MusicControlAction, type MusicHostEvent, type MusicLevellingModel, type MusicModel, type MusicQueueModel, type MusicTrackPlaybackModel } from "$lib/audio/common/model/musicModel";
 import { isMusicAdaptivePreset, type MusicAdaptivePreset, type MusicPreset } from "$lib/audio/common/musicPreset";
 import type { TimeOfDay } from "$lib/model/client/types";
 import { getMusicAlbum, getMusicPlaylist, getMusicTrack } from "$lib/resources/server/musicLibrary";
@@ -108,7 +108,7 @@ export class MusicHelper extends EventEmitter {
             pendingPresetId: this.#pendingPresetId,
             presetSilent: this.#silenced,
             scheduledPresetId: this.#scheduledPresetId,
-            upcoming: this.upcoming(),
+            queues: this.queues(),
             handedOver: this.#handedOver,
             levelling: { ...this.#levelling },
             crossfade: { ...this.#crossfade }
@@ -246,7 +246,7 @@ export class MusicHelper extends EventEmitter {
                 break;
             case 'moveTrack': {
                 const { playlistId, trackId, to } = command;
-                if (typeof playlistId !== 'string' || !(playlistId in this.upcoming())) throw new Error("That playlist isn't one of the presets'");
+                if (typeof playlistId !== 'string' || !(playlistId in this.queues())) throw new Error("That playlist isn't one of the presets'");
                 if (typeof trackId !== 'string' || !getMusicPlaylist(playlistId)?.trackIds.includes(trackId)) throw new Error("That track isn't on the playlist");
                 if (typeof to !== 'number' || !isFinite(to)) throw new Error('Invalid place');
                 this.#shuffle.move(playlistId, trackId, to);
@@ -289,17 +289,17 @@ export class MusicHelper extends EventEmitter {
         this.#scheduledPresetId = presetId;
     }
 
-    /** What's coming up on each playlist of the preset loaded and the one scheduled, as MusicModel.upcoming. */
-    private upcoming(): Record<string, string[]> {
-        const upcoming: Record<string, string[]> = {};
+    /** Where each playlist of the preset loaded and the one scheduled is up to, as MusicModel.queues. */
+    private queues(): Record<string, MusicQueueModel> {
+        const queues: Record<string, MusicQueueModel> = {};
         for (const preset of [this.findPreset(this.#presetId), this.findPreset(this.#scheduledPresetId)]) {
             if (!preset) continue;
             const playlistIds = isMusicAdaptivePreset(preset) ? Object.values(preset.phasePlaylistIds) : [preset.playlistId];
             for (const id of playlistIds) {
-                if (this.existing(id) !== null) upcoming[id!] ??= this.#shuffle.upcoming(id!);
+                if (this.existing(id) !== null) queues[id!] ??= this.#shuffle.queue(id!);
             }
         }
-        return upcoming;
+        return queues;
     }
 
     /** Has the Spotify player fade out, as this starts playing. */

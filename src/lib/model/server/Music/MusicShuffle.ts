@@ -118,9 +118,14 @@ export class MusicShuffle {
         return state;
     }
 
-    /** The playlist's tracks still to play this round, in the order they will. */
-    upcoming(playlistId: string): string[] {
-        return this.#current(playlistId).upcoming;
+    /**
+     * Where the playlist is up to: the track it last started, those still to play this round, in order, and those it's
+     * played this round before that (or that were heard on other playlists), the latest first.
+     */
+    queue(playlistId: string): { lastPlayed: string | null, upcoming: string[], played: string[] } {
+        const { played, heard, upcoming } = this.#current(playlistId);
+        const earlier = [...played.slice(0, -1).reverse(), ...[...heard].reverse()].filter(id => !upcoming.includes(id));
+        return { lastPlayed: played.at(-1) ?? null, upcoming, played: earlier };
     }
 
     /** Moves on to the playlist's next track and returns it (null if the playlist is empty). */
