@@ -4,16 +4,14 @@ import { pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
 import { parseArgs } from "node:util";
 
-export const DEFAULT_TAG_BASE = "boltmk0/botc-clockmaker";
+export const DEFAULT_IMAGE_NAME = "boltmk0/botc-clockmaker";
 
-// The `:latest` and `:<package.json version>` tags for the image.
-export function resolveTags({ packageDir = ".", tagBase = DEFAULT_TAG_BASE, registry } = {}) {
+// The image's full tags: just `:<tag>` if one is given, otherwise `:<package.json version>` and `:latest`.
+export function resolveTags({ packageDir = ".", name = DEFAULT_IMAGE_NAME, tag, registry } = {}) {
+    const prefix = registry ? `${registry}/${name}` : name;
+    if (tag) return [`${prefix}:${tag}`];
     const { version } = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf-8"));
-    const prefix = registry ? `${registry}/` : "";
-    return {
-        latestImageTag: `${prefix}${tagBase}:latest`,
-        imageTag: `${prefix}${tagBase}:${version}`
-    };
+    return [`${prefix}:${version}`, `${prefix}:latest`];
 }
 
 // Runs a docker command with inherited stdio, exiting the process if it fails.
@@ -25,10 +23,10 @@ export function docker(...args) {
     }
 }
 
-// Builds the image, tagged with both the latest and version tags. `platform` is optional (defaults to the host's).
-export function buildImage({ packageDir = ".", latestImageTag, imageTag, platform }) {
-    console.log("Building Docker image:", imageTag);
-    docker("build", "-t", latestImageTag, "-t", imageTag, ...(platform ? ["--platform", platform] : []), packageDir);
+// Builds the image with each of `tags`. `platform` is optional (defaults to the host's).
+export function buildImage({ packageDir = ".", tags, platform }) {
+    console.log("Building Docker image:", tags.join(", "));
+    docker("build", ...tags.flatMap(tag => ["-t", tag]), ...(platform ? ["--platform", platform] : []), packageDir);
 }
 
 // Only runs when invoked directly (e.g. `npm run docker:build`), not when imported by another script.
@@ -36,7 +34,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const { values, positionals } = parseArgs({
         allowPositionals: true,
         options: {
-            "tag-base": { type: "string", short: "t", default: DEFAULT_TAG_BASE },
+            name: { type: "string", short: "n", default: DEFAULT_IMAGE_NAME },
+            tag: { type: "string", short: "t" },
             registry: { type: "string", short: "r" },
             platform: { type: "string", short: "p" },
             help: { type: "boolean", short: "h" }
@@ -49,8 +48,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 Usage: npm run docker:build -- [package_dir] [options]
 
   package_dir            Directory containing package.json (default: .)
-  -t, --tag-base <name>  Base name for the image tag (default: ${DEFAULT_TAG_BASE})
-  -r, --registry <url>   Docker registry URL to prefix the tag with
+  -n, --name <name>      Image name (default: ${DEFAULT_IMAGE_NAME})
+  -t, --tag <tag>        Tag the image only with this (default: the package.json version and latest)
+  -r, --registry <url>   Docker registry URL to prefix the name with
   -p, --platform <p>     Target platform, e.g. linux/amd64 (default: the host's)`);
         process.exit(0);
     }
@@ -59,7 +59,7 @@ Usage: npm run docker:build -- [package_dir] [options]
     buildImage({
         packageDir,
         platform: values.platform,
-        ...resolveTags({ packageDir, tagBase: values["tag-base"], registry: values.registry })
+        tags: resolveTags({ packageDir, name: values.name, tag: values.tag, registry: values.registry })
     });
     console.log("\n\nDone.\n\n");
 }
