@@ -573,7 +573,9 @@
         text-overflow: ellipsis;
     }
 
+    /* Scrolling sideways, the tabs would otherwise shrink to let a long track list grow */
     .list-tabs {
+        flex: none;
         display: flex;
         gap: 6px;
         margin-bottom: 8px;
@@ -623,6 +625,7 @@
     }
 
     .track-search {
+        flex: none;
         margin-bottom: 8px;
         padding: 8px 12px;
         border: 1px solid rgba(255, 255, 255, 0.12);
