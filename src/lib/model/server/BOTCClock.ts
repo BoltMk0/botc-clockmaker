@@ -9,6 +9,11 @@ import { EventEmitter } from "../client/util/eventEmitter";
 import { NEW_GAME_TIMER_DURATION, type ClocktowerModel } from "../common/ClocktowerModel";
 
 
+/** When the timer's adjusted, the reminder bell rings this long before the end (if at least the minimum is left)... */
+const ADJUSTED_BELL_WHEN_REMAINING = 60;
+/** ...and is cleared, with less left than this. */
+const ADJUSTED_BELL_MIN_REMAINING = 2 * 60;
+
 export class BOTCTClock extends EventEmitter {
     #DEBOUNCE_TIME = 10 as const;
 
@@ -205,6 +210,7 @@ export class BOTCTClock extends EventEmitter {
      * Gives the timer more time (or less, for negative seconds), whether it's counting down or waiting in the morning
      * (as it's set up for this day only: the next day's timer is set up as the option picked).
      * Never below the time already gone by: taking off more than is left runs it out now, turning the day to dusk.
+     * The reminder bell is set again for the time left: a minute from the end, if there's at least two minutes left.
      */
     adjustTime(seconds: number) {
         const time = this.#model.clock.time;
@@ -214,6 +220,8 @@ export class BOTCTClock extends EventEmitter {
         const duration = Math.max(elapsed, time.duration + Math.round(seconds));
         if(duration === time.duration) return;
         this.duration = duration;
+        const ringBellWhen = duration - elapsed >= ADJUSTED_BELL_MIN_REMAINING ? ADJUSTED_BELL_WHEN_REMAINING : undefined;
+        if(ringBellWhen !== time.ringBellWhen) this.ringBellWhen = ringBellWhen;
         this.#scheduleExpiry();
     }
 

@@ -37,6 +37,8 @@ export class Clocktower extends EventEmitter<ClocktowerEvents> {
     set balance(balance: number) { this.#model.audio.balance = balance; this.scheduleAudioSend(); }
 
     get duration(){ return this.#model.clock.time.duration; }
+    /** The seconds left when the reminder bell rings, if it does. */
+    get ringBellWhen(): number|undefined { return this.#model.clock.time.ringBellWhen; }
 
     get hue(): number { return this.#model.config.theme.hue; }
     get day(): number { return this.#model.clock.day; }

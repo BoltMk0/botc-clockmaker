@@ -66,7 +66,8 @@
     });
 
     let view: 'clock' | 'music' = $state('clock');
-    let pickingTimer = $state(false);
+    /** The timer picker, when open: to start the day with the timer picked, or only set it up. */
+    let pickingTimer: 'start' | 'setup' | null = $state(null);
     let gameOpen = $state(false);
     let error: string|null = $state(null);
     let errorTimeout: ReturnType<typeof setTimeout>|null = null;
@@ -103,11 +104,12 @@
         if (await post('start', undefined, "Couldn't start the timer")) onstart();
     }
 
-    /** Sets the day up with the timer picked and starts it. */
-    async function startWith(option: TimerOption){
-        pickingTimer = false;
+    /** Sets the day up with the timer picked, starting it if the picker was opened to. */
+    async function pick(option: TimerOption){
+        const andStart = pickingTimer === 'start';
+        pickingTimer = null;
         if (!await post('setup', option, "Couldn't set the timer up")) return;
-        await start();
+        if (andStart) await start();
     }
 
     // The End Day button needs a second tap, so a stray one doesn't end the day (forgotten if the day ends meanwhile)
@@ -128,7 +130,7 @@
     /** Moves the game on to its next phase: the main button. */
     function advance(){
         switch (phase) {
-            case 'morning': pickingTimer = true; break;
+            case 'morning': start(); break;
             case 'day': endDay(); break;
             case 'dusk': setTimeOfDay('night'); break;
             case 'night': setTimeOfDay('morning'); break;
@@ -138,7 +140,7 @@
     /** Jumps straight to a phase from the flow, out of order: ending a countdown that's running needs confirming. */
     function jumpTo(timeOfDay: TimeOfDay){
         if (timeOfDay === phase) return;
-        if (timeOfDay === 'day') { pickingTimer = true; return; }
+        if (timeOfDay === 'day') { pickingTimer = 'start'; return; }
         if (counting && !confirm(`End the day now and go to ${TIME_OF_DAY_LABELS[timeOfDay].toLowerCase()}?`)) return;
         setTimeOfDay(timeOfDay);
     }
@@ -211,6 +213,16 @@
             <span class="time">{formatTime(model.secondsRemaining)}</span>
         </div>
 
+        {#if adjustable}
+        <div class="bell-reminder">
+            {#if model.ringBellWhen !== undefined}
+            <img class="timer-icon-img" src="{bell}" alt="Bell"/> Reminder at {formatTime(model.ringBellWhen)} left
+            {:else}
+            <img class="timer-icon-img" src="{bell_slash}" alt="No bell"/> No reminder
+            {/if}
+        </div>
+        {/if}
+
         <div class="adjust-row">
             {#each ADJUST_STEPS as step}
                 <button class="adjust-btn" onclick={() => post('adjustTime', { seconds: step }, "Couldn't change the time")}
@@ -221,10 +233,14 @@
             {/each}
         </div>
 
+        <button class="preset-btn" onclick={() => pickingTimer = 'setup'} disabled={phase !== 'morning'} title="Set the timer up as one of the presets">
+            <img class="timer-icon-img" src="{timer}" alt=""/> Pick a preset
+        </button>
+
         <button class="advance-btn phase-{phase}" class:confirming={confirmingEnd} onclick={advance}>
             {#if phase === 'morning'}
                 <TimeOfDayIcon timeOfDay="day" size={22}/>
-                <span class="advance-text"><span>Start day {model.day}</span><small>Pick a timer</small></span>
+                <span class="advance-text"><span>Start day {model.day}</span><small>Start the {formatTime(model.duration)} timer</small></span>
             {:else if phase === 'day'}
                 <TimeOfDayIcon timeOfDay="dusk" size={22}/>
                 <span class="advance-text">
@@ -253,19 +269,19 @@
 
 {#if pickingTimer}
 <!-- svelte-ignore a11y_click_events_have_key_events -->
-<div class="picker-backdrop" onclick={() => pickingTimer = false} role="presentation">
+<div class="picker-backdrop" onclick={() => pickingTimer = null} role="presentation">
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="picker" onclick={(e) => e.stopPropagation()} role="dialog" aria-label="Pick a timer" tabindex="-1">
         <div class="picker-header">
             <div>
-                <h3>Start the day</h3>
-                <div class="picker-subtitle">Day {phase === 'morning' && model.day > 0 ? model.day : nextDay} · pick a timer to start it</div>
+                <h3>{pickingTimer === 'start' ? 'Start the day' : 'Pick a preset'}</h3>
+                <div class="picker-subtitle">Day {phase === 'morning' && model.day > 0 ? model.day : nextDay} · pick a timer {pickingTimer === 'start' ? 'to start it' : 'to set it up'}</div>
             </div>
-            <button class="picker-close" onclick={() => pickingTimer = false} aria-label="Close">✕</button>
+            <button class="picker-close" onclick={() => pickingTimer = null} aria-label="Close">✕</button>
         </div>
         <div class="button-container">
             {#each timerOptions as option, index}
-                <button class="button-container-button timer-option" class:active={option.duration === model.duration} onclick={() => startWith(option)} style="grid-column: span {(index === timerOptions.length - 1 && timerOptions.length%2 === 1) ? 2 : 1};">
+                <button class="button-container-button timer-option" class:active={option.duration === model.duration} onclick={() => pick(option)} style="grid-column: span {(index === timerOptions.length - 1 && timerOptions.length%2 === 1) ? 2 : 1};">
                     <div>
                         <div class="timer-icons" style="font-size: {option.label ? '0.8em' : '1em'};">
                             <div>
@@ -417,6 +433,14 @@
         opacity: 0.45;
     }
 
+    .bell-reminder {
+        margin-top: -6px;
+        font-size: 0.75em;
+        text-align: center;
+        opacity: 0.65;
+        font-variant-numeric: tabular-nums;
+    }
+
     .play-pause-btn {
         display: flex;
         font-size: inherit; /* Buttons don't inherit it by default; the icon is sized relative to the time */
@@ -444,7 +468,7 @@
     }
 
     .adjust-btn {
-        padding: 7px 0;
+        padding: 11px 0;
         border: none;
         border-radius: 8px;
         background: rgba(255, 255, 255, 0.08);
@@ -460,6 +484,31 @@
     }
 
     .adjust-btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+
+    .preset-btn {
+        display: flex;
+        margin-top: -6px; /* Closer to the adjustment buttons: as far as they are apart (the card's gap is 12px) */
+        justify-content: center;
+        align-items: center;
+        gap: 6px;
+        padding: 9px 0;
+        border: none;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.08);
+        color: inherit;
+        font: inherit;
+        font-size: 0.85em;
+        cursor: pointer;
+    }
+
+    .preset-btn:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    .preset-btn:disabled {
         opacity: 0.3;
         cursor: not-allowed;
     }
