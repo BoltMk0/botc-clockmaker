@@ -4,7 +4,7 @@ import { error } from '@sveltejs/kit';
 /**
  * Remote-control the music player: { action: 'play' | 'pause' | 'next' | 'previous' }, { action: 'gain', gain } (linear),
  * { action: 'playPreset', presetId }, { action: 'schedulePreset', presetId | null } or
- * { action: 'scheduleStartTrack', start: { playlistId, trackId } | null }
+ * { action: 'moveTrack', playlistId, trackId, to } (to: the place in what's coming up, 0 to play next)
  */
 export async function POST({ request }) {
     const command = await request.json().catch(() => null);

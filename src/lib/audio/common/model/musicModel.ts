@@ -14,14 +14,6 @@ export type MusicTrackPlaybackModel = {
     loudness: number | null;
 };
 
-/** A track picked for a scheduled preset to start with, rather than the next in its playlist's shuffle. */
-export type MusicStartTrack = {
-    playlistId: string;
-    trackId: string;
-    title: string;
-    artist: string;
-};
-
 /** Loudness levelling: each uploaded track is turned up or down so it plays at about the same loudness as the rest. */
 export type MusicLevellingModel = {
     enabled: boolean;
@@ -92,8 +84,12 @@ export type MusicModel = {
     presetSilent: boolean;
     /** The preset to switch to at the next change of the games' phase, if one's been picked. */
     scheduledPresetId: string | null;
-    /** The track that preset starts with, if one's been picked (when the phase it switches at plays that playlist). */
-    scheduledStartTrack: MusicStartTrack | null;
+    /**
+     * The tracks still to play this round on each playlist of the preset loaded and the one scheduled, by playlist id,
+     * in the order they will: the first is next on the playlist playing, or the one a playlist starts on when switched
+     * to.
+     */
+    upcoming: Record<string, string[]>;
     /** Whether the Spotify player has taken over since this last started something, so what's loaded here isn't the selected preset. */
     handedOver: boolean;
     levelling: MusicLevellingModel;
@@ -108,8 +104,8 @@ export type MusicControlAction =
     | { action: 'playPreset', presetId: string }
     /** Switches to the preset at the next change of the games' phase (null cancels). */
     | { action: 'schedulePreset', presetId: string | null }
-    /** Has the scheduled preset start with this track of one of its playlists (null: the next in its shuffle). */
-    | { action: 'scheduleStartTrack', start: { playlistId: string, trackId: string } | null }
+    /** Moves a track to a place in what's coming up on one of those playlists (0: play next), as MusicModel.upcoming. */
+    | { action: 'moveTrack', playlistId: string, trackId: string, to: number }
     | { action: 'gain', gain: number };
 
 /** The strip's fader tops out at +12 dB, as the ambience tracks' do. */

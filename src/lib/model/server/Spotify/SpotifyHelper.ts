@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import { env } from "$env/dynamic/private";
-import type { SpotifyControlAction, SpotifyModel, SpotifyPlaybackModel, SpotifyStartTrack, SpotifyTrackItem } from "$lib/audio/common/model/spotifyModel";
+import type { SpotifyControlAction, SpotifyModel, SpotifyPlaybackModel } from "$lib/audio/common/model/spotifyModel";
 import { DIM_FADE_MS, type AudioDimModel } from "$lib/audio/common/model/audioDimModel";
 import { getAudioDimHelperInstance } from "../AudioDim/AudioDimHelper";
 import { getTimeOfDayTrimHelperInstance } from "../TimeOfDayTrim/TimeOfDayTrimHelper";
@@ -20,9 +20,7 @@ function isSpotifyAuth(value: unknown): value is SpotifyAuth {
 
 const AUTH_MANAGER = new JSONSingletonResourceManager<SpotifyAuth>('spotify_auth', isSpotifyAuth);
 
-const SCOPES = ['streaming', 'user-read-email', 'user-read-private', 'user-modify-playback-state', 'user-read-playback-state',
-    // To list a playlist's tracks, to pick one to start with
-    'playlist-read-private', 'playlist-read-collaborative'];
+const SCOPES = ['streaming', 'user-read-email', 'user-read-private', 'user-modify-playback-state', 'user-read-playback-state'];
 /** The host reports in every few seconds; if it goes quiet for this long its claim lapses and another client may take over. */
 const HOST_TIMEOUT_MS = 15000;
 /** Fade-out time when switching playlists. */
@@ -38,10 +36,6 @@ const TRIM_FADE_MS = 3000;
 const HOST_CHECK_INTERVAL_MS = 5000;
 /** How often to check the games' phase (for adaptive playlists and the time-of-day trim). */
 const PHASE_CHECK_INTERVAL_MS = 250;
-/** How long an album/playlist's tracks, once listed, are kept rather than asked for again. */
-const TRACK_LIST_TTL_MS = 60000;
-/** The most tracks listed of an album/playlist (Spotify gives them 50 at a time). */
-const MAX_LISTED_TRACKS = 1000;
 
 /**
  * Runs the Spotify player. It runs alongside the uploaded-music player (see MusicHelper), but only one of the two plays
@@ -71,10 +65,6 @@ export class SpotifyHelper extends EventEmitter {
     #silenced = false;
     /** The preset to switch to at the next change of the games' phase. */
     #scheduledPresetId: string | null = null;
-    /** The track the scheduled preset starts with, if one's been picked. */
-    #scheduledStartTrack: SpotifyStartTrack | null = null;
-    /** Albums/playlists' tracks listed lately, by context URI. */
-    #trackLists = new Map<string, { at: number, name: string, tracks: SpotifyTrackItem[] }>();
     /**
      * Whether the music player has taken over since this last started something. The playback the host reports lags
      * the pause, so this, not that, keeps an adaptive playlist from following the phase back into playing meanwhile.
@@ -134,8 +124,6 @@ export class SpotifyHelper extends EventEmitter {
 
     #accessToken: string | null = null;
     #accessTokenExpiresAt = 0;
-    /** The scopes the linked account granted, as of the last token (null before one's been fetched). */
-    #grantedScopes: string[] | null = null;
 
     on(eventName: 'update', listener: (model: SpotifyModel) => void): this;
     /** The host's player should set its volume to this (0..1). */
@@ -159,7 +147,6 @@ export class SpotifyHelper extends EventEmitter {
             adaptivePresetId: this.#adaptivePresetId,
             adaptivePresetSilent: this.#silenced,
             scheduledPresetId: this.#scheduledPresetId,
-            scheduledStartTrack: this.#scheduledStartTrack,
             handedOver: this.#handedOver
         };
     }
@@ -201,9 +188,8 @@ export class SpotifyHelper extends EventEmitter {
         return await res.json();
     }
 
-    private storeAccessToken(body: { access_token: string, expires_in: number, scope?: string }) {
+    private storeAccessToken(body: { access_token: string, expires_in: number }) {
         this.#accessToken = body.access_token;
-        if (typeof body.scope === 'string') this.#grantedScopes = body.scope.split(' ');
         this.#accessTokenExpiresAt = Date.now() + body.expires_in * 1000;
     }
 
@@ -227,7 +213,6 @@ export class SpotifyHelper extends EventEmitter {
         this.releaseHostInternal();
         AUTH_MANAGER.clear();
         this.#accessToken = null;
-        this.#grantedScopes = null;
         this.changed();
     }
 
@@ -390,10 +375,6 @@ export class SpotifyHelper extends EventEmitter {
                 this.setScheduledPreset(command.presetId);
                 this.changed();
                 break;
-            case 'scheduleStartTrack':
-                this.#scheduledStartTrack = command.start === null ? null : await this.startTrack(command.start);
-                this.changed();
-                break;
             case 'next':
                 // Skipping starts a paused player, which a hand-over or silent spell left at 0
                 this.takeOver();
@@ -443,88 +424,9 @@ export class SpotifyHelper extends EventEmitter {
         this.changed();
     }
 
-    /** Schedules a preset for the next phase change (or none), forgetting the track picked for the last one to start with. */
+    /** Schedules a preset for the next phase change (or none). */
     private setScheduledPreset(presetId: string | null) {
-        if (presetId !== this.#scheduledPresetId) this.#scheduledStartTrack = null;
         this.#scheduledPresetId = presetId;
-    }
-
-    /** A track for the scheduled preset to start with: one on one of its lists. Throws if it isn't. */
-    private async startTrack(start: { contextUri: unknown, uri: unknown }): Promise<SpotifyStartTrack> {
-        const presetId = this.#scheduledPresetId;
-        const preset = getSpotifyPresets().find(p => p.id === presetId);
-        if (!preset) throw new Error('No preset is waiting for the next phase');
-        const { contextUri, uri } = start ?? {};
-        const uris = isSpotifyAdaptivePreset(preset) ? Object.values(preset.phaseUris) : [preset.uri];
-        const listUri = typeof contextUri === 'string' ? uris.find(u => isSameSpotifyContext(u, contextUri)) : undefined;
-        if (!listUri) throw new Error(`That album/playlist isn't one of "${preset.name}"'s`);
-        const track = (await this.trackList(listUri)).tracks.find(t => t.uri === uri);
-        if (!track) throw new Error("That track isn't on the album/playlist");
-        // (Rescheduled while the tracks were being listed)
-        if (this.#scheduledPresetId !== presetId) throw new Error('The preset waiting for the next phase has changed');
-        return { contextUri: listUri, uri: track.uri, title: track.title, artist: track.artist };
-    }
-
-    // ---- Listing tracks ----
-
-    /**
-     * An album/playlist's name and tracks (only those that can be started on: no local files or episodes). Spotify only
-     * lists the tracks of playlists the account owns or collaborates on. Throws, saying why, if it won't list them.
-     */
-    async trackList(contextUri: string): Promise<{ name: string, tracks: SpotifyTrackItem[] }> {
-        if (!isSpotifyContextUri(contextUri)) throw new Error('Invalid album/playlist');
-        const cached = this.#trackLists.get(contextUri);
-        if (cached && Date.now() - cached.at < TRACK_LIST_TTL_MS) return cached;
-        const [kind, id] = contextUri.split(':').slice(1);
-        const item = (track: any, album?: any): SpotifyTrackItem | null => {
-            if (track?.type !== 'track' || typeof track.uri !== 'string' || !track.uri.startsWith('spotify:track:')) return null;
-            return {
-                uri: track.uri,
-                title: String(track.name ?? ''),
-                artist: (track.artists ?? []).map((a: any) => a.name).join(', '),
-                imageUrl: (album ?? track.album)?.images?.[0]?.url ?? null
-            };
-        };
-        const tracks: SpotifyTrackItem[] = [];
-        let name: string;
-        let next: string | null;
-        if (kind === 'album') {
-            const album = await this.apiGet(`/albums/${id}`);
-            name = album.name;
-            tracks.push(...(album.tracks?.items ?? []).map((t: any) => item(t, album)));
-            next = album.tracks?.next ?? null;
-            while (next && tracks.length < MAX_LISTED_TRACKS) {
-                const page = await this.apiGet(next);
-                tracks.push(...(page.items ?? []).map((t: any) => item(t, album)));
-                next = page.next ?? null;
-            }
-        } else {
-            try {
-                name = (await this.apiGet(`/playlists/${id}?fields=name`)).name;
-            } catch (e) {
-                // (Its editorial and generated playlists, which apps don't get to see)
-                if (e instanceof SpotifyApiError && e.status === 404) throw new Error("Spotify won't list this playlist's tracks (it doesn't for its own playlists and mixes)");
-                throw e;
-            }
-            next = `/playlists/${id}/items?limit=50&additional_types=track`;
-            while (next && tracks.length < MAX_LISTED_TRACKS) {
-                let page;
-                try {
-                    page = await this.apiGet(next);
-                } catch (e) {
-                    if (!(e instanceof SpotifyApiError) || e.status !== 403) throw e;
-                    if (this.#grantedScopes && !this.#grantedScopes.includes('playlist-read-private')) {
-                        throw new Error("Spotify needs linking again to list your playlists' tracks: open /api/spotify/auth on the device you linked it from");
-                    }
-                    throw new Error("Spotify only lists the tracks of playlists you own or collaborate on (save a copy to your account to pick from it)");
-                }
-                tracks.push(...(page.items ?? []).map((entry: any) => entry.is_local ? null : item(entry.item ?? entry.track)));
-                next = page.next ?? null;
-            }
-        }
-        const list = { at: Date.now(), name: String(name ?? ''), tracks: tracks.filter(t => t !== null) };
-        this.#trackLists.set(contextUri, list);
-        return list;
     }
 
     /** Has the music player fade out, as this starts playing. */
@@ -543,7 +445,7 @@ export class SpotifyHelper extends EventEmitter {
      * following the phase from then on. The phase having no list means silence: the player fades out and pauses until a
      * phase with a list comes round.
      */
-    private async playAdaptivePreset(presetId: string, device: string, fadeOutMs = FADE_MS, start: SpotifyStartTrack | null = null) {
+    private async playAdaptivePreset(presetId: string, device: string, fadeOutMs = FADE_MS) {
         const preset = getSpotifyPresets().find(p => p.id === presetId);
         if (!preset || !isSpotifyAdaptivePreset(preset)) throw new Error('Unknown ambient adaptive playlist');
         // Picked, so it takes over even when it starts out silent
@@ -559,8 +461,7 @@ export class SpotifyHelper extends EventEmitter {
             return;
         }
         this.#silenced = false;
-        if (isSameSpotifyContext(start?.contextUri, uri)) await this.playContext(uri, device, { fadeOutMs, startUri: start!.uri });
-        else if (this.isLoadedContext(uri)) await this.resumeLoadedContext(device);
+        if (this.isLoadedContext(uri)) await this.resumeLoadedContext(device);
         else await this.playContext(uri, device, { fadeOutMs });
     }
 
@@ -587,23 +488,21 @@ export class SpotifyHelper extends EventEmitter {
      */
     private applyScheduledPreset() {
         const preset = getSpotifyPresets().find(p => p.id === this.#scheduledPresetId);
-        const start = this.#scheduledStartTrack;
         this.setScheduledPreset(null);
         const deviceId = this.#hostDeviceId;
         if (!preset || deviceId === null) {
             this.changed();
             return;
         }
-        console.log(`Spotify: phase changed, switching to the scheduled preset "${preset.name}"${start ? `, starting with "${start.title}"` : ''}`);
+        console.log(`Spotify: phase changed, switching to the scheduled preset "${preset.name}"`);
         this.takeOver();
         const device = `device_id=${encodeURIComponent(deviceId)}`;
         const fail = (e: unknown) => console.error('Failed to switch to the scheduled Spotify preset', e);
         if (isSpotifyAdaptivePreset(preset)) {
-            this.playAdaptivePreset(preset.id, device, PHASE_SWITCH_FADE_MS, start).catch(fail);
+            this.playAdaptivePreset(preset.id, device, PHASE_SWITCH_FADE_MS).catch(fail);
         } else {
             this.clearAdaptivePreset();
-            if (isSameSpotifyContext(start?.contextUri, preset.uri)) this.playContext(preset.uri, device, { fadeOutMs: PHASE_SWITCH_FADE_MS, startUri: start!.uri }).catch(fail);
-            else if (this.isLoadedContext(preset.uri)) this.resumeLoadedContext(device).catch(fail);
+            if (this.isLoadedContext(preset.uri)) this.resumeLoadedContext(device).catch(fail);
             else this.playContext(preset.uri, device, { fadeOutMs: PHASE_SWITCH_FADE_MS }).catch(fail);
         }
     }
@@ -787,9 +686,8 @@ export class SpotifyHelper extends EventEmitter {
      * Switches to a new album/playlist: fades the old one out (over `fadeOutMs`), then starts the new one at full volume.
      * Spotify only has one active stream, so the two can't overlap. This is the only ramp while it runs: it takes over
      * from any time-of-day trim fade, and comes back in at the current phase's trim.
-     * @param options.startUri A track of it to start with, the rest shuffled after it.
      */
-    private async playContext(uri: string, device: string, options: { fadeOutMs?: number, startUri?: string } = {}) {
+    private async playContext(uri: string, device: string, options: { fadeOutMs?: number } = {}) {
         const token = ++this.#fadeToken; // A newer request supersedes this one, including mid-fade
         const wasPlaying = this.#playback?.playing === true;
         const before = this.#playback;
@@ -799,25 +697,12 @@ export class SpotifyHelper extends EventEmitter {
         this.changed();
         try {
             if (wasPlaying && !await this.fadeOut(device, token, options.fadeOutMs ?? FADE_MS)) return;
-            // Shuffle first, so playback of the new context starts on a random track - or, starting on a given track,
-            // only once it's playing, so the shuffle can't pass it over to start somewhere else
-            const startUri = options.startUri;
-            await this.api('PUT', `/me/player/shuffle?state=${startUri ? 'false' : 'true'}&${device}`);
+            // Shuffle first, so playback of the new context starts on a random track
+            await this.api('PUT', `/me/player/shuffle?state=true&${device}`);
             // Superseded meanwhile (by a hand-over to the music player, say): don't start it after all
             if (token !== this.#fadeToken) return;
-            await this.api('PUT', `/me/player/play?${device}`, { context_uri: uri, ...(startUri ? { offset: { uri: startUri } } : {}) });
-            if (startUri) {
-                if (!wasPlaying && token === this.#fadeToken) {
-                    this.#trimDb = this.targetTrimDb();
-                    await this.setDeviceVolume(device, this.#volume);
-                }
-                await this.waitForSwitch(uri, before, token);
-                if (wasPlaying && token === this.#fadeToken) {
-                    this.#trimDb = this.targetTrimDb();
-                    await this.setDeviceVolume(device, this.#volume);
-                }
-                await this.api('PUT', `/me/player/shuffle?state=true&${device}`);
-            } else if (wasPlaying) {
+            await this.api('PUT', `/me/player/play?${device}`, { context_uri: uri });
+            if (wasPlaying) {
                 // The play call returns before the player has actually switched, so restoring volume now would let the
                 // old track blast back in. Wait until the player reports the new playlist (and a new track).
                 await this.waitForSwitch(uri, before, token);
@@ -908,17 +793,6 @@ export class SpotifyHelper extends EventEmitter {
         return { hostClientId: this.#hostClientId, volume: this.#deviceVolume };
     }
 
-    /** GETs from the Web API (a path, or a full URL such as a page's `next`), returning the JSON. Throws a SpotifyApiError. */
-    private async apiGet(path: string): Promise<any> {
-        const token = await this.getAccessToken();
-        const url = path.startsWith('/') ? `https://api.spotify.com/v1${path}` : path;
-        // (A page's `next`, which is only followed on the Web API, as it carries the token)
-        if (!url.startsWith('https://api.spotify.com/')) throw new Error(`Not a Spotify API URL: ${url}`);
-        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-        if (!res.ok) throw new SpotifyApiError(res.status, `Spotify API GET ${path} failed: ${res.status} ${await res.text()}`);
-        return await res.json();
-    }
-
     private async api(method: string, path: string, body?: object) {
         const token = await this.getAccessToken();
         const res = await fetch(`https://api.spotify.com/v1${path}`, {
@@ -936,12 +810,6 @@ export class SpotifyHelper extends EventEmitter {
             if (res.status === 404 && deviceId !== null && deviceId === this.#hostDeviceId) this.deviceLost();
             throw new Error(`Spotify API ${method} ${path} failed: ${res.status} ${await res.text()}`);
         }
-    }
-}
-
-class SpotifyApiError extends Error {
-    constructor(readonly status: number, message: string) {
-        super(message);
     }
 }
 

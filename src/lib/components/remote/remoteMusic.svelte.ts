@@ -3,7 +3,6 @@ import type { MusicPlayer } from "$lib/audio/client/MusicPlayer.svelte";
 import type { SpotifyPlayer } from "$lib/audio/client/SpotifyPlayer.svelte";
 import type { MusicLibrary } from "$lib/audio/common/musicLibrary";
 import { isMusicAdaptivePreset, type MusicPreset } from "$lib/audio/common/musicPreset";
-import type { SpotifyTrackItem } from "$lib/audio/common/model/spotifyModel";
 import { isSpotifyAdaptivePreset, spotifyPresetMatches, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
 import { TIMES_OF_DAY, type TimeOfDay } from "$lib/model/client/types";
 
@@ -40,37 +39,42 @@ export type NowPlaying = {
     presetName: string | null;
 };
 
-/** A track the preset waiting for the next phase can start with. */
-export type StartTrack = {
+/** A track coming up on one of the music player's playlists. */
+export type UpcomingTrack = {
     id: string;
     title: string;
     artist: string;
     imageUrl: string | null;
 };
 
-/** One of the waiting preset's playlists, with its tracks to pick one to start with. */
-export type StartTrackList = {
-    key: string;
+/** One of the playlists of the music preset loaded or the one scheduled, with what's coming up on it, in order. */
+export type UpcomingList = {
+    playlistId: string;
     name: string;
-    /**
-     * For an adaptive preset, the phases it plays this list in: a track picked from it is only started with if the
-     * phase it switches at is one of them. Null for a preset with just the one list.
-     */
+    /** The preset it's from (the loaded one, if both have it). */
+    presetName: string;
+    /** For an adaptive preset, the phases it plays the list in; null for a preset with just the one list. */
     phases: TimeOfDay[] | null;
-    tracks: StartTrack[];
-    /** Why its tracks couldn't be listed. */
-    error: string | null;
+    /** From the preset scheduled for the next phase, not the one loaded. */
+    scheduled: boolean;
+    /** The one playing (or paused) now, so its first track plays after the current one. */
+    current: boolean;
+    tracks: UpcomingTrack[];
 };
 
-/** The track picked for the waiting preset to start with. */
-export type ScheduledStart = {
-    listKey: string;
-    trackId: string;
-    title: string;
-    artist: string;
-    /** As StartTrackList.phases. */
-    phases: TimeOfDay[] | null;
-};
+/** A music preset's playlists (each once), with the phases each plays in for an adaptive one. */
+function presetLists(preset: MusicPreset): { id: string, phases: TimeOfDay[] | null }[] {
+    if (!isMusicAdaptivePreset(preset)) return [{ id: preset.playlistId, phases: null }];
+    const lists: { id: string, phases: TimeOfDay[] }[] = [];
+    for (const phase of TIMES_OF_DAY) {
+        const id = preset.phasePlaylistIds[phase];
+        if (id === null) continue;
+        const list = lists.find(l => l.id === id);
+        if (list) list.phases.push(phase);
+        else lists.push({ id, phases: [phase] });
+    }
+    return lists;
+}
 
 /** A Spotify player is running somewhere and can take commands. */
 function spotifyAvailable(spotify: SpotifyPlayer) {
@@ -196,105 +200,59 @@ export class RemoteMusic {
 
     get error() { return this.#music.error ?? this.#spotify.error; }
 
-    /** The preset waiting for the next phase, if any (only ever one, on one player or the other). */
-    get #scheduled(): { source: 'music', preset: MusicPreset } | { source: 'spotify', preset: SpotifyPreset } | null {
-        const { music, spotify } = this.#presets();
-        const musicPreset = music.find(p => p.id === this.#music.model?.scheduledPresetId);
-        if (musicPreset && this.musicAvailable) return { source: 'music', preset: musicPreset };
-        const spotifyPreset = spotify.find(p => p.id === this.#spotify.model?.scheduledPresetId);
-        if (spotifyPreset && this.spotifyAvailable) return { source: 'spotify', preset: spotifyPreset };
-        return null;
-    }
+    /** The music library, to show what's coming up with (loaded by loadLibrary). */
+    #library = $state<MusicLibrary | null>(null);
 
-    /** The waiting preset's lists (each once), with the phases each plays in for an adaptive one. */
-    #scheduledLists(): { key: string, id: string, phases: TimeOfDay[] | null }[] {
-        const scheduled = this.#scheduled;
-        if (!scheduled) return [];
-        const lists = scheduled.source === 'music'
-            ? (isMusicAdaptivePreset(scheduled.preset) ? scheduled.preset.phasePlaylistIds : scheduled.preset.playlistId)
-            : (isSpotifyAdaptivePreset(scheduled.preset) ? scheduled.preset.phaseUris : scheduled.preset.uri);
-        if (typeof lists === 'string') return [{ key: `${scheduled.source}:${lists}`, id: lists, phases: null }];
-        const byList: { key: string, id: string, phases: TimeOfDay[] }[] = [];
-        for (const phase of TIMES_OF_DAY) {
-            const id = lists[phase];
-            if (id === null) continue;
-            const list = byList.find(l => l.id === id);
-            if (list) list.phases.push(phase);
-            else byList.push({ key: `${scheduled.source}:${id}`, id, phases: [phase] });
+    /** (Re)loads the music library, so what's coming up shows with its tracks' names. */
+    async loadLibrary() {
+        try {
+            this.#library = await fetchJson<MusicLibrary>('/api/music');
+        } catch (e) {
+            console.error('Failed to load the music library', e);
         }
-        return byList;
     }
 
-    /** The track picked for the waiting preset to start with, if one has been. */
-    readonly scheduledStart: ScheduledStart | null = $derived.by(() => {
-        const scheduled = this.#scheduled;
-        if (!scheduled) return null;
-        const start = scheduled.source === 'music' ? this.#music.model?.scheduledStartTrack : this.#spotify.model?.scheduledStartTrack;
-        if (!start) return null;
-        const id = 'playlistId' in start ? start.playlistId : start.contextUri;
-        return {
-            listKey: `${scheduled.source}:${id}`,
-            trackId: 'trackId' in start ? start.trackId : start.uri,
-            title: start.title,
-            artist: start.artist,
-            phases: this.#scheduledLists().find(l => l.id === id)?.phases ?? null
-        };
+    /**
+     * What's coming up on each playlist of the music preset loaded (while it's the player selected) and the one
+     * scheduled for the next phase: the one playing first, then the rest in phase order.
+     */
+    readonly upcomingLists: UpcomingList[] = $derived.by(() => {
+        const model = this.#music.model;
+        const library = this.#library;
+        if (!model || !this.musicAvailable) return [];
+        const { music } = this.#presets();
+        const loaded = this.source === 'music' ? music.find(p => p.id === model.presetId) : undefined;
+        const scheduled = music.find(p => p.id === model.scheduledPresetId);
+        const tracks = new Map(library?.tracks.map(t => [t.id, t]));
+        const albums = new Map(library?.albums.map(a => [a.id, a]));
+        const lists: UpcomingList[] = [];
+        for (const [preset, isScheduled] of [[loaded, false], [scheduled, true]] as const) {
+            if (!preset) continue;
+            for (const { id, phases } of presetLists(preset)) {
+                const upcoming = model.upcoming[id];
+                if (!upcoming || lists.some(l => l.playlistId === id)) continue;
+                lists.push({
+                    playlistId: id,
+                    name: library?.playlists.find(p => p.id === id)?.name ?? 'Playlist',
+                    presetName: preset.name,
+                    phases,
+                    scheduled: isScheduled,
+                    current: !isScheduled && model.track?.playlistId === id,
+                    tracks: upcoming.flatMap(trackId => {
+                        const track = tracks.get(trackId);
+                        if (!track) return library ? [] : [{ id: trackId, title: '…', artist: '', imageUrl: null }];
+                        const artwork = track.albumId === null ? null : albums.get(track.albumId)?.artwork ?? null;
+                        return [{ id: trackId, title: track.title, artist: track.artist, imageUrl: artwork ? `/api/resources/${artwork}` : null }];
+                    })
+                });
+            }
+        }
+        return [...lists.filter(l => l.current), ...lists.filter(l => !l.current)];
     });
 
-    /** Whether a preset's waiting for the next phase, so can be given a track to start with. */
-    get canPickStart() { return this.#scheduled !== null; }
-
-    /** Lists the waiting preset's playlists' tracks, to pick one to start with. */
-    async loadStartTrackLists(): Promise<StartTrackList[]> {
-        const scheduled = this.#scheduled;
-        const lists = this.#scheduledLists();
-        if (!scheduled) return [];
-        const message = (e: unknown) => e instanceof Error ? e.message : String(e);
-        if (scheduled.source === 'music') {
-            let library: MusicLibrary;
-            try {
-                library = await fetchJson<MusicLibrary>('/api/music');
-            } catch (e) {
-                return lists.map(l => ({ key: l.key, name: 'Playlist', phases: l.phases, tracks: [], error: message(e) }));
-            }
-            const tracks = new Map(library.tracks.map(t => [t.id, t]));
-            const albums = new Map(library.albums.map(a => [a.id, a]));
-            return lists.map((l): StartTrackList => {
-                const playlist = library.playlists.find(p => p.id === l.id);
-                if (!playlist) return { key: l.key, name: 'Playlist', phases: l.phases, tracks: [], error: 'This playlist has been deleted' };
-                return {
-                    key: l.key,
-                    name: playlist.name,
-                    phases: l.phases,
-                    tracks: playlist.trackIds.flatMap(id => {
-                        const track = tracks.get(id);
-                        if (!track) return [];
-                        const artwork = track.albumId === null ? null : albums.get(track.albumId)?.artwork ?? null;
-                        return [{ id, title: track.title, artist: track.artist, imageUrl: artwork ? `/api/resources/${artwork}` : null }];
-                    }),
-                    error: null
-                };
-            });
-        }
-        return await Promise.all(lists.map(async (l): Promise<StartTrackList> => {
-            try {
-                const { name, tracks } = await fetchJson<{ name: string, tracks: SpotifyTrackItem[] }>(`/api/spotify/tracks?uri=${encodeURIComponent(l.id)}`);
-                return { key: l.key, name, phases: l.phases, tracks: tracks.map(t => ({ id: t.uri, title: t.title, artist: t.artist, imageUrl: t.imageUrl })), error: null };
-            } catch (e) {
-                return { key: l.key, name: l.id.startsWith('spotify:album:') ? 'Album' : 'Playlist', phases: l.phases, tracks: [], error: message(e) };
-            }
-        }));
-    }
-
-    /** Has the waiting preset start with a track of one of its lists (as StartTrackList.key), or null to just shuffle. */
-    pickStartTrack(start: { listKey: string, trackId: string } | null) {
-        const scheduled = this.#scheduled;
-        if (!scheduled) return;
-        const list = start ? this.#scheduledLists().find(l => l.key === start.listKey) : null;
-        if (start && !list) return;
-        const pick = start && list ? { listId: list.id, trackId: start.trackId } : null;
-        if (scheduled.source === 'music') this.#music.scheduleStartTrack(pick && { playlistId: pick.listId, trackId: pick.trackId });
-        else this.#spotify.scheduleStartTrack(pick && { contextUri: pick.listId, uri: pick.trackId });
+    /** Moves a track to a place in what's coming up on one of those playlists (0: play next). */
+    moveTrack(playlistId: string, trackId: string, to: number) {
+        this.#music.moveTrack(playlistId, trackId, to);
     }
 
     togglePlayPause() {

@@ -1,27 +1,33 @@
 import { JSONSingletonResourceManager } from "$lib/resources/server/jsonResourceManager";
+import { getMusicPlaylist } from "$lib/resources/server/musicLibrary";
 
-/** A playlist's shuffled running order, and how far through it playback has got. */
-type ShuffleState = {
-    order: string[];
-    /** Index in `order` of the track last started (-1 before the first). */
-    index: number;
-    /** A track moved up by hand to play next, so it plays then even if it was heard recently. */
-    queued?: string;
+/** A playlist's running order: what's still to play this round, and what it's played. */
+type QueueState = {
+    /** The tracks still to play this round, in order (each of the playlist's tracks is here, in `played` or `heard`). */
+    upcoming: string[];
+    /** The tracks it's started this round, oldest first, the last the one it's on (carried into the next round). */
+    played: string[];
+    /** Tracks of its round heard on other playlists since, so left till the next. */
+    heard: string[];
+    /** Tracks in `upcoming` put where they are by hand, so left there rather than put off for being heard recently. */
+    placed: string[];
 };
-
-function isShuffleStates(data: unknown): data is Record<string, ShuffleState> {
-    if (typeof data !== 'object' || data === null || Array.isArray(data)) return false;
-    return Object.values(data).every(s => typeof s === 'object' && s !== null && Array.isArray(s.order) &&
-        s.order.every((id: unknown) => typeof id === 'string') && Number.isInteger(s.index) &&
-        (s.queued === undefined || typeof s.queued === 'string'));
-}
 
 function isTrackIds(data: unknown): data is string[] {
     return Array.isArray(data) && data.every(id => typeof id === 'string');
 }
 
+/** As saved: from before `heard`, a state has none. */
+type SavedQueueState = Omit<QueueState, 'heard'> & { heard?: string[] };
+
+function isQueueStates(data: unknown): data is Record<string, SavedQueueState> {
+    if (typeof data !== 'object' || data === null || Array.isArray(data)) return false;
+    return Object.values(data).every(s => typeof s === 'object' && s !== null && isTrackIds(s.upcoming) &&
+        isTrackIds(s.played) && (s.heard === undefined || isTrackIds(s.heard)) && isTrackIds(s.placed));
+}
+
 /** Kept on disk, so a restart doesn't start every playlist's shuffle over. */
-const SHUFFLE_MANAGER = new JSONSingletonResourceManager<Record<string, ShuffleState>>('music_shuffle', isShuffleStates);
+const QUEUE_MANAGER = new JSONSingletonResourceManager<Record<string, SavedQueueState>>('music_queue', isQueueStates);
 /** The tracks started most recently, on any playlist, oldest first. */
 const RECENT_MANAGER = new JSONSingletonResourceManager<string[]>('music_recent', isTrackIds);
 const RECENT_TRACKS = 20;
@@ -35,98 +41,140 @@ function shuffled<T>(items: T[]): T[] {
     return out;
 }
 
+function trackIdsOf(playlistId: string): string[] {
+    return getMusicPlaylist(playlistId)?.trackIds ?? [];
+}
+
 /**
- * Each playlist plays in a shuffled order that it remembers its place in, so switching away and back carries on with
- * tracks not yet heard rather than repeating ones that were. Once every track has played it's reshuffled.
+ * Each playlist plays in a shuffled order worked out ahead of time, so what's coming up can be shown and rearranged
+ * by hand, and that it remembers its place in, so switching away and back carries on with tracks not yet heard rather
+ * than repeating ones that were. Once every track has played it's reshuffled.
  *
- * Playlists share tracks, so the last few started on any of them are put off till later: changing preset doesn't
- * repeat what was just heard on the other playlist, and a new round doesn't start with what ended the last.
+ * Playlists share tracks, so changing preset doesn't repeat what was just heard: a track played on one counts as
+ * heard this round on the rest, and a new round keeps the tracks heard lately (on any playlist) spaced out from then.
+ * Tracks placed by hand stay where they were put.
  */
 export class MusicShuffle {
-    #states(): Record<string, ShuffleState> {
-        return SHUFFLE_MANAGER.value ?? {};
+    #states(): Record<string, SavedQueueState> {
+        return QUEUE_MANAGER.value ?? {};
     }
 
-    #save(playlistId: string, state: ShuffleState) {
-        SHUFFLE_MANAGER.save({ ...this.#states(), [playlistId]: state });
+    #save(playlistId: string, state: QueueState) {
+        QUEUE_MANAGER.save({ ...this.#states(), [playlistId]: state });
     }
 
-    /** Notes a track's been started, whichever way it was picked. */
+    /**
+     * A new round's tracks spaced out from when they were last heard (on any playlist): each is kept at least so many
+     * tracks from then - 20, or two thirds of the playlist's tracks if that's fewer, so a short playlist still has some
+     * shuffle to it rather than settling into the same order every round. Each place goes to the first track, in the
+     * order they're in, that's been long enough, or if none has the one nearest to.
+     */
+    #arranged(order: string[], trackIds: string[]): string[] {
+        const recent = RECENT_MANAGER.value ?? [];
+        const gap = Math.min(RECENT_TRACKS, Math.max(2, Math.ceil(trackIds.length * 2 / 3)));
+        /** The earliest place each can go: tracks ago it was heard (1 for the last), taken off the gap. */
+        const earliest = (id: string) => {
+            const at = recent.lastIndexOf(id);
+            return at < 0 ? 0 : gap - (recent.length - at);
+        };
+        const free = [...order];
+        return order.map((_, place) => {
+            let pick = free.findIndex(f => earliest(f) <= place);
+            if (pick < 0) pick = free.reduce((best, f, i) => earliest(f) < earliest(free[best]) ? i : best, 0);
+            return free.splice(pick, 1)[0];
+        });
+    }
+
+    /**
+     * The playlist's state brought up to date with its tracks: ones taken off it are dropped, ones added since are
+     * slotted in at random among those still to play, and a round that's finished is followed by a new one. Saved if
+     * that changed it, so what's shown as coming up is what plays.
+     */
+    #current(playlistId: string): QueueState {
+        const trackIds = trackIdsOf(playlistId);
+        const saved = this.#states()[playlistId] ?? { upcoming: [], played: [], heard: [], placed: [] };
+        const valid = new Set(trackIds);
+        const upcoming = saved.upcoming.filter(id => valid.has(id));
+        let played = saved.played.filter(id => valid.has(id));
+        let heard = (saved.heard ?? []).filter(id => valid.has(id));
+        const placed = saved.placed.filter(id => upcoming.includes(id));
+        let changed = upcoming.length !== saved.upcoming.length || played.length !== saved.played.length ||
+            heard.length !== (saved.heard ?? []).length || placed.length !== saved.placed.length;
+        if (upcoming.length === 0 && trackIds.length > 0) {
+            // Keeping the one it's on, to go back to
+            upcoming.push(...this.#arranged(shuffled(trackIds), trackIds));
+            played = played.slice(-1);
+            heard = [];
+            changed = true;
+        } else {
+            const known = new Set([...upcoming, ...played, ...heard]);
+            for (const id of shuffled(trackIds.filter(id => !known.has(id)))) {
+                upcoming.splice(Math.floor(Math.random() * (upcoming.length + 1)), 0, id);
+                changed = true;
+            }
+        }
+        const state = { upcoming, played, heard, placed };
+        if (changed) this.#save(playlistId, state);
+        return state;
+    }
+
+    /** The playlist's tracks still to play this round, in the order they will. */
+    upcoming(playlistId: string): string[] {
+        return this.#current(playlistId).upcoming;
+    }
+
+    /** Moves on to the playlist's next track and returns it (null if the playlist is empty). */
+    next(playlistId: string): string | null {
+        const { upcoming, played, heard, placed } = this.#current(playlistId);
+        const trackId = upcoming.shift();
+        if (trackId === undefined) return null;
+        this.#save(playlistId, { upcoming, played: [...played.filter(id => id !== trackId), trackId], heard, placed: placed.filter(id => id !== trackId) });
+        return trackId;
+    }
+
+    /**
+     * Steps back to the track before the one it's on (which goes back to play next), or that one again if it's the
+     * first of the round; null if empty.
+     */
+    previous(playlistId: string): string | null {
+        const { upcoming, played, heard, placed } = this.#current(playlistId);
+        if (played.length === 0) return this.next(playlistId);
+        if (played.length > 1) {
+            const current = played.pop()!;
+            const back = played[played.length - 1];
+            const rest = upcoming.filter(id => id !== current && id !== back);
+            this.#save(playlistId, { upcoming: [current, ...rest], played, heard, placed: [current, ...placed.filter(id => id !== back)] });
+            return back;
+        }
+        return played[0];
+    }
+
+    /**
+     * Moves one of the playlist's upcoming tracks (or one that's played this round, back into the round) to the place
+     * `to` in what's coming up - 0 to play next. Does nothing if it's not on the playlist.
+     */
+    move(playlistId: string, trackId: string, to: number) {
+        if (!trackIdsOf(playlistId).includes(trackId)) return;
+        const { upcoming, played, heard, placed } = this.#current(playlistId);
+        const rest = upcoming.filter(id => id !== trackId);
+        rest.splice(Math.max(0, Math.min(rest.length, Math.floor(to))), 0, trackId);
+        // Back in the round, so not counted as played (unless it's the one it's on, to go back from)
+        const stillPlayed = played.filter((id, i) => id !== trackId || i === played.length - 1);
+        this.#save(playlistId, { upcoming: rest, played: stillPlayed, heard: heard.filter(id => id !== trackId), placed: [...placed.filter(id => id !== trackId), trackId] });
+    }
+
+    /**
+     * Notes a track's been started, whichever way it was picked, leaving it till the next round on every other playlist
+     * it's coming up on (unless it was placed there by hand).
+     */
     played(trackId: string) {
         const recent = (RECENT_MANAGER.value ?? []).filter(id => id !== trackId);
         recent.push(trackId);
         RECENT_MANAGER.save(recent.slice(-RECENT_TRACKS));
-    }
-
-    /**
-     * Brings forward to `at` the first track from there on that wasn't heard recently - or, if they all were, the one
-     * heard longest ago. Only the most recently heard two thirds of the playlist's tracks count as recent, so a short
-     * playlist (or one mostly heard lately) still has some shuffle to it rather than settling into the same order.
-     */
-    #preferUnheard(order: string[], at: number, trackIds: string[]) {
-        const onList = new Set(trackIds);
-        const heard = (RECENT_MANAGER.value ?? []).filter(id => onList.has(id));
-        const avoid = heard.slice(heard.length - Math.min(heard.length, Math.floor(trackIds.length * 2 / 3)));
-        let best = at;
-        for (let i = at; i < order.length && avoid.includes(order[best]); i++) {
-            if (avoid.indexOf(order[i]) < avoid.indexOf(order[best])) best = i;
+        for (const [playlistId, saved] of Object.entries(this.#states())) {
+            if (!saved.upcoming.includes(trackId) || saved.placed.includes(trackId)) continue;
+            const state = this.#current(playlistId);
+            this.#save(playlistId, { ...state, upcoming: state.upcoming.filter(id => id !== trackId), heard: [...state.heard, trackId] });
         }
-        if (best !== at) order.splice(at, 0, ...order.splice(best, 1));
-    }
-
-    /**
-     * The playlist's state brought up to date with its tracks: ones taken off it are dropped (keeping the place), and
-     * ones added since are slotted in at random among those still to play.
-     */
-    #current(playlistId: string, trackIds: string[]): ShuffleState {
-        const saved = this.#states()[playlistId] ?? { order: [], index: -1 };
-        const valid = new Set(trackIds);
-        const order = saved.order.filter(id => valid.has(id));
-        const index = saved.order.slice(0, saved.index + 1).filter(id => valid.has(id)).length - 1;
-        const known = new Set(order);
-        for (const id of shuffled(trackIds.filter(id => !known.has(id)))) {
-            const at = index + 1 + Math.floor(Math.random() * (order.length - index));
-            order.splice(at, 0, id);
-        }
-        return { order, index, queued: saved.queued };
-    }
-
-    /** Moves on to the playlist's next track and returns it (null if the playlist is empty). */
-    next(playlistId: string, trackIds: string[]): string | null {
-        if (trackIds.length === 0) return null;
-        const state = this.#current(playlistId, trackIds);
-        let { order, index } = state;
-        index++;
-        if (index >= order.length) {
-            order = shuffled(trackIds);
-            index = 0;
-        }
-        if (order[index] !== state.queued) this.#preferUnheard(order, index, trackIds);
-        this.#save(playlistId, { order, index });
-        return order[index];
-    }
-
-    /**
-     * Moves a track up to play next, the rest of the order carrying on as it was (one already heard this round is
-     * taken from where it was, so it isn't heard twice). Does nothing if it's not on the playlist.
-     */
-    playNext(playlistId: string, trackIds: string[], trackId: string) {
-        if (!trackIds.includes(trackId)) return;
-        let { order, index } = this.#current(playlistId, trackIds);
-        const at = order.indexOf(trackId);
-        order = order.filter(id => id !== trackId);
-        if (at <= index) index--;
-        order.splice(index + 1, 0, trackId);
-        this.#save(playlistId, { order, index, queued: trackId });
-    }
-
-    /** Steps back to the track before the last one started, or that one again if it was the first; null if empty. */
-    previous(playlistId: string, trackIds: string[]): string | null {
-        if (trackIds.length === 0) return null;
-        const state = this.#current(playlistId, trackIds);
-        if (state.index < 0) return this.next(playlistId, trackIds);
-        const index = Math.max(0, state.index - 1);
-        this.#save(playlistId, { order: state.order, index });
-        return state.order[index];
     }
 }
