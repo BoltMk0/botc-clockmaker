@@ -26,7 +26,6 @@ class ClockInstanceCallbackHelper {
     }
 
     handleStateChanged(model: ClocktowerModel) {
-        console.log("Model state changed");
         this.broadcast({
             type: 'clock',
             model: model
