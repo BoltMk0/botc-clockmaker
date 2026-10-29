@@ -7,6 +7,7 @@ import { getClockSfxPreset } from "$lib/resources/server/clock-sfx-presets";
 import { isDaytime, type TimeOfDay } from "../client/types";
 import { EventEmitter } from "../client/util/eventEmitter";
 import { NEW_GAME_TIMER_DURATION, type ClocktowerModel } from "../common/ClocktowerModel";
+import type { LightOverride } from "../common/ClocktowerClockModel";
 
 
 /** When the timer's adjusted, the reminder bell rings this long before the end (if at least the minimum is left)... */
@@ -239,6 +240,7 @@ export class BOTCTClock extends EventEmitter {
     get audioBalance() { return this.#model.audio.balance; }
 
     get config() { return this.#model.config; }
+    get lightOverride() { return this.#model.clock.lightOverride; }
 
     set playerCount(playerCount: number){
         this.#model.clock.numPlayers = playerCount;
@@ -266,6 +268,14 @@ export class BOTCTClock extends EventEmitter {
 
     set day(day: number){
         this.#model.clock.day = day;
+        this.scheduleSave();
+        this.debouncedEmit('modelUpdated', this.#model);
+    }
+
+    /** Overrides the lights (with Lightscapes) until it's set back to undefined, whatever the game does meanwhile. */
+    set lightOverride(override: LightOverride|undefined){
+        if(override === undefined) delete this.#model.clock.lightOverride;
+        else this.#model.clock.lightOverride = override;
         this.scheduleSave();
         this.debouncedEmit('modelUpdated', this.#model);
     }

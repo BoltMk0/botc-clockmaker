@@ -23,6 +23,8 @@ Each game card shows:
 
 - **Script**, **Players** and **Day** — the game's script (once it has a grimoire), player count and day number.
 - **Clock SFX** — which set of bell sounds the game rings. "None" means silent; see [step 5](#5-optional-add-a-bell-sound).
+- **Lightscapes lighting** — tick it if the game's room has [Lightscapes](lightscapes.md) lighting, so its remote can
+  [override the lights](clock-remote.md#lighting).
 - **Town Square** — opens the display for the players.
 - **Setup Grimoire** / **Grimoire** — the virtual grimoire (not needed for this guide).
 - Top-right: the **remote** button (opens the clock remote) and the **delete** button.

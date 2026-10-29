@@ -5,7 +5,10 @@
 export const WARMEST = 500;
 export const COOLEST = 153;
 
-/** The white a black body glows at `mireds`, as CIE xy (Kim et al.'s fit to the Planckian locus). */
+/**
+ * The white a black body glows at `mireds`, as CIE xy (Kim et al.'s fit to the Planckian locus).
+ * @param {number} mireds
+ */
 function planckXy(mireds) {
     const k = 1_000_000 / mireds;
     const x = k <= 4000
@@ -17,19 +20,28 @@ function planckXy(mireds) {
     return { x, y };
 }
 
-/** CIE 1960 uv, where distances from the Planckian locus are measured. */
+/**
+ * CIE 1960 uv, where distances from the Planckian locus are measured.
+ * @param {{ x: number, y: number }} xy
+ */
 function xyToUv({ x, y }) {
     const d = -2 * x + 12 * y + 3;
     return { u: 4 * x / d, v: 6 * y / d };
 }
 
+/** @param {number} c */
 const toLinear = c => (c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+/** @param {number} c */
 const fromLinear = c => 255 * (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055);
 
+/** @type {{ mireds: number, u: number, v: number }[]} */
 const LOCUS = [];
 for (let mireds = COOLEST; mireds <= WARMEST; mireds++) LOCUS.push({ mireds, ...xyToUv(planckXy(mireds)) });
 
-/** The colour temperature (in mireds) nearest a colour like #ffaa00: blues go to the coolest white, oranges warm. */
+/**
+ * The colour temperature (in mireds) nearest a colour like #ffaa00: blues go to the coolest white, oranges warm.
+ * @param {string} hex
+ */
 export function hexToMireds(hex) {
     const n = parseInt(hex.slice(1), 16);
     const r = toLinear((n >> 16) & 255), g = toLinear((n >> 8) & 255), b = toLinear(n & 255);
@@ -47,7 +59,10 @@ export function hexToMireds(hex) {
     return best.mireds;
 }
 
-/** The colour a white of `mireds` shows as, at full brightness, like #ffaa00. */
+/**
+ * The colour a white of `mireds` shows as, at full brightness, like #ffaa00.
+ * @param {number} mireds
+ */
 export function miredsToHex(mireds) {
     const { x, y } = planckXy(mireds);
     const X = x / y, Z = (1 - x - y) / y;

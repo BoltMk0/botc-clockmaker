@@ -1,9 +1,10 @@
-import type { ClocktowerClockModel } from "../../src/lib/model/common/ClocktowerClockModel.ts";
+import type { ClocktowerClockModel, LightOverride } from "../../src/lib/model/common/ClocktowerClockModel.ts";
 import { TIMES_OF_DAY, type TimeOfDay } from "../../src/lib/model/client/types.ts";
 import type { BellEvent, Command, Config, LightState, SceneEntry, Spectrum } from "./config.ts";
 import type { ClockFollower } from "./clock.ts";
 import type { Zigbee } from "./zigbee.ts";
 import { spectrumAt, type SpectrumColor } from "./spectrum.ts";
+import { hexToMireds, miredsToHex } from "../public/whites.js";
 
 /** How long a preview from the configuration page holds the lights before they go back to following the game. */
 const PREVIEW_MS = 60_000;
@@ -18,6 +19,8 @@ const ACTIVITY_LENGTH = 30;
 const DAY_PROGRESS_CAP = 0.99;
 /** The shortest fade between spectrum updates, so a stop just ahead doesn't make a burst of them. */
 const MIN_STEP_MS = 500;
+/** How long the lights take to follow the remote's override as it's changed (it's sent as often as every 400ms). */
+const OVERRIDE_FADE_SECONDS = 0.5;
 
 export type Activity = { at: number; text: string };
 
@@ -64,6 +67,8 @@ export class Engine {
     #clock: ClockFollower;
     #zigbee: Zigbee;
 
+    /** The remote's override the lights are showing (as JSON), or null when they're not, or to set them again. */
+    #appliedOverride: string | null = null;
     /** The phase whose scene the lights are showing, or null to set them again on the next update. */
     #appliedPhase: TimeOfDay | null = null;
     /** What each spectrum's lights (by its id) were last sent, so they're not sent the same again. */
@@ -113,6 +118,9 @@ export class Engine {
 
     get config() { return this.#config; }
 
+    /** Whether the remote's overriding the lights: then they don't follow the game, the bells or previews. */
+    get overridden(): boolean { return this.#clock.clock?.lightOverride !== undefined; }
+
     configure(config: Config) {
         this.#config = config;
         this.#clock.configure(config.clockmaker);
@@ -135,6 +143,7 @@ export class Engine {
     }
 
     #reset() {
+        this.#appliedOverride = null;
         this.#appliedPhase = null;
         this.#lastSpectrum.clear();
     }
@@ -177,6 +186,11 @@ export class Engine {
         if(!clock) return;
         this.#scheduleReminder(clock);
         this.#clearSpectrumTimers();
+        if(clock.lightOverride) return this.#setOverride(clock.lightOverride);
+        if(this.#appliedOverride !== null){
+            this.#log('Override ended: back to the game');
+            this.#reset();
+        }
         if(this.#held()) return;
 
         const phase = clock.timeOfDay;
@@ -193,7 +207,7 @@ export class Engine {
     #tickSpectrum(id: string) {
         this.#spectrumTimers.delete(id);
         const clock = this.#clock.clock;
-        if(!clock || this.#held()) return;
+        if(!clock || clock.lightOverride || this.#held()) return;
         if(clock.timeOfDay !== this.#appliedPhase) return this.#update();
         const following = spectrumsIn(clock.timeOfDay, this.#config).find(s => s.spectrum.id === id);
         if(following) this.#updateSpectrum(clock, following.spectrum, following.targets, this.#config.transitionSeconds);
@@ -241,6 +255,35 @@ export class Engine {
         }
     }
 
+    /** Every light in any phase's scene, at the remote's override: it trumps the bells and previews, so ends them. */
+    #setOverride(override: LightOverride) {
+        const key = JSON.stringify(override);
+        if(key === this.#appliedOverride) return;
+        const first = this.#appliedOverride === null;
+        if(first){
+            this.#log('Overridden from the remote');
+            if(this.#holdTimer !== null) clearTimeout(this.#holdTimer);
+            this.#holdTimer = null;
+            if(this.#previewTimer !== null) clearTimeout(this.#previewTimer);
+            this.#previewTimer = null;
+            this.#stopPlaying();
+            this.previewing = null;
+        }
+        this.#appliedOverride = key;
+        this.#appliedPhase = null;
+        this.#lastSpectrum.clear();
+        const transition = first ? this.#config.transitionSeconds : OVERRIDE_FADE_SECONDS;
+        const targets = new Set(TIMES_OF_DAY.flatMap(phase => this.#config.phases[phase].map(e => e.target)));
+        for(const name of targets){
+            // A light that does colours but not whites gets the white's colour, and one that does whites but not colours the nearest white
+            const device = this.#zigbee.devices.find(d => d.name === name);
+            const color = override.color.kind === 'temp'
+                ? (device?.color && !device.colorTemp ? { color: { hex: miredsToHex(override.color.mireds) } } : { color_temp: override.color.mireds })
+                : (device?.colorTemp && !device.color ? { color_temp: hexToMireds(override.color.hex) } : { color: { hex: override.color.hex } });
+            this.#zigbee.set(name, { state: 'ON', ...color, brightness: override.brightness, transition });
+        }
+    }
+
     /** Rings the reminder bell's effect when the countdown gets to the clock's reminder time. */
     #scheduleReminder(clock: ClocktowerClockModel) {
         if(this.#reminderTimer !== null) clearTimeout(this.#reminderTimer);
@@ -260,6 +303,7 @@ export class Engine {
     #ringBell(bell: BellEvent, config = this.#config) {
         const effect = config.bells[bell];
         if(effect.entries.length === 0) return;
+        if(this.overridden) return this.#log(`${BELL_LABELS[bell]}: not flashed, the lights are overridden`);
         this.#log(`${BELL_LABELS[bell]}: flashing the lights`);
         this.#setScene(effect.entries, effect.fadeSeconds);
         if(effect.holdSeconds <= 0) return;

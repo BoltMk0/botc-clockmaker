@@ -16,6 +16,8 @@
     import { RemoteMusic } from "./remote/remoteMusic.svelte";
     import NowPlayingBar from "./remote/NowPlayingBar.svelte";
     import MusicView from "./remote/MusicView.svelte";
+    import LightingView from "./remote/LightingView.svelte";
+    import { overrideHex } from "./remote/lighting";
 
     let {
         model,
@@ -65,7 +67,7 @@
         };
     });
 
-    let view: 'clock' | 'music' = $state('clock');
+    let view: 'clock' | 'music' | 'lighting' = $state('clock');
     /** The timer picker, when open: to start the day with the timer picked, or only set it up. */
     let pickingTimer: 'start' | 'setup' | null = $state(null);
     let gameOpen = $state(false);
@@ -162,8 +164,11 @@
 
 {#if view === 'music' && music}
 <MusicView {music} {audioDim} {onmixer} onback={() => view = 'clock'}/>
+{:else if view === 'lighting'}
+<LightingView {model} onback={() => view = 'clock'}/>
 {:else}
 <div class="clock-setter-main">
+    <div class="top-row">
     <section class="game-section">
         <button class="game-summary" onclick={() => gameOpen = !gameOpen} aria-expanded={gameOpen}>
             <span class="game-title">Game</span>
@@ -185,6 +190,19 @@
         </div>
         {/if}
     </section>
+    {#if model.lightscapes}
+    <!-- Lit up in the override's colour while the lights are overridden -->
+    <button class="lighting-btn" class:on={model.lightOverride} onclick={() => view = 'lighting'}
+        style={model.lightOverride ? `color: ${overrideHex(model.lightOverride)};` : ''}
+        title={model.lightOverride ? "The lights are overridden: they don't follow the game" : 'Override the lights'}
+        aria-label={model.lightOverride ? 'Lighting (overridden)' : 'Lighting'}>
+        <svg viewBox="0 0 24 24" width="22" height="22" fill={model.lightOverride ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 2a7 7 0 0 0-4 12.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26A7 7 0 0 0 12 2z"/>
+            <path d="M10 22h4" fill="none"/>
+        </svg>
+    </button>
+    {/if}
+    </div>
 
     <section class="phase-card">
         <!-- The day's flow, left to right; each phase can also be jumped to by hand -->
@@ -578,10 +596,43 @@
 
     /* ---- Game ---- */
 
+    .top-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
     .game-section {
+        flex: 1;
+        min-width: 0;
         border-radius: 12px;
         background: rgba(255, 255, 255, 0.04);
         overflow: hidden;
+    }
+
+    .lighting-btn {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex: none;
+        width: 44px;
+        align-self: stretch;
+        max-height: 44px;
+        padding: 0;
+        border: none;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.04);
+        color: rgba(255, 255, 255, 0.75);
+        cursor: pointer;
+    }
+
+    .lighting-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .lighting-btn.on {
+        background: rgba(255, 255, 255, 0.1);
+        box-shadow: 0 0 12px -2px currentColor;
     }
 
     .game-summary {

@@ -117,6 +117,21 @@ Zigbee buttons and remotes can control the clock. Each binding is a button, one 
 **Learn a button** waits 30 seconds for a button press, then adds it: pick what it does and save. While learning,
 that press isn't acted on.
 
+## Overriding the lights
+
+The game's [remote](clock-remote.md#lighting) can set every light in any phase's scene to one white or colour and
+brightness, in place of following the game. Tick **Lightscapes lighting** on the game's card on **Play** for the
+remote to offer it.
+
+While the lights are overridden:
+- They don't change with the phase or the spectrums.
+- The bells don't flash them.
+- Previews from this page aren't shown. A preview or bell being shown when the override started ends.
+
+The status bar shows **Overridden from the remote**. When it's ended on the remote, the lights fade to the phase's.
+A light not in that phase's scene stays as the override left it, as lights not in a scene always do.
+
 ## Activity
 
-The Activity page lists what Lightscapes did recently: phase changes, bells, button presses, and anything that went wrong.
+The Activity page lists what Lightscapes did recently: phase changes, bells, overrides, button presses, and anything
+that went wrong.

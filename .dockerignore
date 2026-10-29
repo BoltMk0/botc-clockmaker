@@ -6,5 +6,8 @@ botc-clocktower.config.json
 .env
 .env.*
 
-# Lightscapes has its own image (lightscapes/Dockerfile)
-lightscapes
+# Lightscapes has its own image (lightscapes/Dockerfile), but the remote shares its whites
+lightscapes/*
+!lightscapes/public
+lightscapes/public/*
+!lightscapes/public/whites.js

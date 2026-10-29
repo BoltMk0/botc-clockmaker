@@ -57,6 +57,12 @@ export default defineConfig({
 		// three.js + threlte make one ~800 kB chunk on their own (only loaded by the 3D clocktower scene), which can't usefully be split further
 		chunkSizeWarningLimit: 1000
 	},
+	server: {
+		fs: {
+			// The remote shares Lightscapes' whites (src/lib/components/remote/lighting.ts)
+			allow: ['lightscapes/public/whites.js']
+		}
+	},
 	preview: {
 		allowedHosts: ['*']
 	},

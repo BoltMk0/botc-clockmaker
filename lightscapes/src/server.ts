@@ -80,6 +80,7 @@ export function startServer(engine: Engine, clock: ClockFollower, zigbee: Zigbee
                     running: c.time.serverStartTime !== null,
                     progress: engine.progress()
                 },
+                overridden: engine.overridden,
                 previewing: engine.previewing,
                 playing: engine.playing,
                 activity: engine.activity
@@ -126,6 +127,7 @@ export function startServer(engine: Engine, clock: ClockFollower, zigbee: Zigbee
         }
 
         if(path === '/api/preview' && method === 'POST'){
+            if(engine.overridden) throw new HttpError(409, "The lights are overridden from the remote");
             const body = await readJson(req) as { phase?: unknown; progress?: unknown; bell?: unknown; play?: unknown; seconds?: unknown; config?: unknown };
             // The page's unsaved configuration, if it sent it
             const config = body.config === undefined ? engine.config : normalizeConfig(body.config);

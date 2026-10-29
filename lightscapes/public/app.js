@@ -702,6 +702,7 @@ function renderStatus() {
         const z = status.zigbee2mqtt.online;
         chip(z ? 'ok' : z === false ? 'bad' : 'warn', z ? 'Zigbee2MQTT' : z === false ? 'Zigbee2MQTT: offline' : 'Zigbee2MQTT: waiting');
         if (status.dryRun) chip('warn', 'Dry run');
+        if (status.overridden) chip('warn', 'Overridden from the remote', "The lights don't follow the game until it's ended on the remote");
         if (status.clock) {
             const c = status.clock;
             chip('plain', `Day ${c.day} · ${PHASE_LABELS[c.timeOfDay]}${c.timeOfDay === 'day' && c.running ? ` ${Math.round(c.progress * 100)}%` : ''}`);

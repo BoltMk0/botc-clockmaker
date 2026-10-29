@@ -5,6 +5,8 @@ export type Config = {
     };
     /** The ClockSfxPreset this clock rings, or null for no bells. */
     clockSfxPresetId: string|null;
+    /** The game's room has Lightscapes lighting, so its remote can override the lights. */
+    lightscapes?: boolean;
 }
 
 export function isConfig(data: any): data is Config {
@@ -12,6 +14,7 @@ export function isConfig(data: any): data is Config {
     if(typeof data.teamName !== 'string') return false;
     if(typeof data.theme !== 'object') return false;
     if(typeof data.clockSfxPresetId !== 'string' && data.clockSfxPresetId !== null) return false;
+    if(data.lightscapes !== undefined && typeof data.lightscapes !== 'boolean') return false;
     return true;
 }
 

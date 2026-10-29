@@ -27,6 +27,21 @@ A slim bar showing the **day number** and **player count**. Tap it to open the �
 - **Players − / +** — the number of players. The town square shows the matching character breakdown. When a game
   is set up with the grimoire's token draw, this is set for you.
 
+### Lighting
+
+With [Lightscapes](lightscapes.md) lighting, the bulb next to the Game bar sets every light to one white or colour,
+in place of following the game. It only shows for a game with **Lightscapes lighting** ticked on its card on **Play**.
+Tap it to open the lighting view:
+
+- **White** or **Colour:** a white from warm to cool, or a colour.
+- **Brightness.**
+- **Override the lights** sets the lights to it. While they're overridden, changing the white, colour or brightness
+  changes the lights as you go.
+- **Back to the game** ends the override. The lights fade back to the phase's.
+
+While the lights are overridden the bulb is lit in their colour, on every remote. The override stays on until it's
+ended, even through phase changes, new games and restarts.
+
 ### The day's flow
 
 The four phases, **Morning → Day → Dusk → Night**, in a row. The current phase is lit, and the next one is

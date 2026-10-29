@@ -1,5 +1,6 @@
 import { AudioClockTrack } from "$lib/audio/client/AudioClockTrack.svelte";
 import type { ClocktowerModel as ClocktowerModel } from "../common/ClocktowerModel";
+import type { LightOverride } from "../common/ClocktowerClockModel";
 import type { ClocktowerAudioTrackModel } from "$lib/audio/common/model/clocktowerAudioTrackModel.svelte";
 import { SSEClient } from "./util/sseClient.svelte";
 import { isDaytime, type TimeOfDay } from "./types";
@@ -44,6 +45,10 @@ export class Clocktower extends EventEmitter<ClocktowerEvents> {
     get day(): number { return this.#model.clock.day; }
     get playerCount(): number { return this.#model.clock.numPlayers; }
     get name(): string { return this.#model.config.teamName ?? this.id; }
+    /** Whether the game's room has Lightscapes lighting, for the remote to offer the lighting override. */
+    get lightscapes(): boolean { return this.#model.config.lightscapes ?? false; }
+    /** What the remote has the lights showing instead of following the game, if it has. */
+    get lightOverride(): LightOverride|undefined { return this.#model.clock.lightOverride; }
 
     // Helpers
     readonly running: boolean;
