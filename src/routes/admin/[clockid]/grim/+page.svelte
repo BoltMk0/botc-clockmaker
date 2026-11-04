@@ -1331,6 +1331,14 @@
         touch-action: none;
     }
 
+    /* Nothing on the grim is an image to save: holding one on a phone mustn't open the browser's image menu. */
+    .grim-root :global(img) {
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-user-drag: none;
+    }
+
     .grimoire-board {
         position: absolute;
         inset: 0;
@@ -2193,7 +2201,9 @@
         justify-content: center;
         gap: 0.5em;
     }
-    .popup-wake.active {
+    /* Outlined while it's on: a custom wake, or a dead player's ghost vote still to spend */
+    .popup-wake.active,
+    .popup-toggle.has-vote {
         border-color: rgb(230, 140, 30);
         color: #fde3bd;
     }
@@ -2550,7 +2560,8 @@
 </style>
 
 
-    <div class="grim-root">
+    <!-- No long-press menu (on Android, "save image" and the like) anywhere but in text boxes -->
+    <div class="grim-root" role="presentation" oncontextmenu={(e) => { if (!(e.target as Element).closest('input, textarea')) e.preventDefault(); }}>
     <div class="save-status {saveStatus}" class:drag-hidden={isDraggingAnything} style="z-index: {z_indecies.ui};" title={
         saveStatus === 'saved' ? 'All changes saved'
         : saveStatus === 'saving' ? 'Saving…'
@@ -2881,7 +2892,7 @@
                                     {activeToken.isDead ? 'Dead' : 'Alive'}
                                 </button>
                                 <!-- Only dead players have a ghost vote -->
-                                <button type="button" class="popup-toggle" disabled={!activeToken.isDead} onclick={toggleDeadVote}>
+                                <button type="button" class="popup-toggle" class:has-vote={hasDeadVote(activeToken)} disabled={!activeToken.isDead} onclick={toggleDeadVote}>
                                     {activeToken.isDead && activeToken.deadVoteUsed ? 'Vote used' : 'Has vote'}
                                 </button>
                                 <button type="button" class="popup-toggle with-icon" disabled={!activeChar} onclick={() => activeChar && viewCharacter(activeChar.id)}>{@render eyeIcon()}Show</button>
@@ -3081,7 +3092,7 @@
                             {activeToken.alignment === 'evil' ? 'Evil' : 'Good'}
                         </button>
                         {#if activeToken.isDead}
-                            <button type="button" class="popup-toggle" onclick={(e) => { e.stopPropagation(); toggleDeadVote(); }}>
+                            <button type="button" class="popup-toggle" class:has-vote={hasDeadVote(activeToken)} onclick={(e) => { e.stopPropagation(); toggleDeadVote(); }}>
                                 {activeToken.deadVoteUsed ? 'Vote used' : 'Has vote'}
                             </button>
                         {/if}

@@ -46,6 +46,10 @@
         border-radius: 50%;
         object-fit: cover;
         flex-shrink: 0;
+        /* Never an image to save: holding it on a phone mustn't open the browser's image menu. */
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
     }
 
     .character-icon-default {
@@ -88,7 +92,7 @@
     <button class="close-btn" onclick={() => goto(`/admin/${data.clockid}/grim`)} aria-label="Close" title="Back to the grim">✕</button>
 
     {#if !imageFailed}
-        <img class="character-icon" src={`/api/characters/${data.character.id}/img`} alt={data.character.name} onerror={() => imageFailed = true} />
+        <img class="character-icon" draggable="false" src={`/api/characters/${data.character.id}/img`} alt={data.character.name} onerror={() => imageFailed = true} />
     {:else}
         <div class="character-icon-default dumbledore-font">{initials}</div>
     {/if}

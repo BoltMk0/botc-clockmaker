@@ -78,6 +78,10 @@
         object-fit: contain;
         overflow: visible;
         transform: translateY(-15%);
+        /* A token is never an image to save: holding it on a phone mustn't open the browser's image menu. */
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
     }
 
     .blank-img-container {
@@ -103,14 +107,14 @@
     {#if isBlank}
         {#if hasImage && characterId}
             <div class="blank-img-container">
-                <img src="/api/characters/{characterId}/img" alt="" onerror={() => hasImage = false}/>
+                <img src="/api/characters/{characterId}/img" alt="" draggable="false" onerror={() => hasImage = false}/>
             </div>
         {/if}
     {:else}
         {#if hasImage && characterId}
             <div class="img-container">
 
-                <img src="/api/characters/{characterId}/img" alt={data.text} onerror={() => hasImage = false}/>
+                <img src="/api/characters/{characterId}/img" alt={data.text} draggable="false" onerror={() => hasImage = false}/>
 
             </div>
         {/if}

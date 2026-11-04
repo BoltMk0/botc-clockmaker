@@ -15,7 +15,7 @@
 
 <div class="thumb" style="--thumb-size: {size}; --thumb-color: {color};">
     {#if !imageFailed}
-        <img src={characterImageUrl(character.id, THUMB_IMAGE_SIZE)} alt={character.name} onerror={() => imageFailed = true}/>
+        <img src={characterImageUrl(character.id, THUMB_IMAGE_SIZE)} alt={character.name} draggable="false" onerror={() => imageFailed = true}/>
     {:else}
         <div class="fallback">{initials}</div>
     {/if}
@@ -40,6 +40,10 @@
         top: 50%;
         transform: translate(-50%, -50%);
         object-fit: cover;
+        /* Never an image to save: holding it on a phone mustn't open the browser's image menu. */
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
     }
     .fallback {
         width: 100%;

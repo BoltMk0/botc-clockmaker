@@ -103,7 +103,7 @@
             <div style="position: relative; width: 100%; height: 100%;">
                 <div style="position: absolute; width: 62%; height: 62%; top: {playerName ? '50%' : '45%'}; left: 50%; transform: translate(-50%, -50%);">
                     {#if !imageFailed}
-                        <img src={characterImageUrl(character.id, imageSize)} alt={character.name} class="category-icon-img" style:filter={iconFilter} onerror={() => imageFailed = true} />
+                        <img src={characterImageUrl(character.id, imageSize)} alt={character.name} class="category-icon-img" draggable="false" style:filter={iconFilter} onerror={() => imageFailed = true} />
                     {:else}
                         <div class="category-icon-default dumbledore-font">{character.name.split(' ').map(word => word[0].toUpperCase()).join('')}</div>
                     {/if}
@@ -129,7 +129,7 @@
         <div class="token-content" style="--token-size: {size}; --token-color: {color}; grid-template-rows: {norules ? '4fr 2fr' : '3fr 4fr'};">
             <div class="category-icon-container">
                 {#if !imageFailed}
-                    <img src={characterImageUrl(character.id, imageSize)} alt={character.name} class="category-icon-img" style:filter={iconFilter} onerror={() => imageFailed = true} />
+                    <img src={characterImageUrl(character.id, imageSize)} alt={character.name} class="category-icon-img" draggable="false" style:filter={iconFilter} onerror={() => imageFailed = true} />
                 {:else}
                     <div class="category-icon-default dumbledore-font">{character.name.split(' ').map(word => word[0].toUpperCase()).join('')}</div>
                 {/if}
@@ -211,6 +211,10 @@
         transform: translate(-50%, -50%);
         object-fit: cover;
         border-radius: 50%;
+        /* A token is never an image to save: holding it on a phone mustn't open the browser's image menu. */
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
     }
 
     .category-icon-default {
