@@ -28,7 +28,8 @@ The board is the town circle, with three faint guide rings and the game's clock 
   screen is rotated or resized.
 - **Drag a token** to move it. To take a token off the board, drag it to the top or bottom edge of the screen, or
   onto the open token tray. Tokens can be locked in place (see [the sidebar](#the-sidebar)); dragging a locked
-  token shows *"Grimoire Tokens Locked"*.
+  token shows *"Grimoire Tokens Locked"*. Dragged with a finger, a token or reminder rides just above it, so you can
+  see where it'll land; it's dropped where it's drawn.
 - **Tap a token** to open its popup.
 
 How tokens look:

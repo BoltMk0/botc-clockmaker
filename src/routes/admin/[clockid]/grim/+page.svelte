@@ -701,11 +701,21 @@
         closeReminderTray();
     }
 
+    // Dragged with a finger, a token sits just above it rather than under it, so it can be seen where it's going (and
+    // where it'll land: a drop goes where the token is drawn). Null for a mouse or pen, which hold it where it's grabbed.
+    // `size` is the dragged token's size on screen.
+    function touchLiftOffset(e: PointerEvent, size: number): { x: number; y: number } | null {
+        if (e.pointerType !== 'touch') return null;
+        return { x: 0, y: Math.min(size / 2, 90) + 20 };
+    }
+    const characterGhostSize = () => tokenSize * viewScale;
+    const reminderGhostSize = () => reminderTokenSize * viewScale;
+
     // The moment a drag starts from the overlay, get the tray and overlay out of the way so the grim shows.
     function startDragCharacterFromOverlay(e: PointerEvent, character: ScriptCharacter) {
         startDragFromTray(e, character);
-        dragOffset = { x: 0, y: 0 };
-        ghostPos = { x: e.clientX, y: e.clientY };
+        dragOffset = touchLiftOffset(e, characterGhostSize()) ?? { x: 0, y: 0 };
+        ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
         overlayOpen = false;
         overlayCharacter = null;
         showFooter = false;
@@ -715,9 +725,9 @@
         e.preventDefault();
         e.stopPropagation();
         closeReminderTray();
-        dragOffset = { x: 0, y: 0 };
+        dragOffset = touchLiftOffset(e, reminderGhostSize()) ?? { x: 0, y: 0 };
         draggingReminder = { token, characterId, source: 'popup' };
-        ghostPos = { x: e.clientX, y: e.clientY };
+        ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
         overlayOpen = false;
         overlayCharacter = null;
         showFooter = false;
@@ -889,7 +899,7 @@
         e.preventDefault();
         closeReminderTray();
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        dragOffset = { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) };
+        dragOffset = touchLiftOffset(e, characterGhostSize()) ?? { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) };
         dragging = { character, source: 'tray' };
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
     }
@@ -913,7 +923,7 @@
             character,
             start: { x: e.clientX, y: e.clientY },
             last: { x: e.clientX, y: e.clientY },
-            offset: { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) },
+            offset: touchLiftOffset(e, characterGhostSize()) ?? { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) },
             timer: setTimeout(() => {
                 trayHold = null;
                 suppressTrayClick = true;
@@ -980,7 +990,7 @@
         const centre = boardCentre();
         const tokenScreenX = centre.x + token.x * viewScale;
         const tokenScreenY = centre.y + token.y * viewScale;
-        dragOffset = { x: e.clientX - tokenScreenX, y: e.clientY - tokenScreenY };
+        dragOffset = touchLiftOffset(e, characterGhostSize()) ?? { x: e.clientX - tokenScreenX, y: e.clientY - tokenScreenY };
         dragging = { character: character, source: 'board', sourceToken: token };
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
         gameState.present.placedTokens = placedTokens.filter(t => t !== token);
@@ -991,7 +1001,7 @@
         e.stopPropagation();
         if (activeCharacterId === null) return;
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        dragOffset = { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) };
+        dragOffset = touchLiftOffset(e, reminderGhostSize()) ?? { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) };
         draggingReminder = { token, characterId: activeCharacterId, source: 'popup' };
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
         closeReminderTray();
@@ -1009,7 +1019,7 @@
         }
 
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        dragOffset = { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) };
+        dragOffset = touchLiftOffset(e, reminderGhostSize()) ?? { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) };
         draggingReminder = { token, characterId: token.characterId, source: 'board' };
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
         gameState.present.placedReminders = placedReminders.filter(r => !(r.tokenId === reminder.tokenId && r.x === reminder.x && r.y === reminder.y));
@@ -1132,8 +1142,16 @@
         saveGrimoire();
     }
 
-    function isNearEdge(_x: number, y: number): boolean {
-        return y < EDGE_THRESHOLD || y > window.innerHeight - EDGE_THRESHOLD;
+    // The edge zone a dragged token dropped now would be taken off the board in, if any: where it's drawn (`ghost`) or
+    // where the pointer holding it is is in the top or bottom zone. (Both, as a token lifted above a finger can't reach
+    // the bottom zone itself.)
+    function deleteEdgeFor(ghost: { x: number; y: number }): 'top' | 'bottom' | null {
+        const pointer = { x: ghost.x + dragOffset.x, y: ghost.y + dragOffset.y };
+        for (const p of [ghost, pointer]) {
+            if (p.y < EDGE_THRESHOLD) return 'top';
+            if (p.y > window.innerHeight - EDGE_THRESHOLD) return 'bottom';
+        }
+        return null;
     }
 
     function onPointerMove(e: PointerEvent) {
@@ -1175,7 +1193,7 @@
 
         // Handle reminder token drop
         if (draggingReminder) {
-            if (boardEl && !isNearEdge(e.clientX, e.clientY)) {
+            if (boardEl && deleteEdgeFor({ x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y }) === null) {
                 const centre = boardCentre();
                 const dropX = e.clientX - dragOffset.x;
                 const dropY = e.clientY - dragOffset.y;
@@ -1205,7 +1223,7 @@
                 e.clientY >= 0 && e.clientY <= window.innerHeight
             );
 
-            if (isOverBoard && !isNearEdge(e.clientX, e.clientY)) {
+            if (isOverBoard && deleteEdgeFor({ x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y }) === null) {
                 const dropX = e.clientX - dragOffset.x;
                 const dropY = e.clientY - dragOffset.y;
                 const x = (dropX - centre.x) / viewScale;
@@ -3332,7 +3350,7 @@
 
     {#snippet deleteZones()}
         {#each ['top', 'bottom'] as edge}
-            <div class="delete-zone {edge}" class:active={ghostPos !== null && isNearEdge(ghostPos.x, ghostPos.y) && (edge === 'top') === (ghostPos.y < EDGE_THRESHOLD)} style="height: {EDGE_THRESHOLD}px; z-index: {z_indecies.ui};">
+            <div class="delete-zone {edge}" class:active={ghostPos !== null && deleteEdgeFor(ghostPos) === edge} style="height: {EDGE_THRESHOLD}px; z-index: {z_indecies.ui};">
                 <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 10v6M14 10v6"/>
                 </svg>
