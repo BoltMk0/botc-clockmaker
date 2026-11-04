@@ -35,14 +35,19 @@ one by hand. See [Settings → Characters](settings/characters.md) and [Settings
 
 ## Starting the setup
 
-On **Play**, press **Setup Grimoire** on the game's card. (Once a game has a grimoire, the button becomes
-**Grimoire**, with **End game** beneath it.)
+Open the game's grimoire (**Play → Grimoire** on the game's card) and press **Set up a new game** (the plus) in its
+menu. Setting up a game replaces whatever is on the grimoire. Once a game is set up, its card on **Play** also has
+**End game** beneath **Grimoire**.
 
 The setup is a six-step wizard. The steps are shown along the top; **← Back** goes back one step.
 
 ## Step 1: Script
 
 Pick the script for this game. **Configure Scripts** jumps to the script settings if the one you want isn't there.
+
+**Reset grim**, at the bottom of the list, skips the rest of the setup: after you confirm, it clears the grimoire,
+leaving it empty with no script (every character in the token tray), and starts the game over at dusk on day 0 with
+the clock cleared.
 
 ## Step 2: Players
 
@@ -64,11 +69,15 @@ If there are no matching presets, this step is skipped. Presets are managed in
 
 ## Step 4: Characters
 
-The script's characters, grouped by type, with the full ability text. Across the top a counter shows how many of
-each type you've chosen against how many the player count calls for, e.g. *"3/5 Townsfolk"*.
+The script's tokens, laid out like the grimoire's token tray, in a section for each type (townsfolk, outsiders,
+minions, demons, then travellers, loric and fabled, which start folded away; tap a header to open or close it).
+Across the top a counter shows how many of each type you've chosen against how many the player count calls for,
+e.g. *"3/5 Townsfolk"*, and each section's header shows the same. Hover over a token (with a mouse) to see its
+ability.
 
-- Use **+** / **−** on a character to add or remove it. The same character can be added more than once (for
-  example for a Legion game).
+- Tap a token to choose it (it's ringed in gold); tap it again to take it back out.
+- The same character can be chosen more than once (for example for a Legion game): tap **+** on a chosen token to
+  add another copy. The number of copies shows on the token.
 - The counts are a guide, not a rule: you can choose a setup that doesn't match them, to account for characters
   that change the setup (the "[+2 Outsiders]" type of text is shown under each character).
 - You can choose *more* characters than players — for example a Drunk's "thinks they are" token, or a Marionette.
@@ -137,10 +146,12 @@ each character as its player confirms, so keep it out of sight during the draw.
 
 ## Going straight to the grim
 
-Skips the draw. Every chosen token is laid out in rows along the top of the board, with no player names, and the
-day is reset to 0 with the clock cleared, at **dusk** ready for the first night, as after a draw.
+Skips the draw. The tokens in the bag are shuffled and placed evenly round the circle, one per seat, as if each
+player had drawn the one in front of them; the tokens sorted onto the grim (and any travellers, loric and fabled) are
+laid out in rows along the top of the board. None has a player name yet. The day is reset to 0 with the clock
+cleared, at **dusk** ready for the first night, as after a draw.
 
-From there, drag tokens to seats round the circle and tap each one to type the player's name (see
+From there, tap each seat's token to type the player's name, moving tokens round if you need to (see
 [Using the grimoire](grimoire.md)). A token only counts as a seated player once it has a name.
 
 ## Travellers, loric and fabled

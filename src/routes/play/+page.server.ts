@@ -8,7 +8,9 @@ export async function load(){
     const instances = manager.listInstances().map(instance => {
         const grim = get_grimoire_state_history_resource_for_clock(instance.clock.clockId);
         const script = grim?.scriptId ? getScriptById(grim.scriptId) : null;
-        return { instance, scriptId: script?.id ?? null, scriptName: script?.name ?? null, hasGrim: grim !== null };
+        return { instance, scriptId: script?.id ?? null, scriptName: script?.name ?? null,
+            // A grim opened but never set up (no script, nothing on it) has no game to end.
+            hasGrim: !!grim && (grim.scriptId !== null || grim.present.placedTokens.length > 0) };
     });
     return { games: instances, clockSfxPresets: listClockSfxPresets() };
 }

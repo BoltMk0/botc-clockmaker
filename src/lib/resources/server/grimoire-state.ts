@@ -1,6 +1,6 @@
 import { v7 } from "uuid";
 import { GRIM_STATE_MANAGER } from "./jsonResourceManager";
-import { ensureTokenIds, isPlayerToken, type GrimoireStateHistory } from "../common/grimoireState";
+import { ensureTokenIds, isPlayerToken, newGrimoireStateHistory, type GrimoireStateHistory } from "../common/grimoireState";
 import { getCharacterById } from "./characters";
 import { getBOTCTClockInstanceManager, InstanceNotFoundError } from "$lib/model/server/model";
 
@@ -38,6 +38,18 @@ export function get_grimoire_state_history_resource_for_clock(clockid: string): 
     ensureTokenIds(history);
     // Older saves have no revision; give them one so clients can tell whether they're up to date.
     if (!history.revision) history.revision = v7();
+    return history;
+}
+
+// The clock's grimoire, or a new empty one with no script if it has none yet (the grim is always there for a game,
+// whether or not it's been set up). A new one is stored straight away, but without touching the clock's player count
+// or telling anyone, as nothing has changed yet.
+export function get_or_create_grimoire_state_history_resource_for_clock(clockid: string): GrimoireStateHistory {
+    const existing = get_grimoire_state_history_resource_for_clock(clockid);
+    if (existing) return existing;
+    const history = newGrimoireStateHistory(clockid);
+    history.revision = v7();
+    GRIM_STATE_MANAGER.add(history);
     return history;
 }
 

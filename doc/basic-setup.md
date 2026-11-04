@@ -26,7 +26,7 @@ Each game card shows:
 - **Lightscapes lighting** — tick it if the game's room has [Lightscapes](lightscapes.md) lighting, so its remote can
   [override the lights](clock-remote.md#lighting).
 - **Town Square** — opens the display for the players.
-- **Setup Grimoire** / **Grimoire** — the virtual grimoire (not needed for this guide).
+- **Grimoire** — the virtual grimoire (not needed for this guide).
 - Top-right: the **remote** button (opens the clock remote) and the **delete** button.
 
 ## 2. Put the town square on the big screen

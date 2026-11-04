@@ -219,7 +219,7 @@
                         <button class="button-style end-game" onclick={() => openEndGame(id)}>End game</button>
                     </div>
                 {:else}
-                    <a class="button-style setup-grim" href="/admin/{id}/grim/setup"><PlusIcon size={36}/><span>Setup Grimoire</span></a>
+                    <a class="button-style setup-grim" href="/admin/{id}/grim"><BookIcon size={36}/><span>Grimoire</span></a>
                 {/if}
             </div>
         </div>

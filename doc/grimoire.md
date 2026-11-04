@@ -3,7 +3,9 @@
 [← Setting up a virtual grimoire](grimoire-setup.md) · [Documentation home](README.md) · Next: [Player-facing pages →](player-pages.md)
 
 The grimoire is designed for a tablet (it works on phones and desktops too, and with a stylus). Open it from
-**Play → Grimoire** on the game's card.
+**Play → Grimoire** on the game's card. Every game has a grimoire, even before it's been
+[set up](grimoire-setup.md): it then starts empty, with no script, and every character is in the
+[token tray](#the-token-tray).
 
 - [The board](#the-board)
 - [Player tokens](#player-tokens)
@@ -75,13 +77,20 @@ Reminders follow their nearest player when you [reset token positions](#the-side
 ## The token tray
 
 Open it with the tray button at the bottom of the screen (an arrow over three tokens); ✕ or tapping outside closes
-it. The tray shows the script's name and:
+it. On a phone it fills the screen, slightly see-through. It holds every character in the library, so any of them
+can be put on the grim. With a script, it starts with these, always open:
 
 - **In-play** — the characters of the seated players.
 - **Bluffs** — your bluff sets. **Show bluffs** opens a full-screen *"These roles are not in play"* page with that
   set, to show the demon. ✕ deletes a set.
-- **Travellers**, **Loric** and **Fabled** — every one in the library, so they can be added mid-game.
-- **All Characters** — the rest of the script.
+- **The script** (under its name) — the script's own characters.
+
+Then come every other script (each with the characters on it, so a character on several scripts is in each),
+**Other** for characters on no script, and **Travellers**, **Loric** and **Fabled**. These start folded away; tap a
+header to open or close it. The ones you leave open stay open on this device, even after a reload. With no script
+(a grimoire that hasn't been set up, or after **Reset grim**), there are just these folding sections.
+
+Characters already on the grim are shown in full; the rest are slightly faded.
 
 Tap a character in the tray to open its **overview**: the token, its ability, and its reminders. **Drag the token**
 from the overview onto the board to add it, or **drag a reminder** to place it. Dropping a dragged token near the top
@@ -136,7 +145,7 @@ Tap **Add element** (the dashed box), then choose:
 | Element | Shows |
 | --- | --- |
 | **Text** | A line of text. Pick one from the list — each is shown in its style: a **Header** large, in the title font, or **Text** smaller. The list is set in [Settings → Communications → Texts](settings/communications.md#texts). **Custom…** writes a new one: choose its style, type the text, and tick **Save as a text option** to keep it in the list for next time (it's off by default). **Character's ability…** adds a character's ability as a line of Text: tap the character. |
-| **Character** | A row of character tokens. Pick as many as you like (tap again to unpick), laid out as in the token tray: those in play, then the script (faded if on the board), then travellers, loric and fabled. |
+| **Character** | A row of character tokens. Pick as many as you like (tap again to unpick): those in play, then the script (faded if on the board), then travellers, loric and fabled. With no script, every script's characters. |
 | **Alignment** | A blue **GOOD** or a red **EVIL** — choose which. |
 
 In the builder, **✕** removes an element, tapping a row of characters changes them, and tapping an alignment switches
@@ -162,7 +171,8 @@ The column of buttons on the side of the screen. The top row is always there; th
 | **Audio** (speaker) | A pop-out with **Dim**, play/pause and skip for whichever music player is running (Spotify or uploaded music), **Sting** (a big *Trigger Sting* button) and **Open mixer** (the [mixer](audio-mixer.md) as a remote). |
 | **Communications** | See [above](#communications-showing-things-to-players). |
 | **Hide grimoire** (eye) | Replaces the grim with a *"Grimoire Hidden"* screen, for when you leave the tablet lying around. **Unhide** brings it back. |
-| **Back to Play** | Saves and returns to the Play page. |
+| **Back** | Saves and returns to the Play page. |
+| **Set up a new game** (plus) | Opens the [setup](grimoire-setup.md), to start a new game on this grimoire, or to reset it. |
 | **Annotate** (pen) | Enters [annotate mode](#annotate-mode-drawing). |
 | **Lock** | Locks token positions so they can't be dragged by accident (tapping still works). Remembered on this device. |
 | **Reset token positions** | Spaces the players evenly round the **Near**, **Mid** or **Far** ring, keeping their order round the table. Unnamed tokens and reminders move with their nearest player; loric and fabled stay put. Only while unlocked. |
@@ -219,5 +229,6 @@ From **Delete grim** in the sidebar, or **End game** on the game's card on **Pla
 - **Just delete** — deletes it without recording anything;
 - **Cancel**.
 
-Deleting the grimoire can't be undone. The game itself (its clock, name and bells) stays, ready for the next
-[setup](grimoire-setup.md).
+Deleting the grimoire can't be undone. The game itself (its clock, name and bells) stays, and opening its grimoire
+again gives an empty one with no script, ready for the next [setup](grimoire-setup.md). A grimoire open on another
+device when it's deleted reloads as the empty one.

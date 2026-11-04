@@ -1,10 +1,10 @@
-import { redirect } from '@sveltejs/kit';
 import { getBOTCTClockInstanceManager } from '$lib/model/server/model';
 import { getTimerOptions } from '$lib/resources/server/timerOptions.js';
 import { getTextOptions } from '$lib/resources/server/textOptions';
 import { getMessagePresets } from '$lib/resources/server/messagePresets';
-import { get_grimoire_state_history_resource_for_clock } from '$lib/resources/server/grimoire-state';
-import { isGrimoireStateHistory, type GrimoireStateHistory } from '$lib/resources/common/grimoireState';
+import { get_or_create_grimoire_state_history_resource_for_clock } from '$lib/resources/server/grimoire-state';
+import { isGrimoireStateHistory, newGrimoireStateHistory } from '$lib/resources/common/grimoireState';
+import { listScripts } from '$lib/resources/server/scripts';
 import { getMusicPresets } from '$lib/resources/server/musicPresets';
 import { getSpotifyPresets } from '$lib/resources/server/spotifyPresets';
 
@@ -13,16 +13,16 @@ export async function load({ params }) {
     const clock = getBOTCTClockInstanceManager().getInstance(clockid);
     const timerOptions = getTimerOptions();
 
-    const rawGrimoireState = get_grimoire_state_history_resource_for_clock(clockid) as GrimoireStateHistory | null;
-    const grimoireState = isGrimoireStateHistory(rawGrimoireState) ? rawGrimoireState : null;
-
-    // A deleted grim must not be reachable (e.g. via browser back); send them to pick what to do next.
-    if (!grimoireState) throw redirect(302, `/play`);
+    // Every game has a grim: an empty one with no script until a game is set up.
+    const rawGrimoireState = get_or_create_grimoire_state_history_resource_for_clock(clockid);
+    const grimoireState = isGrimoireStateHistory(rawGrimoireState) ? rawGrimoireState : newGrimoireStateHistory(clockid);
 
     return {
         clockid,
         model: clock.model,
         grimoireState,
+        // Without a script, the token tray lists every character by the scripts they're on.
+        scripts: listScripts().map(s => ({ id: s.id, name: s.name, characterIds: s.characters.map(c => c.characterId) })),
         timerOptions,
         textOptions: getTextOptions(),
         messagePresets: getMessagePresets(),

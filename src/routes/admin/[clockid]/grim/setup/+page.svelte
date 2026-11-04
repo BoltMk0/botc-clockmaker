@@ -1,12 +1,13 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
     import { alignmentForCategory, bluffSetsOf, presetGrimCharacterIds, presetPlayerCount, type Preset, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
-    import { newGrimoireStateWithTokensAlongTop } from "$lib/resources/common/grimoireState.js";
+    import { newGrimoireStateHistory, newGrimoireStateWithTokensRoundCircle } from "$lib/resources/common/grimoireState.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import TokenSorter from "$lib/components/setup/TokenSorter.svelte";
     import PresetSummary from "$lib/components/setup/PresetSummary.svelte";
     import BuilderSteps from "$lib/components/setup/BuilderSteps.svelte";
     import CharacterCounts from "$lib/components/setup/CharacterCounts.svelte";
+    import TokenPicker from "$lib/components/setup/TokenPicker.svelte";
     import { PresetBuilder } from "$lib/components/setup/PresetBuilder.svelte.js";
     import type { PageData } from "./$types";
 
@@ -148,11 +149,13 @@
         if (!builder.script) return;
         submitting = true;
         try {
-            const characters = builder.chosenCharacterIds.map(characterId => ({
+            const withAlignment = (characterId: string) => ({
                 characterId,
                 alignment: alignmentForCategory(builder.charById.get(characterId)!.category)
-            }));
-            const history = newGrimoireStateWithTokensAlongTop(data.clockid, builder.script.id, characters);
+            });
+            // The bag's tokens are shuffled round the circle, as if drawn; the rest go along the top.
+            const history = newGrimoireStateWithTokensRoundCircle(data.clockid, builder.script.id,
+                builder.bagCharacterIds.map(withAlignment), builder.grimCharacterIds.map(withAlignment));
             history.loadedPreset = { character_ids: builder.chosenCharacterIds, bluff_sets: builder.bluffSets, preset_id: await resolvePresetId() };
             const res = await fetch(`/admin/${data.clockid}/grim/state`, {
                 method: 'POST',
@@ -166,6 +169,28 @@
             // Dusk before the first night, so going to the morning starts day 1
             await fetch(`/api/clock/${data.clockid}/newGame`, { method: 'POST' });
             localStorage.setItem(`grimoire-locked-${data.clockid}`, 'false');
+            goto(`/admin/${data.clockid}/grim`);
+        } finally {
+            submitting = false;
+        }
+    }
+
+    // Skips the setup: empties the grim, with no script, and starts the game over.
+    async function resetGrim() {
+        if (!confirm('Clear the grim and start again with no script? This cannot be undone.')) return;
+        submitting = true;
+        try {
+            const res = await fetch(`/admin/${data.clockid}/grim/state`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newGrimoireStateHistory(data.clockid))
+            });
+            if (!res.ok) {
+                alert('Failed to reset the grim.');
+                return;
+            }
+            await fetch(`/api/clock/${data.clockid}/newGame`, { method: 'POST' });
+            localStorage.removeItem(`grimoire-state-${data.clockid}`);
             goto(`/admin/${data.clockid}/grim`);
         } finally {
             submitting = false;
@@ -354,6 +379,19 @@
     .script-card:hover {
         background-color: var(--theme-bg);
     }
+    .reset-card {
+        --script-hue: transparent;
+        width: 100%;
+        padding: 0;
+        border: 2px dashed var(--theme-bg-tertiary);
+        font: inherit;
+        text-align: left;
+    }
+    .reset-card .script-swatch {
+        border: 2px solid currentColor;
+        box-sizing: border-box;
+        opacity: 0.6;
+    }
     .script-card-header {
         display: flex;
         align-items: center;
@@ -385,6 +423,25 @@
         padding: 1em;
         border-radius: 1em;
         box-sizing: border-box;
+    }
+
+    /* Only the tokens scroll, so Next is always in view (as in the other steps). */
+    .tokens-step {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 1em;
+    }
+    .tokens-scroll {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+    }
+    .tokens-footer {
+        display: flex;
+        justify-content: flex-end;
+        flex-shrink: 0;
     }
 
     .finish-choices {
@@ -454,6 +511,15 @@
                 {:else}
                     <div style="opacity: 0.6;">No scripts available.</div>
                 {/each}
+                <button class="script-card reset-card" disabled={submitting} onclick={resetGrim}>
+                    <div class="script-card-header">
+                        <div class="script-swatch"></div>
+                        <div class="script-title">
+                            <div class="script-name">Reset grim</div>
+                            <div class="script-subtitle">Skip the setup: clear the grim and start again with no script</div>
+                        </div>
+                    </div>
+                </button>
             </div>
             </div>
         {:else if step === 'preset' && builder.script}
@@ -540,6 +606,15 @@
                 <button class="button-style highlight" disabled={submitting || !builder.isSorted} onclick={drawTokens}>Draw tokens</button>
                 <button class="button-style" disabled={submitting} onclick={goStraightToGrim}>Go straight to grim view</button>
             </div>
+            </div>
+        {:else if step === 'tokens' && builder.script}
+            <div class="tokens-step">
+                <div class="tokens-scroll">
+                    <TokenPicker {builder} />
+                </div>
+                <div class="tokens-footer">
+                    <button class="button-style highlight" disabled={!builder.hasEnoughTokens} onclick={() => step = 'bluffs'}>Next →</button>
+                </div>
             </div>
         {:else}
             <BuilderSteps

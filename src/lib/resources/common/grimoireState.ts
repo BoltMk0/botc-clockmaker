@@ -329,24 +329,42 @@ export function addDrawnSeatToken(
     return token.id;
 }
 
-// Used when going straight to the grim without a draw: every chosen character becomes an unseated
-// (no playerName) token laid out in rows of up to 5 from the top of the board, ready for the storyteller to seat by hand.
-export function newGrimoireStateWithTokensAlongTop(
+// Used when going straight to the grim without a draw: every chosen character becomes an unseated (no playerName)
+// token, ready for the storyteller to name. The bag's tokens are shuffled into seats evenly spaced round the circle;
+// the tokens sorted onto the grim rather than into the bag are laid out in rows of up to 5 along the top of the board.
+export function newGrimoireStateWithTokensRoundCircle(
     clockId: string,
     scriptId: string,
-    characters: { characterId: string, alignment: Alignment }[]
+    bag: { characterId: string, alignment: Alignment }[],
+    offSeats: { characterId: string, alignment: Alignment }[] = []
 ): GrimoireStateHistory {
     const history = newGrimoireStateHistory(clockId, scriptId);
-    const positions = computeCenteredRowPositions(characters.length, OFF_SEAT_ROW_START.y);
-    history.present.placedTokens = characters.map((c, i) => ({
+    const shuffled = shuffle(bag);
+    const seats = computeCirclePositions(shuffled.length);
+    const rows = computeCenteredRowPositions(offSeats.length, OFF_SEAT_ROW_START.y);
+    const token = (c: { characterId: string, alignment: Alignment }, position: { x: number, y: number }): PlacedToken => ({
         id: v7(),
         characterId: c.characterId,
         isDead: false,
         alignment: c.alignment,
-        x: positions[i].x,
-        y: positions[i].y
-    }));
+        x: position.x,
+        y: position.y
+    });
+    history.present.placedTokens = [
+        ...shuffled.map((c, i) => token(c, seats[i])),
+        ...offSeats.map((c, i) => token(c, rows[i]))
+    ];
     return history;
+}
+
+// A shuffled copy (Fisher-Yates).
+function shuffle<T>(items: T[]): T[] {
+    const result = [...items];
+    for (let i = result.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
 }
 
 export function newGrimoireStateHistory(clockId: string, scriptId: string | null = null): GrimoireStateHistory {

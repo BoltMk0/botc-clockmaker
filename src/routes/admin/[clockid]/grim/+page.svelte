@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { fetchScriptWithSideCharacters } from "$lib/resources/client/scriptWithSideCharacters";
+    import { fetchAllCharacters, fetchScriptWithSideCharacters } from "$lib/resources/client/scriptWithSideCharacters";
     import type { MessageElement, MessagePreset, TextOption } from "$lib/common/message";
     import { alignmentForCategory, bluffSetsOf, ALL_CHARACTER_CATEGORIES, type Character, type CharacterCategory, type ReminderToken, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
@@ -48,7 +48,7 @@
     let {data}: {data: PageData} = $props();
 
     function defaultAlignmentForCharacterId(characterId: string | null): Alignment {
-        const char = script?.characters.find(c => c.id === characterId);
+        const char = characterById.get(characterId ?? '');
         return char ? alignmentForCategory(char.category) : 'good';
     }
 
@@ -103,8 +103,9 @@
         ondeleted: () => {
             if (saveGrimoireTimeout) clearTimeout(saveGrimoireTimeout);
             localStorage.removeItem(`grimoire-state-${data.clockid}`);
+            // The grim is always there for the game: reloading opens a new, empty one.
             alert('This grimoire has been deleted on another device.');
-            goto('/play', { replaceState: true });
+            location.reload();
         }
     });
 
@@ -136,7 +137,9 @@
     }
 
     // SCRIPT / PRESET SELECTION
+    // The game's script (with every traveller, loric and fabled); null without one (a grim that hasn't been set up).
     let script = $state<ScriptWithCharacters | null>(null);
+    const scriptless = $derived(!gameState.scriptId);
 
     $effect(() => {
         const id = gameState.scriptId;
@@ -149,6 +152,21 @@
             script = s;
         }).catch(() => { if (gameState.scriptId === id) script = null; });
     });
+
+    // Every character in the library, with their own night order: any of them can be put on the grim from the tray.
+    let libraryCharacters = $state<ScriptCharacter[]>([]);
+    onMount(() => {
+        fetchAllCharacters().then(all => {
+            libraryCharacters = all.map(c => ({ ...c, scriptFirstNightOrder: c.firstNightOrder, scriptOtherNightOrder: c.otherNightOrder }));
+        });
+    });
+
+    // Every character the grim knows: the script's (with its night order), then the rest of the library.
+    const allCharacters = $derived.by(() => {
+        const onScript = new Set(script?.characters.map(c => c.id) ?? []);
+        return [...(script?.characters ?? []), ...libraryCharacters.filter(c => !onScript.has(c.id))];
+    });
+    const characterById = $derived(new Map(allCharacters.map(c => [c.id, c])));
 
     const loadedPreset = $derived(gameState.loadedPreset);
     const bluffSets = $derived(loadedPreset ? bluffSetsOf(loadedPreset) : []);
@@ -175,14 +193,15 @@
         await saveGrimoire();
     }
 
-    const sortedScriptCharacters = $derived(
-        [...(script?.characters ?? [])].sort((a, b) => {
-            const ac = ALL_CHARACTER_CATEGORIES.indexOf(a.category as any);
-            const bc = ALL_CHARACTER_CATEGORIES.indexOf(b.category as any);
-            if (ac !== bc) return ac - bc;
-            return a.name.localeCompare(b.name);
-        })
-    );
+    const byCategoryThenName = (a: ScriptCharacter, b: ScriptCharacter) => {
+        const ac = ALL_CHARACTER_CATEGORIES.indexOf(a.category as any);
+        const bc = ALL_CHARACTER_CATEGORIES.indexOf(b.category as any);
+        if (ac !== bc) return ac - bc;
+        return a.name.localeCompare(b.name);
+    };
+    const sortedAllCharacters = $derived([...allCharacters].sort(byCategoryThenName));
+    // The script's characters, or every character without a script.
+    const sortedScriptCharacters = $derived(script ? [...script.characters].sort(byCategoryThenName) : sortedAllCharacters);
 
     // Categories that get their own tray section rather than being lumped into "Other" / "All Characters".
     const SIDE_CATEGORIES: { category: CharacterCategory; title: string }[] = [
@@ -202,14 +221,12 @@
     }
 
     const availableReminderTokens = $derived<Record<string, ReminderToken & {characterId: string}>>(
-        script ? Object.fromEntries([
-            ...script.characters.flatMap(c => c.reminderTokens.map(t => [t.id, {...t, characterId: c.id}] as const)),
-            ...script.characters.map(c => [blankReminderTokenId(c.id), {...blankReminderToken(c.id), characterId: c.id}] as const)
-        ]) : {}
+        Object.fromEntries([
+            ...allCharacters.flatMap(c => c.reminderTokens.map(t => [t.id, {...t, characterId: c.id}] as const)),
+            ...allCharacters.map(c => [blankReminderTokenId(c.id), {...blankReminderToken(c.id), characterId: c.id}] as const)
+        ])
     )
-    const availableCharacters = $derived<Record<string, ScriptCharacter>>(
-        script ? Object.fromEntries(script.characters.map(c => [c.id, c])) : {}
-    );
+    const availableCharacters = $derived<Record<string, ScriptCharacter>>(Object.fromEntries(characterById));
 
     // STATE SELECTION
     const workingGameSnapshot = $derived<GrimoireStateSnapshot>(gameState.present);
@@ -320,24 +337,26 @@
     const nightOrderFunction = $derived((clockClient?.day || 0) > 0 ? (c: ScriptCharacter) => c.scriptOtherNightOrder : (c: ScriptCharacter) => c.scriptFirstNightOrder);
     const nightOrderByCharacterId = $derived((placedTokens
         .filter(c=>!c.isDead)
-        .map(c=>script?.characters.find(ch => ch.id === c.characterId))
+        .map(c=>characterById.get(c.characterId ?? ''))
         .filter(c => c !== undefined)
         .map(c=>{return [c.id, nightOrderFunction(c)]})
         .filter(([_, order])=>order !== null) as [string, number][]).sort((a, b) => a[1] - b[1])
         .map(([id, _])=>id) ?? []);
 
     // The night order sheet: every character that wakes, in order, on the first night or the other nights. The
-    // script's own characters always show; travellers, loric and fabled only when they're on the grim.
+    // script's own characters always show; the rest (travellers, loric, fabled and characters off the script) only
+    // when they're on the grim.
     let nightOrderSheet = $state<'first' | 'other' | null>(null);
     const onGrimCharacterIds = $derived(new Set(placedTokens.map(t => t.characterId).filter(id => id !== null)));
     // In play but every token for them dead, so they may not wake
     const deadCharacterIds = $derived(new Set([...onGrimCharacterIds].filter(id =>
         placedTokens.filter(t => t.characterId === id).every(t => t.isDead))));
     const nightSheetCharacters = $derived.by(() => {
-        if (!script || !nightOrderSheet) return [];
+        if (!nightOrderSheet) return [];
         const orderOf = nightOrderSheet === 'first' ? (c: ScriptCharacter) => c.scriptFirstNightOrder : (c: ScriptCharacter) => c.scriptOtherNightOrder;
-        return script.characters
-            .filter(c => orderOf(c) !== null && (!SIDE_CATEGORIES.some(s => s.category === c.category) || onGrimCharacterIds.has(c.id)))
+        const onScript = new Set(script?.characters.filter(c => !isSideCategory(c)).map(c => c.id) ?? []);
+        return allCharacters
+            .filter(c => orderOf(c) !== null && (onScript.has(c.id) || onGrimCharacterIds.has(c.id)))
             .sort((a, b) => (orderOf(a) as number) - (orderOf(b) as number));
     });
 
@@ -350,7 +369,7 @@
             rules: 'Show the "These are your minions" card. Point to each Minion. Show the "These characters are not in play" card. Show 3 not-in-play good character tokens.' }
     ];
     const playerCount = $derived(placedTokens.filter(t => isPlayerToken(t) && !isSideRoleToken(t)
-        && script?.characters.find(c => c.id === t.characterId)?.category !== 'traveler').length);
+        && characterById.get(t.characterId ?? '')?.category !== 'traveler').length);
     type NightSheetEntry = { kind: 'character'; character: ScriptCharacter } | { kind: 'info'; id: string; name: string; rules: string };
     const nightSheetEntries = $derived.by(() => {
         const entries: NightSheetEntry[] = nightSheetCharacters.map(character => ({ kind: 'character', character }));
@@ -511,30 +530,65 @@
         return placedCharIds.has(characterId);
     }
 
-    // The token tray's sections, in order: the in-play characters (with a preset loaded), the script's characters (or
-    // all of them, without one), then travellers, loric and fabled. The communications character picker lists them
-    // the same way.
-    const traySections = $derived.by((): { key: string; title: string; characters: ScriptCharacter[] }[] => {
-        if (!script) return [];
-        const characters = script.characters;
-        const sections = [];
+    // The token tray's sections, in order: the in-play characters (with a preset loaded), then the bluffs (shown
+    // before the script's section, see the tray) and the script's own characters, always open; then every character,
+    // under each script they're on (and the rest under "Other"), and the travellers, loric and fabled, in sections that
+    // can be collapsed. Without a script there's just the collapsible ones.
+    type TraySection = { key: string; title: string; characters: ScriptCharacter[]; collapsible?: boolean };
+    const traySections = $derived.by((): TraySection[] => {
+        if (allCharacters.length === 0) return [];
+        const sections: TraySection[] = [];
         if (loadedPreset && seatedCharacterIds.length > 0) {
-            const inPlay = seatedCharacterIds.map(id => characters.find(c => c.id === id)).filter((c): c is ScriptCharacter => !!c);
+            const inPlay = seatedCharacterIds.map(id => characterById.get(id)).filter((c): c is ScriptCharacter => !!c);
             sections.push({ key: 'in-play', title: 'In-play', characters: inPlay });
         }
-        sections.push({
-            key: 'script',
-            title: loadedPreset ? script.name : 'All Characters',
-            characters: sortedScriptCharacters.filter(c => !isSideCategory(c))
-        });
+        if (script) {
+            sections.push({ key: 'script', title: script.name, characters: sortedScriptCharacters.filter(c => !isSideCategory(c)) });
+        }
+        const townCharacters = sortedAllCharacters.filter(c => !isSideCategory(c));
+        const onAScript = new Set<string>();
+        for (const s of data.scripts) {
+            const ids = new Set(s.characterIds);
+            const scriptCharacters = townCharacters.filter(c => ids.has(c.id));
+            scriptCharacters.forEach(c => onAScript.add(c.id));
+            // The game's own script is already open at the top.
+            if (scriptCharacters.length > 0 && s.id !== script?.id) sections.push({ key: `script-${s.id}`, title: s.name, characters: scriptCharacters, collapsible: true });
+        }
+        const others = townCharacters.filter(c => !onAScript.has(c.id));
+        if (others.length > 0) sections.push({ key: 'other', title: 'Other', characters: others, collapsible: true });
         for (const side of SIDE_CATEGORIES) {
-            const sideCharacters = loadedPreset
-                ? characters.filter(c => c.category === side.category && !loadedPreset.character_ids.includes(c.id) && !bluffSets.some(set => set.includes(c.id)))
-                : sortedScriptCharacters.filter(c => c.category === side.category);
-            if (sideCharacters.length > 0) sections.push({ key: side.category, title: side.title, characters: sideCharacters });
+            const sideCharacters = sortedAllCharacters.filter(c => c.category === side.category);
+            if (sideCharacters.length > 0) sections.push({ key: side.category, title: side.title, characters: sideCharacters, collapsible: true });
         }
         return sections;
     });
+
+    // The communications character picker lists them the same way, but with a script, just its characters (and the
+    // travellers, loric and fabled) rather than every script's.
+    const commsSections = $derived(script ? traySections.filter(s => s.key !== 'other' && !s.key.startsWith('script-')) : traySections);
+
+    // The collapsible tray sections that are open, by key. They start collapsed; which are open is remembered on this
+    // device (for every game, as the sections are the scripts).
+    const TRAY_EXPANDED_KEY = 'grimoire-tray-expanded';
+    let expandedTraySections = $state<string[]>(browser ? (() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem(TRAY_EXPANDED_KEY) ?? '[]');
+            return Array.isArray(saved) ? saved.filter((k): k is string => typeof k === 'string') : [];
+        } catch {
+            return [];
+        }
+    })() : []);
+
+    function toggleTraySection(key: string) {
+        expandedTraySections = expandedTraySections.includes(key)
+            ? expandedTraySections.filter(k => k !== key)
+            : [...expandedTraySections, key];
+        try {
+            localStorage.setItem(TRAY_EXPANDED_KEY, JSON.stringify(expandedTraySections));
+        } catch {
+            // Only a convenience
+        }
+    }
 
     let dragging = $state<{ character: ScriptCharacter | null; source: 'tray' | 'board'; sourceToken?: PlacedToken } | null>(null);
     let draggingReminder = $state<{ token: ReminderToken; characterId: string; source: 'popup' | 'board' } | null>(null);
@@ -558,7 +612,7 @@
         return category === 'loric' || category === 'fabled';
     }
     function isSideRoleToken(t: PlacedToken): boolean {
-        return isSideRoleCategory(script?.characters.find(c => c.id === t.characterId)?.category);
+        return isSideRoleCategory(characterById.get(t.characterId ?? '')?.category);
     }
 
     // Zoom so the placed tokens fill the screen, edge to edge, with the town centred (rings, reminders, the clock, loric/fabled and unnamed tokens are ignored).
@@ -884,7 +938,7 @@
         }
         if(!boardEl) return;
 
-        const character = script?.characters.find(c => c.id === token.characterId) ?? null;
+        const character = characterById.get(token.characterId ?? '') ?? null;
         if (token.characterId !== null && !character) {
             console.error("Character not found for token:", token);
             return;
@@ -930,7 +984,7 @@
     }
 
     async function toggleReminderTray(token: PlacedToken) {
-        const character = script?.characters.find(c => c.id === token.characterId) ?? null;
+        const character = characterById.get(token.characterId ?? '') ?? null;
         if (isMobile) {
             // The alive/good/name handlers work off the active token, so mark it active without showing the popup.
             activeTokenId = token.id;
@@ -1328,6 +1382,11 @@
         opacity: 0.4;
     }
 
+    /* In the tray, the characters already on the grim stand out: the rest are a little faded. */
+    .tray-token.off-grim {
+        opacity: 0.6;
+    }
+
     .tray-token.picked {
         outline: 3px solid gold;
         outline-offset: 2px;
@@ -1338,6 +1397,45 @@
         display: none;
     }
 
+    .tray-section-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.3em;
+        margin: 0 auto;
+        padding: 0.3em 0.7em;
+        border: none;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        color: inherit;
+        font: inherit;
+        white-space: nowrap;
+        width: fit-content;
+        cursor: pointer;
+        touch-action: manipulation;
+    }
+
+    /* The same header on the sections that are always open, which can't be folded away. */
+    .tray-section-toggle.fixed {
+        cursor: default;
+    }
+
+    .tray-section-toggle svg {
+        width: 1.2em;
+        height: 1.2em;
+        fill: currentColor;
+        transition: transform 0.15s;
+    }
+
+    .tray-section-toggle svg.collapsed {
+        transform: rotate(-90deg);
+    }
+
+    .tray-section-count {
+        opacity: 0.6;
+        font-size: 0.85em;
+    }
+
     .picker-grid {
         display: flex;
         flex-wrap: wrap;
@@ -1345,23 +1443,17 @@
         gap: 0.4em;
     }
 
-    .bluff-set {
-        border: 2px solid var(--theme-border, rgba(255, 255, 255, 0.35));
-        border-radius: 0.8em;
-        padding: 0.5em;
-    }
-
+    /* Each set is a button only as big as its tokens; they wrap onto more rows as needed. */
     .bluff-set-buttons {
         display: flex;
         flex-wrap: wrap;
         justify-content: center;
         gap: 0.5em;
-        margin-top: 0.3em;
+        padding: 0.5em;
     }
 
     .bluff-set-item {
         position: relative;
-        width: 100%;
     }
 
     .delete-bluff-set-btn {
@@ -1380,23 +1472,35 @@
         touch-action: manipulation;
     }
 
-    .add-bluff-set-btn {
-        display: flex;
-        width: 100%;
-        align-items: center;
-        justify-content: center;
-        min-height: 56px;
-        background: transparent;
-        border: 2px dashed currentColor;
-        opacity: 0.7;
-    }
-
     .show-bluffs-btn {
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 0.6em;
-        width: 100%;
+    }
+
+    /* An empty set: the outline of a set's button and tokens, dashed. */
+    .add-bluff-set-btn {
+        /* Dimmer than the plus, so the empty set reads as a faint placeholder. */
+        --bluff-outline: color-mix(in srgb, currentColor 40%, transparent);
+        background: transparent;
+        /* Less padding to make up for the border, so it's the size of a set's button. */
+        border: 2px dashed var(--bluff-outline);
+        padding: 3px 8px;
+        opacity: 0.7;
+    }
+
+    .add-bluff-set-btn .bluff-placeholder {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        border: 2px dashed var(--bluff-outline);
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        line-height: 1;
     }
 
     .show-bluffs-icon {
@@ -1409,6 +1513,10 @@
         .grimoire-footer {
             top: 0;
             height: 100%;
+            /* Slightly see-through, so the grim shows faintly behind the full-screen tray. */
+            background-color: color-mix(in srgb, var(--theme-bg-secondary) 88%, transparent);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
         }
         .token-tray-container {
             height: 100%;
@@ -1447,6 +1555,11 @@
             justify-content: center;
             justify-items: center;
             gap: 0.15em;
+        }
+        .tray-section-toggle {
+            width: 100%;
+            border-radius: 10px;
+            padding: 0.5em 0.7em;
         }
     }
 
@@ -2235,6 +2348,16 @@
         transition: background 0.15s;
     }
 
+    /* The back button carries its name beside its icon; it's the only wider one. */
+    .sidebar-btn.labelled {
+        width: auto;
+        align-self: flex-start;
+        gap: 6px;
+        padding: 0 14px 0 11px;
+        font: inherit;
+        font-size: 15px;
+    }
+
     .sidebar-btn:hover {
         background: rgba(0, 0, 0, 0.8);
     }
@@ -2441,8 +2564,14 @@
 
         {#if sidebarOpen}
         <!-- Go back -->
-        <button class="sidebar-btn" onclick={() => {saveGrimoire().then(()=>goto(`/play`, { replaceState: true }))} } title="Back to Play">
+        <button class="sidebar-btn labelled" onclick={() => {saveGrimoire().then(()=>goto(`/play`, { replaceState: true }))} } title="Back to Play">
             <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+            <span>Back</span>
+        </button>
+
+        <!-- Set up a new game on this grim (or reset it) -->
+        <button class="sidebar-btn" onclick={() => {saveGrimoire().then(()=>goto(`/admin/${data.clockid}/grim/setup`))} } title="Set up a new game">
+            <svg viewBox="0 0 24 24"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
         </button>
 
         <!-- Canvas control -->
@@ -2586,7 +2715,7 @@
             <div class="alignment-ring square" style="width: {tokenSize * factor * 2}px; height: {tokenSize * factor * 2}px; z-index: {z_indecies.canvas - 1};"></div>
         {/each}
         {#each placedTokens as token (token.id)}
-            {@const character = script?.characters.find(c => c.id === token.characterId)}
+            {@const character = characterById.get(token.characterId ?? '')}
             {@const sideRole = isSideRoleCategory(character?.category)}
             {#if character || token.characterId === null}
             <div
@@ -2613,7 +2742,7 @@
 
         {#each placedTokens as token (token.id)}
             {@const order = token.characterId ? nightOrderByCharacterId.indexOf(token.characterId) : -1}
-            {@const numbered = order >= 0 && !!script?.characters.some(c => c.id === token.characterId)}
+            {@const numbered = order >= 0 && characterById.has(token.characterId ?? '')}
             {#if numbered}
             <div
                 class="night-order-badge"
@@ -2673,7 +2802,7 @@
         {#if activeTokenId !== null && activeReminderPos && (activeCharacterId === null || reminderCache[activeCharacterId])}
             <div bind:this={reminderPopupEl} class="reminder-popup" class:above={activeReminderAbove} style="font-size: {tokenSize * 0.12}px; left: {activeReminderPos.x}px; top: {activeReminderPos.y}px; z-index: {z_indecies.ui};">
                 {#if activeToken}
-                    {@const activeChar = script?.characters.find(c => c.id === activeCharacterId)}
+                    {@const activeChar = characterById.get(activeCharacterId ?? '')}
                     {@const sideRole = isSideRoleCategory(activeChar?.category)}
                     <div class="popup-meta" bind:clientHeight={popupMetaHeight}>
                         {#if !sideRole}
@@ -2776,25 +2905,23 @@
         <div class="token-tray-container">
             <div class="token-tray-header">
                 <button class="overlay-close tray-close-btn" onclick={() => showFooter = false} aria-label="Close">✕</button>
-                {#if script}
-                    <div style="opacity: 0.7;">{script.name}</div>
-                {/if}
+                <div style="opacity: 0.7;">Token Tray</div>
             </div>
             <div class="token-tray">
-                {#if !script}
-                    <div style="text-align: center; opacity: 0.6; padding: 1em;">Select a script to begin.</div>
+                {#if traySections.length === 0}
+                    <div style="text-align: center; opacity: 0.6; padding: 1em;">Loading…</div>
                 {:else}
                 {#each traySections as section (section.key)}
                 {#if section.key === 'script' && loadedPreset}
-                    <div class="bluff-set">
-                        <div style="text-align: center;">Bluffs</div>
+                    <div>
+                        <div class="tray-section-toggle fixed">Bluffs <span class="tray-section-count">{bluffSets.length}</span></div>
                         <div class="bluff-set-buttons">
                         {#each bluffSets as bluffSet, setIndex}
                         <div class="bluff-set-item">
-                        <button class="button-style show-bluffs-btn" onclick={() => showBluffs(setIndex)} title="Show bluffs">
+                        <button class="button-style show-bluffs-btn" onclick={() => showBluffs(setIndex)} title={bluffSets.length > 1 ? `Show bluffs ${setIndex + 1}` : 'Show bluffs'} aria-label={bluffSets.length > 1 ? `Show bluffs ${setIndex + 1}` : 'Show bluffs'}>
                             <span class="show-bluffs-icon">
                                 {#each bluffSet.slice(0, 3) as bluffId (bluffId)}
-                                    {@const bluff = script?.characters.find(c => c.id === bluffId)}
+                                    {@const bluff = characterById.get(bluffId)}
                                     {#if bluff}
                                         <div style="position: relative; width: 56px; height: 56px;">
                                             <CharacterToken character={bluff} style="position: relative;" size="56px" imageSize={TRAY_IMAGE_SIZE} norules/>
@@ -2802,23 +2929,38 @@
                                     {/if}
                                 {/each}
                             </span>
-                            {bluffSets.length > 1 ? `Show bluffs ${setIndex + 1}` : 'Show bluffs'}
                         </button>
                         <button class="delete-bluff-set-btn" onclick={() => deleteBluffSet(setIndex)} title="Delete bluff set" aria-label="Delete bluff set">✕</button>
                         </div>
                         {/each}
-                        <button class="button-style add-bluff-set-btn" onclick={() => newBluffSet = []}>+ Add bluff set</button>
+                        <button class="button-style show-bluffs-btn add-bluff-set-btn" onclick={() => newBluffSet = []} title="Add bluff set" aria-label="Add bluff set">
+                            <span class="show-bluffs-icon">
+                                <span class="bluff-placeholder"></span>
+                                <span class="bluff-placeholder">+</span>
+                                <span class="bluff-placeholder"></span>
+                            </span>
+                        </button>
                         </div>
                     </div>
                 {/if}
+                {@const collapsed = section.collapsible && !expandedTraySections.includes(section.key)}
                 <div>
-                    <div style="text-align: center;">{section.title}</div>
+                    {#if section.collapsible}
+                        <button class="tray-section-toggle" aria-expanded={!collapsed} onclick={() => toggleTraySection(section.key)}>
+                            <svg viewBox="0 0 24 24" class:collapsed><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
+                            {section.title}
+                            <span class="tray-section-count">{section.characters.length}</span>
+                        </button>
+                    {:else}
+                        <div class="tray-section-toggle fixed">{section.title} <span class="tray-section-count">{section.characters.length}</span></div>
+                    {/if}
+                    {#if !collapsed}
                     <div class="sub-tray">
                         {#each section.characters as character (character.id)}
                                 <div
                                     class="tray-token"
                                     class:dragging={dragging?.character?.id === character.id}
-                                    class:in-play={isInPlay(character.id)}
+                                    class:off-grim={!isInPlay(character.id)}
                                     role="button"
                                     tabindex="0"
                                     aria-label={character.name}
@@ -2829,6 +2971,7 @@
                                 </div>
                         {/each}
                     </div>
+                    {/if}
                 </div>
                 {/each}
                 {/if}
@@ -2925,9 +3068,7 @@
                     <button role="tab" aria-selected={nightOrderSheet === 'other'} class:selected={nightOrderSheet === 'other'} onclick={() => nightOrderSheet = 'other'}>Other nights</button>
                     <button class="overlay-close" onclick={() => nightOrderSheet = null} aria-label="Close">✕</button>
                 </div>
-                {#if !script}
-                    <p class="night-sheet-empty">No script loaded.</p>
-                {:else if nightSheetEntries.length === 0}
+                {#if nightSheetEntries.length === 0}
                     <p class="night-sheet-empty">Nobody wakes.</p>
                 {:else}
                     <ol class="night-sheet-list">
@@ -3029,7 +3170,7 @@
                             bind:elements={messageElements}
                             bind:view={builderView}
                             bind:textOptions
-                            sections={traySections}
+                            sections={commsSections}
                             characters={availableCharacters}
                             faded={isInPlay}
                             tokenSize={trayTokenSize}
@@ -3086,7 +3227,7 @@
                 <div class="overlay-drag-hint">Choose a character</div>
                 <div class="picker-grid">
                     {#each pickableCharacters as character (character.id)}
-                        <button class="no-button-style tray-token" class:in-play={activeCharacterId !== character.id && isInPlay(character.id)} onclick={(e) => { e.stopPropagation(); setCharacter(character.id); }}>
+                        <button class="no-button-style tray-token" class:off-grim={!isInPlay(character.id)} onclick={(e) => { e.stopPropagation(); setCharacter(character.id); }}>
                             <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" imageSize={TRAY_IMAGE_SIZE} norules/>
                         </button>
                     {/each}
