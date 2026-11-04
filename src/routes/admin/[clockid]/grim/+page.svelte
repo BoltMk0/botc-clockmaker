@@ -429,7 +429,7 @@
         const handler = (e: PointerEvent) => {
             const target = e.target as HTMLElement | null;
             if (!target) return;
-            if (target.closest('.board-token, .reminder-popup, .board-reminder, .character-overlay')) return;
+            if (target.closest('.board-token, .reminder-popup, .board-reminder, .character-overlay, .wake-toggle')) return;
             closeReminderTray();
         };
         document.addEventListener('pointerdown', handler, true);
@@ -2213,32 +2213,10 @@
         height: 1.4em;
         flex-shrink: 0;
     }
-    .popup-wake {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5em;
-    }
-    /* Outlined while it's on: a custom wake, or a dead player's ghost vote still to spend */
-    .popup-wake.active,
+    /* Outlined while a dead player's ghost vote is still to spend */
     .popup-toggle.has-vote {
         border-color: rgb(230, 140, 30);
         color: #fde3bd;
-    }
-    /* As the night order badge */
-    .popup-wake-badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 1.6em;
-        height: 1.6em;
-        flex-shrink: 0;
-        border-radius: 50%;
-        border: 2px solid white;
-        box-sizing: border-box;
-        background: rgb(150, 85, 5);
-        color: white;
-        box-shadow: 0 2px 3px #0008;
     }
     .popup-name-row {
         display: flex;
@@ -2329,6 +2307,23 @@
         justify-content: center;
         pointer-events: none;
         user-select: none;
+    }
+    /* An open token's wake badge, tapped to turn the wake on or off: a dotted outline while it's off */
+    .wake-toggle {
+        box-sizing: content-box;
+        padding: 0;
+        margin: 0;
+        font: inherit;
+        line-height: 1;
+        cursor: pointer;
+        pointer-events: auto;
+        touch-action: manipulation;
+    }
+    .wake-toggle.off {
+        border-style: dotted;
+        background-color: #0006;
+        box-shadow: none;
+        color: #fff9;
     }
     .board-reminder {
         position: absolute;
@@ -2796,7 +2791,7 @@
         {/if}
     </div>
 
-    <AnotatableViewV2 ongesturestart={cancelPendingBoardTap} onresetview={fitView} bind:viewScale bind:viewTx bind:viewTy idleGestures={!dragging && !draggingReminder} idleIgnore=".sidebar button, .undo-stroke-btn, .grimoire-footer, .reminder-popup, [role='dialog']" idlePanIgnore=".board-token, .board-reminder, button, a, input, [role='dialog']" tool={editing ? activeTool : null} penTool={lastPenTool} eraserTool={penEraserTool} onchange={onCanvasChange} oncommit={onCanvasCommit} onundo={undoLastChange} layers={canvasLayers} activeLayerIndex={activeCanvasLayerIndex} canvasStyle="z-index: {z_indecies.canvas};">
+    <AnotatableViewV2 ongesturestart={cancelPendingBoardTap} onresetview={fitView} bind:viewScale bind:viewTx bind:viewTy idleGestures={!dragging && !draggingReminder} idleIgnore=".sidebar button, .undo-stroke-btn, .grimoire-footer, .reminder-popup, .wake-toggle, [role='dialog']" idlePanIgnore=".board-token, .board-reminder, button, a, input, [role='dialog']" tool={editing ? activeTool : null} penTool={lastPenTool} eraserTool={penEraserTool} onchange={onCanvasChange} oncommit={onCanvasCommit} onundo={undoLastChange} layers={canvasLayers} activeLayerIndex={activeCanvasLayerIndex} canvasStyle="z-index: {z_indecies.canvas};">
 
     <div class="grimoire-board" bind:this={boardEl}>
         {#each ALIGNMENT_RING_FACTORS as factor}
@@ -2838,12 +2833,13 @@
                 style="left: calc(50% + {token.x + tokenSize * 0.45}px); top: calc(50% + {token.y}px); font-size: {tokenSize / 6}px; border-width: {tokenSize / 70}px; z-index: {z_indecies.nightOrder};"
             >{order + 1}</div>
             {/if}
-            <!-- A custom wake: below the night order number, if they have one too -->
-            {#if token.customWake}
-            <div
-                class="night-order-badge"
-                style="left: calc(50% + {token.x + tokenSize * 0.45}px); top: calc(50% + {token.y + (numbered ? tokenSize * 0.28 : 0)}px); font-size: {tokenSize / 6}px; border-width: {tokenSize / 70}px; z-index: {z_indecies.nightOrder};"
-            >?</div>
+            <!-- A custom wake: below the night order number, if they have one too. While the token's popup is open, it's
+                 shown dotted when off, and tapping it turns the wake on or off -->
+            {@const wakeStyle = `left: calc(50% + ${token.x + tokenSize * 0.45}px); top: calc(50% + ${token.y + (numbered ? tokenSize * 0.28 : 0)}px); font-size: ${tokenSize / 6}px; border-width: ${tokenSize / 70}px; z-index: ${z_indecies.nightOrder};`}
+            {#if token.id === activeTokenId && activeReminderPos && !isSideRoleCategory(characterById.get(token.characterId ?? '')?.category)}
+            {@render wakeToggle(token.customWake ?? false, wakeStyle, toggleCustomWake)}
+            {:else if token.customWake}
+            <div class="night-order-badge" style={wakeStyle}>?</div>
             {/if}
         {/each}
 
@@ -2880,6 +2876,11 @@
 
         {#snippet eyeIcon()}
             <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>
+        {/snippet}
+        {#snippet wakeToggle(on: boolean, style: string, onclick: (e: MouseEvent) => void)}
+            <button type="button" class="night-order-badge wake-toggle" class:off={!on} {style} {onclick}
+                title={on ? 'Remove the wake reminder' : 'Add a wake reminder, to wake them tonight'}
+                aria-label={on ? 'Remove the wake reminder' : 'Add a wake reminder'} aria-pressed={on}>?</button>
         {/snippet}
         {#snippet popupPageSwitch()}
             <button type="button" class="popup-toggle popup-page-switch" onclick={() => popupButtonPage = popupButtonPage === 1 ? 2 : 1}
@@ -2938,11 +2939,6 @@
                                 </button>
                                 <button type="button" class="popup-toggle" onclick={() => pickingCharacter = true}>
                                     {activeChar ? 'Change character' : 'Choose character'}
-                                </button>
-                                <button type="button" class="popup-toggle popup-wake" class:active={activeToken.customWake} onclick={toggleCustomWake}
-                                    title={activeToken.customWake ? 'Remove the wake reminder' : 'Add a wake reminder, to wake them tonight'}>
-                                    <span class="popup-wake-badge">?</span>
-                                    {activeToken.customWake ? 'Waking' : 'Wake'}
                                 </button>
                                 {@render popupPageSwitch()}
                             {/if}
@@ -3101,8 +3097,8 @@
                             {#if order >= 0}
                                 <div class="night-order-badge" style="left: {size * 0.95}px; top: {size / 2}px; font-size: {size / 6}px; border-width: {size / 70}px;">{order + 1}</div>
                             {/if}
-                            {#if activeToken?.customWake}
-                                <div class="night-order-badge" style="left: {size * 0.95}px; top: {size / 2 + (order >= 0 ? size * 0.28 : 0)}px; font-size: {size / 6}px; border-width: {size / 70}px;">?</div>
+                            {#if activeToken && !sideRole}
+                                {@render wakeToggle(activeToken.customWake ?? false, `left: ${size * 0.95}px; top: ${size / 2 + (order >= 0 ? size * 0.28 : 0)}px; font-size: ${size / 6}px; border-width: ${size / 70}px;`, (e) => { e.stopPropagation(); toggleCustomWake(); })}
                             {/if}
                         </div>
                     {:else}
@@ -3134,10 +3130,6 @@
                                 {activeToken.deadVoteUsed ? 'Vote used' : 'Has vote'}
                             </button>
                         {/if}
-                        <button type="button" class="popup-toggle popup-wake" class:active={activeToken.customWake} onclick={(e) => { e.stopPropagation(); toggleCustomWake(); }}>
-                            <span class="popup-wake-badge">?</span>
-                            {activeToken.customWake ? 'Waking' : 'Wake'}
-                        </button>
                         {/if}
                         {#if oc}
                             <button type="button" class="button-style with-icon" onclick={() => viewCharacter(oc.id)}>{@render eyeIcon()}Show</button>

@@ -49,18 +49,23 @@ Tap a token to open its popup. At the top is the **player name**: tap the pencil
 is selected, so typing replaces it; Enter or tapping elsewhere finishes). A token only counts as a seated player (for
 the night order, the town square and framing the view) once it has a name.
 
-Below are four buttons. The bottom-right one switches between two pages of them:
+Below are the buttons. The bottom-right one switches between two pages of them:
 
 | Page 1 | Page 2 |
 | --- | --- |
 | **Alive / Dead** — toggles death. Dead players are shown as dead on the 3D town square. | **Good / Evil** — toggles alignment. |
 | **Has vote / Vote used** — tracks a dead player's ghost vote (also shown on the town square). Greyed out while they're alive. | **Change character** / **Choose character** — gives the player a different character (or none), keeping their name, seat and life status. For example after a Pit-Hag or a Snake Charmer swap. |
-| **Show** — shows this character full-screen, with its ability, to hold up to a player. ✕ returns to the grim. | **Wake** — marks the player to wake tonight for some other reason than their character, with a **?** in an orange circle beside their token (below their night order number, if they have one). Tap again (**Waking**) to take it off. |
+| **Show** — shows this character full-screen, with its ability, to hold up to a player. ✕ returns to the grim. | |
 
 Then the character's **ability text** and setup note, and its **reminder tokens**, ready to drag onto the board.
 
+While the popup is open, the token shows a dotted **?** circle beside it (below its night order number, if it has
+one). Tap it to mark the player to **wake** tonight for some other reason than their character: it fills in as an
+orange **?** badge, which stays on the token once the popup closes. Tap the badge while the popup is open to take the
+wake off again.
+
 On a phone, tapping a token opens a full-screen overlay with the same controls in one list, under the character's
-token.
+token; the wake's **?** is beside that token.
 
 Loric and fabled tokens have no name, alive/dead, alignment or wake controls: just **Show** and **Change character**.
 
@@ -106,7 +111,7 @@ Opening the tray unlocks the tokens.
 ## Night order
 
 Each living, seated character that wakes tonight gets a **number badge** showing its position in the night order
-(and any player marked to **Wake** from their popup gets a **?** badge):
+(and any player marked to wake from their popup gets a **?** badge):
 
 - On **day 0** it uses the script's **first night** order; from day 1 on, the **other nights** order.
 - Dead players and characters that don't wake are left out, so the badges count 1, 2, 3… down the real wake order.
