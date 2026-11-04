@@ -108,8 +108,21 @@
             // The grim is always there for the game: reloading opens a new, empty one.
             alert('This game has been ended on another device.');
             location.reload();
-        }
+        },
+        onconflict: (times) => new Promise(resolve => {
+            syncConflict = { ...times, resolve };
+        })
     });
+
+    // This device's unsynced changes and the server's newer grimoire, waiting for the storyteller to choose one
+    let syncConflict = $state<{ local: number; server: number; resolve: (choice: 'local' | 'server') => void } | null>(null);
+
+    function resolveSyncConflict(choice: 'local' | 'server') {
+        syncConflict?.resolve(choice);
+        syncConflict = null;
+    }
+
+    const formatSaveTime = (time: number) => new Date(time).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
 
     // Undo for this device's changes: each save is a step (see GrimoireUndo).
     const undo = new GrimoireUndo(() => gameState);
@@ -3418,6 +3431,22 @@
                 <button class="button-style" style="background-color: #2563eb; color: #fff; padding: 0.8em 1em;" onclick={() => endGame('good')}>Good victory</button>
                 <button class="button-style" style="padding: 0.8em 1em;" onclick={() => endGame()}>No result</button>
                 <button class="button-style" style="padding: 0.8em 1em; margin-top: 10px;" onclick={() => {showEndGame = false;}}>Cancel</button>
+            </div>
+        </div>
+    {/if}
+
+    {#if syncConflict}
+        <!-- Can't be dismissed: one or the other has to be chosen -->
+        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {z_indecies.ui + 50};" role="dialog" aria-modal="true" aria-labelledby="sync-conflict-title">
+            <div style="background: var(--grim-panel-bg); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; max-width: 340px;">
+                <h2 id="sync-conflict-title" style="margin: 0; padding: 0;">Unsaved changes</h2>
+                <div style="opacity: 0.8;">
+                    This device has changes from {formatSaveTime(syncConflict.local)} that never reached the server, but the
+                    grimoire was changed on the server since, at {formatSaveTime(syncConflict.server)}. Which version do you
+                    want to keep? The other is lost.
+                </div>
+                <button class="button-style highlight" style="padding: 0.8em 1em;" onclick={() => resolveSyncConflict('local')}>Keep this device's</button>
+                <button class="button-style" style="padding: 0.8em 1em;" onclick={() => resolveSyncConflict('server')}>Use the server's</button>
             </div>
         </div>
     {/if}

@@ -209,6 +209,15 @@ others as soon as it's saved. If two devices change it at the same moment, both 
 while the other renames it, say). A device in the middle of dragging a token or drawing a line takes in the other's
 changes once it has finished. If the game is ended on one device, the others reload as the empty grimoire.
 
+If a save fails (the device is offline, or the server is down), the indicator shows it, and your changes are kept in
+the browser, marked as not yet on the server, even if you reload or close the page. The next time the grimoire reaches
+the server (when the connection comes back, or when you open it again):
+
+- if nobody has changed the grimoire on the server since your changes, they're sent straight away;
+- if it has been changed since, you're asked which version to keep: **Keep this device's** (sent to the server,
+  replacing its version) or **Use the server's** (your unsent changes are dropped). The other version is lost, so
+  the two aren't mixed.
+
 ## Undo
 
 The **undo** button (curved arrow, on the board whenever there's something to undo) takes back your changes one at a
