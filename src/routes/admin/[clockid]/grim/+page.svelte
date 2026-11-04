@@ -892,6 +892,52 @@
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
     }
 
+    // Pressing and holding a token in the tray picks it straight up, without going through its overview: the tray
+    // gets out of the way while it's dragged (as for any drag) and is back once it's dropped. A plain tap still opens
+    // the overview, and a finger that moves before the hold is up is scrolling the tray instead.
+    const TRAY_HOLD_MS = 400;
+    let trayHold: { pointerId: number; character: ScriptCharacter; start: { x: number; y: number }; last: { x: number; y: number };
+        offset: { x: number; y: number }; timer: ReturnType<typeof setTimeout> } | null = null;
+    // The click that follows letting go of a held token mustn't also open its overview.
+    let suppressTrayClick = false;
+
+    function startTrayHold(e: PointerEvent, character: ScriptCharacter) {
+        if (!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
+        cancelTrayHold();
+        suppressTrayClick = false;
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const hold = {
+            pointerId: e.pointerId,
+            character,
+            start: { x: e.clientX, y: e.clientY },
+            last: { x: e.clientX, y: e.clientY },
+            offset: { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) },
+            timer: setTimeout(() => {
+                trayHold = null;
+                suppressTrayClick = true;
+                closeReminderTray();
+                dragOffset = hold.offset;
+                dragging = { character: hold.character, source: 'tray' };
+                ghostPos = { x: hold.last.x - hold.offset.x, y: hold.last.y - hold.offset.y };
+                navigator.vibrate?.(15);
+            }, TRAY_HOLD_MS)
+        };
+        trayHold = hold;
+    }
+
+    function cancelTrayHold() {
+        if (trayHold) clearTimeout(trayHold.timer);
+        trayHold = null;
+    }
+
+    function onTrayTokenClick(character: ScriptCharacter) {
+        if (suppressTrayClick) {
+            suppressTrayClick = false;
+            return;
+        }
+        openCharacterOverlay(character);
+    }
+
     function startDragFromBoard(e: PointerEvent, token: PlacedToken) {
         e.preventDefault();
         if (tokensLocked) {
@@ -1089,6 +1135,11 @@
     }
 
     function onPointerMove(e: PointerEvent) {
+        if (trayHold && e.pointerId === trayHold.pointerId) {
+            trayHold.last = { x: e.clientX, y: e.clientY };
+            if (Math.abs(e.clientX - trayHold.start.x) > TAP_THRESHOLD || Math.abs(e.clientY - trayHold.start.y) > TAP_THRESHOLD) cancelTrayHold();
+            return;
+        }
         // Check if we should transition from tap-detection to drag
         if (pointerStartPos && pointerStartToken) {
             const dx = e.clientX - pointerStartPos.x;
@@ -1107,6 +1158,7 @@
     }
 
     function onPointerUp(e: PointerEvent) {
+        cancelTrayHold();
         // Handle tap on board token
         if (pointerStartPos && pointerStartToken) {
             const dx = e.clientX - pointerStartPos.x;
@@ -1175,9 +1227,26 @@
         saveGrimoire();
     }
 
+    // The browser took the pointer for itself (e.g. to scroll): a held tray token isn't picked up, and one already
+    // picked up from the tray goes back to it.
+    function onPointerCancel() {
+        cancelTrayHold();
+        if (dragging?.source === 'tray') {
+            dragging = null;
+            ghostPos = null;
+        }
+    }
+
+    // Once a tray token has been picked up, the finger moving mustn't scroll the tray (or the page) instead of
+    // dragging it. (Passive listeners can't stop that, hence one added by hand.)
+    function preventScrollWhileDragging(e: TouchEvent) {
+        if (dragging?.source === 'tray') e.preventDefault();
+    }
+
     onMount(()=>{
         if(!browser) return;
         clockClient = new Clocktower(data.model);
+        document.addEventListener('touchmove', preventScrollWhileDragging, { passive: false });
         grimSync.connect();
         fitView();
 
@@ -1200,6 +1269,8 @@
         mobileQuery.addEventListener('change', onMobileChange);
 
         return () => {
+            document.removeEventListener('touchmove', preventScrollWhileDragging);
+            cancelTrayHold();
             boardResizeObserver.disconnect();
             mobileQuery.removeEventListener('change', onMobileChange);
             if(saveGrimoireTimeout){
@@ -1243,7 +1314,7 @@
 
 </script>
 
-<svelte:window onpointermove={onPointerMove} onpointerup={onPointerUp}/>
+<svelte:window onpointermove={onPointerMove} onpointerup={onPointerUp} onpointercancel={onPointerCancel}/>
 
 <style>
     /* Pins the whole grim view to the viewport and clips everything else (e.g. the hidden tray sitting
@@ -1353,6 +1424,9 @@
         /* Tapping opens the character overview, so let the tray scroll under the finger. */
         touch-action: manipulation;
         user-select: none;
+        -webkit-user-select: none;
+        /* Pressing and holding picks the token up, rather than bringing up the browser's image menu. */
+        -webkit-touch-callout: none;
         opacity: 1;
         transition: opacity 0.15s;
     }
@@ -2930,7 +3004,10 @@
                                     role="button"
                                     tabindex="0"
                                     aria-label={character.name}
-                                    onclick={() => openCharacterOverlay(character)}
+                                    onpointerdown={(e) => startTrayHold(e, character)}
+                                    oncontextmenu={(e) => e.preventDefault()}
+                                    ondragstart={(e) => e.preventDefault()}
+                                    onclick={() => onTrayTokenClick(character)}
                                     onkeydown={(e) => onActivateKey(e, () => openCharacterOverlay(character))}
                                 >
                                     <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} imageSize={TRAY_IMAGE_SIZE} norules/>

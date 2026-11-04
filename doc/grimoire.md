@@ -94,6 +94,10 @@ Tap a character in the tray to open its **overview**: the token, its ability, an
 from the overview onto the board to add it, or **drag a reminder** to place it. Dropping a dragged token near the top
 or bottom edge, or back on the tray, cancels it.
 
+To add a character straight from the tray, **press and hold** its token until it lifts out (a phone gives a short
+buzz), then drag it onto the board. The tray moves out of the way while you drag and comes back once you let go, ready
+for the next one. A finger that moves before the hold is up just scrolls the tray.
+
 Opening the tray unlocks the tokens.
 
 ## Night order
