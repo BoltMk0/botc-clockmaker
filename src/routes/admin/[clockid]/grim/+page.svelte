@@ -701,12 +701,34 @@
         closeReminderTray();
     }
 
-    // Dragged with a finger, a token sits just above it rather than under it, so it can be seen where it's going (and
-    // where it'll land: a drop goes where the token is drawn). Null for a mouse or pen, which hold it where it's grabbed.
-    // `size` is the dragged token's size on screen.
-    function touchLiftOffset(e: PointerEvent, size: number): { x: number; y: number } | null {
-        if (e.pointerType !== 'touch') return null;
-        return { x: 0, y: Math.min(size / 2, 90) + 20 };
+    // Dragged with a finger, a token rides just above it rather than under it, so it can be seen where it's going (and
+    // where it'll land: a drop goes where the token is drawn). It's picked up where it was grabbed (`grab`: the pointer
+    // less the token's centre) and glides up over the finger; a mouse or pen holds it where it's grabbed. `size` is the
+    // dragged token's size on screen. Returns the offset to start the drag with.
+    const LIFT_MS = 180;
+    let liftFrame: number | null = null;
+
+    function pickUpOffset(pointerType: string, size: number, grab: { x: number; y: number }): { x: number; y: number } {
+        if (liftFrame !== null) cancelAnimationFrame(liftFrame);
+        liftFrame = null;
+        if (pointerType !== 'touch') return grab;
+        const lifted = { x: 0, y: Math.min(size / 2, 90) + 20 };
+        const start = performance.now();
+        const step = (now: number) => {
+            // Dropped (or cancelled) part way up
+            if (!ghostPos || (!dragging && !draggingReminder)) {
+                liftFrame = null;
+                return;
+            }
+            const t = Math.min(1, (now - start) / LIFT_MS);
+            const eased = 1 - (1 - t) ** 3;
+            const pointer = { x: ghostPos.x + dragOffset.x, y: ghostPos.y + dragOffset.y };
+            dragOffset = { x: grab.x + (lifted.x - grab.x) * eased, y: grab.y + (lifted.y - grab.y) * eased };
+            ghostPos = { x: pointer.x - dragOffset.x, y: pointer.y - dragOffset.y };
+            liftFrame = t < 1 ? requestAnimationFrame(step) : null;
+        };
+        liftFrame = requestAnimationFrame(step);
+        return grab;
     }
     const characterGhostSize = () => tokenSize * viewScale;
     const reminderGhostSize = () => reminderTokenSize * viewScale;
@@ -714,7 +736,7 @@
     // The moment a drag starts from the overlay, get the tray and overlay out of the way so the grim shows.
     function startDragCharacterFromOverlay(e: PointerEvent, character: ScriptCharacter) {
         startDragFromTray(e, character);
-        dragOffset = touchLiftOffset(e, characterGhostSize()) ?? { x: 0, y: 0 };
+        dragOffset = pickUpOffset(e.pointerType, characterGhostSize(), { x: 0, y: 0 });
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
         overlayOpen = false;
         overlayCharacter = null;
@@ -725,7 +747,7 @@
         e.preventDefault();
         e.stopPropagation();
         closeReminderTray();
-        dragOffset = touchLiftOffset(e, reminderGhostSize()) ?? { x: 0, y: 0 };
+        dragOffset = pickUpOffset(e.pointerType, reminderGhostSize(), { x: 0, y: 0 });
         draggingReminder = { token, characterId, source: 'popup' };
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
         overlayOpen = false;
@@ -899,7 +921,7 @@
         e.preventDefault();
         closeReminderTray();
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        dragOffset = touchLiftOffset(e, characterGhostSize()) ?? { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) };
+        dragOffset = pickUpOffset(e.pointerType, characterGhostSize(), { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) });
         dragging = { character, source: 'tray' };
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
     }
@@ -909,7 +931,7 @@
     // the overview, and a finger that moves before the hold is up is scrolling the tray instead.
     const TRAY_HOLD_MS = 400;
     let trayHold: { pointerId: number; character: ScriptCharacter; start: { x: number; y: number }; last: { x: number; y: number };
-        offset: { x: number; y: number }; timer: ReturnType<typeof setTimeout> } | null = null;
+        pointerType: string; grab: { x: number; y: number }; timer: ReturnType<typeof setTimeout> } | null = null;
     // The click that follows letting go of a held token mustn't also open its overview.
     let suppressTrayClick = false;
 
@@ -923,14 +945,15 @@
             character,
             start: { x: e.clientX, y: e.clientY },
             last: { x: e.clientX, y: e.clientY },
-            offset: touchLiftOffset(e, characterGhostSize()) ?? { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) },
+            pointerType: e.pointerType,
+            grab: { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) },
             timer: setTimeout(() => {
                 trayHold = null;
                 suppressTrayClick = true;
                 closeReminderTray();
-                dragOffset = hold.offset;
+                dragOffset = pickUpOffset(hold.pointerType, characterGhostSize(), hold.grab);
                 dragging = { character: hold.character, source: 'tray' };
-                ghostPos = { x: hold.last.x - hold.offset.x, y: hold.last.y - hold.offset.y };
+                ghostPos = { x: hold.last.x - dragOffset.x, y: hold.last.y - dragOffset.y };
                 navigator.vibrate?.(15);
             }, TRAY_HOLD_MS)
         };
@@ -990,7 +1013,7 @@
         const centre = boardCentre();
         const tokenScreenX = centre.x + token.x * viewScale;
         const tokenScreenY = centre.y + token.y * viewScale;
-        dragOffset = touchLiftOffset(e, characterGhostSize()) ?? { x: e.clientX - tokenScreenX, y: e.clientY - tokenScreenY };
+        dragOffset = pickUpOffset(e.pointerType, characterGhostSize(), { x: e.clientX - tokenScreenX, y: e.clientY - tokenScreenY });
         dragging = { character: character, source: 'board', sourceToken: token };
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
         gameState.present.placedTokens = placedTokens.filter(t => t !== token);
@@ -1001,7 +1024,7 @@
         e.stopPropagation();
         if (activeCharacterId === null) return;
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        dragOffset = touchLiftOffset(e, reminderGhostSize()) ?? { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) };
+        dragOffset = pickUpOffset(e.pointerType, reminderGhostSize(), { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) });
         draggingReminder = { token, characterId: activeCharacterId, source: 'popup' };
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
         closeReminderTray();
@@ -1019,7 +1042,7 @@
         }
 
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        dragOffset = touchLiftOffset(e, reminderGhostSize()) ?? { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) };
+        dragOffset = pickUpOffset(e.pointerType, reminderGhostSize(), { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) });
         draggingReminder = { token, characterId: token.characterId, source: 'board' };
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
         gameState.present.placedReminders = placedReminders.filter(r => !(r.tokenId === reminder.tokenId && r.x === reminder.x && r.y === reminder.y));
@@ -1289,6 +1312,7 @@
         mobileQuery.addEventListener('change', onMobileChange);
 
         return () => {
+            if (liftFrame !== null) cancelAnimationFrame(liftFrame);
             document.removeEventListener('touchmove', preventScrollWhileDragging);
             cancelTrayHold();
             boardResizeObserver.disconnect();
