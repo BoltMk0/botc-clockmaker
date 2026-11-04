@@ -806,7 +806,6 @@
     // The custom message being built, and which of the builder's screens is showing.
     let messageElements = $state<MessageElement[]>([]);
     let builderView = $state<MessageBuilderView>('builder');
-    let builder = $state<MessageBuilder>();
 
     // svelte-ignore state_referenced_locally
     let textOptions = $state<TextOption[]>(data.textOptions);
@@ -861,13 +860,6 @@
         } catch {
             alert('Failed to save the preset');
         }
-    }
-
-    // Back goes back a step in the builder or from the bluff sets, and otherwise closes communications.
-    function commsBack() {
-        if (commsView === 'bluffs') commsView = 'main';
-        else if (commsTab === 'custom' && builder?.back()) return;
-        else commsView = null;
     }
 
     async function showMessage(elements: MessageElement[]) {
@@ -1782,13 +1774,6 @@
         font-weight: bold;
     }
 
-    /* In line with the tabs rather than in the corner */
-    .overlay-tabs > .overlay-close {
-        position: static;
-        flex-shrink: 0;
-        margin-left: 0.25rem;
-    }
-
     .night-sheet-empty {
         text-align: center;
         opacity: 0.6;
@@ -1872,27 +1857,12 @@
         flex-shrink: 0;
     }
 
-    .comms-back {
-        position: absolute;
+    /* In the overlay's corner rather than the panel's, as for communications and the night order (both classes, to win
+       over .overlay-close, which comes later) */
+    .overlay-close.overlay-corner-close {
         top: 10px;
-        left: 10px;
+        right: 10px;
         z-index: 1;
-        display: flex;
-        align-items: center;
-        gap: 0.1em;
-        padding: 0.45em 0.9em 0.45em 0.5em;
-        border: none;
-        border-radius: 999px;
-        background: rgba(0, 0, 0, 0.5);
-        color: white;
-        font-size: 1em;
-        cursor: pointer;
-    }
-
-    .comms-back svg {
-        width: 1.3em;
-        height: 1.3em;
-        fill: currentColor;
     }
 
     .comms-tabs {
@@ -3214,12 +3184,13 @@
     {#if nightOrderSheet}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 20};" onclick={() => nightOrderSheet = null}>
+            <!-- Outside the panel, so it stays put while the panel scrolls -->
+            <button class="overlay-close overlay-corner-close" onclick={(e) => { e.stopPropagation(); nightOrderSheet = null; }} aria-label="Close" title="Close">✕</button>
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <div class="overlay-panel night-sheet" onclick={(e) => e.stopPropagation()}>
                 <div class="overlay-tabs" role="tablist" aria-label="Night order">
                     <button role="tab" aria-selected={nightOrderSheet === 'first'} class:selected={nightOrderSheet === 'first'} onclick={() => nightOrderSheet = 'first'}>First night</button>
                     <button role="tab" aria-selected={nightOrderSheet === 'other'} class:selected={nightOrderSheet === 'other'} onclick={() => nightOrderSheet = 'other'}>Other nights</button>
-                    <button class="overlay-close" onclick={() => nightOrderSheet = null} aria-label="Close">✕</button>
                 </div>
                 {#if nightSheetEntries.length === 0}
                     <p class="night-sheet-empty">Nobody wakes.</p>
@@ -3259,10 +3230,7 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 20};" onclick={() => commsView = null}>
             <!-- Outside the panel, so it stays put while the panel scrolls -->
-            <button class="comms-back" onclick={(e) => { e.stopPropagation(); commsBack(); }}>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z"/></svg>
-                Back
-            </button>
+            <button class="overlay-close overlay-corner-close" onclick={(e) => { e.stopPropagation(); commsView = null; }} aria-label="Close" title="Close">✕</button>
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <div class="overlay-panel comms-panel" onclick={(e) => e.stopPropagation()}>
                 {#if commsView === 'bluffs'}
@@ -3319,7 +3287,6 @@
                         </button>
                     {:else}
                         <MessageBuilder
-                            bind:this={builder}
                             bind:elements={messageElements}
                             bind:view={builderView}
                             bind:textOptions

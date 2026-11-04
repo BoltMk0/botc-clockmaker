@@ -155,7 +155,7 @@ Tap **Add element** (the dashed box), then choose:
 In the builder, **✕** removes an element, tapping a row of characters changes them, and tapping an alignment switches
 it between good and evil.
 
-**Back**, top left, goes back a step, and closes communications from the tabs. In any text, put asterisks round
+**✕**, top right, closes communications. In any text, put asterisks round
 words to make them bold and underlined: *"You are \*drunk\*"* shows *"You are **drunk**"*. The words *good* and *evil* are
 shown in blue and red.
 
