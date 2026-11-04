@@ -2660,7 +2660,7 @@
 
         <!-- Night order: who wakes, and when, on the first night and the other nights -->
         <button class="sidebar-btn" class:active={nightOrderSheet !== null} onclick={() => nightOrderSheet = (clockClient?.day || 0) > 0 ? 'other' : 'first'} title="Night order">
-            <svg viewBox="0 0 24 24"><path d="M12.34 2.02C6.59 1.82 2 6.42 2 12c0 5.52 4.48 10 10 10 3.71 0 6.93-2.02 8.66-5.02-7.51-.25-12.09-8.43-8.32-14.96z"/></svg>
+            <svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M6 2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM6 4v16h12V4H6zM7.3 8a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0zM7.3 12a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0zM7.3 16a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0zM11 7h5.5v2H11zM11 11h5.5v2H11zM11 15h5.5v2H11z"/></svg>
         </button>
 
         <!-- Hide the grim behind a blank page, e.g. before leaving the device unattended. Replaces this page in the
