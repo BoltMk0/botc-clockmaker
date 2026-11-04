@@ -2011,8 +2011,9 @@
         gap: 6px;
     }
 
-    /* Trim the horizontal padding so more of them fit on a line. */
+    /* Trim the horizontal padding so more of them fit on a line, and share out what's left of each line between them. */
     .overlay-panel .overlay-toggles > button {
+        flex: 1 1 auto;
         padding: 16px 16px;
         white-space: nowrap;
     }
@@ -3042,8 +3043,19 @@
                 {/if}
                 {#if oc}
                     {#if overlayFromBoard}
-                        <!-- A placed token's summary shows the token itself, its name on it and its type in its ring's colour -->
-                        <CharacterToken character={oc} style="position: relative; flex-shrink: 0;" size="{OVERLAY_SUMMARY_TOKEN_SIZE}px" norules/>
+                        <!-- A placed token's summary shows the token itself, its name on it and its type in its ring's colour, with
+                             its night order and custom wake badges where the board has them -->
+                        {@const size = OVERLAY_SUMMARY_TOKEN_SIZE}
+                        {@const order = activeToken?.characterId ? nightOrderByCharacterId.indexOf(activeToken.characterId) : -1}
+                        <div style="position: relative; flex-shrink: 0; width: {size}px; height: {size}px;">
+                            <CharacterToken character={oc} style="position: relative;" size="{size}px" norules/>
+                            {#if order >= 0}
+                                <div class="night-order-badge" style="left: {size * 0.95}px; top: {size / 2}px; font-size: {size / 6}px; border-width: {size / 70}px;">{order + 1}</div>
+                            {/if}
+                            {#if activeToken?.customWake}
+                                <div class="night-order-badge" style="left: {size * 0.95}px; top: {size / 2 + (order >= 0 ? size * 0.28 : 0)}px; font-size: {size / 6}px; border-width: {size / 70}px;">?</div>
+                            {/if}
+                        </div>
                     {:else}
                         <img class="overlay-icon" src={`/api/characters/${oc.id}/img`} alt="" onerror={(e) => (e.currentTarget as HTMLImageElement).style.display = 'none'} />
                         <div class="overlay-name dumbledore-font">{oc.name}</div>
@@ -3062,18 +3074,18 @@
                 {#if overlayFromBoard && activeToken}
                     <div class="overlay-toggles">
                         {#if !sideRole}
-                        <button type="button" class="popup-toggle" class:dead={activeToken.isDead} onclick={() => { toggleAlive(); closeOverlay(); }}>
+                        <button type="button" class="popup-toggle" class:dead={activeToken.isDead} onclick={(e) => { e.stopPropagation(); toggleAlive(); }}>
                             {activeToken.isDead ? 'Dead' : 'Alive'}
                         </button>
-                        <button type="button" class="popup-toggle" class:evil={activeToken.alignment === 'evil'} onclick={() => { toggleAlignment(); closeOverlay(); }}>
+                        <button type="button" class="popup-toggle" class:evil={activeToken.alignment === 'evil'} onclick={(e) => { e.stopPropagation(); toggleAlignment(); }}>
                             {activeToken.alignment === 'evil' ? 'Evil' : 'Good'}
                         </button>
                         {#if activeToken.isDead}
-                            <button type="button" class="popup-toggle" onclick={() => { toggleDeadVote(); closeOverlay(); }}>
+                            <button type="button" class="popup-toggle" onclick={(e) => { e.stopPropagation(); toggleDeadVote(); }}>
                                 {activeToken.deadVoteUsed ? 'Vote used' : 'Has vote'}
                             </button>
                         {/if}
-                        <button type="button" class="popup-toggle popup-wake" class:active={activeToken.customWake} onclick={() => { toggleCustomWake(); closeOverlay(); }}>
+                        <button type="button" class="popup-toggle popup-wake" class:active={activeToken.customWake} onclick={(e) => { e.stopPropagation(); toggleCustomWake(); }}>
                             <span class="popup-wake-badge">?</span>
                             {activeToken.customWake ? 'Waking' : 'Wake'}
                         </button>
