@@ -4,6 +4,7 @@ const mimeTypeMap: {[key: string]: string} = {
     '.mp3': 'audio/mpeg',
     '.wav': 'audio/wav',
     '.ogg': 'audio/ogg',
+    '.opus': 'audio/ogg; codecs=opus',
     '.flac': 'audio/flac',
     '.aac': 'audio/aac',
     '.m4a': 'audio/mp4',

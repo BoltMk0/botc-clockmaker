@@ -17,7 +17,7 @@ bottom previews tracks on this device (it's separate from the room's music playe
 
 ## Library
 
-Upload music with the upload button, or **drop files** onto the panel. WAV, MP3, AAC, M4A, FLAC and OGG are
+Upload music with the upload button, or **drop files** onto the panel. WAV, MP3, AAC, M4A, FLAC, OGG and Opus are
 accepted; each file is uploaded separately (up to 200 MB each in the Docker image).
 
 Each track is filled in from its file's tags where it has them — **title, artist, album, year, track number and

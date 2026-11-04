@@ -5,7 +5,7 @@
 Shared audio settings, the bell sounds for each game's clock, and the libraries of ambience and sting sounds. See
 the [Audio overview](../audio-overview.md) for how these fit together.
 
-Audio files can be WAV, MP3, AAC, M4A, FLAC or OGG.
+Audio files can be WAV, MP3, AAC, M4A, FLAC, OGG or Opus.
 
 - [Audio Options](#audio-options)
   - [Dim strength](#dim-strength)
