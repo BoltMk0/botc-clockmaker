@@ -1363,6 +1363,9 @@
         background-color: #121212;
         /* All touch gestures (pinch/pan/drag) are handled in JS; stop the browser zooming or scrolling the page. */
         touch-action: none;
+        /* The background of the token tray, overlays and popups: a little darker than the theme's panels, so the
+           buttons on them stand out */
+        --grim-panel-bg: color-mix(in srgb, var(--theme-bg-secondary) 72%, black);
     }
 
     /* Nothing on the grim is an image to save: holding one on a phone mustn't open the browser's image menu. */
@@ -1418,7 +1421,7 @@
         left: 0;
         right: 0;
         width: 100%;
-        background-color: var(--theme-bg-secondary);
+        background-color: var(--grim-panel-bg);
     }
 
     .token-tray-container {
@@ -1449,7 +1452,8 @@
         /* Clear of the close button at its right end (on phones) */
         padding: 0 44px;
         /* The sections' header tint, but solid: the see-through phone tray doesn't show through it */
-        background: color-mix(in srgb, var(--theme-bg-secondary) 92%, white);
+        background: color-mix(in srgb, var(--grim-panel-bg) 92%, white);
+        font-size: 1.15em;
         font-weight: 600;
     }
 
@@ -1631,7 +1635,7 @@
             top: 0;
             height: 100%;
             /* Slightly see-through, so the grim shows faintly behind the full-screen tray. */
-            background-color: color-mix(in srgb, var(--theme-bg-secondary) 93%, transparent);
+            background-color: color-mix(in srgb, var(--grim-panel-bg) 93%, transparent);
         }
         .token-tray-container {
             height: 100%;
@@ -1700,7 +1704,7 @@
         box-sizing: border-box;
         padding: 1.4em 1.2em 1.2em;
         border-radius: 1em;
-        background: var(--theme-bg-secondary);
+        background: var(--grim-panel-bg);
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -2532,7 +2536,7 @@
         padding: 5px 14px 7px;
         border: none;
         border-radius: 8px 8px 0 0;
-        background: var(--theme-bg-secondary);
+        background: var(--grim-panel-bg);
         color: white;
         font: inherit;
         font-size: 14px;
@@ -3391,7 +3395,7 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {z_indecies.ui};" onclick={() => {showTimerOptions = false;}} role="dialog" tabindex="0">
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div style="position: relative; background: var(--theme-bg-secondary); padding: 48px 20px 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px;" onclick={(e) => e.stopPropagation()} >
+            <div style="position: relative; background: var(--grim-panel-bg); padding: 48px 20px 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px;" onclick={(e) => e.stopPropagation()} >
                 <button class="overlay-close" onclick={()=>{showTimerOptions = false;}} aria-label="Close">✕</button>
                 {#if clockClient}
                     <ClockSetter model={clockClient} timerOptions={data.timerOptions} musicPresets={data.musicPresets} spotifyPresets={data.spotifyPresets} onstart={()=>{showTimerOptions = false}} onmixer={() => {showTimerOptions = false; saveGrimoire().then(()=>goto(`/admin/mixer?remote_only=1&back_uri=${encodeURIComponent(location.pathname + location.search)}`))}}/>
@@ -3407,7 +3411,7 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {z_indecies.ui};" onclick={() => {showEndGame = false;}} role="dialog" tabindex="0">
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div style="background: var(--theme-bg-secondary); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; max-width: 320px;" onclick={(e) => e.stopPropagation()} >
+            <div style="background: var(--grim-panel-bg); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; max-width: 320px;" onclick={(e) => e.stopPropagation()} >
                 <h2 style="margin: 0; padding: 0;">End game</h2>
                 <div style="opacity: 0.8;">Who won this game? This clears the grim and cannot be undone.</div>
                 <button class="button-style" style="background-color: #b63737; color: #fff; padding: 0.8em 1em;" onclick={() => endGame('evil')}>Evil victory</button>
