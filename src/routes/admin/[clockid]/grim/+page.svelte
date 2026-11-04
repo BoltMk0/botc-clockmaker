@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { fetchAllCharacters, fetchScriptWithSideCharacters } from "$lib/resources/client/scriptWithSideCharacters";
+    import { fetchScriptWithSideCharacters } from "$lib/resources/client/scriptWithSideCharacters";
     import type { MessageElement, MessagePreset, TextOption } from "$lib/common/message";
     import { alignmentForCategory, bluffSetsOf, ALL_CHARACTER_CATEGORIES, type Character, type CharacterCategory, type ReminderToken, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
@@ -169,12 +169,9 @@
     });
 
     // Every character in the library, with their own night order: any of them can be put on the grim from the tray.
-    let libraryCharacters = $state<ScriptCharacter[]>([]);
-    onMount(() => {
-        fetchAllCharacters().then(all => {
-            libraryCharacters = all.map(c => ({ ...c, scriptFirstNightOrder: c.firstNightOrder, scriptOtherNightOrder: c.otherNightOrder }));
-        });
-    });
+    const libraryCharacters = $derived<ScriptCharacter[]>(
+        data.characters.map(c => ({ ...c, scriptFirstNightOrder: c.firstNightOrder, scriptOtherNightOrder: c.otherNightOrder }))
+    );
 
     // Every character the grim knows: the script's (with its night order), then the rest of the library.
     const allCharacters = $derived.by(() => {

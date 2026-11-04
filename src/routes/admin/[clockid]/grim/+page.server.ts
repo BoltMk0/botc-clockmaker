@@ -5,6 +5,7 @@ import { getMessagePresets } from '$lib/resources/server/messagePresets';
 import { get_or_create_grimoire_state_history_resource_for_clock } from '$lib/resources/server/grimoire-state';
 import { isGrimoireStateHistory, newGrimoireStateHistory } from '$lib/resources/common/grimoireState';
 import { listScripts } from '$lib/resources/server/scripts';
+import { listCharacters } from '$lib/resources/server/characters';
 import { getMusicPresets } from '$lib/resources/server/musicPresets';
 import { getSpotifyPresets } from '$lib/resources/server/spotifyPresets';
 
@@ -22,6 +23,8 @@ export async function load({ params }) {
         model: clock.model,
         grimoireState,
         // Without a script, the token tray lists every character by the scripts they're on.
+        // Every character in the library, read afresh on each load so the token tray always has the current list.
+        characters: listCharacters(),
         scripts: listScripts().map(s => ({ id: s.id, name: s.name, characterIds: s.characters.map(c => c.characterId) })),
         timerOptions,
         textOptions: getTextOptions(),
