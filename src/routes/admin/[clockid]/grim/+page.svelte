@@ -262,9 +262,9 @@
     const POPUP_REMINDER_GAP = 4;
     let popupMetaHeight = $state(0);
     const popupReminderRows = $derived(Math.max(1, Math.floor((popupMetaHeight + POPUP_REMINDER_GAP) / (popupReminderSize + POPUP_REMINDER_GAP))));
-    // Phone-width screen (set from a media query on mount); same breakpoint as the full-screen tray CSS.
+    // Phone-width screen (set from a media query on mount): tapping a token opens a full-screen summary, not a popup.
     let isMobile = $state(false);
-    // Slightly smaller in the full-screen phone tray so more tokens fit per row.
+    // Slightly smaller in the tray on a phone so more tokens fit per row.
     // Tray and picker tokens are shown small, so they load the scaled-down 256px icon (see CharacterToken's imageSize).
     const TRAY_IMAGE_SIZE = 256;
     const trayTokenSize = $derived(Math.max(40, Math.round(tokenSize * 0.53 * (isMobile ? 0.8 : 1))));
@@ -931,12 +931,13 @@
         ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
     }
 
-    // Pressing and holding a token in the tray picks it straight up, without going through its overview: the tray
-    // gets out of the way while it's dragged (as for any drag) and is back once it's dropped. A plain tap still opens
-    // the overview, and a finger that moves before the hold is up is scrolling the tray instead.
+    // A token can be picked straight up out of the tray, without going through its overview, and the tray closes so
+    // it can be put on the grim. With a finger (or pen), by pressing and holding it: one that moves before the hold is up
+    // is scrolling the tray instead. With a mouse, by dragging it at all. A plain tap or click still opens the overview.
     const TRAY_HOLD_MS = 400;
-    let trayHold: { pointerId: number; character: ScriptCharacter; start: { x: number; y: number }; last: { x: number; y: number };
-        pointerType: string; grab: { x: number; y: number }; timer: ReturnType<typeof setTimeout> } | null = null;
+    type TrayHold = { pointerId: number; character: ScriptCharacter; start: { x: number; y: number }; last: { x: number; y: number };
+        pointerType: string; grab: { x: number; y: number }; timer: ReturnType<typeof setTimeout> | null };
+    let trayHold: TrayHold | null = null;
     // The click that follows letting go of a held token mustn't also open its overview.
     let suppressTrayClick = false;
 
@@ -945,28 +946,33 @@
         cancelTrayHold();
         suppressTrayClick = false;
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        const hold = {
+        const hold: TrayHold = {
             pointerId: e.pointerId,
             character,
             start: { x: e.clientX, y: e.clientY },
             last: { x: e.clientX, y: e.clientY },
             pointerType: e.pointerType,
             grab: { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) },
-            timer: setTimeout(() => {
-                trayHold = null;
-                suppressTrayClick = true;
-                closeReminderTray();
-                dragOffset = pickUpOffset(hold.pointerType, characterGhostSize(), hold.grab);
-                dragging = { character: hold.character, source: 'tray' };
-                ghostPos = { x: hold.last.x - dragOffset.x, y: hold.last.y - dragOffset.y };
-                navigator.vibrate?.(15);
-            }, TRAY_HOLD_MS)
+            // A mouse picks it up as soon as it moves instead (see onPointerMove)
+            timer: e.pointerType === 'mouse' ? null : setTimeout(() => pickUpFromTray(hold), TRAY_HOLD_MS)
         };
         trayHold = hold;
     }
 
+    function pickUpFromTray(hold: TrayHold) {
+        cancelTrayHold();
+        suppressTrayClick = true;
+        closeReminderTray();
+        dragOffset = pickUpOffset(hold.pointerType, characterGhostSize(), hold.grab);
+        dragging = { character: hold.character, source: 'tray' };
+        ghostPos = { x: hold.last.x - dragOffset.x, y: hold.last.y - dragOffset.y };
+        // It's going on the grim: the tray stays closed once it's dropped
+        showFooter = false;
+        if (hold.pointerType !== 'mouse') navigator.vibrate?.(15);
+    }
+
     function cancelTrayHold() {
-        if (trayHold) clearTimeout(trayHold.timer);
+        if (trayHold?.timer) clearTimeout(trayHold.timer);
         trayHold = null;
     }
 
@@ -1185,7 +1191,11 @@
     function onPointerMove(e: PointerEvent) {
         if (trayHold && e.pointerId === trayHold.pointerId) {
             trayHold.last = { x: e.clientX, y: e.clientY };
-            if (Math.abs(e.clientX - trayHold.start.x) > TAP_THRESHOLD || Math.abs(e.clientY - trayHold.start.y) > TAP_THRESHOLD) cancelTrayHold();
+            if (Math.abs(e.clientX - trayHold.start.x) > TAP_THRESHOLD || Math.abs(e.clientY - trayHold.start.y) > TAP_THRESHOLD) {
+                // A mouse is dragging the token out of it; a finger is scrolling the tray
+                if (trayHold.pointerType === 'mouse') pickUpFromTray(trayHold);
+                else cancelTrayHold();
+            }
             return;
         }
         // Check if we should transition from tap-detection to drag
@@ -1310,7 +1320,7 @@
         });
         if (boardEl) boardResizeObserver.observe(boardEl);
 
-        // Same breakpoint as the full-screen tray CSS.
+        // A phone-width screen
         const mobileQuery = window.matchMedia('(max-width: 768px)');
         isMobile = mobileQuery.matches;
         const onMobileChange = (e: MediaQueryListEvent) => { isMobile = e.matches; };
@@ -1427,32 +1437,47 @@
         cursor: grabbing;
     }
 
+    /* The tray takes over the whole screen and scrolls vertically, slightly see-through so the grim shows faintly
+       behind it. */
     .grimoire-footer {
         transition: transform 0.3s ease;
         position: absolute;
+        top: 0;
         bottom: 0;
         left: 0;
         right: 0;
         width: 100%;
-        background-color: var(--grim-panel-bg);
+        height: 100%;
+        background-color: color-mix(in srgb, var(--grim-panel-bg) 93%, transparent);
     }
 
     .token-tray-container {
-        display: block;
+        display: flex;
+        flex-direction: column;
         width: 100%;
+        height: 100%;
         overflow-y: hidden;
-        padding: 0.5em;
-        height: fit-content;
+        padding: 0.5em 0.5em 0;
         box-sizing: border-box;
     }
 
     /* Out to the tray's edges, past the container's padding */
     .token-tray-header {
+        position: relative;
         display: flex;
         justify-content: center;
         align-items: center;
         gap: 0.5em;
+        min-height: 40px;
         margin: -0.5em -0.5em 0.5em;
+    }
+
+    /* Centred at the title bar's right end (more specific than .overlay-close, which comes later) */
+    .token-tray-header .tray-close-btn {
+        top: 50%;
+        right: 4px;
+        transform: translateY(-50%);
+        z-index: 1;
     }
 
     /* A bar right across the tray, tinted as the sections' headers are */
@@ -1462,35 +1487,45 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        /* Clear of the close button at its right end (on phones) */
+        /* Clear of the close button at its right end */
         padding: 0 44px;
-        /* The sections' header tint, but solid: the see-through phone tray doesn't show through it */
+        /* The sections' header tint, but solid: the see-through tray doesn't show through it */
         background: color-mix(in srgb, var(--grim-panel-bg) 92%, white);
         font-size: 1.15em;
         font-weight: 600;
     }
 
     .token-tray {
+        flex: 1;
+        min-height: 0;
         display: flex;
-        gap: 1em;
-        padding: 0;
+        flex-direction: column;
+        gap: 0.5em;
+        width: 100%;
         box-sizing: border-box;
-        overflow-x: scroll;
-        padding-bottom: 2em;
-        scrollbar-gutter: stable both-edges;
-        width: fit-content;
-        margin: auto;
-        max-width: 100%;
+        overflow-x: hidden;
+        overflow-y: auto;
+        touch-action: pan-y;
+        -webkit-overflow-scrolling: touch;
+        padding: 0 0 3em;
+    }
+
+    /* The sections, no wider than this on a big screen, centred */
+    .token-tray > * {
+        width: 100%;
+        max-width: 900px;
+        margin: 0 auto;
     }
 
     .sub-tray {
         display: grid;
-        grid-template-rows: auto auto auto;
-        grid-auto-flow: column;
-        gap: 0.2em;
-        padding: 0.5em;
+        /* Fixed-width columns (not 1fr) so spare row width doesn't stretch the gaps between tokens. */
+        grid-template-columns: repeat(auto-fill, calc(var(--tray-token) + 2px));
+        justify-content: center;
+        justify-items: center;
         align-items: center;
-        align-content: flex-start;
+        gap: 0.15em;
+        padding: 0.5em;
         box-sizing: border-box;
     }
 
@@ -1527,24 +1562,19 @@
         border-radius: 50%;
     }
 
-    .tray-close-btn {
-        display: none;
-    }
-
     .tray-section-toggle {
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 0.3em;
-        margin: 0 auto;
-        padding: 0.3em 0.7em;
+        width: 100%;
+        padding: 0.5em 0.7em;
         border: none;
-        border-radius: 999px;
+        border-radius: 10px;
         background: rgba(255, 255, 255, 0.08);
         color: inherit;
         font: inherit;
         white-space: nowrap;
-        width: fit-content;
         cursor: pointer;
         touch-action: manipulation;
     }
@@ -1640,62 +1670,6 @@
     .show-bluffs-icon {
         display: flex;
         gap: 2px;
-    }
-
-    /* On phones the tray takes over the whole screen and scrolls vertically. */
-    @media (max-width: 768px) {
-        .grimoire-footer {
-            top: 0;
-            height: 100%;
-            /* Slightly see-through, so the grim shows faintly behind the full-screen tray. */
-            background-color: color-mix(in srgb, var(--grim-panel-bg) 93%, transparent);
-        }
-        .token-tray-container {
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            padding-bottom: 0;
-        }
-        .token-tray-header {
-            position: relative;
-            min-height: 40px;
-        }
-        /* Centred at the title bar's right end (more specific than .overlay-close, which comes later) */
-        .token-tray-header .tray-close-btn {
-            display: block;
-            top: 50%;
-            right: 4px;
-            transform: translateY(-50%);
-            z-index: 1;
-        }
-        .token-tray {
-            flex: 1;
-            min-height: 0;
-            flex-direction: column;
-            gap: 0.5em;
-            width: 100%;
-            margin: 0;
-            overflow-x: hidden;
-            overflow-y: auto;
-            scrollbar-gutter: auto;
-            touch-action: pan-y;
-            -webkit-overflow-scrolling: touch;
-            padding-bottom: 3em;
-        }
-        .sub-tray {
-            grid-auto-flow: row;
-            grid-template-rows: none;
-            /* Fixed-width columns (not 1fr) so spare row width doesn't stretch the gaps between tokens. */
-            grid-template-columns: repeat(auto-fill, calc(var(--tray-token) + 2px));
-            justify-content: center;
-            justify-items: center;
-            gap: 0.15em;
-        }
-        .tray-section-toggle {
-            width: 100%;
-            border-radius: 10px;
-            padding: 0.5em 0.7em;
-        }
     }
 
     .character-overlay {

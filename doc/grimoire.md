@@ -76,9 +76,10 @@ Tap anywhere else to close the popup.
 
 ## The token tray
 
-Open it with the **Token Tray** button at the bottom of the screen; ✕ or tapping outside closes
-it. On a phone it fills the screen, slightly see-through. It holds every character in the library, so any of them
-can be put on the grim. With a script, it starts with these, always open:
+Open it with the **Token Tray** button at the bottom of the screen; ✕ at the right of its title bar closes it. It fills
+the screen, slightly see-through, with the tokens centred (on a wide screen, in a column down the middle). It holds
+every character in the library, so any of them can be put on the grim. With a script, it starts with these, always
+open:
 
 - **In-play** — the characters of the seated players.
 - **Bluffs** — your bluff sets. **Show bluffs** opens a full-screen *"These roles are not in play"* page with that
@@ -97,8 +98,8 @@ from the overview onto the board to add it, or **drag a reminder** to place it. 
 or bottom edge, or back on the tray, cancels it.
 
 To add a character straight from the tray, **press and hold** its token until it lifts out (a phone gives a short
-buzz), then drag it onto the board. The tray moves out of the way while you drag and comes back once you let go, ready
-for the next one. A finger that moves before the hold is up just scrolls the tray.
+buzz), then drag it onto the board; with a mouse, just drag it. The tray closes so you can put it where you want it. A
+finger that moves before the hold is up just scrolls the tray.
 
 Opening the tray unlocks the tokens.
 
