@@ -41,6 +41,8 @@
 
     // Size of the draggable character token in the character overview overlay
     const OVERLAY_TOKEN_SIZE = 96;
+    // Size of the token at the top of a placed token's summary (on a phone)
+    const OVERLAY_SUMMARY_TOKEN_SIZE = 120;
 
     // Size of the central clock, as a multiple of the token size
     const CLOCK_SCALE = 1.0;
@@ -3039,9 +3041,14 @@
                     />
                 {/if}
                 {#if oc}
-                    <img class="overlay-icon" src={`/api/characters/${oc.id}/img`} alt="" onerror={(e) => (e.currentTarget as HTMLImageElement).style.display = 'none'} />
-                    <div class="overlay-name dumbledore-font">{oc.name}</div>
-                    <div class="overlay-category">{oc.category}</div>
+                    {#if overlayFromBoard}
+                        <!-- A placed token's summary shows the token itself, its name on it and its type in its ring's colour -->
+                        <CharacterToken character={oc} style="position: relative; flex-shrink: 0;" size="{OVERLAY_SUMMARY_TOKEN_SIZE}px" norules/>
+                    {:else}
+                        <img class="overlay-icon" src={`/api/characters/${oc.id}/img`} alt="" onerror={(e) => (e.currentTarget as HTMLImageElement).style.display = 'none'} />
+                        <div class="overlay-name dumbledore-font">{oc.name}</div>
+                        <div class="overlay-category">{oc.category}</div>
+                    {/if}
                     {#if oc.rules}
                         <div class="overlay-rules">{oc.rules}</div>
                     {/if}

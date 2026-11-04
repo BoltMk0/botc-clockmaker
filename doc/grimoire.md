@@ -58,7 +58,8 @@ Below are four buttons. The bottom-right one switches between two pages of them:
 
 Then the character's **ability text** and setup note, and its **reminder tokens**, ready to drag onto the board.
 
-On a phone, tapping a token opens a full-screen overlay with the same controls in one list.
+On a phone, tapping a token opens a full-screen overlay with the same controls in one list, under the character's
+token.
 
 Loric and fabled tokens have no name, alive/dead, alignment or wake controls: just **Show** and **Change character**.
 
