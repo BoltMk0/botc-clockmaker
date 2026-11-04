@@ -214,69 +214,6 @@ export function computeCenteredRowPositions(n: number, y: number, perRow: number
     });
 }
 
-// Clockwise angle of a token around the board centre, from the top (0) round to just under a full turn.
-function clockwiseFromTop(t: { x: number, y: number }): number {
-    return (Math.atan2(t.y, t.x) + Math.PI / 2 + 2 * Math.PI) % (2 * Math.PI);
-}
-
-const angleOf = (p: { x: number, y: number }) => Math.atan2(p.y, p.x);
-// Wraps an angle difference into (-PI, PI].
-const wrapAngle = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
-
-// Spaces the player tokens evenly round the circle, keeping their current order round the table (ranked by
-// clockwise angle from the top, so a token dragged in between two others ends up between them). Every other
-// token - character tokens with no player name, and reminders - travels with the nearest player by angle: when
-// that player moves to their new seat, the token is rotated about the board centre by the same angle and moved
-// in or out by the same distance, so it stays in the same place relative to them. Everything else about each
-// token is left as it was.
-// Tokens for which `isFixed` returns true (loric and fabled) stay exactly where they are, and aren't seated as players.
-// The players are seated at `radius` (default: see seatCircleRadius).
-export function layoutTokensAtDefaultPositions(
-    tokens: PlacedToken[],
-    reminders: PlacedReminder[],
-    isFixed: (token: PlacedToken) => boolean = () => false,
-    radius?: number
-): { tokens: PlacedToken[], reminders: PlacedReminder[] } {
-    const players = tokens.filter(t => isPlayerToken(t) && !isFixed(t));
-    if (players.length === 0) return { tokens, reminders };
-
-    const newPositionOf = new Map<PlacedToken, { x: number, y: number }>();
-    const circle = computeCirclePositions(players.length, radius ?? seatCircleRadius(players.length));
-    // The player closest to 12 o'clock (on either side) takes the top seat and the rest follow clockwise, so the
-    // ring turns whichever way is the shorter nudge rather than always anticlockwise.
-    const ordered = [...players].sort((a, b) => clockwiseFromTop(a) - clockwiseFromTop(b));
-    const fromTop = (t: PlacedToken) => Math.min(clockwiseFromTop(t), 2 * Math.PI - clockwiseFromTop(t));
-    const topIndex = ordered.reduce((best, t, i) => fromTop(t) < fromTop(ordered[best]) ? i : best, 0);
-    [...ordered.slice(topIndex), ...ordered.slice(0, topIndex)]
-        .forEach((t, i) => newPositionOf.set(t, circle[i]));
-
-    // The nearest player (by angle) to a point: the one a token at that point follows.
-    const nearestPlayer = (p: { x: number, y: number }): PlacedToken => {
-        const a = angleOf(p);
-        let nearest = players[0];
-        let nearestDiff = Infinity;
-        for (const player of players) {
-            const diff = Math.abs(wrapAngle(angleOf(player) - a));
-            if (diff < nearestDiff) { nearest = player; nearestDiff = diff; }
-        }
-        return nearest;
-    };
-    // Turns a token about the centre by as much as its player turns, and moves it in or out by as much as they
-    // move (never past the centre).
-    const followed = (p: { x: number, y: number }) => {
-        const player = nearestPlayer(p);
-        const seat = newPositionOf.get(player)!;
-        const angle = angleOf(p) + wrapAngle(angleOf(seat) - angleOf(player));
-        const distance = Math.max(0, Math.hypot(p.x, p.y) + Math.hypot(seat.x, seat.y) - Math.hypot(player.x, player.y));
-        return { x: Math.round(distance * Math.cos(angle)), y: Math.round(distance * Math.sin(angle)) };
-    };
-
-    return {
-        tokens: tokens.map(t => isFixed(t) ? t : ({ ...t, ...(newPositionOf.get(t) ?? followed(t)) })),
-        reminders: reminders.map(r => ({ ...r, ...followed(r) }))
-    };
-}
-
 // The grimoire for a draw that's just starting: the tokens sorted onto the grim rather than into the bag, and no
 // players yet - each is added by addDrawnSeatToken as they take their token.
 export function newGrimoireStateForDraw(

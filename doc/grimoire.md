@@ -72,8 +72,6 @@ Tap anywhere else to close the popup.
 - **Move** reminders by dragging them.
 - **Remove** a reminder by dragging it to the top or bottom edge of the screen.
 
-Reminders follow their nearest player when you [reset token positions](#the-sidebar).
-
 ## The token tray
 
 Open it with the tray button at the bottom of the screen (an arrow over three tokens); ✕ or tapping outside closes
@@ -171,14 +169,13 @@ The column of buttons on the side of the screen. The top row is always there; th
 | **Audio** (speaker) | A pop-out with **Dim**, play/pause and skip for whichever music player is running (Spotify or uploaded music), **Sting** (a big *Trigger Sting* button) and **Open mixer** (the [mixer](audio-mixer.md) as a remote). |
 | **Communications** | See [above](#communications-showing-things-to-players). |
 | **Hide grimoire** (eye) | Replaces the grim with a *"Grimoire Hidden"* screen, for when you leave the tablet lying around. **Unhide** brings it back. |
-| **Back** | Saves and returns to the Play page. |
+| **Go back** | Saves and returns to the Play page. |
 | **Set up a new game** (plus) | Opens the [setup](grimoire-setup.md), to start a new game on this grimoire, or to reset it. |
 | **Annotate** (pen) | Enters [annotate mode](#annotate-mode-drawing). |
 | **Lock** | Locks token positions so they can't be dragged by accident (tapping still works). Remembered on this device. |
-| **Reset token positions** | Spaces the players evenly round the **Near**, **Mid** or **Far** ring, keeping their order round the table. Unnamed tokens and reminders move with their nearest player; loric and fabled stay put. Only while unlocked. |
 | **Clock** | Shows or hides the clock in the middle. |
 | **Refresh** | Reloads the page. |
-| **Delete grim** (bin) | [Ends the game](#ending-a-game). |
+| **End game** (bin) | [Ends the game](#ending-a-game) and clears the grimoire. |
 
 A small indicator shows whether your latest changes are **saved**, **saving** or failed to save.
 
@@ -204,13 +201,13 @@ so you can close the tablet, reload or open the same grimoire on another device 
 The grimoire can be open on several devices at once, and they keep each other up to date: each change appears on the
 others as soon as it's saved. If two devices change it at the same moment, both changes are kept (one moving a token
 while the other renames it, say). A device in the middle of dragging a token or drawing a line takes in the other's
-changes once it has finished. If the grimoire is deleted on one device, the others go back to the Play page.
+changes once it has finished. If the game is ended on one device, the others reload as the empty grimoire.
 
 ## Undo
 
 The **undo** button (curved arrow, on the board whenever there's something to undo) takes back your changes one at a
 time, newest first: moving, adding or removing a token or reminder, a player's name, alive/dead, ghost vote,
-alignment, character or wake, resetting token positions, drawing, erasing or clearing lines, and adding or deleting a
+alignment, character or wake, drawing, erasing or clearing lines, and adding or deleting a
 bluff set. A two-finger tap while drawing does the same. Changing a name counts as one change however many letters
 you type, as long as you don't pause for more than a second.
 
@@ -222,13 +219,13 @@ list starts empty each time the page loads.
 
 ## Ending a game
 
-From **Delete grim** in the sidebar, or **End game** on the game's card on **Play**, choose:
+From **End game** in the sidebar, choose:
 
 - **Evil victory** or **Good victory** — records the result against the preset the game was set up from (shown as
-  the preset's win record), then deletes the grimoire;
-- **Just delete** — deletes it without recording anything;
+  the preset's win record), then clears the grimoire;
+- **No result** — clears it without recording anything;
 - **Cancel**.
 
-Deleting the grimoire can't be undone. The game itself (its clock, name and bells) stays, and opening its grimoire
-again gives an empty one with no script, ready for the next [setup](grimoire-setup.md). A grimoire open on another
-device when it's deleted reloads as the empty one.
+Clearing the grimoire can't be undone. The game itself (its clock, name and bells) stays, and the grimoire reopens
+empty, with no script, ready for the next [setup](grimoire-setup.md). A grimoire open on another device reloads as
+the empty one too.

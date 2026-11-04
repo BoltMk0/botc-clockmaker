@@ -36,8 +36,7 @@ one by hand. See [Settings → Characters](settings/characters.md) and [Settings
 ## Starting the setup
 
 Open the game's grimoire (**Play → Grimoire** on the game's card) and press **Set up a new game** (the plus) in its
-menu. Setting up a game replaces whatever is on the grimoire. Once a game is set up, its card on **Play** also has
-**End game** beneath **Grimoire**.
+menu. Setting up a game replaces whatever is on the grimoire.
 
 The setup is a six-step wizard. The steps are shown along the top; **← Back** goes back one step.
 

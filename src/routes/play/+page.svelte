@@ -7,12 +7,11 @@
     import RemoteIcon from '$lib/components/RemoteIcon.svelte';
     import PencilIcon from '$lib/components/PencilIcon.svelte';
     import type { Config } from '$lib/common/config';
-    import CustomOverlay from '$lib/components/CustomOverlay.svelte';
     import type { ClocktowerModel } from '$lib/model/common/ClocktowerModel';
     import type { ClockSfxPreset } from '$lib/audio/common/clockSfxPreset';
 
     let { data }: { data: {
-        games: { instance: ClocktowerModel, scriptId: string | null, scriptName: string | null, hasGrim: boolean }[],
+        games: { instance: ClocktowerModel, scriptId: string | null, scriptName: string | null }[],
         clockSfxPresets: ClockSfxPreset[]
     } } = $props();
 
@@ -93,33 +92,6 @@
         input.select();
     }
 
-    // The game whose grim the End game dialog is for.
-    let endGameId: string | null = $state(null);
-    let endGameVisible = $state(false);
-
-    function openEndGame(id: string){
-        endGameId = id;
-        endGameVisible = true;
-    }
-
-    // A winner credits the game to the preset it was set up from (if any) before the grim is deleted.
-    function endGame(winner?: 'good' | 'evil'){
-        endGameVisible = false;
-        const id = endGameId;
-        if(!id) return;
-        const query = winner ? `?winner=${winner}` : '';
-        fetch(`/admin/${id}/grim/state${query}`, { method: 'DELETE' }).then(response => {
-            if(!response.ok){
-                alert("Failed to end game");
-                throw new Error('Failed to end game');
-            }
-            localStorage.removeItem(`grimoire-state-${id}`);
-            return invalidateAll();
-        }).catch(error => {
-            console.error("Error ending game:", error);
-        });
-    }
-
 </script>
 
 <div class="play">
@@ -139,7 +111,7 @@
   </header>
   <p class="description">Open a game's town square or grimoire.</p>
 
-  {#each data.games as { instance, scriptId, scriptName, hasGrim } (instance.clock.clockId)}
+  {#each data.games as { instance, scriptId, scriptName } (instance.clock.clockId)}
     {@const id = instance.clock.clockId}
     <section class="card game-card">
         <div class="game-name">
@@ -213,14 +185,7 @@
             </label>
             <div class="game-panel-actions">
                 <a class="button-style" href="/townsquare/{id}"><TownSquareIcon size={36}/><span>Town Square</span></a>
-                {#if hasGrim}
-                    <div class="grim-actions">
-                        <a class="button-style" href="/admin/{id}/grim"><BookIcon size={36}/><span>Grimoire</span></a>
-                        <button class="button-style end-game" onclick={() => openEndGame(id)}>End game</button>
-                    </div>
-                {:else}
-                    <a class="button-style setup-grim" href="/admin/{id}/grim"><BookIcon size={36}/><span>Grimoire</span></a>
-                {/if}
+                <a class="button-style" href="/admin/{id}/grim"><BookIcon size={36}/><span>Grimoire</span></a>
             </div>
         </div>
     </section>
@@ -243,16 +208,6 @@
   </section>
   </div>
 </div>
-
-<CustomOverlay title="End game" showButton={false} showClose={false} bind:visible={endGameVisible}>
-    <p style="margin-top: 0;">Who won this game? This deletes the grimoire and cannot be undone.</p>
-    <div class="end-game-choices">
-        <button class="button-style evil-victory" onclick={() => endGame('evil')}>Evil victory</button>
-        <button class="button-style good-victory" onclick={() => endGame('good')}>Good victory</button>
-        <button class="button-style" onclick={() => endGame()}>Just delete</button>
-        <button class="button-style cancel" onclick={() => endGameVisible = false}>Cancel</button>
-    </div>
-</CustomOverlay>
 
 <style>
     .play {
@@ -563,54 +518,6 @@
         gap: 0.4em;
         align-items: center;
         justify-content: center;
-    }
-
-    .grim-actions {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5em;
-    }
-
-    .grim-actions > a {
-        flex: 1;
-    }
-
-    .game-panel-actions .end-game {
-        flex: 0 0 auto;
-        padding: 0.4em 0.5em;
-        font-size: medium;
-        background-color: #b63737;
-        color: #fff;
-    }
-
-    .end-game-choices {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .end-game-choices .button-style {
-        padding: 0.8em 1em;
-        text-align: center;
-    }
-
-    .end-game-choices .cancel {
-        margin-top: 10px;
-    }
-
-    .evil-victory {
-        background-color: #b63737;
-        color: #fff;
-    }
-
-    .good-victory {
-        background-color: #2563eb;
-        color: #fff;
-    }
-
-    .game-panel-actions .setup-grim {
-        background: transparent;
-        border: 2px dashed currentColor;
     }
 
     .empty {

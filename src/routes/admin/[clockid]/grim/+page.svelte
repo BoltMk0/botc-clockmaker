@@ -20,7 +20,7 @@
     import type { CanvasToolType } from "$lib/components/DrawableCanvas2/types.js";
     import AnotatableViewV2 from "$lib/components/DrawableCanvas2/AnotatableViewV2.svelte";
     import PlayerToken from "$lib/components/PlayerToken.svelte";
-    import { ALIGNMENT_RING_FACTORS, BOARD_TOKEN_SIZE, hasDeadVote, isPlayerToken, layoutTokensAtDefaultPositions, newGrimoireStateHistory, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
+    import { ALIGNMENT_RING_FACTORS, BOARD_TOKEN_SIZE, hasDeadVote, isPlayerToken, newGrimoireStateHistory, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
     import { v7 } from "uuid";
     import PencilIcon from "$lib/components/PencilIcon.svelte";
     import { characterImageUrl } from "$lib/resources/common/characterImages";
@@ -104,7 +104,7 @@
             if (saveGrimoireTimeout) clearTimeout(saveGrimoireTimeout);
             localStorage.removeItem(`grimoire-state-${data.clockid}`);
             // The grim is always there for the game: reloading opens a new, empty one.
-            alert('This grimoire has been deleted on another device.');
+            alert('This game has been ended on another device.');
             location.reload();
         }
     });
@@ -640,11 +640,12 @@
         viewTy = 0;
     }
 
-    let showDeleteGrim = $state(false);
+    let showEndGame = $state(false);
 
+    // Ends the game by deleting its grim, then reopens the grim, empty and with no script (the game always has one).
     // A winner credits the game to the preset it was set up from (if any) before the grim is deleted.
-    async function deleteGrim(winner?: 'good' | 'evil') {
-        showDeleteGrim = false;
+    async function endGame(winner?: 'good' | 'evil') {
+        showEndGame = false;
         // Drop any pending autosave so it can't recreate the grim after the delete.
         if (saveGrimoireTimeout) {
             clearTimeout(saveGrimoireTimeout);
@@ -656,29 +657,12 @@
             const response = await fetch(`grim/state${query}`, { method: 'DELETE' });
             if (!response.ok) throw new Error(response.statusText);
         } catch (er) {
-            console.error("Error deleting grim:", er);
-            alert("Failed to delete grim");
+            console.error("Error ending the game:", er);
+            alert("Failed to end the game");
             return;
         }
         localStorage.removeItem(`grimoire-state-${data.clockid}`);
-        goto('/play', { replaceState: true });
-    }
-
-    // The reset-positions popup, offering one choice per guide ring (innermost first).
-    let showResetPositions = $state(false);
-    const RESET_RING_LABELS = ['Near', 'Mid', 'Far'];
-
-    // Spaces the players evenly round the chosen guide ring in their current order; unnamed tokens and reminders rotate with the nearest player.
-    function resetTokenPositions(ringIndex: number) {
-        showResetPositions = false;
-        if (placedTokens.length === 0) return;
-        closeReminderTray();
-        const radius = tokenSize * ALIGNMENT_RING_FACTORS[ringIndex];
-        const laidOut = layoutTokensAtDefaultPositions(placedTokens, placedReminders, isSideRoleToken, radius);
-        gameState.present.placedTokens = laidOut.tokens;
-        gameState.present.placedReminders = laidOut.reminders;
-        saveGrimoire();
-        fitView();
+        location.reload();
     }
 
     // A second finger landed: whatever tap/drag the first finger was starting is now part of a pinch instead.
@@ -1514,9 +1498,7 @@
             top: 0;
             height: 100%;
             /* Slightly see-through, so the grim shows faintly behind the full-screen tray. */
-            background-color: color-mix(in srgb, var(--theme-bg-secondary) 88%, transparent);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
+            background-color: color-mix(in srgb, var(--theme-bg-secondary) 93%, transparent);
         }
         .token-tray-container {
             height: 100%;
@@ -2373,7 +2355,7 @@
         right: 52px;
     }
 
-    .sidebar-btn.delete-grim-btn {
+    .sidebar-btn.end-game-btn {
         color: #ff7b7b;
     }
 
@@ -2566,7 +2548,7 @@
         <!-- Go back -->
         <button class="sidebar-btn labelled" onclick={() => {saveGrimoire().then(()=>goto(`/play`, { replaceState: true }))} } title="Back to Play">
             <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
-            <span>Back</span>
+            <span>Go back</span>
         </button>
 
         <!-- Set up a new game on this grim (or reset it) -->
@@ -2661,22 +2643,6 @@
         </button>
 
 
-        {#if !tokensLocked}
-        <!-- Put all tokens back in their starting positions -->
-        <button class="sidebar-btn" onclick={() => { if (placedTokens.length > 0) showResetPositions = true; }} title="Reset token positions">
-            <svg viewBox="0 0 24 24">
-                <circle cx="12" cy="3.5" r="2.2" fill="currentColor"/>
-                <circle cx="18" cy="6" r="2.2" fill="currentColor"/>
-                <circle cx="20.5" cy="12" r="2.2" fill="currentColor"/>
-                <circle cx="18" cy="18" r="2.2" fill="currentColor"/>
-                <circle cx="12" cy="20.5" r="2.2" fill="currentColor"/>
-                <circle cx="6" cy="18" r="2.2" fill="currentColor"/>
-                <circle cx="3.5" cy="12" r="2.2" fill="currentColor"/>
-                <circle cx="6" cy="6" r="2.2" fill="currentColor"/>
-            </svg>
-        </button>
-        {/if}
-
         <!-- Show/Hide clock -->
         <button class="sidebar-btn" class:active={showClock} onclick={() => showClock = !showClock} title="{showClock ? 'Hide' : 'Show'} clock">
             <svg viewBox="0 0 24 24">
@@ -2693,8 +2659,8 @@
             </svg>
         </button>
 
-        <!-- Delete the grim, recording who won -->
-        <button class="sidebar-btn delete-grim-btn" onclick={() => showDeleteGrim = true} title="Delete grim">
+        <!-- End the game, recording who won, and clear the grim -->
+        <button class="sidebar-btn end-game-btn" onclick={() => showEndGame = true} title="End game">
             <svg viewBox="0 0 24 28">
                 <rect x="5" y="7" width="14" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
                 <path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -3282,34 +3248,18 @@
         </div>
     {/if}
 
-    {#if showResetPositions}
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {z_indecies.ui};" onclick={() => {showResetPositions = false;}} role="dialog" tabindex="0">
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div style="background: var(--theme-bg-secondary); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; max-width: 320px;" onclick={(e) => e.stopPropagation()} >
-                <h2 style="margin: 0; padding: 0;">Reset token positions</h2>
-                <div style="opacity: 0.8;">Space the players evenly round a ring. Other tokens follow their nearest player; loric and fabled stay put.</div>
-                <div style="display: flex; gap: 10px;">
-                    {#each RESET_RING_LABELS as label, index}
-                        <button class="button-style" style="flex: 1;" onclick={() => resetTokenPositions(index)}>{label}</button>
-                    {/each}
-                </div>
-                <button class="button-style" onclick={() => {showResetPositions = false;}}>Cancel</button>
-            </div>
-        </div>
-    {/if}
 
-    {#if showDeleteGrim}
+    {#if showEndGame}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {z_indecies.ui};" onclick={() => {showDeleteGrim = false;}} role="dialog" tabindex="0">
+        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {z_indecies.ui};" onclick={() => {showEndGame = false;}} role="dialog" tabindex="0">
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div style="background: var(--theme-bg-secondary); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; max-width: 320px;" onclick={(e) => e.stopPropagation()} >
-                <h2 style="margin: 0; padding: 0;">Delete grim</h2>
-                <div style="opacity: 0.8;">Who won this game? This cannot be undone.</div>
-                <button class="button-style" style="background-color: #b63737; color: #fff; padding: 0.8em 1em;" onclick={() => deleteGrim('evil')}>Evil victory</button>
-                <button class="button-style" style="background-color: #2563eb; color: #fff; padding: 0.8em 1em;" onclick={() => deleteGrim('good')}>Good victory</button>
-                <button class="button-style" style="padding: 0.8em 1em;" onclick={() => deleteGrim()}>Just delete</button>
-                <button class="button-style" style="padding: 0.8em 1em; margin-top: 10px;" onclick={() => {showDeleteGrim = false;}}>Cancel</button>
+                <h2 style="margin: 0; padding: 0;">End game</h2>
+                <div style="opacity: 0.8;">Who won this game? This clears the grim and cannot be undone.</div>
+                <button class="button-style" style="background-color: #b63737; color: #fff; padding: 0.8em 1em;" onclick={() => endGame('evil')}>Evil victory</button>
+                <button class="button-style" style="background-color: #2563eb; color: #fff; padding: 0.8em 1em;" onclick={() => endGame('good')}>Good victory</button>
+                <button class="button-style" style="padding: 0.8em 1em;" onclick={() => endGame()}>No result</button>
+                <button class="button-style" style="padding: 0.8em 1em; margin-top: 10px;" onclick={() => {showEndGame = false;}}>Cancel</button>
             </div>
         </div>
     {/if}
