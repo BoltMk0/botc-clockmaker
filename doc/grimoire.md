@@ -76,7 +76,7 @@ Tap anywhere else to close the popup.
 
 ## The token tray
 
-Open it with the tray button at the bottom of the screen (an arrow over three tokens); ✕ or tapping outside closes
+Open it with the **Token Tray** button at the bottom of the screen; ✕ or tapping outside closes
 it. On a phone it fills the screen, slightly see-through. It holds every character in the library, so any of them
 can be put on the grim. With a script, it starts with these, always open:
 

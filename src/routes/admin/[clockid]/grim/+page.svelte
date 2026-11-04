@@ -1438,12 +1438,27 @@
         box-sizing: border-box;
     }
 
+    /* Out to the tray's edges, past the container's padding */
     .token-tray-header {
         display: flex;
         justify-content: center;
         align-items: center;
         gap: 0.5em;
-        padding-bottom: 0.5em;
+        margin: -0.5em -0.5em 0.5em;
+    }
+
+    /* A bar right across the tray, tinted as the sections' headers are */
+    .tray-title {
+        flex: 1;
+        min-height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        /* Clear of the close button at its right end (on phones) */
+        padding: 0 44px;
+        /* The sections' header tint, but solid: the see-through phone tray doesn't show through it */
+        background: color-mix(in srgb, var(--theme-bg-secondary) 92%, white);
+        font-weight: 600;
     }
 
     .token-tray {
@@ -1636,10 +1651,13 @@
             position: relative;
             min-height: 40px;
         }
-        .tray-close-btn {
+        /* Centred at the title bar's right end (more specific than .overlay-close, which comes later) */
+        .token-tray-header .tray-close-btn {
             display: block;
-            top: 0;
-            right: 0;
+            top: 50%;
+            right: 4px;
+            transform: translateY(-50%);
+            z-index: 1;
         }
         .token-tray {
             flex: 1;
@@ -2541,15 +2559,18 @@
         bottom: 0;
         left: 50%;
         transform: translateX(-50%);
-        width: 60px;
-        height: 38px;
+        padding: 5px 14px 7px;
         border: none;
         border-radius: 8px 8px 0 0;
         background: var(--theme-bg-secondary);
         color: white;
+        font: inherit;
+        font-size: 14px;
+        white-space: nowrap;
         display: flex;
+        flex-direction: column;
         align-items: center;
-        justify-content: center;
+        gap: 3px;
         cursor: pointer;
         touch-action: manipulation;
         opacity: 0.85;
@@ -2560,9 +2581,23 @@
     }
 
     .open-tray-tab svg {
-        width: 28px;
-        height: 28px;
         fill: currentColor;
+    }
+
+    .open-tray-arrow {
+        width: 14px;
+        height: 8px;
+    }
+
+    .open-tray-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .open-tray-label svg {
+        width: 30px;
+        height: 14px;
     }
 
     .script-picker-row {
@@ -2985,14 +3020,17 @@
 
     {#if !showFooter}
         <button class="open-tray-btn open-tray-tab" class:drag-hidden={isDraggingAnything} onclick={toggleTray} title="Show token tray" style="z-index: {z_indecies.ui};">
-            <!-- Up arrow over a tray holding three tokens -->
-            <svg viewBox="0 0 24 24">
-                <path d="M8.5 6L12 2.5L15.5 6z"/>
-                <circle cx="7" cy="14.5" r="2.4"/>
-                <circle cx="12" cy="14.5" r="2.4"/>
-                <circle cx="17" cy="14.5" r="2.4"/>
-                <path d="M2.5 12v6.5a1.5 1.5 0 0 0 1.5 1.5h16a1.5 1.5 0 0 0 1.5-1.5V12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+            <!-- An up arrow, centred over the whole button, above a tray holding three tokens and the button's name -->
+            <svg class="open-tray-arrow" viewBox="8 2 8 4.5" aria-hidden="true"><path d="M8.5 6L12 2.5L15.5 6z"/></svg>
+            <span class="open-tray-label">
+                <svg viewBox="1.5 11 21 10" aria-hidden="true">
+                    <circle cx="7" cy="14.5" r="2.4"/>
+                    <circle cx="12" cy="14.5" r="2.4"/>
+                    <circle cx="17" cy="14.5" r="2.4"/>
+                    <path d="M2.5 12v6.5a1.5 1.5 0 0 0 1.5 1.5h16a1.5 1.5 0 0 0 1.5-1.5V12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Token Tray
+            </span>
         </button>
     {/if}
 
@@ -3001,7 +3039,7 @@
         <div class="token-tray-container">
             <div class="token-tray-header">
                 <button class="overlay-close tray-close-btn" onclick={() => showFooter = false} aria-label="Close">✕</button>
-                <div style="opacity: 0.7;">Token Tray</div>
+                <div class="tray-title">Token Tray</div>
             </div>
             <div class="token-tray">
                 {#if traySections.length === 0}
