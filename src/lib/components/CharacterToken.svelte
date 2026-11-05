@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { Character } from "$lib/resources/common/gameData";
+    import { CHARACTER_CATEGORY_COLORS, type Character } from "$lib/resources/common/gameData";
     import TokenBackground from "./TokenBackground.svelte";
     import DeadVoteIcon from "./DeadVoteIcon.svelte";
     import type { Alignment } from "$lib/resources/common/grimoireState";
@@ -43,17 +43,7 @@
     const curvedPathId = `curved-name-${Math.random().toString(36).slice(2, 10)}`;
     const playerNamePathId = `player-name-${Math.random().toString(36).slice(2, 10)}`;
 
-    const categoryColors: Record<string, string> = {
-        townsfolk: '#2563eb',
-        outsider: '#16a34a',
-        minion: '#9333ea',
-        demon: '#dc2626',
-        traveler: '#ca8a04',
-        loric: '#0d9488',
-        fabled: '#db2777',
-    };
-
-    const color = $derived(categoryColors[character.category] ?? '#666');
+    const color = $derived(CHARACTER_CATEGORY_COLORS[character.category] ?? '#666');
 
     // Colour the icon is forced to for each alignment (hex).
     const ALIGNMENT_ICON_COLORS: Record<Alignment, string> = { good: '#558bdf', evil: '#ca4444' };

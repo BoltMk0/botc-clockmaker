@@ -5,8 +5,8 @@ export type CharacterCategory = 'townsfolk' | 'outsider' | 'minion' | 'demon' | 
 export const CHARACTER_CATEGORY_COLORS: Record<CharacterCategory, string> = {
     townsfolk: '#2563eb',
     outsider: '#16a34a',
-    minion: '#dc2626',
-    demon: '#7c3aed',
+    minion: '#9333ea',
+    demon: '#dc2626',
     traveler: '#ca8a04',
     loric: '#0d9488',
     fabled: '#db2777',

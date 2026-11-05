@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { ALL_CHARACTER_CATEGORIES, CHARACTER_CATEGORIES, wakesFirstNight, wakesOtherNights, type Character, type CharacterCategory, type ScriptCharacter } from "$lib/resources/common/gameData.js";
+    import { ALL_CHARACTER_CATEGORIES, CHARACTER_CATEGORIES, CHARACTER_CATEGORY_COLORS, wakesFirstNight, wakesOtherNights, type Character, type CharacterCategory, type ScriptCharacter } from "$lib/resources/common/gameData.js";
     import CharacterThumb from "$lib/components/CharacterThumb.svelte";
     import { goto } from "$app/navigation";
     import type { PageData } from "./$types";
@@ -310,7 +310,9 @@
         user-select: none;
     }
 
+    /* In its category's colour */
     .category-badge {
+        color: #fff;
         font-size: 0.75em;
         padding: 0.1em 0.6em;
         border-radius: 0.75em;
@@ -319,13 +321,6 @@
         text-transform: uppercase;
         letter-spacing: 0.05em;
     }
-    .category-townsfolk { background-color: #4a90d9; color: #fff; }
-    .category-outsider  { background-color: #6fa9dc; color: #fff; }
-    .category-minion    { background-color: #d96a4a; color: #fff; }
-    .category-demon     { background-color: #b63737; color: #fff; }
-    .category-traveler  { background-color: #7a6fb6; color: #fff; }
-    .category-loric     { background-color: #2f9e8f; color: #fff; }
-    .category-fabled    { background-color: #c9508b; color: #fff; }
 
     .night-order-column {
         height: 100%;
@@ -448,7 +443,7 @@
                                         <div class="character-row-setup">[{character.setup}]</div>
                                     {/if}
                                 </div>
-                                <span class="category-badge category-{character.category}">{captialiseString(character.category)}</span>
+                                <span class="category-badge" style="background-color: {CHARACTER_CATEGORY_COLORS[character.category]};">{captialiseString(character.category)}</span>
                             </button>
                         </div>
                     {/each}
