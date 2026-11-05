@@ -14,7 +14,7 @@
     import { GrimoireUndo } from "$lib/model/client/GrimoireUndo.svelte";
     import FullDisplay from "$lib/components/FullDisplay/FullDisplay.svelte";
     import { flushSync, onMount, type Snippet } from "svelte";
-    import { fly } from "svelte/transition";
+    import { fly, slide } from "svelte/transition";
     import { cubicIn, cubicOut } from "svelte/easing";
     import ClockSetter from "$lib/components/ClockSetter.svelte";
     import type { CanvasToolType } from "$lib/components/DrawableCanvas2/types.js";
@@ -1946,7 +1946,6 @@
     .night-sheet-list > li {
         display: flex;
         flex-direction: column;
-        gap: 0.4em;
         padding: 0.4em 0.6em;
         border-radius: 0.6em;
         border-left: 4px solid transparent;
@@ -2034,7 +2033,9 @@
         display: flex;
         flex-direction: column;
         gap: 0.4em;
-    }
+            /* Padding rather than the row's gap, so it grows and shrinks with the presets as they slide open and shut */
+        padding-top: 0.4em;
+}
 
     /* As the token popup's buttons; less padded than the overlay's own */
     .overlay-panel .night-sheet-presets > .popup-toggle {
@@ -3508,7 +3509,7 @@
                                 {@render nightRow(infoHead, single ? () => showPreset(entry.presets[0]) : () => toggleNightComms(entry.id),
                                     `${entry.name} communications`, single ? null : nightCommsOpen.has(entry.id))}
                                 {#if !single && nightCommsOpen.has(entry.id)}
-                                    <div class="night-sheet-presets">
+                                    <div class="night-sheet-presets" transition:slide={{ duration: 200 }}>
                                         {#each entry.presets as preset}
                                             <button class="popup-toggle" onclick={() => showPreset(preset)}>{presetDisplayName(preset)}</button>
                                         {/each}
@@ -3539,7 +3540,7 @@
                                     presets.length === 1 ? () => showPreset(presets[0], character.id) : presets.length > 1 ? () => toggleNightComms(character.id) : null,
                                     `${character.name}'s communications`, presets.length > 1 ? nightCommsOpen.has(character.id) : null)}
                                 {#if presets.length > 1 && nightCommsOpen.has(character.id)}
-                                    <div class="night-sheet-presets">
+                                    <div class="night-sheet-presets" transition:slide={{ duration: 200 }}>
                                         {#each presets as preset}
                                             <button class="popup-toggle" onclick={() => showPreset(preset, character.id)}>{presetDisplayName(preset)}</button>
                                         {/each}
