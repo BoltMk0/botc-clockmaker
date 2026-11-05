@@ -879,12 +879,27 @@
     // The tabs are hidden while either builder is on one of its own screens (picking characters, say).
     const commsTabsShown = $derived(commsTab === 'preset' ? presetEditor === null || presetBuilderView === 'builder' : builderView === 'builder');
 
-    function openComms() {
+    // The character communications were opened for (from the player info or the night order), if any: named in the
+    // overlay, and their reminders shown over the characters in its pickers.
+    let commsCharacterId = $state<string | null>(null);
+    function openComms(characterId: string | null = null) {
         messageElements = [];
         builderView = 'builder';
         presetEditor = null;
+        commsCharacterId = characterId;
         commsView = 'main';
     }
+
+    // Opens communications on its Custom tab, for the character.
+    function openCustomComms(characterId: string) {
+        openComms(characterId);
+        commsTab = 'custom';
+    }
+
+    // For a character's communications pickers: their reminders beside each character (none without a character).
+    const characterRemindersFor = (characterId: string | null | undefined) => characterId
+        ? (id: string) => (remindersByCharacterId[id] ?? []).filter(r => r.characterId === characterId)
+        : undefined;
 
     function showCustomMessage() {
         const elements = $state.snapshot(messageElements);
@@ -997,7 +1012,7 @@
     function showPreset(preset: MessagePreset, forCharacterId?: string) {
         const elements = withRemindersResolved(preset.elements);
         if (!hasNoBlanks(elements)) {
-            if (commsView === null) openComms();
+            if (commsView === null) openComms(forCharacterId ?? null);
             commsView = 'main';
             commsTab = 'preset';
             presetEditor = { mode: 'fill', name: preset.name, elements: structuredClone($state.snapshot(elements)), forCharacterId };
@@ -1019,7 +1034,7 @@
     };
 
     // Whether the player info (the token popup, or the overlay on mobile) is listing the character's presets for
-    // tonight in place of its buttons. One preset alone is shown straight away instead.
+    // tonight, and Custom, in place of its buttons. With no presets, Custom is opened straight away instead.
     let playerCommsShown = $state(false);
     $effect(() => {
         void activeTokenId; void overlayOpen;
@@ -1027,8 +1042,8 @@
     });
     function openPlayerComms(characterId: string) {
         const presets = characterPresetsFor(characterId, currentNight);
-        if (presets.length === 1) showPreset(presets[0], characterId);
-        else if (presets.length > 1) playerCommsShown = true;
+        if (presets.length === 0) openCustomComms(characterId);
+        else playerCommsShown = true;
     }
 
     // The bluffs from communications: queued as a message like the bluffs page, or shown on that page.
@@ -2872,7 +2887,7 @@
         </button>
 
         <!-- Communications: things to show a player -->
-        <button class="sidebar-btn" class:active={commsView !== null} onclick={openComms} title="Communications">
+        <button class="sidebar-btn" class:active={commsView !== null} onclick={() => openComms()} title="Communications">
             <svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM6.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0zM10.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0zM14.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0z"/></svg>
         </button>
 
@@ -3173,6 +3188,7 @@
                                 {#each characterPresetsFor(activeChar.id, currentNight) as preset}
                                     <button type="button" class="popup-toggle popup-wide" onclick={() => showPreset(preset, activeChar.id)}>{presetDisplayName(preset)}</button>
                                 {/each}
+                                <button type="button" class="popup-toggle popup-wide" onclick={() => openCustomComms(activeChar.id)}>Custom</button>
                                 <button type="button" class="popup-toggle popup-wide" onclick={() => playerCommsShown = false}>&lsaquo; Back</button>
                             {:else if sideRole}
                                 {#if activeChar}
@@ -3195,7 +3211,7 @@
                                 </button>
                                 <button type="button" class="popup-toggle with-icon" disabled={!activeChar} onclick={() => activeChar && viewCharacter(activeChar.id)}>{@render eyeIcon()}Show</button>
                                 <!-- The character's own presets for tonight -->
-                                <button type="button" class="popup-toggle with-icon" disabled={characterPresetsFor(activeChar?.id, currentNight).length === 0}
+                                <button type="button" class="popup-toggle with-icon" disabled={!activeChar}
                                     onclick={() => activeChar && openPlayerComms(activeChar.id)}>{@render commsIcon()}Comms</button>
                             {/if}
                         </div>
@@ -3378,6 +3394,7 @@
                         {#each characterPresetsFor(oc.id, currentNight) as preset}
                             <button type="button" class="popup-toggle" onclick={(e) => { e.stopPropagation(); showPreset(preset, oc.id); }}>{presetDisplayName(preset)}</button>
                         {/each}
+                        <button type="button" class="popup-toggle" onclick={(e) => { e.stopPropagation(); openCustomComms(oc.id); }}>Custom</button>
                         <button type="button" class="button-style" onclick={(e) => { e.stopPropagation(); playerCommsShown = false; }}>&lsaquo; Back</button>
                     </div>
                 {:else if overlayFromBoard && activeToken}
@@ -3397,7 +3414,7 @@
                         {/if}
                         {#if oc}
                             <button type="button" class="button-style with-icon" onclick={() => viewCharacter(oc.id)}>{@render eyeIcon()}Show</button>
-                            {#if !sideRole && characterPresetsFor(oc.id, currentNight).length > 0}
+                            {#if !sideRole}
                                 <button type="button" class="button-style with-icon" onclick={(e) => { e.stopPropagation(); openPlayerComms(oc.id); }}>{@render commsIcon()}Comms</button>
                             {/if}
                         {/if}
@@ -3518,6 +3535,9 @@
                 {:else}
                     {#if commsTabsShown}
                         <div class="overlay-name dumbledore-font">Communications</div>
+                        {#if commsCharacterId && characterById.get(commsCharacterId)}
+                            <div class="overlay-category">For {characterById.get(commsCharacterId)?.name}</div>
+                        {/if}
                         <div class="overlay-tabs comms-tabs" role="tablist" aria-label="Communications">
                             <button role="tab" aria-selected={commsTab === 'preset'} class:selected={commsTab === 'preset'} onclick={() => commsTab = 'preset'}>Preset</button>
                             <button role="tab" aria-selected={commsTab === 'custom'} class:selected={commsTab === 'custom'} onclick={() => commsTab = 'custom'}>Custom</button>
@@ -3570,7 +3590,7 @@
                             characters={availableCharacters}
                             faded={id => !isInPlay(id)}
                             openSections={commsOpenSections}
-                            reminders={presetEditor.forCharacterId ? (id => (remindersByCharacterId[id] ?? []).filter(r => r.characterId === presetEditor?.forCharacterId)) : undefined}
+                            reminders={characterRemindersFor(presetEditor.forCharacterId ?? commsCharacterId)}
                             tokenSize={trayTokenSize}
                             imageSize={TRAY_IMAGE_SIZE}
                             blanks={presetEditor.mode === 'new' ? 'add' : 'fill'}
@@ -3586,7 +3606,7 @@
                     {:else if commsTab === 'preset'}
                         {#each messagePresets as preset}
                             <div class="comms-preset-row">
-                                <button class="button-style" onclick={() => showPreset(preset)}>{presetDisplayName(preset)}</button>
+                                <button class="button-style" onclick={() => showPreset(preset, commsCharacterId ?? undefined)}>{presetDisplayName(preset)}</button>
                                 <button class="no-button-style comms-preset-delete" onclick={() => deletePreset(preset)}
                                     aria-label="Delete {presetDisplayName(preset)}" title="Delete preset"><TrashIcon size={20}/></button>
                             </div>
@@ -3605,6 +3625,7 @@
                             sections={commsSections}
                             characters={availableCharacters}
                             faded={id => !isInPlay(id)}
+                            reminders={characterRemindersFor(commsCharacterId)}
                             openSections={commsOpenSections}
                             tokenSize={trayTokenSize}
                             imageSize={TRAY_IMAGE_SIZE}
