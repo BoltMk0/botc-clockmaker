@@ -4,7 +4,7 @@
 </script>
 
 <script lang="ts">
-    import { TEXT_STYLES, type MessageElement, type TextOption } from "$lib/common/message";
+    import { TEXT_STYLES, type MessageElement, type PresetElement, type TextOption } from "$lib/common/message";
     import { rulesWithSetup, type Character } from "$lib/resources/common/gameData";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import MessageText from "$lib/components/MessageText.svelte";
@@ -12,6 +12,8 @@
     // Builds a message to show a player from text, character and alignment elements - in the grim's communications,
     // and for the message presets in settings. The host shows what goes round it (a title, the Show or Save button,
     // and a Back button that calls back()) while the view is 'builder'; the other views add or change an element.
+    // A preset can have blanks: with `blanks` 'add', Blank is a fourth element type, and with 'fill' each blank offers
+    // the other three types in its place, to fill it in before the message is shown.
     let {
         elements = $bindable(),
         view = $bindable('builder'),
@@ -21,8 +23,9 @@
         faded = () => false,
         tokenSize,
         imageSize = 256,
+        blanks = 'none',
     }: {
-        elements: MessageElement[];
+        elements: PresetElement[];
         view?: MessageBuilderView;
         textOptions: TextOption[];
         // The characters to pick from, section by section.
@@ -33,10 +36,14 @@
         faded?: (characterId: string) => boolean;
         tokenSize: number;
         imageSize?: number;
+        blanks?: 'none' | 'add' | 'fill';
     } = $props();
 
     // What the "Add element" box shows: itself, the element types, or the two alignments.
     let addElementStep = $state<'closed' | 'type' | 'alignment'>('closed');
+    // The blank being filled in (null when adding a new element), and the blank showing the two alignments, if any.
+    let fillingIndex = $state<number | null>(null);
+    let alignmentBlankIndex = $state<number | null>(null);
 
     /** Goes back a step: true if it did, false if already at the builder (for the host to close it). */
     export function back(): boolean {
@@ -45,15 +52,34 @@
             view = 'text';
         } else {
             addElementStep = 'closed';
+            fillingIndex = null;
             view = 'builder';
         }
         return true;
     }
 
-    function addElement(element: MessageElement) {
-        elements.push(element);
+    // Adds the element, or puts it in place of the blank being filled in.
+    function addElement(element: PresetElement) {
+        if (fillingIndex !== null) elements[fillingIndex] = element;
+        else elements.push(element);
+        fillingIndex = null;
+        alignmentBlankIndex = null;
         addElementStep = 'closed';
         view = 'builder';
+    }
+
+    function openAddElement() {
+        fillingIndex = null;
+        alignmentBlankIndex = null;
+        addElementStep = 'type';
+    }
+
+    function fillBlank(elementIndex: number, type: 'text' | 'character' | 'alignment') {
+        fillingIndex = elementIndex;
+        addElementStep = 'closed';
+        alignmentBlankIndex = type === 'alignment' ? elementIndex : null;
+        if (type === 'text') view = 'text';
+        else if (type === 'character') openCharacterPicker(null);
     }
 
     function toggleAlignment(elementIndex: number) {
@@ -129,6 +155,7 @@
             addElement(element);
         } else {
             elements[editingElementIndex] = element;
+            fillingIndex = null;
             view = 'builder';
         }
     }
@@ -152,12 +179,30 @@
                                 {/if}
                             {/each}
                         </button>
-                    {:else}
+                    {:else if element.type === 'alignment'}
                         <button class="no-button-style element-body alignment-preview dumbledore-font {element.value}" title="Switch alignment" onclick={() => toggleAlignment(elementIndex)}>
                             {element.value === 'good' ? 'GOOD' : 'EVIL'}
                         </button>
+                    {:else if blanks === 'fill' && alignmentBlankIndex === elementIndex}
+                        <div class="element-body add-element choices">
+                            <button class="button-style alignment-choice good dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'good' })}>GOOD</button>
+                            <button class="button-style alignment-choice evil dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'evil' })}>EVIL</button>
+                            <button class="no-button-style remove-element" title="Back" aria-label="Back" onclick={() => alignmentBlankIndex = null}>✕</button>
+                        </div>
+                    {:else if blanks === 'fill'}
+                        <!-- To be filled in before the message is shown -->
+                        <div class="element-body add-element choices">
+                            <button class="no-button-style element-type" onclick={() => fillBlank(elementIndex, 'text')}>Text</button>
+                            <button class="no-button-style element-type" disabled={sections.length === 0} onclick={() => fillBlank(elementIndex, 'character')}>Character</button>
+                            <button class="no-button-style element-type" onclick={() => fillBlank(elementIndex, 'alignment')}>Alignment</button>
+                        </div>
+                    {:else}
+                        <div class="element-body blank-preview">Blank</div>
                     {/if}
-                    <button class="no-button-style remove-element" title="Remove" aria-label="Remove" onclick={() => elements.splice(elementIndex, 1)}>✕</button>
+                    <!-- A blank being filled in has to be filled, so it can't be taken out -->
+                    {#if !(blanks === 'fill' && element.type === 'blank')}
+                        <button class="no-button-style remove-element" title="Remove" aria-label="Remove" onclick={() => elements.splice(elementIndex, 1)}>✕</button>
+                    {/if}
                 </div>
             {/each}
 
@@ -166,6 +211,9 @@
                     <button class="no-button-style element-type" onclick={() => view = 'text'}>Text</button>
                     <button class="no-button-style element-type" disabled={sections.length === 0} onclick={() => openCharacterPicker(null)}>Character</button>
                     <button class="no-button-style element-type" onclick={() => addElementStep = 'alignment'}>Alignment</button>
+                    {#if blanks === 'add'}
+                        <button class="no-button-style element-type" onclick={() => addElement({ type: 'blank' })}>Blank</button>
+                    {/if}
                     <button class="no-button-style remove-element" title="Cancel" aria-label="Cancel" onclick={() => addElementStep = 'closed'}>✕</button>
                 </div>
             {:else if addElementStep === 'alignment'}
@@ -175,7 +223,7 @@
                     <button class="no-button-style remove-element" title="Back" aria-label="Back" onclick={() => addElementStep = 'type'}>✕</button>
                 </div>
             {:else}
-                <button class="no-button-style add-element" onclick={() => addElementStep = 'type'}>Add element</button>
+                <button class="no-button-style add-element" onclick={openAddElement}>Add element</button>
             {/if}
         </div>
     {:else if view === 'text'}
@@ -323,6 +371,15 @@
 
     .alignment-preview.evil {
         color: #ca4444;
+    }
+
+    /* A blank in a preset being built: filled in each time the preset is shown */
+    .blank-preview {
+        padding: 1em;
+        border: 2px dashed currentColor;
+        border-radius: 0.6em;
+        opacity: 0.6;
+        font-style: italic;
     }
 
     .remove-element {

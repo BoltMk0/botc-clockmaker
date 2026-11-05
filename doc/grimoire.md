@@ -144,11 +144,20 @@ Your [message presets](settings/communications.md#presets), each shown in one ta
 which, if there are several). With none yet, it lets you create one: choose at least three characters and press
 **Add bluff set**.
 
+A preset with **blanks** opens in the message builder first instead. In each blank's place, choose **Text**,
+**Character** or **Alignment** and fill it in as you'd add that element; **Show** (or **Add to queue**) is greyed out
+until every blank is filled. You can change the rest of the message there too, just for this time. **Cancel** returns
+to the presets.
+
+**+ New preset**, at the bottom, makes a new preset in the message builder: give it a name (its first text, if you
+don't) and build it as in [Custom](#custom), where **Add element** also offers **Blank**, a space to fill in each time
+the preset is shown. **Save preset** adds it to the end of your presets.
+
 ### Custom
 
 A message builder, empty each time. Put together what you want to show from any number of **elements**, then press
-**Show**: they're drawn top to bottom. Tick **Save as a preset** above **Show** to add the message to your presets as
-well, under the name you give it (its first text, if you don't).
+**Show**: they're drawn top to bottom. To keep a message for next time, make it a preset with **+ New preset** in the
+[Preset](#preset) tab.
 
 Tap **Add element** (the dashed box), then choose:
 

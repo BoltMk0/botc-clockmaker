@@ -15,14 +15,14 @@ Each preset has a **name** — its button in the grimoire — and a message, sho
 
 - **+ Add preset** starts a new one in the message builder. **Edit** opens one there.
 - The builder works as in the grimoire's [Custom tab](../grimoire.md#custom): **Add element**, then **Text**,
-  **Character** or **Alignment**. With no script here, the characters are every character, by type. **Done** (or
-  **Back**) returns to the list.
+  **Character** or **Alignment** — or **Blank**, a space filled in with one of those each time the preset is shown
+  (see the [Preset tab](../grimoire.md#preset)). With no script here, the characters are every character, by type.
+  **Done** (or **Back**) returns to the list.
 - **↑** / **↓** move a preset up or down the list; **✕** deletes it.
 
 Press **Save changes** when you're done.
 
-You can also save a preset from the grimoire: build a message in the Custom tab and tick **Save as a preset** before
-**Show**.
+You can also make a preset from the grimoire: **+ New preset** at the bottom of the Preset tab.
 
 ## Texts
 

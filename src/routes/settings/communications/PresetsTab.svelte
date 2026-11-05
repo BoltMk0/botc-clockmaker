@@ -126,8 +126,10 @@
                                 <img src={characterImageUrl(characterId, 128)} alt={charactersById[characterId]?.name ?? ''} title={charactersById[characterId]?.name ?? ''} />
                             {/each}
                         </div>
-                    {:else}
+                    {:else if element.type === 'alignment'}
                         <div class="preview-alignment dumbledore-font {element.value}">{element.value === 'good' ? 'GOOD' : 'EVIL'}</div>
+                    {:else}
+                        <div class="preview-blank">Blank</div>
                     {/if}
                 {:else}
                     <div class="empty">Empty - press Edit to build it.</div>
@@ -166,6 +168,7 @@
                     characters={charactersById}
                     tokenSize={56}
                     imageSize={128}
+                    blanks="add"
                 />
                 {#if builderView === 'builder'}
                     <button class="done" onclick={() => editing = null}>Done</button>
@@ -279,6 +282,15 @@
         height: 3em;
         border-radius: 50%;
         object-fit: cover;
+    }
+
+    /* Filled in each time the preset is shown */
+    .preview-blank {
+        padding: 0.4em 1.2em;
+        border: 2px dashed currentColor;
+        border-radius: 0.5em;
+        opacity: 0.6;
+        font-style: italic;
     }
 
     .preview-alignment {

@@ -1,6 +1,6 @@
 <script lang="ts">
     import { fetchScriptWithSideCharacters } from "$lib/resources/client/scriptWithSideCharacters";
-    import type { MessageElement, MessagePreset, TextOption } from "$lib/common/message";
+    import { hasNoBlanks, type MessageElement, type MessagePreset, type PresetElement, type TextOption } from "$lib/common/message";
     import { alignmentForCategory, bluffSetsOf, ALL_CHARACTER_CATEGORIES, type Character, type CharacterCategory, type ReminderToken, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import MessageBuilder, { type MessageBuilderView } from "$lib/components/MessageBuilder.svelte";
@@ -814,7 +814,7 @@
     }
 
     // The custom message being built, and which of the builder's screens is showing.
-    let messageElements = $state<MessageElement[]>([]);
+    let messageElements = $state<PresetElement[]>([]);
     let builderView = $state<MessageBuilderView>('builder');
 
     // svelte-ignore state_referenced_locally
@@ -822,38 +822,62 @@
     // svelte-ignore state_referenced_locally
     let messagePresets = $state<MessagePreset[]>(data.messagePresets);
 
-    // Whether to add the custom message to the presets when it's shown, and under what name.
-    let saveAsPreset = $state(false);
-    let presetName = $state('');
-    const defaultPresetName = $derived(
-        messageElements.find((e): e is MessageElement & { type: 'text' } => e.type === 'text')?.value.replaceAll('*', '').trim() || 'Custom message'
-    );
+    // A message's name in the queue (or a new preset's, if it isn't given one): its first text.
+    const nameFromElements = (elements: PresetElement[]) =>
+        elements.find((e): e is MessageElement & { type: 'text' } => e.type === 'text')?.value.replaceAll('*', '').trim() || 'Custom message';
+
+    // The Preset tab's builder, in place of its list: a new preset being made (which can have blanks), or a preset
+    // with blanks being filled in before it's shown.
+    let presetEditor = $state<{ mode: 'new' | 'fill'; name: string; elements: PresetElement[] } | null>(null);
+    let presetBuilderView = $state<MessageBuilderView>('builder');
+    const presetEditorFilled = $derived(presetEditor !== null && presetEditor.elements.length > 0 && hasNoBlanks(presetEditor.elements));
+    // The tabs are hidden while either builder is on one of its own screens (picking characters, say).
+    const commsTabsShown = $derived(commsTab === 'preset' ? presetEditor === null || presetBuilderView === 'builder' : builderView === 'builder');
 
     function openComms() {
         messageElements = [];
         builderView = 'builder';
-        saveAsPreset = false;
-        presetName = '';
+        presetEditor = null;
         commsView = 'main';
     }
 
-    async function showCustomMessage() {
+    function showCustomMessage() {
         const elements = $state.snapshot(messageElements);
-        const name = presetName.trim() || defaultPresetName;
-        if (saveAsPreset) await savePreset({ name, elements });
+        if (!hasNoBlanks(elements)) return;
         if (messageQueue.enabled) {
-            queueMessage(name, elements);
+            queueMessage(nameFromElements(elements), elements);
             // Ready for the next one
             messageElements = [];
-            saveAsPreset = false;
-            presetName = '';
+        } else {
+            showMessage(elements);
+        }
+    }
+
+    function newPreset() {
+        presetEditor = { mode: 'new', name: '', elements: [] };
+        presetBuilderView = 'builder';
+    }
+
+    async function saveNewPreset() {
+        if (!presetEditor || presetEditor.elements.length === 0) return;
+        const elements = $state.snapshot(presetEditor.elements);
+        if (await savePreset({ name: presetEditor.name.trim() || nameFromElements(elements), elements })) presetEditor = null;
+    }
+
+    function showFilledPreset() {
+        if (!presetEditor) return;
+        const elements = $state.snapshot(presetEditor.elements);
+        if (!hasNoBlanks(elements)) return;
+        if (messageQueue.enabled) {
+            queueMessage(presetEditor.name || 'Untitled', elements);
+            presetEditor = null;
         } else {
             showMessage(elements);
         }
     }
 
     // Adds to the saved presets as they are now, so as not to undo changes made in settings since this page loaded.
-    async function savePreset(preset: MessagePreset) {
+    async function savePreset(preset: MessagePreset): Promise<boolean> {
         try {
             const current = await fetch('/api/messagePresets').then(r => {
                 if (!r.ok) throw new Error(`${r.status}`);
@@ -867,8 +891,10 @@
             });
             if (!res.ok) throw new Error(`${res.status}`);
             messagePresets = updated;
+            return true;
         } catch {
             alert('Failed to save the preset');
+            return false;
         }
     }
 
@@ -879,9 +905,17 @@
         goto(`/admin/${data.clockid}/grim/message?${params}`);
     }
 
+    // A preset with blanks opens in the builder first, to fill them in.
     function showPreset(preset: MessagePreset) {
-        if (messageQueue.enabled) queueMessage(preset.name || 'Untitled', preset.elements);
-        else showMessage(preset.elements);
+        const elements = preset.elements;
+        if (!hasNoBlanks(elements)) {
+            presetEditor = { mode: 'fill', name: preset.name, elements: structuredClone($state.snapshot(elements)) };
+            presetBuilderView = 'builder';
+        } else if (messageQueue.enabled) {
+            queueMessage(preset.name || 'Untitled', elements);
+        } else {
+            showMessage(elements);
+        }
     }
 
     // The bluffs from communications: queued as a message like the bluffs page, or shown on that page.
@@ -1972,26 +2006,23 @@
         text-overflow: ellipsis;
     }
 
-    .save-preset {
-        width: 100%;
-        margin-top: 1.2em;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.5em;
-    }
-
-    .save-preset label {
-        display: flex;
-        align-items: center;
-        gap: 0.4em;
-    }
-
-    .save-preset .preset-name {
+    /* A new preset's name, above its builder */
+    .comms-panel .preset-name {
         width: 100%;
         box-sizing: border-box;
         padding: 0.7em;
         font-size: 1.1em;
+    }
+
+    .preset-editor-title {
+        font-size: 1.3em;
+        font-weight: bold;
+    }
+
+    /* Set apart from the presets above it, as it makes one rather than showing one */
+    .comms-panel > .new-preset {
+        margin-top: 0.8em;
+        border-style: dashed;
     }
 
     .overlay-close {
@@ -3219,7 +3250,7 @@
                         <button class="button-style" onclick={() => showCommsBluffs(setIndex)}>Bluff set {setIndex + 1}</button>
                     {/each}
                 {:else}
-                    {#if commsTab === 'preset' || builderView === 'builder'}
+                    {#if commsTabsShown}
                         <div class="overlay-name dumbledore-font">Communications</div>
                         <div class="overlay-tabs comms-tabs" role="tablist" aria-label="Communications">
                             <button role="tab" aria-selected={commsTab === 'preset'} class:selected={commsTab === 'preset'} onclick={() => commsTab = 'preset'}>Preset</button>
@@ -3256,15 +3287,44 @@
                             <button class="button-style queue-clear" onclick={() => messageQueue.clear()}>Clear</button>
                         {/if}
                         <button class="button-style highlight" disabled={messageQueue.messages.length === 0} onclick={showQueue}>Show</button>
+                    {:else if commsTab === 'preset' && presetEditor}
+                        {#if presetBuilderView === 'builder'}
+                            {#if presetEditor.mode === 'new'}
+                                <input type="text" class="preset-name" placeholder="Preset name" bind:value={presetEditor.name} aria-label="Preset name" />
+                            {:else}
+                                <div class="preset-editor-title">{presetEditor.name || 'Untitled'}</div>
+                                <p class="comms-empty">Fill in the blanks to show it.</p>
+                            {/if}
+                        {/if}
+                        <MessageBuilder
+                            bind:elements={presetEditor.elements}
+                            bind:view={presetBuilderView}
+                            bind:textOptions
+                            sections={commsSections}
+                            characters={availableCharacters}
+                            faded={isInPlay}
+                            tokenSize={trayTokenSize}
+                            imageSize={TRAY_IMAGE_SIZE}
+                            blanks={presetEditor.mode === 'new' ? 'add' : 'fill'}
+                        />
+                        {#if presetBuilderView === 'builder'}
+                            {#if presetEditor.mode === 'new'}
+                                <button class="button-style highlight" disabled={presetEditor.elements.length === 0} onclick={saveNewPreset}>Save preset</button>
+                            {:else}
+                                <button class="button-style highlight" disabled={!presetEditorFilled} onclick={showFilledPreset}>{messageQueue.enabled ? 'Add to queue' : 'Show'}</button>
+                            {/if}
+                            <button class="button-style" onclick={() => presetEditor = null}>Cancel</button>
+                        {/if}
                     {:else if commsTab === 'preset'}
                         {#each messagePresets as preset}
                             <button class="button-style" onclick={() => showPreset(preset)}>{preset.name || 'Untitled'}</button>
                         {:else}
-                            <p class="comms-empty">No presets yet. Add them in Settings → Communications.</p>
+                            <p class="comms-empty">No presets yet.</p>
                         {/each}
                         <button class="button-style" disabled={bluffSets.length === 0 && !(script && loadedPreset)} onclick={chooseBluffs}>
                             {bluffSets.length === 0 ? 'Bluffs (create a bluff set)' : 'Bluffs'}
                         </button>
+                        <button class="button-style new-preset" onclick={newPreset}>+ New preset</button>
                     {:else}
                         <MessageBuilder
                             bind:elements={messageElements}
@@ -3277,12 +3337,6 @@
                             imageSize={TRAY_IMAGE_SIZE}
                         />
                         {#if builderView === 'builder'}
-                            <div class="save-preset">
-                                <label><input type="checkbox" bind:checked={saveAsPreset} /> Save as a preset</label>
-                                {#if saveAsPreset}
-                                    <input type="text" class="preset-name" placeholder={defaultPresetName} bind:value={presetName} aria-label="Preset name" />
-                                {/if}
-                            </div>
                             <button class="button-style highlight" disabled={messageElements.length === 0} onclick={showCustomMessage}>{messageQueue.enabled ? 'Add to queue' : 'Show'}</button>
                         {/if}
                     {/if}

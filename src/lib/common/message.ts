@@ -35,15 +35,30 @@ export function isMessageElement(data: any): data is MessageElement {
     return false;
 }
 
-// A ready-made message, set up in settings and shown from the grim's communications in one tap.
+// A space in a message preset, filled in with a text, character or alignment element each time it's shown.
+export type BlankElement = { type: 'blank' };
+// An element of a message preset: one of a message's, or a blank.
+export type PresetElement = MessageElement | BlankElement;
+
+export function isPresetElement(data: any): data is PresetElement {
+    return isMessageElement(data) || (typeof data === 'object' && data !== null && data.type === 'blank');
+}
+
+// True once every blank has been filled in, so the message can be shown.
+export function hasNoBlanks(elements: PresetElement[]): elements is MessageElement[] {
+    return elements.every(e => e.type !== 'blank');
+}
+
+// A ready-made message, set up in settings or the grim's communications, and shown from there in one tap (or after
+// filling in its blanks).
 export type MessagePreset = {
     name: string;
-    elements: MessageElement[];
+    elements: PresetElement[];
 };
 
 export function isMessagePreset(data: any): data is MessagePreset {
     return typeof data === 'object' && data !== null && typeof data.name === 'string' &&
-        Array.isArray(data.elements) && data.elements.every(isMessageElement);
+        Array.isArray(data.elements) && data.elements.every(isPresetElement);
 }
 
 export function isMessagePresetList(data: any): data is MessagePreset[] {
