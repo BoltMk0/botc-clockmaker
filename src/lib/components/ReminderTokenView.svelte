@@ -13,8 +13,6 @@
         size = '150px',
     }: Props = $props();
 
-    $inspect("ReminderToken data:", data);
-
     let hasImage = $state(true);
 
     let isBlank = $derived(data.text.trim() === '');
