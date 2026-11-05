@@ -2440,10 +2440,10 @@
     }
     /* Custom… and Back among a character's presets in the player info: plain, darker buttons */
     .button-style.comms-plain {
-        background-color: var(--theme-bg-secondary);
+        background-color: var(--theme-bg);
     }
     .button-style.comms-plain:hover {
-        background-color: var(--theme-bg-tertiary);
+        background-color: var(--theme-bg-secondary);
     }
     /* Custom, after a character's presets in the player info: set apart from them */
     .comms-custom {
