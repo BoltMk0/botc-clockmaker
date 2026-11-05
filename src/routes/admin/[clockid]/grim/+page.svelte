@@ -2020,6 +2020,13 @@
         gap: 0.4em;
     }
 
+    /* As the token popup's buttons; less padded than the overlay's own */
+    .overlay-panel .night-sheet-presets > .popup-toggle {
+        width: 100%;
+        padding: 0.6em 1em;
+        font-size: 0.95em;
+    }
+
     .night-sheet-comms .button-icon {
         width: 1.3em;
         height: 1.3em;
@@ -3426,10 +3433,10 @@
                                 {#if !single && nightCommsOpen.has(entry.id)}
                                     <div class="night-sheet-presets">
                                         {#each entry.presets as preset}
-                                            <button class="button-style" onclick={() => showPreset(preset)}>{presetDisplayName(preset)}</button>
+                                            <button class="popup-toggle" onclick={() => showPreset(preset)}>{presetDisplayName(preset)}</button>
                                         {/each}
                                         {#if entry.bluffs}
-                                            <button class="button-style" disabled={bluffSets.length === 0 && !(script && loadedPreset)} onclick={chooseBluffs}>
+                                            <button class="popup-toggle" disabled={bluffSets.length === 0 && !(script && loadedPreset)} onclick={chooseBluffs}>
                                                 {bluffSets.length === 0 ? 'Bluffs (create a bluff set)' : 'Bluffs'}
                                             </button>
                                         {/if}
@@ -3457,7 +3464,7 @@
                                 {#if presets.length > 1 && nightCommsOpen.has(character.id)}
                                     <div class="night-sheet-presets">
                                         {#each presets as preset}
-                                            <button class="button-style" onclick={() => showPreset(preset, character.id)}>{presetDisplayName(preset)}</button>
+                                            <button class="popup-toggle" onclick={() => showPreset(preset, character.id)}>{presetDisplayName(preset)}</button>
                                         {/each}
                                     </div>
                                 {/if}
