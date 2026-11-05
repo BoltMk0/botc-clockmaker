@@ -1870,6 +1870,12 @@
         border-left-color: var(--theme-highlight);
     }
 
+    /* Halfway between an in-play character's background and none, as a character not in play has */
+    .night-sheet-list > li.in-play.dead {
+        background: color-mix(in srgb, var(--theme-bg-tertiary) 50%, transparent);
+        border-left-color: #555;
+    }
+
     .night-sheet-list img {
         width: 48px;
         height: 48px;
@@ -3270,7 +3276,7 @@
                             {:else}
                             {@const character = entry.character}
                             {@const inPlay = onGrimCharacterIds.has(character.id)}
-                            <li class:in-play={inPlay}>
+                            <li class:in-play={inPlay} class:dead={inPlay && deadCharacterIds.has(character.id)}>
                                 <img src={characterImageUrl(character.id, 128)} alt="" onerror={(e) => (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'} />
                                 <div class="night-sheet-text">
                                     <div class="night-sheet-name">
