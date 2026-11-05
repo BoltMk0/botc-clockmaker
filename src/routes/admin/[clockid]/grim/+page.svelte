@@ -13,7 +13,7 @@
     import { GrimoireSync } from "$lib/model/client/GrimoireSync";
     import { GrimoireUndo } from "$lib/model/client/GrimoireUndo.svelte";
     import FullDisplay from "$lib/components/FullDisplay/FullDisplay.svelte";
-    import { flushSync, onMount } from "svelte";
+    import { flushSync, onMount, type Snippet } from "svelte";
     import { fly } from "svelte/transition";
     import { cubicIn, cubicOut } from "svelte/easing";
     import ClockSetter from "$lib/components/ClockSetter.svelte";
@@ -1926,16 +1926,30 @@
         overflow-y: auto;
     }
 
-    /* The image, the text and the communications button always in a row, with the row's presets (when open) below */
+    /* A row, with its presets (when open) below it */
     .night-sheet-list > li {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        align-items: center;
-        gap: 0.7em;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4em;
         padding: 0.4em 0.6em;
         border-radius: 0.6em;
         border-left: 4px solid transparent;
         opacity: 0.55;
+    }
+
+    /* The image, the text and the communications icon always in a row; the whole of it opens the communications */
+    .night-sheet-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 0.7em;
+        width: 100%;
+        text-align: left;
+        color: inherit;
+    }
+
+    button.night-sheet-row {
+        cursor: pointer;
     }
 
     .night-sheet-list > li.in-play {
@@ -1988,29 +2002,19 @@
         color: var(--theme-on-bg-secondary);
     }
 
-    /* A character's communications, at the end of their row */
+    /* The communications icon at the end of a row that has some, highlighted while its presets are showing */
     .night-sheet-comms {
-        flex-shrink: 0;
-        margin-left: auto;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 2.4em;
-        height: 2.4em;
-        border-radius: 50%;
-        background: var(--theme-bg-secondary);
-        color: inherit;
-        cursor: pointer;
     }
 
-    .night-sheet-comms.open {
-        background: var(--theme-highlight);
-        color: var(--theme-on-highlight);
+    .night-sheet-row.open .night-sheet-comms {
+        color: var(--theme-highlight);
     }
 
     /* A row's communications presets, opened under it by its communications button */
     .night-sheet-presets {
-        grid-column: 1 / -1;
         display: flex;
         flex-direction: column;
         gap: 0.4em;
@@ -3093,10 +3097,17 @@
     </AnotatableViewV2>
 
 
-        <!-- Shows or hides a night order row's communications presets, in the row -->
-        {#snippet nightCommsToggle(key: string, label: string)}
-            <button class="no-button-style night-sheet-comms" class:open={nightCommsOpen.has(key)} aria-expanded={nightCommsOpen.has(key)}
-                onclick={() => toggleNightComms(key)} aria-label={label} title={label}>{@render commsIcon()}</button>
+        <!-- A night order row's image and text, and its communications icon if it has any: the whole row shows its one
+             preset, or shows or hides its presets below it (expanded: whether they're showing, null with one preset) -->
+        {#snippet nightRow(head: Snippet, onclick: (() => void) | null, label: string, expanded: boolean | null)}
+            {#if onclick}
+                <button class="no-button-style night-sheet-row" class:open={expanded === true} aria-expanded={expanded ?? undefined} {onclick} title={label}>
+                    {@render head()}
+                    <span class="night-sheet-comms">{@render commsIcon()}</span>
+                </button>
+            {:else}
+                <div class="night-sheet-row">{@render head()}</div>
+            {/if}
         {/snippet}
         {#snippet commsIcon()}
             <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM6.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0zM10.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0zM14.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0z"/></svg>
@@ -3401,29 +3412,28 @@
                     <ol class="night-sheet-list">
                         {#each nightSheetEntries as entry (entry.kind === 'info' ? entry.id : entry.character.id)}
                             {#if entry.kind === 'info'}
+                            {@const single = entry.presets.length === 1 && !entry.bluffs}
                             <li class="in-play">
-                                <div class="night-sheet-info-icon" aria-hidden="true"></div>
-                                <div class="night-sheet-text">
-                                    <div class="night-sheet-name">{entry.name}</div>
-                                    <div class="night-sheet-rules">{entry.rules}</div>
-                                </div>
-                                {#if entry.presets.length === 1 && !entry.bluffs}
-                                    <button class="no-button-style night-sheet-comms" onclick={() => showPreset(entry.presets[0])}
-                                        aria-label="{entry.name} communications" title="{entry.name} communications">{@render commsIcon()}</button>
-                                {:else}
-                                    {@render nightCommsToggle(entry.id, `${entry.name} communications`)}
-                                    {#if nightCommsOpen.has(entry.id)}
-                                        <div class="night-sheet-presets">
-                                            {#each entry.presets as preset}
-                                                <button class="button-style" onclick={() => showPreset(preset)}>{presetDisplayName(preset)}</button>
-                                            {/each}
-                                            {#if entry.bluffs}
-                                                <button class="button-style" disabled={bluffSets.length === 0 && !(script && loadedPreset)} onclick={chooseBluffs}>
-                                                    {bluffSets.length === 0 ? 'Bluffs (create a bluff set)' : 'Bluffs'}
-                                                </button>
-                                            {/if}
-                                        </div>
-                                    {/if}
+                                {#snippet infoHead()}
+                                    <div class="night-sheet-info-icon" aria-hidden="true"></div>
+                                    <div class="night-sheet-text">
+                                        <div class="night-sheet-name">{entry.name}</div>
+                                        <div class="night-sheet-rules">{entry.rules}</div>
+                                    </div>
+                                {/snippet}
+                                {@render nightRow(infoHead, single ? () => showPreset(entry.presets[0]) : () => toggleNightComms(entry.id),
+                                    `${entry.name} communications`, single ? null : nightCommsOpen.has(entry.id))}
+                                {#if !single && nightCommsOpen.has(entry.id)}
+                                    <div class="night-sheet-presets">
+                                        {#each entry.presets as preset}
+                                            <button class="button-style" onclick={() => showPreset(preset)}>{presetDisplayName(preset)}</button>
+                                        {/each}
+                                        {#if entry.bluffs}
+                                            <button class="button-style" disabled={bluffSets.length === 0 && !(script && loadedPreset)} onclick={chooseBluffs}>
+                                                {bluffSets.length === 0 ? 'Bluffs (create a bluff set)' : 'Bluffs'}
+                                            </button>
+                                        {/if}
+                                    </div>
                                 {/if}
                             </li>
                             {:else}
@@ -3431,26 +3441,25 @@
                             {@const inPlay = onGrimCharacterIds.has(character.id)}
                             {@const presets = nightOrderSheet ? characterPresetsFor(character.id, nightOrderSheet) : []}
                             <li class:in-play={inPlay} class:dead={inPlay && deadCharacterIds.has(character.id)}>
-                                <img src={characterImageUrl(character.id, 128)} alt="" onerror={(e) => (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'} />
-                                <div class="night-sheet-text">
-                                    <div class="night-sheet-name">
-                                        {character.name}
-                                        {#if inPlay}<span class="night-sheet-badge" class:dead={deadCharacterIds.has(character.id)}>{deadCharacterIds.has(character.id) ? 'Dead' : 'In play'}</span>{/if}
-                                    </div>
-                                    <div class="night-sheet-rules">{(nightOrderSheet === 'first' ? character.firstNightReminder : character.otherNightReminder) || character.rules}</div>
-                                </div>
-                                {#if presets.length === 1}
-                                    <button class="no-button-style night-sheet-comms" onclick={() => showPreset(presets[0], character.id)}
-                                        aria-label="{character.name}'s communications" title="{character.name}'s communications">{@render commsIcon()}</button>
-                                {:else if presets.length > 1}
-                                    {@render nightCommsToggle(character.id, `${character.name}'s communications`)}
-                                    {#if nightCommsOpen.has(character.id)}
-                                        <div class="night-sheet-presets">
-                                            {#each presets as preset}
-                                                <button class="button-style" onclick={() => showPreset(preset, character.id)}>{presetDisplayName(preset)}</button>
-                                            {/each}
+                                {#snippet characterHead()}
+                                    <img src={characterImageUrl(character.id, 128)} alt="" onerror={(e) => (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'} />
+                                    <div class="night-sheet-text">
+                                        <div class="night-sheet-name">
+                                            {character.name}
+                                            {#if inPlay}<span class="night-sheet-badge" class:dead={deadCharacterIds.has(character.id)}>{deadCharacterIds.has(character.id) ? 'Dead' : 'In play'}</span>{/if}
                                         </div>
-                                    {/if}
+                                        <div class="night-sheet-rules">{(nightOrderSheet === 'first' ? character.firstNightReminder : character.otherNightReminder) || character.rules}</div>
+                                    </div>
+                                {/snippet}
+                                {@render nightRow(characterHead,
+                                    presets.length === 1 ? () => showPreset(presets[0], character.id) : presets.length > 1 ? () => toggleNightComms(character.id) : null,
+                                    `${character.name}'s communications`, presets.length > 1 ? nightCommsOpen.has(character.id) : null)}
+                                {#if presets.length > 1 && nightCommsOpen.has(character.id)}
+                                    <div class="night-sheet-presets">
+                                        {#each presets as preset}
+                                            <button class="button-style" onclick={() => showPreset(preset, character.id)}>{presetDisplayName(preset)}</button>
+                                        {/each}
+                                    </div>
                                 {/if}
                             </li>
                             {/if}
