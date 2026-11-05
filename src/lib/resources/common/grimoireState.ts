@@ -232,6 +232,35 @@ export function tokensToSeat(tokens: PlacedToken[], isFixed: (token: PlacedToken
     return named.length > 0 ? named : playable;
 }
 
+// The token nearest a point by angle about the board centre (null if there are none).
+export function nearestByAngle<T extends { x: number, y: number }>(p: { x: number, y: number }, candidates: T[]): T | null {
+    const a = angleOf(p);
+    let nearest: T | null = null;
+    let nearestDiff = Infinity;
+    for (const candidate of candidates) {
+        const diff = Math.abs(wrapAngle(angleOf(candidate) - a));
+        if (diff < nearestDiff) { nearest = candidate; nearestDiff = diff; }
+    }
+    return nearest;
+}
+
+// The reminders by the seated token (see tokensToSeat) they belong to: the nearest by angle, as auto-arrange moves
+// them with. Keyed by the token's id.
+export function remindersBySeatedToken(
+    tokens: PlacedToken[],
+    reminders: PlacedReminder[],
+    isFixed: (token: PlacedToken) => boolean = () => false
+): Map<string, PlacedReminder[]> {
+    const players = tokensToSeat(tokens, isFixed);
+    const byToken = new Map<string, PlacedReminder[]>();
+    for (const reminder of reminders) {
+        const player = nearestByAngle(reminder, players);
+        if (!player) continue;
+        byToken.set(player.id, [...(byToken.get(player.id) ?? []), reminder]);
+    }
+    return byToken;
+}
+
 // Spaces the tokens to seat (see tokensToSeat) evenly round the circle, keeping their current order round the table
 // (ranked by clockwise angle from the top, so a token dragged in between two others ends up between them). Every
 // other token - character tokens with no player name while some are named, and reminders - travels with the nearest
@@ -260,16 +289,7 @@ export function layoutTokensAtDefaultPositions(
         .forEach((t, i) => newPositionOf.set(t, circle[i]));
 
     // The nearest player (by angle) to a point: the one a token at that point follows.
-    const nearestPlayer = (p: { x: number, y: number }): PlacedToken => {
-        const a = angleOf(p);
-        let nearest = players[0];
-        let nearestDiff = Infinity;
-        for (const player of players) {
-            const diff = Math.abs(wrapAngle(angleOf(player) - a));
-            if (diff < nearestDiff) { nearest = player; nearestDiff = diff; }
-        }
-        return nearest;
-    };
+    const nearestPlayer = (p: { x: number, y: number }): PlacedToken => nearestByAngle(p, players)!;
     // Turns a token about the centre by as much as its player turns, and moves it in or out by as much as they
     // move (never past the centre).
     const followed = (p: { x: number, y: number }) => {

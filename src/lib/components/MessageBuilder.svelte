@@ -5,8 +5,9 @@
 
 <script lang="ts">
     import { TEXT_STYLES, type MessageElement, type PresetElement, type TextOption } from "$lib/common/message";
-    import { rulesWithSetup, type Character } from "$lib/resources/common/gameData";
+    import { rulesWithSetup, type Character, type ReminderToken } from "$lib/resources/common/gameData";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
+    import ReminderTokenView from "$lib/components/ReminderTokenView.svelte";
     import MessageText from "$lib/components/MessageText.svelte";
 
     // Builds a message to show a player from text, character and alignment elements - in the grim's communications,
@@ -21,6 +22,7 @@
         sections,
         characters,
         faded = () => false,
+        reminders = () => [],
         tokenSize,
         imageSize = 256,
         blanks = 'none',
@@ -34,6 +36,8 @@
         characters: Record<string, Character>;
         // Characters shown faded in the picker (in the grim, those not on the board, so the ones in play stand out).
         faded?: (characterId: string) => boolean;
+        // Reminder tokens shown over the top-left of a character in the picker (in the grim, those beside them).
+        reminders?: (characterId: string) => (ReminderToken & { characterId: string })[];
         tokenSize: number;
         imageSize?: number;
         blanks?: 'none' | 'add' | 'fill';
@@ -133,6 +137,9 @@
         addElement({ type: 'text', value: rulesWithSetup(character), style: 'Text' });
     }
 
+    // A reminder shown over a character in the picker, as a fraction of the token's size.
+    const REMINDER_SCALE = 0.42;
+
     // Travellers, loric and fabled are folded away in the character pickers until their header is tapped.
     const FOLDED_SECTION_KEYS = ['traveler', 'loric', 'fabled'];
     let unfolded = $state(new Set<string>());
@@ -171,6 +178,18 @@
         }
     }
 </script>
+
+<!-- A character's reminders, overlapping in a row from the top-left corner of their token -->
+{#snippet reminderBadges(characterId: string)}
+    {@const shown = reminders(characterId)}
+    {#if shown.length > 0}
+        <div class="picker-reminders" style="--reminder-size: {Math.round(tokenSize * REMINDER_SCALE)}px;">
+            {#each shown as reminder, i (i)}
+                <ReminderTokenView data={reminder} characterId={reminder.characterId} size="{Math.round(tokenSize * REMINDER_SCALE)}px"/>
+            {/each}
+        </div>
+    {/if}
+{/snippet}
 
 {#snippet sectionHeader(section: CharacterSection)}
     {#if isFoldable(section)}
@@ -284,6 +303,7 @@
                     {#each section.characters as character (character.id)}
                         <button type="button" class="no-button-style picker-token" class:faded={faded(character.id)} aria-label={character.name} title={character.name} onclick={() => addCharacterRules(character)}>
                             <CharacterToken {character} style="position: relative;" size="{tokenSize}px" {imageSize} norules/>
+                            {@render reminderBadges(character.id)}
                         </button>
                     {/each}
                 </div>
@@ -300,6 +320,7 @@
                     {#each section.characters as character (character.id)}
                         <button type="button" class="no-button-style picker-token" class:picked={pickedCharacterIds.includes(character.id)} class:faded={faded(character.id)} aria-label={character.name} title={character.name} onclick={() => togglePickedCharacter(character.id)}>
                             <CharacterToken {character} style="position: relative;" size="{tokenSize}px" {imageSize} norules/>
+                            {@render reminderBadges(character.id)}
                         </button>
                     {/each}
                 </div>
@@ -543,6 +564,20 @@
 
     .picker-token.faded {
         opacity: 0.6;
+    }
+
+    .picker-reminders {
+        position: absolute;
+        top: 0;
+        left: 0;
+        display: flex;
+        pointer-events: none;
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+    }
+
+    /* Each reminder after the first overlaps the one before by half its width */
+    .picker-reminders > :global(:not(:first-child)) {
+        margin-left: calc(var(--reminder-size) * -0.5);
     }
 
     .picker-token.picked {

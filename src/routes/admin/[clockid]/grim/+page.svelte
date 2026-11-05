@@ -20,7 +20,7 @@
     import type { CanvasToolType } from "$lib/components/DrawableCanvas2/types.js";
     import AnotatableViewV2 from "$lib/components/DrawableCanvas2/AnotatableViewV2.svelte";
     import PlayerToken from "$lib/components/PlayerToken.svelte";
-    import { ALIGNMENT_RING_FACTORS, BOARD_TOKEN_SIZE, hasDeadVote, isPlayerToken, layoutTokensAtDefaultPositions, newGrimoireStateHistory, tokensToSeat, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
+    import { ALIGNMENT_RING_FACTORS, BOARD_TOKEN_SIZE, hasDeadVote, isPlayerToken, layoutTokensAtDefaultPositions, remindersBySeatedToken, newGrimoireStateHistory, tokensToSeat, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
     import { v7 } from "uuid";
     import PencilIcon from "$lib/components/PencilIcon.svelte";
     import TrashIcon from "$lib/components/TrashIcon.svelte";
@@ -548,6 +548,20 @@
         return placedCharIds.has(characterId);
     }
 
+    // The reminders on the grim by the character of the player they're beside (the nearest seated token by angle
+    // about the centre, as auto-arrange moves them with), for character communications' pickers.
+    const remindersByCharacterId = $derived.by(() => {
+        const byToken = remindersBySeatedToken(placedTokens, placedReminders, isSideRoleToken);
+        const byCharacter: Record<string, (ReminderToken & { characterId: string })[]> = {};
+        for (const token of placedTokens) {
+            const reminders = byToken.get(token.id);
+            if (!token.characterId || !reminders) continue;
+            const shown = reminders.map(r => availableReminderTokens[r.tokenId]).filter(r => !!r);
+            if (shown.length > 0) byCharacter[token.characterId] = [...(byCharacter[token.characterId] ?? []), ...shown];
+        }
+        return byCharacter;
+    });
+
     // The token tray's sections, in order: the in-play characters (with a preset loaded), then the bluffs (shown
     // before the script's section, see the tray) and the script's own characters, always open; then every character,
     // under each script they're on (and the rest under "Other"), and the travellers, loric and fabled, in sections that
@@ -846,7 +860,8 @@
 
     // The Preset tab's builder, in place of its list: a new preset being made (which can have blanks), or a preset
     // with blanks being filled in before it's shown.
-    let presetEditor = $state<{ mode: 'new' | 'fill'; name: string; elements: PresetElement[] } | null>(null);
+    // (forCharacter: opened from a character's communications, whose pickers show the reminders by each character.)
+    let presetEditor = $state<{ mode: 'new' | 'fill'; name: string; elements: PresetElement[]; forCharacter?: boolean } | null>(null);
     let presetBuilderView = $state<MessageBuilderView>('builder');
     const presetEditorFilled = $derived(presetEditor !== null && presetEditor.elements.length > 0 && hasNoBlanks(presetEditor.elements));
     // The tabs are hidden while either builder is on one of its own screens (picking characters, say).
@@ -947,13 +962,13 @@
     }
 
     // A preset with blanks opens in the builder first, to fill them in (opening communications, if it isn't open).
-    function showPreset(preset: MessagePreset) {
+    function showPreset(preset: MessagePreset, forCharacter = false) {
         const elements = preset.elements;
         if (!hasNoBlanks(elements)) {
             if (commsView === null) openComms();
             commsView = 'main';
             commsTab = 'preset';
-            presetEditor = { mode: 'fill', name: preset.name, elements: structuredClone($state.snapshot(elements)) };
+            presetEditor = { mode: 'fill', name: preset.name, elements: structuredClone($state.snapshot(elements)), forCharacter };
             presetBuilderView = 'builder';
         } else if (messageQueue.enabled) {
             queueMessage(presetDisplayName(preset), elements);
@@ -977,7 +992,7 @@
     function openCharacterComms(characterId: string, night: 'first' | 'other') {
         const presets = characterPresetsFor(characterId, night);
         if (presets.length === 1) {
-            showPreset(presets[0]);
+            showPreset(presets[0], true);
         } else if (presets.length > 1) {
             if (commsView === null) openComms();
             characterComms = { name: characterById.get(characterId)?.name ?? '', presets };
@@ -988,7 +1003,7 @@
     // A first night info step's communications, as a character's: one is shown straight away, more are listed.
     function openInfoStepComms(step: typeof FIRST_NIGHT_INFO_STEPS[number]) {
         if (step.presets.length === 1 && !step.bluffs) {
-            showPreset(step.presets[0]);
+            showPreset(step.presets[0], true);
             return;
         }
         if (commsView === null) openComms();
@@ -3396,7 +3411,7 @@
                 {:else if commsView === 'character' && characterComms}
                     <div class="overlay-name dumbledore-font">{characterComms.name}</div>
                     {#each characterComms.presets as preset}
-                        <button class="button-style" onclick={() => showPreset(preset)}>{presetDisplayName(preset)}</button>
+                        <button class="button-style" onclick={() => showPreset(preset, true)}>{presetDisplayName(preset)}</button>
                     {/each}
                     {#if characterComms.bluffs}
                         <button class="button-style" disabled={bluffSets.length === 0 && !(script && loadedPreset)} onclick={chooseBluffs}>
@@ -3457,6 +3472,7 @@
                             sections={commsSections}
                             characters={availableCharacters}
                             faded={id => !isInPlay(id)}
+                            reminders={presetEditor.forCharacter ? (id => remindersByCharacterId[id] ?? []) : undefined}
                             tokenSize={trayTokenSize}
                             imageSize={TRAY_IMAGE_SIZE}
                             blanks={presetEditor.mode === 'new' ? 'add' : 'fill'}
