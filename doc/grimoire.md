@@ -80,6 +80,8 @@ Tap anywhere else to close the popup.
 - **Move** reminders by dragging them.
 - **Remove** a reminder by dragging it to the top or bottom edge of the screen.
 
+Reminders follow their nearest player when you [auto-arrange](#the-sidebar) the tokens.
+
 ## The token tray
 
 Open it with the **Token Tray** button at the bottom of the screen; ✕ at the right of its title bar closes it. It fills
@@ -211,6 +213,7 @@ The column of buttons on the side of the screen. The top row is always there; th
 | **Set up a new game** (plus) | Opens the [setup](grimoire-setup.md), to start a new game on this grimoire, or to reset it. |
 | **Annotate** (pen) | Enters [annotate mode](#annotate-mode-drawing). |
 | **Lock** | Locks token positions so they can't be dragged by accident (tapping still works). Remembered on this device. |
+| **Auto-arrange** (an A in a ring of arrows) | Spaces the players evenly round the middle ring, or the outer ring with more than 15 players, keeping their order round the table. The players are the named tokens, or every token while none are named. Unnamed tokens (once some are named) and reminders move with their nearest player; loric and fabled stay put. Only while unlocked. |
 | **Clock** | Shows or hides the clock in the middle. |
 | **Refresh** | Reloads the page. |
 | **End game** (bin) | [Ends the game](#ending-a-game) and clears the grimoire. |
@@ -254,7 +257,7 @@ the server (when the connection comes back, or when you open it again):
 
 The **undo** button (curved arrow, on the board whenever there's something to undo) takes back your changes one at a
 time, newest first: moving, adding or removing a token or reminder, a player's name, alive/dead, ghost vote,
-alignment, character or wake, drawing, erasing or clearing lines, and adding or deleting a
+alignment, character or wake, auto-arranging, drawing, erasing or clearing lines, and adding or deleting a
 bluff set. A two-finger tap while drawing does the same. Changing a name counts as one change however many letters
 you type, as long as you don't pause for more than a second.
 

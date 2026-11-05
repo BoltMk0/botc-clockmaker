@@ -20,7 +20,7 @@
     import type { CanvasToolType } from "$lib/components/DrawableCanvas2/types.js";
     import AnotatableViewV2 from "$lib/components/DrawableCanvas2/AnotatableViewV2.svelte";
     import PlayerToken from "$lib/components/PlayerToken.svelte";
-    import { ALIGNMENT_RING_FACTORS, BOARD_TOKEN_SIZE, hasDeadVote, isPlayerToken, newGrimoireStateHistory, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
+    import { ALIGNMENT_RING_FACTORS, BOARD_TOKEN_SIZE, hasDeadVote, isPlayerToken, layoutTokensAtDefaultPositions, newGrimoireStateHistory, tokensToSeat, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
     import { v7 } from "uuid";
     import PencilIcon from "$lib/components/PencilIcon.svelte";
     import { characterImageUrl } from "$lib/resources/common/characterImages";
@@ -629,6 +629,22 @@
     }
     function isSideRoleToken(t: PlacedToken): boolean {
         return isSideRoleCategory(characterById.get(t.characterId ?? '')?.category);
+    }
+
+    // Spaces the players evenly round the middle guide ring in their current order (the outer one with more than 15
+    // of them): the named tokens, or every token while none are named. Unnamed tokens (while some are named) and
+    // reminders rotate with the nearest player, and loric and fabled stay put.
+    const AUTO_ARRANGE_OUTER_RING_OVER = 15;
+    function autoArrangeTokens() {
+        const players = tokensToSeat(placedTokens, isSideRoleToken);
+        if (players.length === 0) return;
+        closeReminderTray();
+        const ringIndex = players.length > AUTO_ARRANGE_OUTER_RING_OVER ? 2 : 1;
+        const laidOut = layoutTokensAtDefaultPositions(placedTokens, placedReminders, isSideRoleToken, tokenSize * ALIGNMENT_RING_FACTORS[ringIndex]);
+        gameState.present.placedTokens = laidOut.tokens;
+        gameState.present.placedReminders = laidOut.reminders;
+        saveGrimoire();
+        fitView();
     }
 
     // Zoom so the placed tokens fill the screen, edge to edge, with the town centred (rings, reminders, the clock, loric/fabled and unnamed tokens are ignored).
@@ -2847,6 +2863,22 @@
             {/if}
         </button>
 
+        {#if !tokensLocked}
+        <!-- Auto-arrange: space the players evenly round a ring -->
+        <button class="sidebar-btn" onclick={autoArrangeTokens} title="Auto-arrange tokens">
+            <svg viewBox="0 0 24 24">
+                <!-- Three seats round a ring, each with an arrow round to the next, and an A in the middle -->
+                {#each [0, 120, 240] as angle}
+                    <g transform="rotate({angle} 12 13.1)" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="2.9" r="2.3" fill="currentColor" stroke="none"/>
+                        <path d="M15.53 3.53A10.2 10.2 0 0 1 22.11 14.44"/>
+                        <path d="M21.08 12.84 22.05 14.83 23.64 13.28"/>
+                    </g>
+                {/each}
+                <path d="M8.9 17.1 12 8.9l3.1 8.2M10.1 14.4h3.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </button>
+        {/if}
 
         <!-- Show/Hide clock -->
         <button class="sidebar-btn" class:active={showClock} onclick={() => showClock = !showClock} title="{showClock ? 'Hide' : 'Show'} clock">
