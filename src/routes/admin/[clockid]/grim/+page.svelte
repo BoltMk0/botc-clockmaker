@@ -1926,9 +1926,10 @@
         overflow-y: auto;
     }
 
+    /* The image, the text and the communications button always in a row, with the row's presets (when open) below */
     .night-sheet-list > li {
-        display: flex;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
         align-items: center;
         gap: 0.7em;
         padding: 0.4em 0.6em;
@@ -2009,7 +2010,7 @@
 
     /* A row's communications presets, opened under it by its communications button */
     .night-sheet-presets {
-        flex-basis: 100%;
+        grid-column: 1 / -1;
         display: flex;
         flex-direction: column;
         gap: 0.4em;
