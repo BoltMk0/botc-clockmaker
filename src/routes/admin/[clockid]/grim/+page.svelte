@@ -3192,7 +3192,7 @@
                                 {#each characterPresetsFor(activeChar.id, currentNight) as preset}
                                     <button type="button" class="popup-toggle popup-wide" onclick={() => showPreset(preset, activeChar.id)}>{presetDisplayName(preset)}</button>
                                 {/each}
-                                <button type="button" class="popup-toggle popup-wide comms-custom" onclick={() => openCustomComms(activeChar.id)}>Custom</button>
+                                <button type="button" class="popup-toggle popup-wide comms-custom" onclick={() => openCustomComms(activeChar.id)}>Custom…</button>
                                 <button type="button" class="popup-toggle popup-wide" onclick={() => playerCommsShown = false}>&lsaquo; Back</button>
                             {:else if sideRole}
                                 {#if activeChar}
@@ -3398,7 +3398,7 @@
                         {#each characterPresetsFor(oc.id, currentNight) as preset}
                             <button type="button" class="popup-toggle" onclick={(e) => { e.stopPropagation(); showPreset(preset, oc.id); }}>{presetDisplayName(preset)}</button>
                         {/each}
-                        <button type="button" class="popup-toggle comms-custom" onclick={(e) => { e.stopPropagation(); openCustomComms(oc.id); }}>Custom</button>
+                        <button type="button" class="popup-toggle comms-custom" onclick={(e) => { e.stopPropagation(); openCustomComms(oc.id); }}>Custom…</button>
                         <button type="button" class="button-style" onclick={(e) => { e.stopPropagation(); playerCommsShown = false; }}>&lsaquo; Back</button>
                     </div>
                 {:else if overlayFromBoard && activeToken}
