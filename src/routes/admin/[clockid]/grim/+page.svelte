@@ -1737,6 +1737,8 @@
         margin: 0;
         border-radius: 0;
         padding-top: 3.5em;
+        /* Its content no wider than 720px, centred; padded rather than narrowed, so it scrolls from anywhere on screen */
+        padding-inline: max(1.2em, calc((100% - 720px) / 2));
         justify-content: flex-start;
         overflow-y: auto;
     }
@@ -2020,9 +2022,15 @@
     }
 
     /* Set apart from the presets above it, as it makes one rather than showing one */
-    .comms-panel > .new-preset {
+    .overlay-panel.comms-panel > button.new-preset {
         margin-top: 0.8em;
-        border-style: dashed;
+        border: 2px dashed currentColor;
+        background: none;
+        opacity: 0.7;
+    }
+
+    .overlay-panel.comms-panel > button.new-preset:hover {
+        opacity: 1;
     }
 
     .overlay-close {

@@ -133,6 +133,17 @@
         addElement({ type: 'text', value: rulesWithSetup(character), style: 'Text' });
     }
 
+    // Travellers, loric and fabled are folded away in the character pickers until their header is tapped.
+    const FOLDED_SECTION_KEYS = ['traveler', 'loric', 'fabled'];
+    let unfolded = $state(new Set<string>());
+    const isFoldable = (section: CharacterSection) => FOLDED_SECTION_KEYS.includes(section.key);
+
+    function toggleSection(key: string) {
+        const next = new Set(unfolded);
+        next.has(key) ? next.delete(key) : next.add(key);
+        unfolded = next;
+    }
+
     // The characters picked so far for a character element, and the element they replace (null to add a new one).
     let pickedCharacterIds = $state<string[]>([]);
     let editingElementIndex = $state<number | null>(null);
@@ -160,6 +171,20 @@
         }
     }
 </script>
+
+{#snippet sectionHeader(section: CharacterSection)}
+    {#if isFoldable(section)}
+        {@const open = unfolded.has(section.key)}
+        {@const picked = view === 'character' ? section.characters.filter(c => pickedCharacterIds.includes(c.id)).length : 0}
+        <button class="no-button-style section-toggle" aria-expanded={open} onclick={() => toggleSection(section.key)}>
+            <svg viewBox="0 0 24 24" class:collapsed={!open} aria-hidden="true"><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
+            {section.title}
+            {#if picked > 0}<span class="section-count">{picked} chosen</span>{/if}
+        </button>
+    {:else}
+        <div>{section.title}</div>
+    {/if}
+{/snippet}
 
 <div class="message-builder">
     {#if view === 'builder'}
@@ -252,7 +277,8 @@
         <div class="builder-title dumbledore-font">Choose a character</div>
         {#each sections as section (section.key)}
             <div class="picker-section">
-                <div>{section.title}</div>
+                {@render sectionHeader(section)}
+                {#if !isFoldable(section) || unfolded.has(section.key)}
                 <div class="picker-grid">
                     {#each section.characters as character (character.id)}
                         <button class="no-button-style picker-token" class:faded={faded(character.id)} aria-label={character.name} title={character.name} onclick={() => addCharacterRules(character)}>
@@ -260,13 +286,15 @@
                         </button>
                     {/each}
                 </div>
+                {/if}
             </div>
         {/each}
     {:else}
         <div class="builder-title dumbledore-font">Choose characters</div>
         {#each sections as section (section.key)}
             <div class="picker-section">
-                <div>{section.title}</div>
+                {@render sectionHeader(section)}
+                {#if !isFoldable(section) || unfolded.has(section.key)}
                 <div class="picker-grid">
                     {#each section.characters as character (character.id)}
                         <button class="no-button-style picker-token" class:picked={pickedCharacterIds.includes(character.id)} class:faded={faded(character.id)} aria-label={character.name} title={character.name} onclick={() => togglePickedCharacter(character.id)}>
@@ -274,10 +302,12 @@
                         </button>
                     {/each}
                 </div>
+                {/if}
             </div>
         {/each}
         <div class="picker-actions">
-            <button class="button-style highlight wide" disabled={pickedCharacterIds.length === 0} onclick={finishCharacterPicker}>
+            <button class="button-style cancel" onclick={() => back()}>Cancel</button>
+            <button class="button-style highlight" disabled={pickedCharacterIds.length === 0} onclick={finishCharacterPicker}>
                 {editingElementIndex === null ? 'Add' : 'Done'} ({pickedCharacterIds.length} chosen)
             </button>
         </div>
@@ -300,11 +330,6 @@
 
     .button-style {
         padding: 16px 36px;
-    }
-
-    .button-style.wide {
-        width: 100%;
-        flex-shrink: 0;
     }
 
     .builder-input {
@@ -469,6 +494,40 @@
         gap: 0.4em;
     }
 
+    /* A folding section's header, as in the game setup's token picker */
+    .section-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.3em;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0.4em 0.6em;
+        border-radius: 0.6em;
+        background: var(--theme-bg);
+        color: inherit;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        touch-action: manipulation;
+    }
+
+    .section-toggle svg {
+        width: 1.3em;
+        height: 1.3em;
+        fill: currentColor;
+        transition: transform 0.15s;
+    }
+
+    .section-toggle svg.collapsed {
+        transform: rotate(-90deg);
+    }
+
+    .section-count {
+        margin-left: auto;
+        font-weight: normal;
+        opacity: 0.7;
+    }
+
     .picker-grid {
         display: flex;
         flex-wrap: wrap;
@@ -490,16 +549,23 @@
         outline-offset: 2px;
     }
 
-    /* Keeps the picker's button in reach below a long list of characters. The host's scrolling panel has 1.2em of
-       padding at the bottom, which this covers so nothing scrolls by beneath it. */
+    /* Keeps the picker's buttons in reach below a long list of characters, the characters scrolling by behind them */
     .picker-actions {
         position: sticky;
-        bottom: -1.2em;
+        bottom: 0;
         width: 100%;
         display: flex;
-        flex-direction: column;
         gap: 0.7em;
-        padding: 0.7em 0 1.2em;
-        background: var(--theme-bg-secondary);
+        padding-top: 0.7em;
+    }
+
+    .picker-actions > button {
+        flex: 2;
+        flex-shrink: 0;
+        padding-inline: 12px;
+    }
+
+    .picker-actions > button.cancel {
+        flex: 1;
     }
 </style>
