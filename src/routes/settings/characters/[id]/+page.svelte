@@ -1,6 +1,6 @@
 <script lang="ts">
-    import { enhance } from '$app/forms';
-    import { goto } from '$app/navigation';
+    import { deserialize } from '$app/forms';
+    import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
     import { onMount, untrack } from 'svelte';
     import { createReminderToken, deleteReminderToken, fetchReminderTokensForCharacter, updateReminderToken } from '$lib/resources/client/reminderTokens.js';
     import { ALL_CHARACTER_CATEGORIES, type Character, type ReminderToken } from '$lib/resources/common/gameData.js';
@@ -58,8 +58,8 @@
         previewUrl = URL.createObjectURL(file);
     }
 
-    async function uploadImage() {
-        if (!pendingImageFile || !selectedCharacter) return;
+    async function uploadImage(): Promise<boolean> {
+        if (!pendingImageFile || !selectedCharacter) return true;
         uploading = true;
         try {
             const res = await fetch(`/api/characters/${selectedCharacter.id}/img`, {
@@ -71,9 +71,11 @@
             clearPreview();
             // Bust browser cache for the default image
             imgCacheBust = Date.now();
+            return true;
         } catch (err) {
             console.error(err);
             alert('Image upload failed.');
+            return false;
         } finally {
             uploading = false;
         }
@@ -88,7 +90,7 @@
                 fetchReminderTokensForCharacter(selectedCharacterId).then(tokens => {
                     selectedCharacterTokens = tokens;
 
-                    selectedReminderTokenId = responseData.id;
+                    openReminderToken(responseData.id);
                 });
             }
         }).catch(err => {
@@ -112,20 +114,148 @@
         });
     }
 
-    function onReminderTokenViewBackButtonClicked(){
-        if(selectedReminderToken && selectedCharacterId){
-            updateReminderToken(selectedCharacterId, selectedReminderToken.id, { text: selectedReminderToken.text, textSize: selectedReminderToken.textSize }).then(()=>{
-                return fetchReminderTokensForCharacter(selectedCharacterId!)
-            }).then(tokens => {
-                selectedCharacterTokens = tokens;
-                selectedReminderTokenId = null;
-            }).finally(() => {
-                selectedReminderTokenId = null;
-            });
-        } else {
+    // What the open reminder token was when opened (or last saved), to tell whether it's been changed and to reset it
+    let savedReminderTokenJson = $state<string | null>(null);
+    const reminderTokenJson = (token: ReminderToken) => JSON.stringify({ text: token.text, textSize: token.textSize });
+
+    function openReminderToken(tokenId: string) {
+        selectedReminderTokenId = tokenId;
+        const token = selectedCharacterTokens.find(t => t.id === tokenId);
+        savedReminderTokenJson = token ? reminderTokenJson(token) : null;
+    }
+
+    const reminderTokenChanged = $derived(!!selectedReminderToken && reminderTokenJson(selectedReminderToken) !== savedReminderTokenJson);
+
+    function resetReminderToken() {
+        if (!selectedReminderToken || !savedReminderTokenJson) return;
+        Object.assign(selectedReminderToken, JSON.parse(savedReminderTokenJson));
+    }
+
+    // Saves the open reminder token, if it's been changed; whether it's saved
+    async function saveReminderToken(): Promise<boolean> {
+        const token = selectedReminderToken;
+        if (!token || !reminderTokenChanged) return true;
+        try {
+            await updateReminderToken(selectedCharacterId, token.id, { text: token.text, textSize: token.textSize });
+            savedReminderTokenJson = reminderTokenJson(token);
+            return true;
+        } catch (err) {
+            console.error(err);
+            alert(`Failed to save the reminder token: ${err instanceof Error ? err.message : err}`);
+            return false;
+        }
+    }
+
+    // The reminder token editor's back button: saves the token and goes back to the character
+    async function closeReminderToken() {
+        if (saving) return;
+        saving = true;
+        try {
+            if (!await saveReminderToken()) return;
+            selectedCharacterTokens = await fetchReminderTokensForCharacter(selectedCharacterId);
             selectedReminderTokenId = null;
+        } finally {
+            saving = false;
+        }
+    }
+
+    // The character's fields this page edits, as saved by the updateCharacter action
+    function characterFields(c: Character) {
+        return {
+            name: c.name, category: c.category, rules: c.rules, setup: c.setup,
+            firstNightOrder: c.firstNightOrder ?? null, otherNightOrder: c.otherNightOrder ?? null,
+            firstNightReminder: c.firstNightReminder, otherNightReminder: c.otherNightReminder,
+            firstNightMessagePresets: c.firstNightMessagePresets, otherNightMessagePresets: c.otherNightMessagePresets,
+            globalMessagePresets: c.globalMessagePresets,
         };
     }
+    const characterFieldsJson = (c: Character) => JSON.stringify(characterFields(c));
+    // What the character was when the page opened (or it was last saved), to tell whether it's been changed and to reset it
+    let savedCharacterJson = $state(untrack(() => characterFieldsJson(selectedCharacter)));
+    const characterChanged = $derived(characterFieldsJson(selectedCharacter) !== savedCharacterJson);
+
+    function resetCharacter() {
+        if (!confirm('Discard your changes to this character?')) return;
+        Object.assign(selectedCharacter, JSON.parse(savedCharacterJson));
+        clearPreview();
+    }
+
+    // Saves the character, if it's been changed; whether it's saved
+    async function saveCharacter(): Promise<boolean> {
+        const c = selectedCharacter;
+        if (!characterChanged) return true;
+        const formData = new FormData();
+        formData.set('id', c.id);
+        formData.set('name', c.name ?? '');
+        formData.set('category', c.category ?? '');
+        formData.set('rules', c.rules ?? '');
+        formData.set('setup', c.setup ?? '');
+        formData.set('firstNightOrder', c.firstNightOrder == null ? '' : String(c.firstNightOrder));
+        formData.set('otherNightOrder', c.otherNightOrder == null ? '' : String(c.otherNightOrder));
+        formData.set('firstNightReminder', c.firstNightReminder ?? '');
+        formData.set('otherNightReminder', c.otherNightReminder ?? '');
+        formData.set('firstNightMessagePresets', JSON.stringify(c.firstNightMessagePresets));
+        formData.set('otherNightMessagePresets', JSON.stringify(c.otherNightMessagePresets));
+        formData.set('globalMessagePresets', JSON.stringify(c.globalMessagePresets));
+        try {
+            const res = await fetch('?/updateCharacter', {
+                method: 'POST',
+                headers: { 'x-sveltekit-action': 'true' },
+                body: formData,
+            });
+            const result = deserialize(await res.text());
+            switch (result.type) {
+                case 'success': {
+                    const { success: _, ...updatedCharacter } = (result.data ?? {}) as Character & { success?: boolean };
+                    selectedCharacter = { ...selectedCharacter, ...updatedCharacter };
+                    savedCharacterJson = characterFieldsJson(selectedCharacter);
+                    return true;
+                }
+                case 'failure':
+                    alert(`Failed to save the character: ${result.data?.error || 'Unknown error'}`);
+                    return false;
+                case 'error':
+                    alert(`Error when saving the character: ${result.error?.message ?? 'Unknown error'}`);
+                    return false;
+                default:
+                    alert('Failed to save the character.');
+                    return false;
+            }
+        } catch (err) {
+            alert(`Failed to save the character: ${err instanceof Error ? err.message : err}`);
+            return false;
+        }
+    }
+
+    const hasUnsavedChanges = () => characterChanged || reminderTokenChanged || !!pendingImageFile;
+
+    // Everything changed on the page is saved on leaving it (by the back button, the settings menu or the browser's back)
+    let saving = $state(false);
+    let leaving = false;
+    beforeNavigate((nav) => {
+        if (leaving) return;
+        // Closing the tab or leaving the site can't wait for a save: have the browser ask instead
+        if (nav.willUnload || !nav.to) {
+            if (hasUnsavedChanges()) nav.cancel();
+            return;
+        }
+        if (saving) { nav.cancel(); return; }
+        if (!hasUnsavedChanges()) return;
+        nav.cancel();
+        const to = nav.to.url;
+        const delta = nav.type === 'popstate' ? nav.delta : undefined;
+        saving = true;
+        (async () => {
+            const saved = await saveReminderToken() && await saveCharacter() && await uploadImage();
+            return saved || confirm('Your changes could not all be saved. Leave anyway?');
+        })().then(leave => {
+            if (!leave) return;
+            leaving = true;
+            if (delta) history.go(delta);
+            else goto(to);
+        }).finally(() => saving = false);
+    });
+    afterNavigate(() => { leaving = false; });
 
     function deleteCharacter(characterId: string) {
         if (!confirm('Are you sure you want to delete this character? This action cannot be undone.')) return;
@@ -133,6 +263,7 @@
             if (!response.ok) {
                 alert('Failed to delete character');
             } else {
+                leaving = true;
                 goto('/settings/characters');
             }
         }).catch(er => {
@@ -416,7 +547,12 @@
 <div class="character-list-main">
     <div class="character-list-grid">
         <div class="character-info">
-            <a class="button-style back-link" href="/settings/characters">&lsaquo; All Characters</a>
+            <!-- Changes are saved on going back -->
+            {#if selectedReminderToken}
+                <button type="button" class="button-style back-link" onclick={closeReminderToken} disabled={saving}>&lsaquo; {selectedCharacter.name || 'Character'}</button>
+            {:else}
+                <a class="button-style back-link" href="/settings/characters">{saving ? 'Saving…' : '‹ All Characters'}</a>
+            {/if}
             {#if selectedReminderToken}
                 <div class="reminder-token-editor-container">
                     <div class="reminder-token-previews">
@@ -445,8 +581,8 @@
                         </tbody>
                     </table>
                     <div class="button-row">
+                        <button class="button-style" onclick={resetReminderToken} disabled={!reminderTokenChanged}>Reset Changes</button>
                         <button class="button-style error" onclick={()=>onDeleteReminderToken(selectedReminderTokenId)}>Delete Token</button>
-                        <button class="button-style highlight" onclick={onReminderTokenViewBackButtonClicked}>Save Changes</button>
                     </div>
                 </div>
             {:else}
@@ -468,7 +604,7 @@
                         <h1>{selectedCharacter.name}</h1>
 
                         <div class="button-row">
-                            <button class="button-style highlight" type="submit" form="update-character-form">Save Changes</button>
+                            <button class="button-style" onclick={resetCharacter} disabled={!characterChanged && !pendingImageFile}>Reset Changes</button>
                             <button class="button-style error" onclick={() => deleteCharacter(selectedCharacter.id)}>Delete</button>
                         </div>
                     </div>
@@ -484,30 +620,7 @@
                     </div>
                 {/if}
 
-                <form id="update-character-form" action="?/updateCharacter" method="POST" use:enhance={()=>{
-                    return async ({result}) => {
-                        switch(result.type){
-                            case 'success': {
-                                const updatedCharacter = result.data as Character;
-                                selectedCharacter = { ...selectedCharacter, ...updatedCharacter };
-                                alert('Character updated successfully');
-                                break;
-                            }
-                            case 'error': {
-                                alert(`Error when updating character: ${result.error.message}`);
-                                break;
-                            }
-                            case 'failure': {
-                                alert(`Failed to update character: ${result.data?.error || "Unknown error"}`);
-                                break;
-                            }
-                        }
-                    }
-                }}>
-                    <!-- The communications are saved with the rest of the character -->
-                    <input type="hidden" name="firstNightMessagePresets" value={JSON.stringify(selectedCharacter.firstNightMessagePresets)} />
-                    <input type="hidden" name="otherNightMessagePresets" value={JSON.stringify(selectedCharacter.otherNightMessagePresets)} />
-                    <input type="hidden" name="globalMessagePresets" value={JSON.stringify(selectedCharacter.globalMessagePresets)} />
+                <form id="update-character-form" onsubmit={(e) => e.preventDefault()}>
                     <table class="info-grid">
                         <tbody>
                             <tr>
@@ -556,7 +669,7 @@
                                 </td>
                             </tr>
                             <!-- A night's reminder is greyed out and locked (but kept) while the character doesn't wake then.
-                                 Read-only rather than disabled, so it's still sent with the form. -->
+                                 Read-only rather than disabled, so it can still be selected and copied. -->
                             <tr class:inactive={selectedCharacter.firstNightOrder == null}>
                                 <th>First Night Reminder</th>
                                 <td><textarea name="firstNightReminder" style="height: 4em;" placeholder="What the storyteller does on the first night (leave empty to show the ability)" readonly={selectedCharacter.firstNightOrder == null} bind:value={selectedCharacter.firstNightReminder}></textarea></td>
@@ -573,7 +686,7 @@
                 <h3>Reminder Tokens</h3>
                 <div class="reminder-token-container">
                     {#each selectedCharacterTokens as token(token.id)}
-                        <button class="no-button-style" onclick={() => selectedReminderTokenId = token.id} style="position: relative;">
+                        <button class="no-button-style" onclick={() => openReminderToken(token.id)} style="position: relative;">
                         <ReminderTokenView data={token} characterId={selectedCharacterId} size="80px" />
                         </button>
                     {/each}
@@ -582,8 +695,8 @@
 
                 <h3>Communications</h3>
                 <p class="presets-description">Messages to show the player, offered from their token in the grim and from the night order: a night's while the character wakes that night, and the global ones always. A blank is filled in each time it's shown.</p>
-                <!-- Saved with the rest of the character, through the form's hidden fields. A night's are greyed out and
-                     locked (but kept) while the character doesn't wake then. -->
+                <!-- Saved with the rest of the character. A night's are greyed out and locked (but kept) while the
+                     character doesn't wake then. -->
                 <table class="info-grid">
                     <tbody>
                         <tr class:inactive={selectedCharacter.firstNightOrder == null}>
