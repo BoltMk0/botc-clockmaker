@@ -34,6 +34,7 @@
         textOptions = $bindable(),
         sections,
         characters,
+        addLabel = '+ Add preset',
     }: {
         presets: T[];
         // A new, empty preset to add.
@@ -42,6 +43,8 @@
         sections: CharacterSection[];
         // Every character a preset might show, by id.
         characters: Record<string, Character>;
+        // The add button's text, e.g. why it's disabled.
+        addLabel?: string;
     } = $props();
 
     // In the character editor the list is inside the character's form, which Enter in a name would otherwise submit.
@@ -105,7 +108,7 @@
     {:else}
         <div class="empty">No presets yet.</div>
     {/each}
-    <button type="button" class="add-preset" onclick={addPreset}>+ Add preset</button>
+    <button type="button" class="add-preset" onclick={addPreset}>{addLabel}</button>
 </div>
 
 {#if editing !== null && presets[editing]}

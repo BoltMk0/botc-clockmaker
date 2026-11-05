@@ -48,18 +48,22 @@ export type Character = {
     // their token and the night order sheet.
     firstNightMessagePresets: MessagePreset[];
     otherNightMessagePresets: MessagePreset[];
+    // Messages offered for the character whatever the night, and whether or not it wakes.
+    globalMessagePresets: MessagePreset[];
 };
 
-// The character's presets for the first night or the other nights: none on a night it doesn't wake.
+// The character's presets for the first night or the other nights (none on a night it doesn't wake), then its global ones.
 export function characterMessagePresetsFor(
-    character: Pick<Character, 'firstNightOrder' | 'otherNightOrder' | 'firstNightMessagePresets' | 'otherNightMessagePresets'>,
+    character: Pick<Character, 'firstNightOrder' | 'otherNightOrder' | 'firstNightMessagePresets' | 'otherNightMessagePresets' | 'globalMessagePresets'>,
     night: 'first' | 'other'
 ): MessagePreset[] {
-    if (night === 'first') return character.firstNightOrder === null ? [] : character.firstNightMessagePresets ?? [];
-    return character.otherNightOrder === null ? [] : character.otherNightMessagePresets ?? [];
+    const nightPresets = night === 'first'
+        ? (character.firstNightOrder === null ? [] : character.firstNightMessagePresets ?? [])
+        : (character.otherNightOrder === null ? [] : character.otherNightMessagePresets ?? []);
+    return [...nightPresets, ...(character.globalMessagePresets ?? [])];
 }
 
-export type NewCharacter = Omit<Character, 'id' | 'reminderTokens' | 'firstNightMessagePresets' | 'otherNightMessagePresets'>;
+export type NewCharacter = Omit<Character, 'id' | 'reminderTokens' | 'firstNightMessagePresets' | 'otherNightMessagePresets' | 'globalMessagePresets'>;
 
 /** Splits a trailing "[...]" setup note off ability text, as the wiki and scripts print it, e.g. "There are extra Outsiders in play. [+2 Outsiders]". */
 export function splitSetupFromRules(text: string): { rules: string; setup: string } {
@@ -205,7 +209,8 @@ export function isCharacter(obj: any): obj is Character {
         Array.isArray(obj.reminderTokens) && obj.reminderTokens.every(isReminderToken) &&
         // Absent on characters saved before they had message presets; characters.ts fills them in.
         (obj.firstNightMessagePresets === undefined || isMessagePresetList(obj.firstNightMessagePresets)) &&
-        (obj.otherNightMessagePresets === undefined || isMessagePresetList(obj.otherNightMessagePresets));
+        (obj.otherNightMessagePresets === undefined || isMessagePresetList(obj.otherNightMessagePresets)) &&
+        (obj.globalMessagePresets === undefined || isMessagePresetList(obj.globalMessagePresets));
     if(!result){
         console.error("Invalid Character object:", obj);
     }

@@ -50,8 +50,8 @@ for (const character of [...CHARACTERS_MANAGER.values]) {
 
 // Characters saved before they had message presets have none.
 for (const character of [...CHARACTERS_MANAGER.values]) {
-    if (character.firstNightMessagePresets === undefined || character.otherNightMessagePresets === undefined) {
-        CHARACTERS_MANAGER.add({ ...character, firstNightMessagePresets: character.firstNightMessagePresets ?? [], otherNightMessagePresets: character.otherNightMessagePresets ?? [] });
+    if (character.firstNightMessagePresets === undefined || character.otherNightMessagePresets === undefined || character.globalMessagePresets === undefined) {
+        CHARACTERS_MANAGER.add({ ...character, firstNightMessagePresets: character.firstNightMessagePresets ?? [], otherNightMessagePresets: character.otherNightMessagePresets ?? [], globalMessagePresets: character.globalMessagePresets ?? [] });
     }
 }
 
@@ -85,7 +85,7 @@ export function addCharacter(character: NewCharacter): Character {
     if (CHARACTERS_MANAGER.get(id)) {
         throw new Error(`A character with the name "${character.name}" already exists`);
     }
-    return CHARACTERS_MANAGER.add({ id, ...character, reminderTokens: [], firstNightMessagePresets: [], otherNightMessagePresets: [] });
+    return CHARACTERS_MANAGER.add({ id, ...character, reminderTokens: [], firstNightMessagePresets: [], otherNightMessagePresets: [], globalMessagePresets: [] });
 }
 
 export function updateCharacter(id: string, fields: Partial<Omit<Character, 'id' | 'reminderTokens'>>): Character | null {

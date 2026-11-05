@@ -166,15 +166,6 @@
 
 </script>
 
-{#snippet nightPresets(night: 'first' | 'other')}
-    <p class="presets-description">Messages to show the player that night, offered from their token in the grim and from the night order. A blank is filled in each time it's shown.</p>
-    {#if night === 'first'}
-        <MessagePresetList bind:presets={selectedCharacter.firstNightMessagePresets} bind:textOptions sections={presetSections} characters={allCharactersById} newPreset={newMessagePreset} />
-    {:else}
-        <MessagePresetList bind:presets={selectedCharacter.otherNightMessagePresets} bind:textOptions sections={presetSections} characters={allCharactersById} newPreset={newMessagePreset} />
-    {/if}
-{/snippet}
-
 <style>
     .character-list-main {
         height: 100%;
@@ -224,7 +215,7 @@
         border-color: var(--theme-highlight);
     }
 
-    .character-info input[readonly] {
+    .character-info :is(input, textarea)[readonly] {
         background-color: var(--theme-bg);
         color: var(--theme-on-bg-secondary);
     }
@@ -306,9 +297,17 @@
         padding: 0.2em 0.6em;
     }
 
-    /* A night's reminder and communications while the character doesn't wake then (over the stacked layout's display) */
-    .character-info table.info-grid tr[hidden] {
-        display: none;
+    /* A night's reminder and communications while the character doesn't wake then: kept, but greyed out and locked */
+    .character-info table.info-grid tr.inactive {
+        opacity: 0.45;
+    }
+
+    /* Locks a night's communications without changing how they look */
+    fieldset.presets-fieldset {
+        margin: 0;
+        padding: 0;
+        border: none;
+        min-width: 0;
     }
 
     .presets-description {
@@ -508,6 +507,7 @@
                     <!-- The communications are saved with the rest of the character -->
                     <input type="hidden" name="firstNightMessagePresets" value={JSON.stringify(selectedCharacter.firstNightMessagePresets)} />
                     <input type="hidden" name="otherNightMessagePresets" value={JSON.stringify(selectedCharacter.otherNightMessagePresets)} />
+                    <input type="hidden" name="globalMessagePresets" value={JSON.stringify(selectedCharacter.globalMessagePresets)} />
                     <table class="info-grid">
                         <tbody>
                             <tr>
@@ -555,26 +555,20 @@
                                     </div>
                                 </td>
                             </tr>
-                            <!-- A night's reminder and communications are hidden (but kept) while the character doesn't wake then -->
-                            <tr hidden={selectedCharacter.firstNightOrder == null}>
+                            <!-- A night's reminder is greyed out and locked (but kept) while the character doesn't wake then.
+                                 Read-only rather than disabled, so it's still sent with the form. -->
+                            <tr class:inactive={selectedCharacter.firstNightOrder == null}>
                                 <th>First Night Reminder</th>
-                                <td><textarea name="firstNightReminder" style="height: 4em;" placeholder="What the storyteller does on the first night (leave empty to show the ability)" bind:value={selectedCharacter.firstNightReminder}></textarea></td>
+                                <td><textarea name="firstNightReminder" style="height: 4em;" placeholder="What the storyteller does on the first night (leave empty to show the ability)" readonly={selectedCharacter.firstNightOrder == null} bind:value={selectedCharacter.firstNightReminder}></textarea></td>
                             </tr>
-                            <tr hidden={selectedCharacter.firstNightOrder == null}>
-                                <th>First Night Communications</th>
-                                <td>{@render nightPresets('first')}</td>
-                            </tr>
-                            <tr hidden={selectedCharacter.otherNightOrder == null}>
+                            <tr class:inactive={selectedCharacter.otherNightOrder == null}>
                                 <th>Other Nights Reminder</th>
-                                <td><textarea name="otherNightReminder" style="height: 4em;" placeholder="What the storyteller does on other nights (leave empty to show the ability)" bind:value={selectedCharacter.otherNightReminder}></textarea></td>
-                            </tr>
-                            <tr hidden={selectedCharacter.otherNightOrder == null}>
-                                <th>Other Nights Communications</th>
-                                <td>{@render nightPresets('other')}</td>
+                                <td><textarea name="otherNightReminder" style="height: 4em;" placeholder="What the storyteller does on other nights (leave empty to show the ability)" readonly={selectedCharacter.otherNightOrder == null} bind:value={selectedCharacter.otherNightReminder}></textarea></td>
                             </tr>
                         </tbody>
                     </table>
                 </form>
+
 
                 <h3>Reminder Tokens</h3>
                 <div class="reminder-token-container">
@@ -585,6 +579,37 @@
                     {/each}
                     <button id="add-reminder-token-button" onclick={createNewReminderToken} >+</button>
                 </div>
+
+                <h3>Communications</h3>
+                <p class="presets-description">Messages to show the player, offered from their token in the grim and from the night order: a night's while the character wakes that night, and the global ones always. A blank is filled in each time it's shown.</p>
+                <!-- Saved with the rest of the character, through the form's hidden fields. A night's are greyed out and
+                     locked (but kept) while the character doesn't wake then. -->
+                <table class="info-grid">
+                    <tbody>
+                        <tr class:inactive={selectedCharacter.firstNightOrder == null}>
+                            <th>First Night</th>
+                            <td>
+                                <fieldset class="presets-fieldset" disabled={selectedCharacter.firstNightOrder == null}>
+                                    <MessagePresetList bind:presets={selectedCharacter.firstNightMessagePresets} bind:textOptions sections={presetSections} characters={allCharactersById} newPreset={newMessagePreset}
+                                        addLabel={selectedCharacter.firstNightOrder == null ? "This character doesn't wake on the first night" : undefined} />
+                                </fieldset>
+                            </td>
+                        </tr>
+                        <tr class:inactive={selectedCharacter.otherNightOrder == null}>
+                            <th>Other Nights</th>
+                            <td>
+                                <fieldset class="presets-fieldset" disabled={selectedCharacter.otherNightOrder == null}>
+                                    <MessagePresetList bind:presets={selectedCharacter.otherNightMessagePresets} bind:textOptions sections={presetSections} characters={allCharactersById} newPreset={newMessagePreset}
+                                        addLabel={selectedCharacter.otherNightOrder == null ? "This character doesn't wake on other nights" : undefined} />
+                                </fieldset>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Global</th>
+                            <td><MessagePresetList bind:presets={selectedCharacter.globalMessagePresets} bind:textOptions sections={presetSections} characters={allCharactersById} newPreset={newMessagePreset} /></td>
+                        </tr>
+                    </tbody>
+                </table>
             {/if}
         </div>
     </div>

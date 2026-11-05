@@ -3,7 +3,7 @@ import { isMessagePresetList } from "$lib/common/message";
 import { getCharacterById, updateCharacter } from "$lib/resources/server/characters";
 import { error, fail } from "@sveltejs/kit";
 
-// A night's message presets, sent as JSON; null if they're not valid.
+// A list of the character's message presets, sent as JSON; null if they're not valid.
 function parseMessagePresetsField(value: FormDataEntryValue | null) {
     try {
         const presets: unknown = JSON.parse(String(value ?? '[]'));
@@ -65,7 +65,8 @@ export const actions = {
 
         const firstNightMessagePresets = parseMessagePresetsField(formData.get('firstNightMessagePresets'));
         const otherNightMessagePresets = parseMessagePresetsField(formData.get('otherNightMessagePresets'));
-        if (!firstNightMessagePresets || !otherNightMessagePresets) {
+        const globalMessagePresets = parseMessagePresetsField(formData.get('globalMessagePresets'));
+        if (!firstNightMessagePresets || !otherNightMessagePresets || !globalMessagePresets) {
             return fail(400, {error: 'Invalid communications' });
         }
 
@@ -73,7 +74,7 @@ export const actions = {
         const firstNightOrder = parseNightOrderField(formData.get('firstNightOrder'));
         const otherNightOrder = parseNightOrderField(formData.get('otherNightOrder'));
 
-        const character = updateCharacter(id, {name, category, rules, setup: setup.trim(), firstNightOrder, otherNightOrder, firstNightReminder: firstNightReminder.trim(), otherNightReminder: otherNightReminder.trim(), firstNightMessagePresets, otherNightMessagePresets});
+        const character = updateCharacter(id, {name, category, rules, setup: setup.trim(), firstNightOrder, otherNightOrder, firstNightReminder: firstNightReminder.trim(), otherNightReminder: otherNightReminder.trim(), firstNightMessagePresets, otherNightMessagePresets, globalMessagePresets});
 
         if(!character){
             return fail(404, {error: 'Character not found'});
