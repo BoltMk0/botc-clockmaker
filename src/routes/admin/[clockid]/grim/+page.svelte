@@ -596,8 +596,16 @@
     });
 
     // The communications character picker lists them the same way, but with a script, just its characters (and the
-    // travellers, loric and fabled) rather than every script's.
-    const commsSections = $derived(script ? traySections.filter(s => s.key !== 'other' && !s.key.startsWith('script-')) : traySections);
+    // travellers, loric and fabled) rather than every script's. Its In-play section is always first, whether or not
+    // a preset is loaded or the players named: the characters of the tokens auto-arrange seats (travellers too), so
+    // they and the reminders beside them are never folded away.
+    const commsInPlayCharacters = $derived([...new Set(
+        tokensToSeat(placedTokens, isSideRoleToken).map(t => t.characterId).filter(id => id !== null)
+    )].map(id => characterById.get(id)).filter((c): c is ScriptCharacter => !!c));
+    const commsSections = $derived.by((): TraySection[] => {
+        const listed = traySections.filter(s => s.key !== 'in-play' && (!script || (s.key !== 'other' && !s.key.startsWith('script-'))));
+        return commsInPlayCharacters.length > 0 ? [{ key: 'in-play', title: 'In-play', characters: commsInPlayCharacters }, ...listed] : listed;
+    });
 
     // The collapsible tray sections that are open, by key. They start collapsed; which are open is remembered on this
     // device (for every game, as the sections are the scripts).
