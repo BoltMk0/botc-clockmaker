@@ -424,6 +424,7 @@
         void activeToken?.playerName;
         void activeToken?.isDead;
         void activeToken?.alignment;
+        void playerCommsShown;
         const popupRect = reminderPopupEl.getBoundingClientRect();
         const margin = 8;
         const halfWidth = popupRect.width / 2;
@@ -2434,11 +2435,7 @@
         line-height: 1.2;
         min-height: max(40px, calc(2.4em + 1.2em));
     }
-    /* Across both columns: a preset in the character's communications, and the Back button under them */
-    .popup-buttons .popup-wide {
-        grid-column: 1 / -1;
-    }
-    /* Custom… and Back among a character's presets in the player info: plain, darker buttons */
+    /* Custom… and Back among a character's presets in the token popup: plain, darker buttons */
     .button-style.comms-plain {
         background-color: var(--theme-bg);
     }
@@ -2449,8 +2446,19 @@
     .comms-custom {
         font-style: italic;
     }
+    /* A character's presets, Custom and Back, filling the popup in place of its controls and reminders */
+    .popup-comms {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        width: calc(2 * 6.2em + 6px);
+    }
+    .popup-comms .popup-toggle {
+        white-space: normal;
+        line-height: 1.2;
+    }
     /* Custom and Back among the popup's presets: plain buttons, as big as the presets */
-    .popup-buttons .button-style {
+    .popup-comms .button-style {
         min-height: 40px;
         font-size: 0.8em;
         font-weight: 600;
@@ -3177,6 +3185,16 @@
                 {#if activeToken}
                     {@const activeChar = characterById.get(activeCharacterId ?? '')}
                     {@const sideRole = isSideRoleCategory(activeChar?.category)}
+                    {#if playerCommsShown && activeChar && !sideRole}
+                    <!-- The character's presets for tonight, Custom and Back, in place of everything else -->
+                    <div class="popup-comms">
+                        {#each characterPresetsFor(activeChar.id, currentNight) as preset}
+                            <button type="button" class="popup-toggle" onclick={() => showPreset(preset, activeChar.id)}>{presetDisplayName(preset)}</button>
+                        {/each}
+                        <button type="button" class="button-style comms-plain comms-custom" onclick={() => openCustomComms(activeChar.id)}>Custom…</button>
+                        <button type="button" class="button-style comms-plain" onclick={() => playerCommsShown = false}>&lsaquo; Back</button>
+                    </div>
+                    {:else}
                     <div class="popup-meta" bind:clientHeight={popupMetaHeight}>
                         {#if !sideRole}
                             {#if editingPlayerName}
@@ -3201,14 +3219,7 @@
                             {/if}
                         {/if}
                         <div class="popup-buttons">
-                            {#if playerCommsShown && activeChar && !sideRole}
-                                <!-- The character's presets for tonight, in place of the buttons -->
-                                {#each characterPresetsFor(activeChar.id, currentNight) as preset}
-                                    <button type="button" class="popup-toggle popup-wide" onclick={() => showPreset(preset, activeChar.id)}>{presetDisplayName(preset)}</button>
-                                {/each}
-                                <button type="button" class="button-style popup-wide comms-plain comms-custom" onclick={() => openCustomComms(activeChar.id)}>Custom…</button>
-                                <button type="button" class="button-style popup-wide comms-plain" onclick={() => playerCommsShown = false}>&lsaquo; Back</button>
-                            {:else if sideRole}
+                            {#if sideRole}
                                 {#if activeChar}
                                     <button type="button" class="popup-toggle with-icon" onclick={() => viewCharacter(activeChar.id)}>{@render eyeIcon()}Show</button>
                                 {/if}
@@ -3244,8 +3255,9 @@
                         {/if}
                     </div>
                     <div class="popup-divider"></div>
+                    {/if}
                 {/if}
-                {#if activeCharacterId !== null}
+                {#if activeCharacterId !== null && !playerCommsShown}
                     {#if (reminderCache[activeCharacterId] ?? []).length === 0}
                         <span style="color: #999; font-size: 0.8em; padding: 4px;">No reminders</span>
                     {:else}
@@ -3412,8 +3424,8 @@
                         {#each characterPresetsFor(oc.id, currentNight) as preset}
                             <button type="button" class="popup-toggle" onclick={(e) => { e.stopPropagation(); showPreset(preset, oc.id); }}>{presetDisplayName(preset)}</button>
                         {/each}
-                        <button type="button" class="button-style comms-plain comms-custom" onclick={(e) => { e.stopPropagation(); openCustomComms(oc.id); }}>Custom…</button>
-                        <button type="button" class="button-style comms-plain" onclick={(e) => { e.stopPropagation(); playerCommsShown = false; }}>&lsaquo; Back</button>
+                        <button type="button" class="button-style comms-custom" onclick={(e) => { e.stopPropagation(); openCustomComms(oc.id); }}>Custom…</button>
+                        <button type="button" class="button-style" onclick={(e) => { e.stopPropagation(); playerCommsShown = false; }}>&lsaquo; Back</button>
                     </div>
                 {:else if overlayFromBoard && activeToken}
                     <div class="overlay-toggles">
