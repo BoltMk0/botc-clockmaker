@@ -20,7 +20,7 @@
     import type { CanvasToolType } from "$lib/components/DrawableCanvas2/types.js";
     import AnotatableViewV2 from "$lib/components/DrawableCanvas2/AnotatableViewV2.svelte";
     import PlayerToken from "$lib/components/PlayerToken.svelte";
-    import { ALIGNMENT_RING_FACTORS, BOARD_TOKEN_SIZE, hasDeadVote, isPlayerToken, layoutTokensAtDefaultPositions, remindersBySeatedToken, newGrimoireStateHistory, tokensToSeat, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
+    import { ALIGNMENT_RING_FACTORS, BOARD_TOKEN_SIZE, hasDeadVote, isPlayerToken, layoutTokensAtDefaultPositions, nearestByAngle, remindersBySeatedToken, newGrimoireStateHistory, tokensToSeat, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
     import { v7 } from "uuid";
     import PencilIcon from "$lib/components/PencilIcon.svelte";
     import TrashIcon from "$lib/components/TrashIcon.svelte";
@@ -967,8 +967,21 @@
     }
 
     // A preset with blanks opens in the builder first, to fill them in (opening communications, if it isn't open).
+    // A preset's elements with each Reminder element made the character of the player beside that reminder (the
+    // seated token nearest it by angle), or a blank to fill in if the reminder isn't on the grim, is on it more than
+    // once, or is beside a token with no character.
+    function withRemindersResolved(elements: PresetElement[]): PresetElement[] {
+        return elements.map((element): PresetElement => {
+            if (element.type !== 'reminderCharacter') return element;
+            const placed = placedReminders.filter(r => r.tokenId === element.reminderTokenId);
+            if (placed.length !== 1) return { type: 'blank' };
+            const characterId = nearestByAngle(placed[0], tokensToSeat(placedTokens, isSideRoleToken))?.characterId;
+            return characterId ? { type: 'character', value: [characterId] } : { type: 'blank' };
+        });
+    }
+
     function showPreset(preset: MessagePreset, forCharacterId?: string) {
-        const elements = preset.elements;
+        const elements = withRemindersResolved(preset.elements);
         if (!hasNoBlanks(elements)) {
             if (commsView === null) openComms();
             commsView = 'main';

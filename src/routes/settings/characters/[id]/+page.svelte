@@ -285,6 +285,8 @@
         }).catch(() => alert('Failed to fetch text options!'));
     });
     const newMessagePreset = (): MessagePreset => ({ name: '', elements: [] });
+    // The character's reminder tokens, for presets that find a character by one.
+    const presetReminderTokens = $derived(selectedCharacterTokens.map(t => ({ ...t, characterId: selectedCharacterId })));
 
     let imgCacheBust = $state<number>(Date.now());
     let hasImage = $state<boolean>(true);
@@ -694,7 +696,7 @@
                 </div>
 
                 <h3>Communications</h3>
-                <p class="presets-description">Messages to show the player, offered from their token in the grim and from the night order: a night's while the character wakes that night, and the global ones always. A blank is filled in each time it's shown.</p>
+                <p class="presets-description">Messages to show the player, offered from their token in the grim and from the night order: a night's while the character wakes that night, and the global ones always. A blank is filled in each time it's shown, and a Reminder element shows the character of the player beside that reminder on the grim (or is a blank if the reminder isn't there, or is there more than once).</p>
                 <!-- Saved with the rest of the character. A night's are greyed out and locked (but kept) while the
                      character doesn't wake then. -->
                 <table class="info-grid">
@@ -703,7 +705,7 @@
                             <th>First Night</th>
                             <td>
                                 <fieldset class="presets-fieldset" disabled={selectedCharacter.firstNightOrder == null}>
-                                    <MessagePresetList bind:presets={selectedCharacter.firstNightMessagePresets} bind:textOptions sections={presetSections} characters={allCharactersById} newPreset={newMessagePreset}
+                                    <MessagePresetList bind:presets={selectedCharacter.firstNightMessagePresets} bind:textOptions sections={presetSections} characters={allCharactersById} newPreset={newMessagePreset} reminderTokens={presetReminderTokens}
                                         addLabel={selectedCharacter.firstNightOrder == null ? "This character doesn't wake on the first night" : undefined} />
                                 </fieldset>
                             </td>
@@ -712,14 +714,14 @@
                             <th>Other Nights</th>
                             <td>
                                 <fieldset class="presets-fieldset" disabled={selectedCharacter.otherNightOrder == null}>
-                                    <MessagePresetList bind:presets={selectedCharacter.otherNightMessagePresets} bind:textOptions sections={presetSections} characters={allCharactersById} newPreset={newMessagePreset}
+                                    <MessagePresetList bind:presets={selectedCharacter.otherNightMessagePresets} bind:textOptions sections={presetSections} characters={allCharactersById} newPreset={newMessagePreset} reminderTokens={presetReminderTokens}
                                         addLabel={selectedCharacter.otherNightOrder == null ? "This character doesn't wake on other nights" : undefined} />
                                 </fieldset>
                             </td>
                         </tr>
                         <tr>
                             <th>Global</th>
-                            <td><MessagePresetList bind:presets={selectedCharacter.globalMessagePresets} bind:textOptions sections={presetSections} characters={allCharactersById} newPreset={newMessagePreset} /></td>
+                            <td><MessagePresetList bind:presets={selectedCharacter.globalMessagePresets} bind:textOptions sections={presetSections} characters={allCharactersById} newPreset={newMessagePreset} reminderTokens={presetReminderTokens} /></td>
                         </tr>
                     </tbody>
                 </table>

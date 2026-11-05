@@ -1,5 +1,5 @@
 <script lang="ts" module>
-    import { ALL_CHARACTER_CATEGORIES, type Character, type CharacterCategory } from "$lib/resources/common/gameData";
+    import { ALL_CHARACTER_CATEGORIES, type Character, type CharacterCategory, type ReminderToken } from "$lib/resources/common/gameData";
     import type { CharacterSection } from "$lib/components/MessageBuilder.svelte";
 
     const CATEGORY_TITLES: Record<CharacterCategory, string> = {
@@ -25,6 +25,7 @@
     import { characterImageUrl } from "$lib/resources/common/characterImages";
     import MessageBuilder, { type MessageBuilderView } from "$lib/components/MessageBuilder.svelte";
     import MessageText from "$lib/components/MessageText.svelte";
+    import ReminderTokenView from "$lib/components/ReminderTokenView.svelte";
 
     // A list of message presets, each shown as it'll look, to name, reorder, delete and edit in the message builder
     // (where they can have blanks) - the communications presets in settings, and a character's own for each night.
@@ -35,6 +36,7 @@
         sections,
         characters,
         addLabel = '+ Add preset',
+        reminderTokens = [],
     }: {
         presets: T[];
         // A new, empty preset to add.
@@ -45,6 +47,8 @@
         characters: Record<string, Character>;
         // The add button's text, e.g. why it's disabled.
         addLabel?: string;
+        // The reminder tokens a preset can find a character by (in the character editor, the character's own).
+        reminderTokens?: (ReminderToken & { characterId: string })[];
     } = $props();
 
     // In the character editor the list is inside the character's form, which Enter in a name would otherwise submit.
@@ -97,6 +101,14 @@
                         </div>
                     {:else if element.type === 'alignment'}
                         <div class="preview-alignment dumbledore-font {element.value}">{element.value === 'good' ? 'GOOD' : 'EVIL'}</div>
+                    {:else if element.type === 'reminderCharacter'}
+                        {@const reminder = reminderTokens.find(t => t.id === element.reminderTokenId)}
+                        <div class="preview-blank preview-reminder" title="The character by this reminder, or a blank">
+                            {#if reminder}
+                                <div class="preview-reminder-token"><ReminderTokenView data={reminder} characterId={reminder.characterId} size="32px"/></div>
+                            {/if}
+                            {reminder ? 'By reminder' : 'By a deleted reminder'}
+                        </div>
                     {:else}
                         <div class="preview-blank">Blank</div>
                     {/if}
@@ -133,6 +145,7 @@
                     bind:textOptions
                     {sections}
                     {characters}
+                    {reminderTokens}
                     tokenSize={56}
                     imageSize={128}
                     blanks="add"
@@ -217,6 +230,19 @@
         border-radius: 0.5em;
         opacity: 0.6;
         font-style: italic;
+    }
+
+    .preview-reminder {
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+    }
+
+    .preview-reminder-token {
+        position: relative;
+        width: 32px;
+        height: 32px;
+        font-style: normal;
     }
 
     .preview-alignment {

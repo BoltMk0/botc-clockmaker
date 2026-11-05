@@ -37,16 +37,22 @@ export function isMessageElement(data: any): data is MessageElement {
 
 // A space in a message preset, filled in with a text, character or alignment element each time it's shown.
 export type BlankElement = { type: 'blank' };
-// An element of a message preset: one of a message's, or a blank.
-export type PresetElement = MessageElement | BlankElement;
+// In a character's message preset: the character of the player beside one of its reminder tokens on the grim (the
+// seated token nearest it by angle). Each time it's shown, it becomes that character, or a blank to fill in if the
+// reminder isn't on the grim or is on it more than once.
+export type ReminderCharacterElement = { type: 'reminderCharacter'; reminderTokenId: string };
+// An element of a message preset: one of a message's, a blank, or a character found by a reminder.
+export type PresetElement = MessageElement | BlankElement | ReminderCharacterElement;
 
 export function isPresetElement(data: any): data is PresetElement {
-    return isMessageElement(data) || (typeof data === 'object' && data !== null && data.type === 'blank');
+    if (isMessageElement(data)) return true;
+    if (typeof data !== 'object' || data === null) return false;
+    return data.type === 'blank' || (data.type === 'reminderCharacter' && typeof data.reminderTokenId === 'string');
 }
 
-// True once every blank has been filled in, so the message can be shown.
+// True once every blank has been filled in (and every reminder's character found), so the message can be shown.
 export function hasNoBlanks(elements: PresetElement[]): elements is MessageElement[] {
-    return elements.every(e => e.type !== 'blank');
+    return elements.every(e => e.type !== 'blank' && e.type !== 'reminderCharacter');
 }
 
 // A ready-made message, set up in settings or the grim's communications, and shown from there in one tap (or after
