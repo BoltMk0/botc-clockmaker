@@ -2439,8 +2439,15 @@
         grid-column: 1 / -1;
     }
     /* Custom, after a character's presets in the player info: set apart from them */
-    .popup-toggle.comms-custom {
+    .comms-custom {
         font-style: italic;
+    }
+    /* Custom and Back among the popup's presets: plain buttons, as big as the presets */
+    .popup-buttons .button-style {
+        min-height: 40px;
+        font-size: 0.8em;
+        font-weight: 600;
+        padding: 0.6em 1em;
     }
     .popup-toggle:disabled {
         opacity: 0.4;
@@ -3192,8 +3199,8 @@
                                 {#each characterPresetsFor(activeChar.id, currentNight) as preset}
                                     <button type="button" class="popup-toggle popup-wide" onclick={() => showPreset(preset, activeChar.id)}>{presetDisplayName(preset)}</button>
                                 {/each}
-                                <button type="button" class="popup-toggle popup-wide comms-custom" onclick={() => openCustomComms(activeChar.id)}>Custom…</button>
-                                <button type="button" class="popup-toggle popup-wide" onclick={() => playerCommsShown = false}>&lsaquo; Back</button>
+                                <button type="button" class="button-style popup-wide comms-custom" onclick={() => openCustomComms(activeChar.id)}>Custom…</button>
+                                <button type="button" class="button-style popup-wide" onclick={() => playerCommsShown = false}>&lsaquo; Back</button>
                             {:else if sideRole}
                                 {#if activeChar}
                                     <button type="button" class="popup-toggle with-icon" onclick={() => viewCharacter(activeChar.id)}>{@render eyeIcon()}Show</button>
@@ -3398,7 +3405,7 @@
                         {#each characterPresetsFor(oc.id, currentNight) as preset}
                             <button type="button" class="popup-toggle" onclick={(e) => { e.stopPropagation(); showPreset(preset, oc.id); }}>{presetDisplayName(preset)}</button>
                         {/each}
-                        <button type="button" class="popup-toggle comms-custom" onclick={(e) => { e.stopPropagation(); openCustomComms(oc.id); }}>Custom…</button>
+                        <button type="button" class="button-style comms-custom" onclick={(e) => { e.stopPropagation(); openCustomComms(oc.id); }}>Custom…</button>
                         <button type="button" class="button-style" onclick={(e) => { e.stopPropagation(); playerCommsShown = false; }}>&lsaquo; Back</button>
                     </div>
                 {:else if overlayFromBoard && activeToken}
