@@ -860,8 +860,9 @@
 
     // The Preset tab's builder, in place of its list: a new preset being made (which can have blanks), or a preset
     // with blanks being filled in before it's shown.
-    // (forCharacter: opened from a character's communications, whose pickers show the reminders by each character.)
-    let presetEditor = $state<{ mode: 'new' | 'fill'; name: string; elements: PresetElement[]; forCharacter?: boolean } | null>(null);
+    // (forCharacterId: opened from that character's communications, whose pickers show that character's reminders
+    // beside each character.)
+    let presetEditor = $state<{ mode: 'new' | 'fill'; name: string; elements: PresetElement[]; forCharacterId?: string } | null>(null);
     let presetBuilderView = $state<MessageBuilderView>('builder');
     const presetEditorFilled = $derived(presetEditor !== null && presetEditor.elements.length > 0 && hasNoBlanks(presetEditor.elements));
     // The tabs are hidden while either builder is on one of its own screens (picking characters, say).
@@ -962,13 +963,13 @@
     }
 
     // A preset with blanks opens in the builder first, to fill them in (opening communications, if it isn't open).
-    function showPreset(preset: MessagePreset, forCharacter = false) {
+    function showPreset(preset: MessagePreset, forCharacterId?: string) {
         const elements = preset.elements;
         if (!hasNoBlanks(elements)) {
             if (commsView === null) openComms();
             commsView = 'main';
             commsTab = 'preset';
-            presetEditor = { mode: 'fill', name: preset.name, elements: structuredClone($state.snapshot(elements)), forCharacter };
+            presetEditor = { mode: 'fill', name: preset.name, elements: structuredClone($state.snapshot(elements)), forCharacterId };
             presetBuilderView = 'builder';
         } else if (messageQueue.enabled) {
             queueMessage(presetDisplayName(preset), elements);
@@ -983,7 +984,7 @@
     // A character's own presets for the night, from their token or the night order: shown (or filled in) straight
     // away if there's one, or listed to pick from if there are several.
     // (The Demon Info step lists the bluffs too.)
-    let characterComms = $state<{ name: string; presets: MessagePreset[]; bluffs?: boolean } | null>(null);
+    let characterComms = $state<{ name: string; presets: MessagePreset[]; bluffs?: boolean; characterId?: string } | null>(null);
     const characterPresetsFor = (characterId: string | null | undefined, night: 'first' | 'other') => {
         const character = characterById.get(characterId ?? '');
         return character ? characterMessagePresetsFor(character, night) : [];
@@ -992,10 +993,10 @@
     function openCharacterComms(characterId: string, night: 'first' | 'other') {
         const presets = characterPresetsFor(characterId, night);
         if (presets.length === 1) {
-            showPreset(presets[0], true);
+            showPreset(presets[0], characterId);
         } else if (presets.length > 1) {
             if (commsView === null) openComms();
-            characterComms = { name: characterById.get(characterId)?.name ?? '', presets };
+            characterComms = { name: characterById.get(characterId)?.name ?? '', presets, characterId };
             commsView = 'character';
         }
     }
@@ -1003,7 +1004,7 @@
     // A first night info step's communications, as a character's: one is shown straight away, more are listed.
     function openInfoStepComms(step: typeof FIRST_NIGHT_INFO_STEPS[number]) {
         if (step.presets.length === 1 && !step.bluffs) {
-            showPreset(step.presets[0], true);
+            showPreset(step.presets[0]);
             return;
         }
         if (commsView === null) openComms();
@@ -3411,7 +3412,7 @@
                 {:else if commsView === 'character' && characterComms}
                     <div class="overlay-name dumbledore-font">{characterComms.name}</div>
                     {#each characterComms.presets as preset}
-                        <button class="button-style" onclick={() => showPreset(preset, true)}>{presetDisplayName(preset)}</button>
+                        <button class="button-style" onclick={() => showPreset(preset, characterComms?.characterId)}>{presetDisplayName(preset)}</button>
                     {/each}
                     {#if characterComms.bluffs}
                         <button class="button-style" disabled={bluffSets.length === 0 && !(script && loadedPreset)} onclick={chooseBluffs}>
@@ -3472,7 +3473,7 @@
                             sections={commsSections}
                             characters={availableCharacters}
                             faded={id => !isInPlay(id)}
-                            reminders={presetEditor.forCharacter ? (id => remindersByCharacterId[id] ?? []) : undefined}
+                            reminders={presetEditor.forCharacterId ? (id => (remindersByCharacterId[id] ?? []).filter(r => r.characterId === presetEditor?.forCharacterId)) : undefined}
                             tokenSize={trayTokenSize}
                             imageSize={TRAY_IMAGE_SIZE}
                             blanks={presetEditor.mode === 'new' ? 'add' : 'fill'}
