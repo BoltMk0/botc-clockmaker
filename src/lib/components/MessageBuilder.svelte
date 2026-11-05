@@ -247,7 +247,8 @@
                     <button type="button" class="button-style alignment-choice evil dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'evil' })}>EVIL</button>
                     <button type="button" class="no-button-style remove-element" title="Back" aria-label="Back" onclick={() => addElementStep = 'type'}>✕</button>
                 </div>
-            {:else}
+            {:else if blanks !== 'fill'}
+                <!-- (Filling in a preset's blanks only fills them: nothing more can be added) -->
                 <button type="button" class="no-button-style add-element" onclick={openAddElement}>Add element</button>
             {/if}
         </div>

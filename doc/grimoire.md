@@ -162,7 +162,8 @@ which, if there are several). With none yet, it lets you create one: choose at l
 
 A preset with **blanks** opens in the message builder first instead. In each blank's place, choose **Text**,
 **Character** or **Alignment** and fill it in as you'd add that element; **Show** (or **Add to queue**) is greyed out
-until every blank is filled. You can change the rest of the message there too, just for this time. **Cancel** returns
+until every blank is filled. Nothing more can be added, but you can change or remove the rest of the message there,
+just for this time. **Cancel** returns
 to the presets.
 
 **+ New preset**, at the bottom, makes a new preset in the message builder: give it a name (its first text, if you
