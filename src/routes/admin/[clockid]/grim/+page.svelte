@@ -2438,6 +2438,13 @@
     .popup-buttons .popup-wide {
         grid-column: 1 / -1;
     }
+    /* Custom… and Back among a character's presets in the player info: plain, darker buttons */
+    .button-style.comms-plain {
+        background-color: var(--theme-bg-secondary);
+    }
+    .button-style.comms-plain:hover {
+        background-color: var(--theme-bg-tertiary);
+    }
     /* Custom, after a character's presets in the player info: set apart from them */
     .comms-custom {
         font-style: italic;
@@ -3199,8 +3206,8 @@
                                 {#each characterPresetsFor(activeChar.id, currentNight) as preset}
                                     <button type="button" class="popup-toggle popup-wide" onclick={() => showPreset(preset, activeChar.id)}>{presetDisplayName(preset)}</button>
                                 {/each}
-                                <button type="button" class="button-style popup-wide comms-custom" onclick={() => openCustomComms(activeChar.id)}>Custom…</button>
-                                <button type="button" class="button-style popup-wide" onclick={() => playerCommsShown = false}>&lsaquo; Back</button>
+                                <button type="button" class="button-style popup-wide comms-plain comms-custom" onclick={() => openCustomComms(activeChar.id)}>Custom…</button>
+                                <button type="button" class="button-style popup-wide comms-plain" onclick={() => playerCommsShown = false}>&lsaquo; Back</button>
                             {:else if sideRole}
                                 {#if activeChar}
                                     <button type="button" class="popup-toggle with-icon" onclick={() => viewCharacter(activeChar.id)}>{@render eyeIcon()}Show</button>
@@ -3405,8 +3412,8 @@
                         {#each characterPresetsFor(oc.id, currentNight) as preset}
                             <button type="button" class="popup-toggle" onclick={(e) => { e.stopPropagation(); showPreset(preset, oc.id); }}>{presetDisplayName(preset)}</button>
                         {/each}
-                        <button type="button" class="button-style comms-custom" onclick={(e) => { e.stopPropagation(); openCustomComms(oc.id); }}>Custom…</button>
-                        <button type="button" class="button-style" onclick={(e) => { e.stopPropagation(); playerCommsShown = false; }}>&lsaquo; Back</button>
+                        <button type="button" class="button-style comms-plain comms-custom" onclick={(e) => { e.stopPropagation(); openCustomComms(oc.id); }}>Custom…</button>
+                        <button type="button" class="button-style comms-plain" onclick={(e) => { e.stopPropagation(); playerCommsShown = false; }}>&lsaquo; Back</button>
                     </div>
                 {:else if overlayFromBoard && activeToken}
                     <div class="overlay-toggles">
