@@ -1,6 +1,6 @@
 <script lang="ts">
     import { fetchScriptWithSideCharacters } from "$lib/resources/client/scriptWithSideCharacters";
-    import { hasNoBlanks, type MessageElement, type MessagePreset, type PresetElement, type TextOption } from "$lib/common/message";
+    import { hasNoBlanks, nameFromElements, presetDisplayName, type MessageElement, type MessagePreset, type PresetElement, type TextOption } from "$lib/common/message";
     import { alignmentForCategory, bluffSetsOf, characterMessagePresetsFor, ALL_CHARACTER_CATEGORIES, type Character, type CharacterCategory, type ReminderToken, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import MessageBuilder, { type MessageBuilderView } from "$lib/components/MessageBuilder.svelte";
@@ -23,6 +23,7 @@
     import { ALIGNMENT_RING_FACTORS, BOARD_TOKEN_SIZE, hasDeadVote, isPlayerToken, layoutTokensAtDefaultPositions, newGrimoireStateHistory, tokensToSeat, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
     import { v7 } from "uuid";
     import PencilIcon from "$lib/components/PencilIcon.svelte";
+    import TrashIcon from "$lib/components/TrashIcon.svelte";
     import { characterImageUrl } from "$lib/resources/common/characterImages";
     import { MessageQueue } from "$lib/model/client/messageQueue.svelte";
     import type { PageData } from "./$types";
@@ -842,10 +843,6 @@
     // svelte-ignore state_referenced_locally
     let messagePresets = $state<MessagePreset[]>(data.messagePresets);
 
-    // A message's name in the queue (or a new preset's, if it isn't given one): its first text.
-    const nameFromElements = (elements: PresetElement[]) =>
-        elements.find((e): e is MessageElement & { type: 'text' } => e.type === 'text')?.value.replaceAll('*', '').trim() || 'Custom message';
-
     // The Preset tab's builder, in place of its list: a new preset being made (which can have blanks), or a preset
     // with blanks being filled in before it's shown.
     let presetEditor = $state<{ mode: 'new' | 'fill'; name: string; elements: PresetElement[] } | null>(null);
@@ -889,7 +886,7 @@
         const elements = $state.snapshot(presetEditor.elements);
         if (!hasNoBlanks(elements)) return;
         if (messageQueue.enabled) {
-            queueMessage(presetEditor.name || 'Untitled', elements);
+            queueMessage(presetEditor.name.trim() || nameFromElements(elements), elements);
             presetEditor = null;
         } else {
             showMessage(elements);
@@ -918,6 +915,29 @@
         }
     }
 
+    // Removes the preset from the saved presets as they are now, as savePreset adds to them.
+    async function deletePreset(preset: MessagePreset) {
+        if (!confirm(`Delete the preset "${presetDisplayName(preset)}"? This can't be undone.`)) return;
+        try {
+            const current = await fetch('/api/messagePresets').then(r => {
+                if (!r.ok) throw new Error(`${r.status}`);
+                return r.json() as Promise<MessagePreset[]>;
+            });
+            const key = JSON.stringify(preset);
+            const index = current.findIndex(p => JSON.stringify(p) === key);
+            const updated = current.filter((_, i) => i !== index);
+            const res = await fetch('/api/messagePresets', {
+                method: 'POST',
+                body: JSON.stringify(updated),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (!res.ok) throw new Error(`${res.status}`);
+            messagePresets = updated;
+        } catch {
+            alert('Failed to delete the preset');
+        }
+    }
+
     async function showMessage(elements: MessageElement[]) {
         commsView = null;
         await saveGrimoire();
@@ -935,7 +955,7 @@
             presetEditor = { mode: 'fill', name: preset.name, elements: structuredClone($state.snapshot(elements)) };
             presetBuilderView = 'builder';
         } else if (messageQueue.enabled) {
-            queueMessage(preset.name || 'Untitled', elements);
+            queueMessage(presetDisplayName(preset), elements);
         } else {
             showMessage(elements);
         }
@@ -1977,6 +1997,35 @@
 
     .comms-empty {
         opacity: 0.6;
+    }
+
+    /* A preset's button, with its delete button over its end */
+    .comms-preset-row {
+        position: relative;
+        width: 100%;
+        flex-shrink: 0;
+    }
+
+    .comms-preset-row > .button-style {
+        width: 100%;
+        padding-inline: 2.8em;
+    }
+
+    .comms-preset-delete {
+        position: absolute;
+        right: 0.5em;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        padding: 0.35em;
+        border-radius: 0.4em;
+        opacity: 0.6;
+        cursor: pointer;
+    }
+
+    .comms-preset-delete:hover {
+        opacity: 1;
+        color: #e05a5a;
     }
 
     /* As the tab buttons beside it, with the checkbox that turns the queue on */
@@ -3346,7 +3395,7 @@
                 {:else if commsView === 'character' && characterComms}
                     <div class="overlay-name dumbledore-font">{characterComms.name}</div>
                     {#each characterComms.presets as preset}
-                        <button class="button-style" onclick={() => showPreset(preset)}>{preset.name || 'Untitled'}</button>
+                        <button class="button-style" onclick={() => showPreset(preset)}>{presetDisplayName(preset)}</button>
                     {/each}
                     {#if characterComms.bluffs}
                         <button class="button-style" disabled={bluffSets.length === 0 && !(script && loadedPreset)} onclick={chooseBluffs}>
@@ -3396,7 +3445,7 @@
                             {#if presetEditor.mode === 'new'}
                                 <input type="text" class="preset-name" placeholder="Preset name" bind:value={presetEditor.name} aria-label="Preset name" />
                             {:else}
-                                <div class="preset-editor-title">{presetEditor.name || 'Untitled'}</div>
+                                <div class="preset-editor-title">{presetEditor.name.trim() || nameFromElements(presetEditor.elements)}</div>
                                 <p class="comms-empty">Fill in the blanks to show it.</p>
                             {/if}
                         {/if}
@@ -3421,7 +3470,11 @@
                         {/if}
                     {:else if commsTab === 'preset'}
                         {#each messagePresets as preset}
-                            <button class="button-style" onclick={() => showPreset(preset)}>{preset.name || 'Untitled'}</button>
+                            <div class="comms-preset-row">
+                                <button class="button-style" onclick={() => showPreset(preset)}>{presetDisplayName(preset)}</button>
+                                <button class="no-button-style comms-preset-delete" onclick={() => deletePreset(preset)}
+                                    aria-label="Delete {presetDisplayName(preset)}" title="Delete preset"><TrashIcon size={20}/></button>
+                            </div>
                         {:else}
                             <p class="comms-empty">No presets yet.</p>
                         {/each}

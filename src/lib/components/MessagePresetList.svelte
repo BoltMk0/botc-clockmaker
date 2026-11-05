@@ -21,7 +21,7 @@
 </script>
 
 <script lang="ts" generics="T extends MessagePreset">
-    import type { MessagePreset, TextOption } from "$lib/common/message";
+    import { nameFromElements, type MessagePreset, type TextOption } from "$lib/common/message";
     import { characterImageUrl } from "$lib/resources/common/characterImages";
     import MessageBuilder, { type MessageBuilderView } from "$lib/components/MessageBuilder.svelte";
     import MessageText from "$lib/components/MessageText.svelte";
@@ -79,7 +79,7 @@
     {#each presets as preset, i}
         <div class="preset-card">
             <div class="preset-header">
-                <input class="preset-name" type="text" bind:value={preset.name} placeholder="Name" aria-label="Name" onkeydown={keepEnterFromForm} />
+                <input class="preset-name" type="text" bind:value={preset.name} placeholder={nameFromElements(preset.elements)} aria-label="Name" onkeydown={keepEnterFromForm} />
                 <button type="button" onclick={() => edit(i)}>Edit</button>
                 <button type="button" title="Move up" aria-label="Move up" disabled={i === 0} onclick={() => move(i, -1)}>↑</button>
                 <button type="button" title="Move down" aria-label="Move down" disabled={i === presets.length - 1} onclick={() => move(i, 1)}>↓</button>
@@ -124,7 +124,7 @@
             </button>
             <div class="builder-panel">
                 {#if builderView === 'builder'}
-                    <input class="builder-name" type="text" bind:value={preset.name} placeholder="Name" aria-label="Name" onkeydown={keepEnterFromForm} />
+                    <input class="builder-name" type="text" bind:value={preset.name} placeholder={nameFromElements(preset.elements)} aria-label="Name" onkeydown={keepEnterFromForm} />
                 {/if}
                 <MessageBuilder
                     bind:this={builder}

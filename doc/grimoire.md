@@ -172,6 +172,8 @@ to the presets.
 don't) and build it as in [Custom](#custom), where **Add element** also offers **Blank**, a space to fill in each time
 the preset is shown. **Save preset** adds it to the end of your presets.
 
+The bin at the end of a preset's button deletes it from your presets, after asking. It can't be undone.
+
 ### Custom
 
 A message builder, empty each time. Put together what you want to show from any number of **elements**, then press

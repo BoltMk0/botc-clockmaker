@@ -65,6 +65,17 @@ export function isMessagePresetList(data: any): data is MessagePreset[] {
     return Array.isArray(data) && data.every(isMessagePreset);
 }
 
+// A name for a message that hasn't been given one (in the queue, or a preset left unnamed): its first text, without
+// the asterisks that make it bold.
+export function nameFromElements(elements: PresetElement[]): string {
+    return elements.find((e): e is MessageElement & { type: 'text' } => e.type === 'text')?.value.replaceAll('*', '').trim() || 'Custom message';
+}
+
+// A preset's name, or one made from its message if it hasn't got one.
+export function presetDisplayName(preset: MessagePreset): string {
+    return preset.name.trim() || nameFromElements(preset.elements);
+}
+
 export type MessageTextPart = { text: string; bold: boolean; alignment: 'good' | 'evil' | null };
 
 // Splits text into the parts it's shown in: text between a pair of asterisks, as in *this*, is bold, and the words
