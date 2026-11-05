@@ -3,6 +3,8 @@
     import { alignmentForCategory, bluffSetsOf, presetGrimCharacterIds, presetPlayerCount, type Preset, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import { newGrimoireStateHistory, newGrimoireStateWithTokensRoundCircle } from "$lib/resources/common/grimoireState.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
+    import BagIcon from "$lib/components/BagIcon.svelte";
+    import BookIcon from "$lib/components/BookIcon.svelte";
     import TokenSorter from "$lib/components/setup/TokenSorter.svelte";
     import PresetSummary from "$lib/components/setup/PresetSummary.svelte";
     import BuilderSteps from "$lib/components/setup/BuilderSteps.svelte";
@@ -444,16 +446,29 @@
         flex-shrink: 0;
     }
 
+    /* Side by side, as wide as each other, or stacked on narrow screens */
     .finish-choices {
-        display: flex;
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: 1fr;
         gap: 1em;
-        justify-content: center;
-        margin-top: 2em;
+        width: fit-content;
+        margin: 2em auto 0;
     }
 
     .finish-choices > button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5em;
         padding: 1.1em 2em;
         font-size: 1.1em;
+    }
+
+    @media (max-width: 600px) {
+        .finish-choices {
+            grid-auto-flow: row;
+        }
     }
 </style>
 
@@ -547,34 +562,10 @@
                 <h2 style="margin-top: 0;">Ready to seat {builder.playerCount} player{builder.playerCount === 1 ? '' : 's'}</h2>
                 <p style="font-style: italic;">Choose how to assign characters to players.</p>
             </div>
-            {#if builder.surplusCount > 0}
-                <div class="section">
-                    <TokenSorter {builder}>{@render travellerNote()}</TokenSorter>
-                </div>
-            {:else}
-                {@render travellerNote()}
-                <div class="finish-tokens">
-                    {#each builder.bagCharacterIds as id, i (id + i)}
-                        {@const character = builder.charById.get(id)}
-                        {#if character}
-                            <CharacterToken {character} size="80px" imageSize={256} norules style="position: relative;" />
-                        {/if}
-                    {/each}
-                </div>
-                {#if builder.grimCharacterIds.length > 0}
-                    <div class="section">
-                        <strong>On the grim ({builder.grimCharacterIds.length})</strong>
-                        <div class="finish-tokens">
-                            {#each builder.grimCharacterIds as id, i (id + i)}
-                                {@const character = builder.charById.get(id)}
-                                {#if character}
-                                    <CharacterToken {character} size="80px" imageSize={256} norules style="position: relative;" />
-                                {/if}
-                            {/each}
-                        </div>
-                    </div>
-                {/if}
-            {/if}
+            <!-- Any token can go in the bag or straight to the grim; a bag that doesn't match the players is only warned about -->
+            <div class="section">
+                <TokenSorter {builder}>{@render travellerNote()}</TokenSorter>
+            </div>
             {#if builder.bluffSets.length > 0}
                 <div class="section">
                     <strong>Bluffs ({builder.bluffSets.length} set{builder.bluffSets.length === 1 ? '' : 's'})</strong>
@@ -603,8 +594,8 @@
                 </label>
             {/if}
             <div class="finish-choices">
-                <button class="button-style highlight" disabled={submitting || !builder.isSorted} onclick={drawTokens}>Draw tokens</button>
-                <button class="button-style" disabled={submitting} onclick={goStraightToGrim}>Go straight to grim view</button>
+                <button class="button-style highlight" disabled={submitting || builder.bagCharacterIds.length === 0} onclick={drawTokens}><BagIcon size={26}/>Draw tokens</button>
+                <button class="button-style highlight" disabled={submitting} onclick={goStraightToGrim}><BookIcon size={26}/>Place in the grim</button>
             </div>
             </div>
         {:else if step === 'tokens' && builder.script}

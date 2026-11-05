@@ -55,7 +55,9 @@
 
 <div class="sorter">
     <div style="font-style: italic;">
-        There {builder.surplusCount === 1 ? 'is' : 'are'} {builder.surplusCount} more token{builder.surplusCount === 1 ? '' : 's'} than players.
+        {#if builder.surplusCount > 0}
+            There {builder.surplusCount === 1 ? 'is' : 'are'} {builder.surplusCount} more token{builder.surplusCount === 1 ? '' : 's'} than players.
+        {/if}
         Click tokens to move them between the bag and the grim.
     </div>
     {@render children?.()}
@@ -73,7 +75,7 @@
         </div>
     </div>
     <div class="sorter-group">
-        <strong>On the grim ({builder.grimCharacterIds.length})</strong>
+        <strong>Straight to grim ({builder.grimCharacterIds.length})</strong>
         <div class="sorter-tokens">
             {#each builder.grimCharacterIds as id, i (id + i)}
                 {@const character = builder.charById.get(id)}
@@ -83,13 +85,14 @@
                     </button>
                 {/if}
             {:else}
-                <span class="empty">No tokens on the grim</span>
+                <span class="empty">No tokens go straight to the grim</span>
             {/each}
         </div>
     </div>
     {#if !builder.isSorted}
         <div class="status bad">
-            ⚠ The bag needs exactly {builder.playerCount} token{builder.playerCount === 1 ? '' : 's'}
+            ⚠ There {builder.bagCharacterIds.length === 1 ? 'is' : 'are'} {builder.bagCharacterIds.length} token{builder.bagCharacterIds.length === 1 ? '' : 's'} in the bag
+            for {builder.playerCount} player{builder.playerCount === 1 ? '' : 's'}
             ({builder.bagCharacterIds.length > (builder.playerCount ?? 0) ? 'move some to the grim' : 'move some back to the bag'}).
         </div>
     {/if}
