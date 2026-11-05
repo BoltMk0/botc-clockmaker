@@ -969,13 +969,20 @@
     // A preset with blanks opens in the builder first, to fill them in (opening communications, if it isn't open).
     // A preset's elements with each Reminder element made the character of the player beside that reminder (the
     // seated token nearest it by angle), or a blank to fill in if the reminder isn't on the grim, is on it more than
-    // once, or is beside a token with no character.
+    // once, or is beside a token with no character. A player with any of the Drunk's reminders beside them is the
+    // Drunk, whatever their token shows.
+    const DRUNK_ID = 'drunk';
     function withRemindersResolved(elements: PresetElement[]): PresetElement[] {
+        const seated = tokensToSeat(placedTokens, isSideRoleToken);
+        const remindersByToken = remindersBySeatedToken(placedTokens, placedReminders, isSideRoleToken);
+        const isDrunk = (token: PlacedToken) =>
+            (remindersByToken.get(token.id) ?? []).some(r => availableReminderTokens[r.tokenId]?.characterId === DRUNK_ID);
         return elements.map((element): PresetElement => {
             if (element.type !== 'reminderCharacter') return element;
             const placed = placedReminders.filter(r => r.tokenId === element.reminderTokenId);
             if (placed.length !== 1) return { type: 'blank' };
-            const characterId = nearestByAngle(placed[0], tokensToSeat(placedTokens, isSideRoleToken))?.characterId;
+            const player = nearestByAngle(placed[0], seated);
+            const characterId = player && (isDrunk(player) && characterById.has(DRUNK_ID) ? DRUNK_ID : player.characterId);
             return characterId ? { type: 'character', value: [characterId] } : { type: 'blank' };
         });
     }
