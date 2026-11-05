@@ -23,6 +23,7 @@
         characters,
         faded = () => false,
         reminders = () => [],
+        openSections = [],
         tokenSize,
         imageSize = 256,
         blanks = 'none',
@@ -38,6 +39,9 @@
         faded?: (characterId: string) => boolean;
         // Reminder tokens shown over the top-left of a character in the picker (in the grim, those beside them).
         reminders?: (characterId: string) => (ReminderToken & { characterId: string })[];
+        // Folding sections (by key) to open each time a character picker opens (in the grim, the travellers while
+        // any are in play).
+        openSections?: string[];
         tokenSize: number;
         imageSize?: number;
         blanks?: 'none' | 'add' | 'fill';
@@ -151,6 +155,12 @@
         unfolded = next;
     }
 
+    // Opens a character picker, with the sections the host wants open unfolded.
+    function showPicker(pickerView: 'character' | 'characterRules') {
+        if (openSections.some(key => !unfolded.has(key))) unfolded = new Set([...unfolded, ...openSections]);
+        view = pickerView;
+    }
+
     // The characters picked so far for a character element, and the element they replace (null to add a new one).
     let pickedCharacterIds = $state<string[]>([]);
     let editingElementIndex = $state<number | null>(null);
@@ -159,7 +169,7 @@
         const element = elementIndex === null ? null : elements[elementIndex];
         pickedCharacterIds = element?.type === 'character' ? [...element.value] : [];
         editingElementIndex = elementIndex;
-        view = 'character';
+        showPicker('character');
     }
 
     function togglePickedCharacter(characterId: string) {
@@ -279,7 +289,7 @@
             {/each}
         </div>
         <button type="button" class="no-button-style add-element" onclick={openCustomText}>Custom...</button>
-        <button type="button" class="no-button-style add-element" disabled={sections.length === 0} onclick={() => view = 'characterRules'}>Character's ability...</button>
+        <button type="button" class="no-button-style add-element" disabled={sections.length === 0} onclick={() => showPicker('characterRules')}>Character's ability...</button>
     {:else if view === 'customText'}
         <div class="builder-title dumbledore-font">Custom text</div>
         <select class="builder-input" bind:value={customText.style} aria-label="Style">

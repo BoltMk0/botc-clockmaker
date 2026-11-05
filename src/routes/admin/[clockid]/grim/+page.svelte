@@ -602,6 +602,8 @@
     const commsInPlayCharacters = $derived([...new Set(
         tokensToSeat(placedTokens, isSideRoleToken).map(t => t.characterId).filter(id => id !== null)
     )].map(id => characterById.get(id)).filter((c): c is ScriptCharacter => !!c));
+    // The picker opens with the travellers showing while any are in play.
+    const commsOpenSections = $derived(commsInPlayCharacters.some(c => c.category === 'traveler') ? ['traveler'] : []);
     const commsSections = $derived.by((): TraySection[] => {
         const listed = traySections.filter(s => s.key !== 'in-play' && (!script || (s.key !== 'other' && !s.key.startsWith('script-'))));
         return commsInPlayCharacters.length > 0 ? [{ key: 'in-play', title: 'In-play', characters: commsInPlayCharacters }, ...listed] : listed;
@@ -3481,6 +3483,7 @@
                             sections={commsSections}
                             characters={availableCharacters}
                             faded={id => !isInPlay(id)}
+                            openSections={commsOpenSections}
                             reminders={presetEditor.forCharacterId ? (id => (remindersByCharacterId[id] ?? []).filter(r => r.characterId === presetEditor?.forCharacterId)) : undefined}
                             tokenSize={trayTokenSize}
                             imageSize={TRAY_IMAGE_SIZE}
@@ -3516,6 +3519,7 @@
                             sections={commsSections}
                             characters={availableCharacters}
                             faded={id => !isInPlay(id)}
+                            openSections={commsOpenSections}
                             tokenSize={trayTokenSize}
                             imageSize={TRAY_IMAGE_SIZE}
                         />
