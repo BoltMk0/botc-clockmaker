@@ -3456,7 +3456,7 @@
                             bind:textOptions
                             sections={commsSections}
                             characters={availableCharacters}
-                            faded={isInPlay}
+                            faded={id => !isInPlay(id)}
                             tokenSize={trayTokenSize}
                             imageSize={TRAY_IMAGE_SIZE}
                             blanks={presetEditor.mode === 'new' ? 'add' : 'fill'}
@@ -3490,7 +3490,7 @@
                             bind:textOptions
                             sections={commsSections}
                             characters={availableCharacters}
-                            faded={isInPlay}
+                            faded={id => !isInPlay(id)}
                             tokenSize={trayTokenSize}
                             imageSize={TRAY_IMAGE_SIZE}
                         />

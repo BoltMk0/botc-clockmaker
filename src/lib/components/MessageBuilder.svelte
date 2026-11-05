@@ -32,7 +32,7 @@
         sections: CharacterSection[];
         // Every character an element might show, by id.
         characters: Record<string, Character>;
-        // Characters shown faded in the picker (in the grim, those on the board).
+        // Characters shown faded in the picker (in the grim, those not on the board, so the ones in play stand out).
         faded?: (characterId: string) => boolean;
         tokenSize: number;
         imageSize?: number;
@@ -542,7 +542,7 @@
     }
 
     .picker-token.faded {
-        opacity: 0.4;
+        opacity: 0.6;
     }
 
     .picker-token.picked {
