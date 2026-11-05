@@ -817,9 +817,9 @@
         goto(`/admin/${data.clockid}/grim/bluffs?set=${setIndex}`);
     }
 
-    // Communications overlay: null when closed, 'main' for its Preset, Custom and Queue tabs, 'bluffs' to pick
-    // between several bluff sets, and 'character' to pick between a character's presets.
-    let commsView = $state<'main' | 'bluffs' | 'character' | null>(null);
+    // Communications overlay: null when closed, 'main' for its Preset, Custom and Queue tabs, and 'bluffs' to pick
+    // between several bluff sets.
+    let commsView = $state<'main' | 'bluffs' | null>(null);
     let commsTab = $state<'preset' | 'custom' | 'queue'>('preset');
 
     // With the queue on, messages are added to it rather than shown, and then shown together from the Queue tab.
@@ -1012,23 +1012,23 @@
     // The night it is, or the coming night during the day: the first night until day 1.
     const currentNight = $derived<'first' | 'other'>((clockClient?.day || 0) > 0 ? 'other' : 'first');
 
-    // A character's own presets for the night, from their token: shown (or filled in) straight away if there's one,
-    // or listed to pick from if there are several. (The night order lists them in the character's row instead.)
-    let characterComms = $state<{ name: string; presets: MessagePreset[]; characterId: string } | null>(null);
+    // A character's own presets for the night, offered in the player info and the night order.
     const characterPresetsFor = (characterId: string | null | undefined, night: 'first' | 'other') => {
         const character = characterById.get(characterId ?? '');
         return character ? characterMessagePresetsFor(character, night) : [];
     };
 
-    function openCharacterComms(characterId: string, night: 'first' | 'other') {
-        const presets = characterPresetsFor(characterId, night);
-        if (presets.length === 1) {
-            showPreset(presets[0], characterId);
-        } else if (presets.length > 1) {
-            if (commsView === null) openComms();
-            characterComms = { name: characterById.get(characterId)?.name ?? '', presets, characterId };
-            commsView = 'character';
-        }
+    // Whether the player info (the token popup, or the overlay on mobile) is listing the character's presets for
+    // tonight in place of its buttons. One preset alone is shown straight away instead.
+    let playerCommsShown = $state(false);
+    $effect(() => {
+        void activeTokenId; void overlayOpen;
+        playerCommsShown = false;
+    });
+    function openPlayerComms(characterId: string) {
+        const presets = characterPresetsFor(characterId, currentNight);
+        if (presets.length === 1) showPreset(presets[0], characterId);
+        else if (presets.length > 1) playerCommsShown = true;
     }
 
     // The bluffs from communications: queued as a message like the bluffs page, or shown on that page.
@@ -2274,6 +2274,14 @@
         white-space: nowrap;
     }
 
+    /* A character's presets in the player info, in place of its buttons, with the Back button under them */
+    .overlay-comms {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        width: 100%;
+    }
+
     .overlay-panel .popup-toggle {
         font-size: 1em;
         padding: 16px 36px;
@@ -2410,6 +2418,10 @@
         white-space: normal;
         line-height: 1.2;
         min-height: max(40px, calc(2.4em + 1.2em));
+    }
+    /* Across both columns: a preset in the character's communications, and the Back button under them */
+    .popup-buttons .popup-wide {
+        grid-column: 1 / -1;
     }
     .popup-toggle:disabled {
         opacity: 0.4;
@@ -3156,7 +3168,13 @@
                             {/if}
                         {/if}
                         <div class="popup-buttons">
-                            {#if sideRole}
+                            {#if playerCommsShown && activeChar && !sideRole}
+                                <!-- The character's presets for tonight, in place of the buttons -->
+                                {#each characterPresetsFor(activeChar.id, currentNight) as preset}
+                                    <button type="button" class="popup-toggle popup-wide" onclick={() => showPreset(preset, activeChar.id)}>{presetDisplayName(preset)}</button>
+                                {/each}
+                                <button type="button" class="popup-toggle popup-wide" onclick={() => playerCommsShown = false}>&lsaquo; Back</button>
+                            {:else if sideRole}
                                 {#if activeChar}
                                     <button type="button" class="popup-toggle with-icon" onclick={() => viewCharacter(activeChar.id)}>{@render eyeIcon()}Show</button>
                                 {/if}
@@ -3178,7 +3196,7 @@
                                 <button type="button" class="popup-toggle with-icon" disabled={!activeChar} onclick={() => activeChar && viewCharacter(activeChar.id)}>{@render eyeIcon()}Show</button>
                                 <!-- The character's own presets for tonight -->
                                 <button type="button" class="popup-toggle with-icon" disabled={characterPresetsFor(activeChar?.id, currentNight).length === 0}
-                                    onclick={() => activeChar && openCharacterComms(activeChar.id, currentNight)}>{@render commsIcon()}Comms</button>
+                                    onclick={() => activeChar && openPlayerComms(activeChar.id)}>{@render commsIcon()}Comms</button>
                             {/if}
                         </div>
                         {#if activeChar?.rules}
@@ -3354,7 +3372,15 @@
                     <div class="overlay-name dumbledore-font">{activeToken.playerName || 'Player'}</div>
                     <div class="overlay-category">No character</div>
                 {/if}
-                {#if overlayFromBoard && activeToken}
+                {#if overlayFromBoard && activeToken && oc && playerCommsShown}
+                    <!-- The character's presets for tonight, in place of the buttons -->
+                    <div class="overlay-comms">
+                        {#each characterPresetsFor(oc.id, currentNight) as preset}
+                            <button type="button" class="popup-toggle" onclick={(e) => { e.stopPropagation(); showPreset(preset, oc.id); }}>{presetDisplayName(preset)}</button>
+                        {/each}
+                        <button type="button" class="button-style" onclick={(e) => { e.stopPropagation(); playerCommsShown = false; }}>&lsaquo; Back</button>
+                    </div>
+                {:else if overlayFromBoard && activeToken}
                     <div class="overlay-toggles">
                         {#if !sideRole}
                         <button type="button" class="popup-toggle" class:dead={activeToken.isDead} onclick={(e) => { e.stopPropagation(); toggleAlive(); }}>
@@ -3372,7 +3398,7 @@
                         {#if oc}
                             <button type="button" class="button-style with-icon" onclick={() => viewCharacter(oc.id)}>{@render eyeIcon()}Show</button>
                             {#if !sideRole && characterPresetsFor(oc.id, currentNight).length > 0}
-                                <button type="button" class="button-style with-icon" onclick={(e) => { e.stopPropagation(); openCharacterComms(oc.id, currentNight); }}>{@render commsIcon()}Comms</button>
+                                <button type="button" class="button-style with-icon" onclick={(e) => { e.stopPropagation(); openPlayerComms(oc.id); }}>{@render commsIcon()}Comms</button>
                             {/if}
                         {/if}
                     </div>
@@ -3488,11 +3514,6 @@
                     <div class="overlay-name dumbledore-font">Which bluffs?</div>
                     {#each bluffSets as _, setIndex}
                         <button class="button-style" onclick={() => showCommsBluffs(setIndex)}>Bluff set {setIndex + 1}</button>
-                    {/each}
-                {:else if commsView === 'character' && characterComms}
-                    <div class="overlay-name dumbledore-font">{characterComms.name}</div>
-                    {#each characterComms.presets as preset}
-                        <button class="button-style" onclick={() => showPreset(preset, characterComms?.characterId)}>{presetDisplayName(preset)}</button>
                     {/each}
                 {:else}
                     {#if commsTabsShown}
