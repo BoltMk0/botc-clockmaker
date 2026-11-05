@@ -595,19 +595,13 @@
         return sections;
     });
 
-    // The communications character picker lists them the same way, but with a script, just its characters (and the
-    // travellers, loric and fabled) rather than every script's. Its In-play section is always first, whether or not
-    // a preset is loaded or the players named: the characters of the tokens auto-arrange seats (travellers too), so
-    // they and the reminders beside them are never folded away.
-    const commsInPlayCharacters = $derived([...new Set(
-        tokensToSeat(placedTokens, isSideRoleToken).map(t => t.characterId).filter(id => id !== null)
-    )].map(id => characterById.get(id)).filter((c): c is ScriptCharacter => !!c));
-    // The picker opens with the travellers showing while any are in play.
-    const commsOpenSections = $derived(commsInPlayCharacters.some(c => c.category === 'traveler') ? ['traveler'] : []);
-    const commsSections = $derived.by((): TraySection[] => {
-        const listed = traySections.filter(s => s.key !== 'in-play' && (!script || (s.key !== 'other' && !s.key.startsWith('script-'))));
-        return commsInPlayCharacters.length > 0 ? [{ key: 'in-play', title: 'In-play', characters: commsInPlayCharacters }, ...listed] : listed;
-    });
+    // The communications character picker lists them the same way, but with no In-play section and, with a script,
+    // just its characters (and the travellers, loric and fabled) rather than every script's.
+    const commsSections = $derived(traySections.filter(s => s.key !== 'in-play' && (!script || (s.key !== 'other' && !s.key.startsWith('script-')))));
+    // It opens with the travellers showing while any are in play (among the tokens auto-arrange seats).
+    const commsOpenSections = $derived(
+        tokensToSeat(placedTokens, isSideRoleToken).some(t => characterById.get(t.characterId ?? '')?.category === 'traveler') ? ['traveler'] : []
+    );
 
     // The collapsible tray sections that are open, by key. They start collapsed; which are open is remembered on this
     // device (for every game, as the sections are the scripts).
