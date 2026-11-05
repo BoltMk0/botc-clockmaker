@@ -458,9 +458,9 @@
 </style>
 
 {#snippet travellerNote()}
-    {#if builder.chosenCharacters.some(c => c.category === 'traveler')}
+    {#if builder.grimCharacterIds.some(id => builder.charById.get(id)?.category === 'traveler')}
         <div style="opacity: 0.7; font-size: 0.9em; font-style: italic;">
-            Travellers will need to be seated in the grim later. Once in the grim, set the player's name to assign a seat.
+            Travellers on the grim will need to be seated in the grim later. Once in the grim, set the player's name to assign a seat.
         </div>
     {/if}
 {/snippet}

@@ -1,6 +1,7 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
     import type { ScriptWithCharacters } from "$lib/resources/common/gameData.js";
+    import { fetchScriptWithSideCharacters } from "$lib/resources/client/scriptWithSideCharacters";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import type { PageData } from "./$types";
 
@@ -12,8 +13,9 @@
     let slots = $state<LocalSlot[]>(data.session.slots.map(s => ({ ...s })));
     let script = $state<ScriptWithCharacters | null>(null);
 
+    // With travellers, as they can be drawn from the bag too.
     $effect(() => {
-        fetch(`/api/scripts/${data.session.scriptId}`).then(r => r.ok ? r.json() : null).then(s => { script = s; });
+        fetchScriptWithSideCharacters(data.session.scriptId).then(s => { script = s; });
     });
 
     const charById = $derived(new Map((script?.characters ?? []).map(c => [c.id, c])));

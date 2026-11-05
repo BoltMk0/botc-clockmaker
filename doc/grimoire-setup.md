@@ -50,8 +50,8 @@ the clock cleared.
 
 ## Step 2: Players
 
-Pick the number of players, 4 to 15. Don't count travellers: they're added later (see
-[below](#travellers-loric-and-fabled)).
+Pick the number of players, 4 to 15. Count any travellers who'll draw their token from the bag with everyone else;
+others can be added later (see [below](#travellers-loric-and-fabled)).
 
 ## Step 3: Preset
 
@@ -82,7 +82,8 @@ ability.
 - You can choose *more* characters than players — for example a Drunk's "thinks they are" token, or a Marionette.
   You'll sort which tokens go in the bag at the end.
 - Travellers, loric and fabled from the whole character library are available here too, even though they're not
-  on the script.
+  on the script. Chosen travellers count as players' tokens and go in the bag (they don't change the counts the other
+  types call for); loric and fabled always go on the grim.
 
 **Next** becomes available once you have at least one token per player.
 
@@ -146,7 +147,7 @@ each character as its player confirms, so keep it out of sight during the draw.
 ## Going straight to the grim
 
 Skips the draw. The tokens in the bag are shuffled and placed evenly round the circle, one per seat, as if each
-player had drawn the one in front of them; the tokens sorted onto the grim (and any travellers, loric and fabled) are
+player had drawn the one in front of them; the tokens sorted onto the grim (and any loric and fabled) are
 laid out in rows along the top of the board. None has a player name yet. The day is reset to 0 with the clock
 cleared, at **dusk** ready for the first night, as after a draw.
 
@@ -155,8 +156,9 @@ From there, tap each seat's token to type the player's name, moving tokens round
 
 ## Travellers, loric and fabled
 
-- **Travellers** can be chosen during setup, but they aren't drawn from the bag. Once in the grimoire, drag the
-  traveller's token to their seat and set the player's name to seat them. Travellers can also be added mid-game from
+- **Travellers** can be chosen during setup and drawn from the bag like any other character, or sorted onto the grim
+  to hand out later. A traveller on the grim is seated by dragging their token to their seat and setting the
+  player's name. Travellers can also be added mid-game from
   the token tray. Travellers are public, so the 3D town square shows their character on their seat.
 - **Loric and fabled** are never player characters: they have no name, alignment or alive/dead state. They're
   placed on the board apart from the town, and the 3D town square lists them with their rules text.

@@ -117,7 +117,7 @@
                 <button class="button-style" onclick={onBackFromPlayers}>← Back</button>
             {/if}
         </div>
-        <div style="font-style: italic; opacity: 0.6; margin-top: -0.5em;">Excluding travellers, these should be added after the grim setup</div>
+        <div style="font-style: italic; opacity: 0.6; margin-top: -0.5em;">Include travellers who'll draw from the bag; others can be added after the grim setup</div>
         <div class="player-count-grid">
             {#each { length: 12 } as _, i}
                 <button class="button-style" class:highlight={builder.playerCount === i + 4} onclick={() => { builder.choosePlayerCount(i + 4); navigate(afterPlayers); }}>{i + 4}</button>

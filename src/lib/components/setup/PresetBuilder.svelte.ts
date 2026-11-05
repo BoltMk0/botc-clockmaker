@@ -1,7 +1,10 @@
 import { browser } from "$app/environment";
 import { getPlayerCount } from "$lib/common/util.js";
-import { fetchAllCharacters, SIDE_CATEGORIES, withSideCharacters } from "$lib/resources/client/scriptWithSideCharacters.js";
-import type { ScriptCharacter, ScriptWithCharacters } from "$lib/resources/common/gameData.js";
+import { fetchAllCharacters, withSideCharacters } from "$lib/resources/client/scriptWithSideCharacters.js";
+import type { CharacterCategory, ScriptCharacter, ScriptWithCharacters } from "$lib/resources/common/gameData.js";
+
+/** Loric and fabled aren't player characters, so they never go in the bag. */
+const GRIM_ONLY_CATEGORIES: CharacterCategory[] = ['loric', 'fabled'];
 
 /** Removes one occurrence of each of `remove` from `ids`, keeping the order of the rest. */
 function subtractIds(ids: string[], remove: string[]): string[] {
@@ -35,7 +38,6 @@ export class PresetBuilder {
     charById = $derived(new Map((this.script?.characters ?? []).map(c => [c.id, c])));
 
     chosenCharacters = $derived(this.chosenCharacterIds.map(id => this.charById.get(id)).filter((c): c is ScriptCharacter => !!c));
-    expectedCounts = $derived(getPlayerCount(this.playerCount ?? 5));
     currentCounts = $derived({
         townsfolk: this.chosenCharacters.filter(c => c.category === 'townsfolk').length,
         outsiders: this.chosenCharacters.filter(c => c.category === 'outsider').length,
@@ -43,16 +45,18 @@ export class PresetBuilder {
         demons: this.chosenCharacters.filter(c => c.category === 'demon').length
     });
 
-    /** Travellers, loric and fabled are never in the bag, so they always go straight on the grim. */
-    sideCharacterIds = $derived(this.chosenCharacterIds.filter(id => {
+    /** Loric and fabled always go straight on the grim. (Travellers start in the bag, and count as players there.) */
+    grimOnlyCharacterIds = $derived(this.chosenCharacterIds.filter(id => {
         const category = this.charById.get(id)?.category;
-        return !!category && SIDE_CATEGORIES.includes(category);
+        return !!category && GRIM_ONLY_CATEGORIES.includes(category);
     }));
 
     bagCharacterIds = $derived(subtractIds(this.chosenCharacterIds, this.grimCharacterIds));
+    /** Travellers in the bag take a seat, but don't change how many of each type the rest of the players get. */
+    expectedCounts = $derived(getPlayerCount((this.playerCount ?? 5) - this.bagCharacterIds.filter(id => this.charById.get(id)?.category === 'traveler').length));
     /** Tokens beyond one per player, which have to be sorted into the bag and the grim. */
-    surplusCount = $derived(Math.max(0, this.chosenCharacterIds.length - this.sideCharacterIds.length - (this.playerCount ?? 0)));
-    hasEnoughTokens = $derived(this.chosenCharacterIds.length - this.sideCharacterIds.length >= (this.playerCount ?? 0));
+    surplusCount = $derived(Math.max(0, this.chosenCharacterIds.length - this.grimOnlyCharacterIds.length - (this.playerCount ?? 0)));
+    hasEnoughTokens = $derived(this.chosenCharacterIds.length - this.grimOnlyCharacterIds.length >= (this.playerCount ?? 0));
     /** True once the bag holds exactly one token per player. */
     isSorted = $derived(this.hasEnoughTokens && this.bagCharacterIds.length === this.playerCount);
 
@@ -95,13 +99,13 @@ export class PresetBuilder {
 
     addCharacter(characterId: string) {
         this.chosenCharacterIds = [...this.chosenCharacterIds, characterId];
-        this.grimCharacterIds = [...this.sideCharacterIds];
+        this.grimCharacterIds = [...this.grimOnlyCharacterIds];
     }
 
     /** Removes one copy of the character. */
     removeCharacter(characterId: string) {
         this.chosenCharacterIds = subtractIds(this.chosenCharacterIds, [characterId]);
-        this.grimCharacterIds = [...this.sideCharacterIds];
+        this.grimCharacterIds = [...this.grimOnlyCharacterIds];
     }
 
     moveToGrim(characterId: string) {
@@ -109,7 +113,7 @@ export class PresetBuilder {
     }
 
     moveToBag(characterId: string) {
-        if (this.sideCharacterIds.includes(characterId)) return;
+        if (this.grimOnlyCharacterIds.includes(characterId)) return;
         this.grimCharacterIds = subtractIds(this.grimCharacterIds, [characterId]);
     }
 
