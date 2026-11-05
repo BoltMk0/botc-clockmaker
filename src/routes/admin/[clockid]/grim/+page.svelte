@@ -360,6 +360,13 @@
     // script's own characters always show; the rest (travellers, loric, fabled and characters off the script) only
     // when they're on the grim.
     let nightOrderSheet = $state<'first' | 'other' | null>(null);
+    // The night order rows (by character or info step id) showing their communications presets.
+    let nightCommsOpen = $state(new Set<string>());
+    function toggleNightComms(key: string) {
+        const next = new Set(nightCommsOpen);
+        next.has(key) ? next.delete(key) : next.add(key);
+        nightCommsOpen = next;
+    }
     const onGrimCharacterIds = $derived(new Set(placedTokens.map(t => t.characterId).filter(id => id !== null)));
     // In play but every token for them dead, so they may not wake
     const deadCharacterIds = $derived(new Set([...onGrimCharacterIds].filter(id =>
@@ -1005,10 +1012,9 @@
     // The night it is, or the coming night during the day: the first night until day 1.
     const currentNight = $derived<'first' | 'other'>((clockClient?.day || 0) > 0 ? 'other' : 'first');
 
-    // A character's own presets for the night, from their token or the night order: shown (or filled in) straight
-    // away if there's one, or listed to pick from if there are several.
-    // (The Demon Info step lists the bluffs too.)
-    let characterComms = $state<{ name: string; presets: MessagePreset[]; bluffs?: boolean; characterId?: string } | null>(null);
+    // A character's own presets for the night, from their token: shown (or filled in) straight away if there's one,
+    // or listed to pick from if there are several. (The night order lists them in the character's row instead.)
+    let characterComms = $state<{ name: string; presets: MessagePreset[]; characterId: string } | null>(null);
     const characterPresetsFor = (characterId: string | null | undefined, night: 'first' | 'other') => {
         const character = characterById.get(characterId ?? '');
         return character ? characterMessagePresetsFor(character, night) : [];
@@ -1023,17 +1029,6 @@
             characterComms = { name: characterById.get(characterId)?.name ?? '', presets, characterId };
             commsView = 'character';
         }
-    }
-
-    // A first night info step's communications, as a character's: one is shown straight away, more are listed.
-    function openInfoStepComms(step: typeof FIRST_NIGHT_INFO_STEPS[number]) {
-        if (step.presets.length === 1 && !step.bluffs) {
-            showPreset(step.presets[0]);
-            return;
-        }
-        if (commsView === null) openComms();
-        characterComms = { name: step.name, presets: step.presets, bluffs: step.bluffs };
-        commsView = 'character';
     }
 
     // The bluffs from communications: queued as a message like the bluffs page, or shown on that page.
@@ -1933,6 +1928,7 @@
 
     .night-sheet-list > li {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         gap: 0.7em;
         padding: 0.4em 0.6em;
@@ -2004,6 +2000,19 @@
         background: var(--theme-bg-secondary);
         color: inherit;
         cursor: pointer;
+    }
+
+    .night-sheet-comms.open {
+        background: var(--theme-highlight);
+        color: var(--theme-on-highlight);
+    }
+
+    /* A row's communications presets, opened under it by its communications button */
+    .night-sheet-presets {
+        flex-basis: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4em;
     }
 
     .night-sheet-comms .button-icon {
@@ -3083,6 +3092,11 @@
     </AnotatableViewV2>
 
 
+        <!-- Shows or hides a night order row's communications presets, in the row -->
+        {#snippet nightCommsToggle(key: string, label: string)}
+            <button class="no-button-style night-sheet-comms" class:open={nightCommsOpen.has(key)} aria-expanded={nightCommsOpen.has(key)}
+                onclick={() => toggleNightComms(key)} aria-label={label} title={label}>{@render commsIcon()}</button>
+        {/snippet}
         {#snippet commsIcon()}
             <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM6.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0zM10.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0zM14.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0z"/></svg>
         {/snippet}
@@ -3392,12 +3406,29 @@
                                     <div class="night-sheet-name">{entry.name}</div>
                                     <div class="night-sheet-rules">{entry.rules}</div>
                                 </div>
-                                <button class="no-button-style night-sheet-comms" onclick={() => openInfoStepComms(entry)}
-                                    aria-label="{entry.name} communications" title="{entry.name} communications">{@render commsIcon()}</button>
+                                {#if entry.presets.length === 1 && !entry.bluffs}
+                                    <button class="no-button-style night-sheet-comms" onclick={() => showPreset(entry.presets[0])}
+                                        aria-label="{entry.name} communications" title="{entry.name} communications">{@render commsIcon()}</button>
+                                {:else}
+                                    {@render nightCommsToggle(entry.id, `${entry.name} communications`)}
+                                    {#if nightCommsOpen.has(entry.id)}
+                                        <div class="night-sheet-presets">
+                                            {#each entry.presets as preset}
+                                                <button class="button-style" onclick={() => showPreset(preset)}>{presetDisplayName(preset)}</button>
+                                            {/each}
+                                            {#if entry.bluffs}
+                                                <button class="button-style" disabled={bluffSets.length === 0 && !(script && loadedPreset)} onclick={chooseBluffs}>
+                                                    {bluffSets.length === 0 ? 'Bluffs (create a bluff set)' : 'Bluffs'}
+                                                </button>
+                                            {/if}
+                                        </div>
+                                    {/if}
+                                {/if}
                             </li>
                             {:else}
                             {@const character = entry.character}
                             {@const inPlay = onGrimCharacterIds.has(character.id)}
+                            {@const presets = nightOrderSheet ? characterPresetsFor(character.id, nightOrderSheet) : []}
                             <li class:in-play={inPlay} class:dead={inPlay && deadCharacterIds.has(character.id)}>
                                 <img src={characterImageUrl(character.id, 128)} alt="" onerror={(e) => (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'} />
                                 <div class="night-sheet-text">
@@ -3407,10 +3438,18 @@
                                     </div>
                                     <div class="night-sheet-rules">{(nightOrderSheet === 'first' ? character.firstNightReminder : character.otherNightReminder) || character.rules}</div>
                                 </div>
-                                {#if nightOrderSheet && characterPresetsFor(character.id, nightOrderSheet).length > 0}
-                                    {@const night = nightOrderSheet}
-                                    <button class="no-button-style night-sheet-comms" onclick={() => openCharacterComms(character.id, night)}
+                                {#if presets.length === 1}
+                                    <button class="no-button-style night-sheet-comms" onclick={() => showPreset(presets[0], character.id)}
                                         aria-label="{character.name}'s communications" title="{character.name}'s communications">{@render commsIcon()}</button>
+                                {:else if presets.length > 1}
+                                    {@render nightCommsToggle(character.id, `${character.name}'s communications`)}
+                                    {#if nightCommsOpen.has(character.id)}
+                                        <div class="night-sheet-presets">
+                                            {#each presets as preset}
+                                                <button class="button-style" onclick={() => showPreset(preset, character.id)}>{presetDisplayName(preset)}</button>
+                                            {/each}
+                                        </div>
+                                    {/if}
                                 {/if}
                             </li>
                             {/if}
@@ -3438,11 +3477,6 @@
                     {#each characterComms.presets as preset}
                         <button class="button-style" onclick={() => showPreset(preset, characterComms?.characterId)}>{presetDisplayName(preset)}</button>
                     {/each}
-                    {#if characterComms.bluffs}
-                        <button class="button-style" disabled={bluffSets.length === 0 && !(script && loadedPreset)} onclick={chooseBluffs}>
-                            {bluffSets.length === 0 ? 'Bluffs (create a bluff set)' : 'Bluffs'}
-                        </button>
-                    {/if}
                 {:else}
                     {#if commsTabsShown}
                         <div class="overlay-name dumbledore-font">Communications</div>
