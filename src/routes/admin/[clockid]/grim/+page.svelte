@@ -2296,6 +2296,8 @@
         flex-direction: column;
         gap: 6px;
         width: 100%;
+        /* Clear of the close button in the panel's corner */
+        margin-top: 24px;
     }
 
     .overlay-panel .popup-toggle {
@@ -3379,47 +3381,8 @@
         <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 10};" onclick={(e) => { if (!(e.target as Element).closest('input')) closeOverlay(); }}>
             <div class="overlay-panel">
                 <button class="overlay-close" onclick={closeOverlay} aria-label="Close">✕</button>
-                {#if overlayFromBoard && activeToken && !sideRole}
-                    <input
-                        type="text"
-                        class="popup-player-name overlay-player-name"
-                        placeholder="Player name"
-                        value={activeToken.playerName ?? ''}
-                        oninput={(e) => setPlayerName((e.target as HTMLInputElement).value)}
-                    />
-                {/if}
-                {#if oc}
-                    {#if overlayFromBoard}
-                        <!-- A placed token's summary shows the token itself, its name on it and its type in its ring's colour, with
-                             its night order and custom wake badges where the board has them -->
-                        {@const size = OVERLAY_SUMMARY_TOKEN_SIZE}
-                        {@const order = activeToken?.characterId ? nightOrderByCharacterId.indexOf(activeToken.characterId) : -1}
-                        <div style="position: relative; flex-shrink: 0; width: {size}px; height: {size}px;">
-                            <CharacterToken character={oc} style="position: relative;" size="{size}px" norules/>
-                            {#if order >= 0}
-                                <div class="night-order-badge" style="left: {size * 0.95}px; top: {size / 2}px; font-size: {size / 6}px; border-width: {size / 70}px;">{order + 1}</div>
-                            {/if}
-                            {#if activeToken && !sideRole}
-                                {@render wakeToggle(activeToken.customWake ?? false, `left: ${size * 0.95}px; top: ${size / 2 + (order >= 0 ? size * 0.28 : 0)}px; font-size: ${size / 6}px; border-width: ${size / 70}px;`, (e) => { e.stopPropagation(); toggleCustomWake(); })}
-                            {/if}
-                        </div>
-                    {:else}
-                        <img class="overlay-icon" src={`/api/characters/${oc.id}/img`} alt="" onerror={(e) => (e.currentTarget as HTMLImageElement).style.display = 'none'} />
-                        <div class="overlay-name dumbledore-font">{oc.name}</div>
-                        <div class="overlay-category">{oc.category}</div>
-                    {/if}
-                    {#if oc.rules}
-                        <div class="overlay-rules">{oc.rules}</div>
-                    {/if}
-                    {#if oc.setup}
-                        <div class="overlay-rules setup-text">[{oc.setup}]</div>
-                    {/if}
-                {:else if activeToken}
-                    <div class="overlay-name dumbledore-font">{activeToken.playerName || 'Player'}</div>
-                    <div class="overlay-category">No character</div>
-                {/if}
                 {#if overlayFromBoard && activeToken && oc && playerCommsShown}
-                    <!-- The character's presets for tonight, in place of the buttons -->
+                    <!-- The character's presets for tonight, Custom and Back, in place of everything else -->
                     <div class="overlay-comms">
                         {#each characterPresetsFor(oc.id, currentNight) as preset}
                             <button type="button" class="popup-toggle" onclick={(e) => { e.stopPropagation(); showPreset(preset, oc.id); }}>{presetDisplayName(preset)}</button>
@@ -3427,49 +3390,90 @@
                         <button type="button" class="button-style comms-custom" onclick={(e) => { e.stopPropagation(); openCustomComms(oc.id); }}>Custom…</button>
                         <button type="button" class="button-style" onclick={(e) => { e.stopPropagation(); playerCommsShown = false; }}>&lsaquo; Back</button>
                     </div>
-                {:else if overlayFromBoard && activeToken}
-                    <div class="overlay-toggles">
-                        {#if !sideRole}
-                        <button type="button" class="popup-toggle" class:dead={activeToken.isDead} onclick={(e) => { e.stopPropagation(); toggleAlive(); }}>
-                            {activeToken.isDead ? 'Dead' : 'Alive'}
-                        </button>
-                        <button type="button" class="popup-toggle" class:evil={activeToken.alignment === 'evil'} onclick={(e) => { e.stopPropagation(); toggleAlignment(); }}>
-                            {activeToken.alignment === 'evil' ? 'Evil' : 'Good'}
-                        </button>
-                        {#if activeToken.isDead}
-                            <button type="button" class="popup-toggle" class:has-vote={hasDeadVote(activeToken)} onclick={(e) => { e.stopPropagation(); toggleDeadVote(); }}>
-                                {activeToken.deadVoteUsed ? 'Vote used' : 'Has vote'}
-                            </button>
-                        {/if}
-                        {/if}
-                        {#if oc}
-                            <button type="button" class="button-style with-icon" onclick={() => viewCharacter(oc.id)}>{@render eyeIcon()}Show</button>
-                            {#if !sideRole}
-                                <button type="button" class="button-style with-icon" onclick={(e) => { e.stopPropagation(); openPlayerComms(oc.id); }}>{@render commsIcon()}Comms</button>
-                            {/if}
-                        {/if}
-                    </div>
-                    <button type="button" class="button-style" onclick={(e) => { e.stopPropagation(); pickingCharacter = true; }}>
-                        {oc ? 'Change character' : 'Choose character'}
-                    </button>
-                {/if}
-                {#if oc}
-                    {#if !overlayFromBoard}
-                        <button class="button-style with-icon" onclick={() => viewCharacter(oc.id)}>{@render eyeIcon()}Show</button>
+                {:else}
+                    {#if overlayFromBoard && activeToken && !sideRole}
+                        <input
+                            type="text"
+                            class="popup-player-name overlay-player-name"
+                            placeholder="Player name"
+                            value={activeToken.playerName ?? ''}
+                            oninput={(e) => setPlayerName((e.target as HTMLInputElement).value)}
+                        />
                     {/if}
-                    <div class="overlay-drag-hint">{overlayFromBoard ? 'Drag a reminder onto the grim' : 'Drag onto the grim'}</div>
-                    <div class="overlay-tokens">
-                        {#if !overlayFromBoard}
-                            <div class="overlay-drag-token" onpointerdown={(e) => startDragCharacterFromOverlay(e, oc)}>
-                                <CharacterToken character={oc} style="position: relative;" size="{OVERLAY_TOKEN_SIZE}px" norules/>
+                    {#if oc}
+                        {#if overlayFromBoard}
+                            <!-- A placed token's summary shows the token itself, its name on it and its type in its ring's colour, with
+                                 its night order and custom wake badges where the board has them -->
+                            {@const size = OVERLAY_SUMMARY_TOKEN_SIZE}
+                            {@const order = activeToken?.characterId ? nightOrderByCharacterId.indexOf(activeToken.characterId) : -1}
+                            <div style="position: relative; flex-shrink: 0; width: {size}px; height: {size}px;">
+                                <CharacterToken character={oc} style="position: relative;" size="{size}px" norules/>
+                                {#if order >= 0}
+                                    <div class="night-order-badge" style="left: {size * 0.95}px; top: {size / 2}px; font-size: {size / 6}px; border-width: {size / 70}px;">{order + 1}</div>
+                                {/if}
+                                {#if activeToken && !sideRole}
+                                    {@render wakeToggle(activeToken.customWake ?? false, `left: ${size * 0.95}px; top: ${size / 2 + (order >= 0 ? size * 0.28 : 0)}px; font-size: ${size / 6}px; border-width: ${size / 70}px;`, (e) => { e.stopPropagation(); toggleCustomWake(); })}
+                                {/if}
                             </div>
+                        {:else}
+                            <img class="overlay-icon" src={`/api/characters/${oc.id}/img`} alt="" onerror={(e) => (e.currentTarget as HTMLImageElement).style.display = 'none'} />
+                            <div class="overlay-name dumbledore-font">{oc.name}</div>
+                            <div class="overlay-category">{oc.category}</div>
                         {/if}
-                        {#each reminderCache[oc.id] ?? [] as rToken (rToken.id)}
-                            <div class="overlay-drag-token" onpointerdown={(e) => startDragReminderFromOverlay(e, rToken, oc.id)}>
-                                <ReminderTokenView data={rToken} characterId={oc.id} size="{OVERLAY_TOKEN_SIZE * 0.7}px"/>
-                            </div>
-                        {/each}
-                    </div>
+                        {#if oc.rules}
+                            <div class="overlay-rules">{oc.rules}</div>
+                        {/if}
+                        {#if oc.setup}
+                            <div class="overlay-rules setup-text">[{oc.setup}]</div>
+                        {/if}
+                    {:else if activeToken}
+                        <div class="overlay-name dumbledore-font">{activeToken.playerName || 'Player'}</div>
+                        <div class="overlay-category">No character</div>
+                    {/if}
+                    {#if overlayFromBoard && activeToken}
+                        <div class="overlay-toggles">
+                            {#if !sideRole}
+                            <button type="button" class="popup-toggle" class:dead={activeToken.isDead} onclick={(e) => { e.stopPropagation(); toggleAlive(); }}>
+                                {activeToken.isDead ? 'Dead' : 'Alive'}
+                            </button>
+                            <button type="button" class="popup-toggle" class:evil={activeToken.alignment === 'evil'} onclick={(e) => { e.stopPropagation(); toggleAlignment(); }}>
+                                {activeToken.alignment === 'evil' ? 'Evil' : 'Good'}
+                            </button>
+                            {#if activeToken.isDead}
+                                <button type="button" class="popup-toggle" class:has-vote={hasDeadVote(activeToken)} onclick={(e) => { e.stopPropagation(); toggleDeadVote(); }}>
+                                    {activeToken.deadVoteUsed ? 'Vote used' : 'Has vote'}
+                                </button>
+                            {/if}
+                            {/if}
+                            {#if oc}
+                                <button type="button" class="button-style with-icon" onclick={() => viewCharacter(oc.id)}>{@render eyeIcon()}Show</button>
+                                {#if !sideRole}
+                                    <button type="button" class="button-style with-icon" onclick={(e) => { e.stopPropagation(); openPlayerComms(oc.id); }}>{@render commsIcon()}Comms</button>
+                                {/if}
+                            {/if}
+                        </div>
+                        <button type="button" class="button-style" onclick={(e) => { e.stopPropagation(); pickingCharacter = true; }}>
+                            {oc ? 'Change character' : 'Choose character'}
+                        </button>
+                    {/if}
+                    {#if oc}
+                        {#if !overlayFromBoard}
+                            <button class="button-style with-icon" onclick={() => viewCharacter(oc.id)}>{@render eyeIcon()}Show</button>
+                        {/if}
+                        <div class="overlay-drag-hint">{overlayFromBoard ? 'Drag a reminder onto the grim' : 'Drag onto the grim'}</div>
+                        <div class="overlay-tokens">
+                            {#if !overlayFromBoard}
+                                <div class="overlay-drag-token" onpointerdown={(e) => startDragCharacterFromOverlay(e, oc)}>
+                                    <CharacterToken character={oc} style="position: relative;" size="{OVERLAY_TOKEN_SIZE}px" norules/>
+                                </div>
+                            {/if}
+                            {#each reminderCache[oc.id] ?? [] as rToken (rToken.id)}
+                                <div class="overlay-drag-token" onpointerdown={(e) => startDragReminderFromOverlay(e, rToken, oc.id)}>
+                                    <ReminderTokenView data={rToken} characterId={oc.id} size="{OVERLAY_TOKEN_SIZE * 0.7}px"/>
+                                </div>
+                            {/each}
+                        </div>
+                    {/if}
                 {/if}
             </div>
         </div>
