@@ -48,6 +48,13 @@ for (const character of [...CHARACTERS_MANAGER.values]) {
     }
 }
 
+// Characters saved before they had message presets have none.
+for (const character of [...CHARACTERS_MANAGER.values]) {
+    if (character.firstNightMessagePresets === undefined || character.otherNightMessagePresets === undefined) {
+        CHARACTERS_MANAGER.add({ ...character, firstNightMessagePresets: character.firstNightMessagePresets ?? [], otherNightMessagePresets: character.otherNightMessagePresets ?? [] });
+    }
+}
+
 export function listCharacters(): Character[] {
     return [...CHARACTERS_MANAGER.values].sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -78,10 +85,10 @@ export function addCharacter(character: NewCharacter): Character {
     if (CHARACTERS_MANAGER.get(id)) {
         throw new Error(`A character with the name "${character.name}" already exists`);
     }
-    return CHARACTERS_MANAGER.add({ id, ...character, reminderTokens: [] });
+    return CHARACTERS_MANAGER.add({ id, ...character, reminderTokens: [], firstNightMessagePresets: [], otherNightMessagePresets: [] });
 }
 
-export function updateCharacter(id: string, fields: Partial<NewCharacter>): Character | null {
+export function updateCharacter(id: string, fields: Partial<Omit<Character, 'id' | 'reminderTokens'>>): Character | null {
     const existing = getCharacterById(id);
     if (!existing) return null;
 

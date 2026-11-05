@@ -1,7 +1,7 @@
 <script lang="ts">
     import { fetchScriptWithSideCharacters } from "$lib/resources/client/scriptWithSideCharacters";
     import { hasNoBlanks, type MessageElement, type MessagePreset, type PresetElement, type TextOption } from "$lib/common/message";
-    import { alignmentForCategory, bluffSetsOf, ALL_CHARACTER_CATEGORIES, type Character, type CharacterCategory, type ReminderToken, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
+    import { alignmentForCategory, bluffSetsOf, characterMessagePresetsFor, ALL_CHARACTER_CATEGORIES, type Character, type CharacterCategory, type ReminderToken, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import MessageBuilder, { type MessageBuilderView } from "$lib/components/MessageBuilder.svelte";
     import ReminderTokenView from "$lib/components/ReminderTokenView.svelte";
@@ -373,16 +373,20 @@
     });
 
     // With 7 or more players (not counting travellers), the Minions and the Demon learn each other on the first
-    // night. Each step goes before the first character whose canonical first night order comes after it.
+    // night. Each step goes before the first character whose canonical first night order comes after it, and has the
+    // cards it shows as communications (and the Demon's bluffs).
+    const headerPreset = (text: string): MessagePreset => ({ name: text, elements: [{ type: 'text', value: text, style: 'Header' }] });
     const FIRST_NIGHT_INFO_STEPS = [
         { id: 'minioninfo', name: 'Minion Info', defaultOrder: 6,
-            rules: 'If more than one Minion, they all make eye contact with each other. Show the "This is the Demon" card. Point to the Demon.' },
+            rules: 'If more than one Minion, they all make eye contact with each other. Show the "This is the Demon" card. Point to the Demon.',
+            presets: [headerPreset('This is the demon')], bluffs: false },
         { id: 'demoninfo', name: 'Demon Info', defaultOrder: 9,
-            rules: 'Show the "These are your minions" card. Point to each Minion. Show the "These characters are not in play" card. Show 3 not-in-play good character tokens.' }
+            rules: 'Show the "These are your minions" card. Point to each Minion. Show the "These characters are not in play" card. Show 3 not-in-play good character tokens.',
+            presets: [headerPreset('These are your minions')], bluffs: true }
     ];
     const playerCount = $derived(placedTokens.filter(t => isPlayerToken(t) && !isSideRoleToken(t)
         && characterById.get(t.characterId ?? '')?.category !== 'traveler').length);
-    type NightSheetEntry = { kind: 'character'; character: ScriptCharacter } | { kind: 'info'; id: string; name: string; rules: string };
+    type NightSheetEntry = { kind: 'character'; character: ScriptCharacter } | ({ kind: 'info' } & typeof FIRST_NIGHT_INFO_STEPS[number]);
     const nightSheetEntries = $derived.by(() => {
         const entries: NightSheetEntry[] = nightSheetCharacters.map(character => ({ kind: 'character', character }));
         if (nightOrderSheet !== 'first' || playerCount < 7) return entries;
@@ -390,7 +394,7 @@
             let insertAt = entries.findIndex(e => e.kind === 'character'
                 && e.character.firstNightOrder !== null && e.character.firstNightOrder > step.defaultOrder);
             if (insertAt === -1) insertAt = entries.length;
-            entries.splice(insertAt, 0, { kind: 'info', id: step.id, name: step.name, rules: step.rules });
+            entries.splice(insertAt, 0, { kind: 'info', ...step });
         }
         return entries;
     });
@@ -770,9 +774,9 @@
         goto(`/admin/${data.clockid}/grim/bluffs?set=${setIndex}`);
     }
 
-    // Communications overlay: null when closed, 'main' for its Preset, Custom and Queue tabs, and 'bluffs' to pick
-    // between several bluff sets.
-    let commsView = $state<'main' | 'bluffs' | null>(null);
+    // Communications overlay: null when closed, 'main' for its Preset, Custom and Queue tabs, 'bluffs' to pick
+    // between several bluff sets, and 'character' to pick between a character's presets.
+    let commsView = $state<'main' | 'bluffs' | 'character' | null>(null);
     let commsTab = $state<'preset' | 'custom' | 'queue'>('preset');
 
     // With the queue on, messages are added to it rather than shown, and then shown together from the Queue tab.
@@ -905,10 +909,13 @@
         goto(`/admin/${data.clockid}/grim/message?${params}`);
     }
 
-    // A preset with blanks opens in the builder first, to fill them in.
+    // A preset with blanks opens in the builder first, to fill them in (opening communications, if it isn't open).
     function showPreset(preset: MessagePreset) {
         const elements = preset.elements;
         if (!hasNoBlanks(elements)) {
+            if (commsView === null) openComms();
+            commsView = 'main';
+            commsTab = 'preset';
             presetEditor = { mode: 'fill', name: preset.name, elements: structuredClone($state.snapshot(elements)) };
             presetBuilderView = 'builder';
         } else if (messageQueue.enabled) {
@@ -916,6 +923,40 @@
         } else {
             showMessage(elements);
         }
+    }
+
+    // The night it is, or the coming night during the day: the first night until day 1.
+    const currentNight = $derived<'first' | 'other'>((clockClient?.day || 0) > 0 ? 'other' : 'first');
+
+    // A character's own presets for the night, from their token or the night order: shown (or filled in) straight
+    // away if there's one, or listed to pick from if there are several.
+    // (The Demon Info step lists the bluffs too.)
+    let characterComms = $state<{ name: string; presets: MessagePreset[]; bluffs?: boolean } | null>(null);
+    const characterPresetsFor = (characterId: string | null | undefined, night: 'first' | 'other') => {
+        const character = characterById.get(characterId ?? '');
+        return character ? characterMessagePresetsFor(character, night) : [];
+    };
+
+    function openCharacterComms(characterId: string, night: 'first' | 'other') {
+        const presets = characterPresetsFor(characterId, night);
+        if (presets.length === 1) {
+            showPreset(presets[0]);
+        } else if (presets.length > 1) {
+            if (commsView === null) openComms();
+            characterComms = { name: characterById.get(characterId)?.name ?? '', presets };
+            commsView = 'character';
+        }
+    }
+
+    // A first night info step's communications, as a character's: one is shown straight away, more are listed.
+    function openInfoStepComms(step: typeof FIRST_NIGHT_INFO_STEPS[number]) {
+        if (step.presets.length === 1 && !step.bluffs) {
+            showPreset(step.presets[0]);
+            return;
+        }
+        if (commsView === null) openComms();
+        characterComms = { name: step.name, presets: step.presets, bluffs: step.bluffs };
+        commsView = 'character';
     }
 
     // The bluffs from communications: queued as a message like the bluffs page, or shown on that page.
@@ -1178,16 +1219,14 @@
         activeReminderPos = null;
     }
 
-    // The popup's player name is shown as text until its edit button is pressed. Its buttons are in two pages.
+    // The popup's player name is shown as text until its edit button is pressed.
     let editingPlayerName = $state(false);
-    let popupButtonPage = $state<1 | 2>(1);
     let playerNameInput = $state<HTMLInputElement | null>(null);
 
-    // Each token's popup opens on its first page, not editing the name
+    // Each token's popup opens not editing the name
     $effect(() => {
         void activeTokenId;
         editingPlayerName = false;
-        popupButtonPage = 1;
     });
 
     function startEditingPlayerName() {
@@ -1869,6 +1908,26 @@
         color: var(--theme-on-bg-secondary);
     }
 
+    /* A character's communications, at the end of their row */
+    .night-sheet-comms {
+        flex-shrink: 0;
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.4em;
+        height: 2.4em;
+        border-radius: 50%;
+        background: var(--theme-bg-secondary);
+        color: inherit;
+        cursor: pointer;
+    }
+
+    .night-sheet-comms .button-icon {
+        width: 1.3em;
+        height: 1.3em;
+    }
+
     .night-sheet-rules {
         /* Keep the line breaks in reminders and abilities */
         white-space: pre-line;
@@ -1998,7 +2057,6 @@
        .locked-toast's position, which comes later. */
     .locked-toast.queued-toast {
         top: 60px;
-        z-index: 2;
         max-width: calc(100% - 32px);
         box-sizing: border-box;
     }
@@ -2207,9 +2265,9 @@
         border-color: #7f1d1d;
     }
     /* Two by two, every button the same size: a long label wraps rather than widening its column */
+    /* In pairs: the player's life and vote, their alignment and character, then what to show them */
     .popup-buttons {
         display: grid;
-        /* A fixed width, so the popup doesn't change size between the pages */
         grid-template-columns: repeat(2, 6.2em);
         grid-auto-rows: 1fr;
         gap: 6px;
@@ -2223,22 +2281,6 @@
     .popup-toggle:disabled {
         opacity: 0.4;
         cursor: default;
-    }
-    .popup-page-switch {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-    }
-    .page-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        border: 1.5px solid #e5e7eb;
-        box-sizing: border-box;
-    }
-    .page-dot.current {
-        background: #e5e7eb;
     }
     /* A button with an icon before its label */
     .with-icon {
@@ -2913,6 +2955,9 @@
     </AnotatableViewV2>
 
 
+        {#snippet commsIcon()}
+            <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM6.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0zM10.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0zM14.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0z"/></svg>
+        {/snippet}
         {#snippet eyeIcon()}
             <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>
         {/snippet}
@@ -2920,13 +2965,6 @@
             <button type="button" class="night-order-badge wake-toggle" class:off={!on} {style} {onclick}
                 title={on ? 'Remove the wake reminder' : 'Add a wake reminder, to wake them tonight'}
                 aria-label={on ? 'Remove the wake reminder' : 'Add a wake reminder'} aria-pressed={on}>?</button>
-        {/snippet}
-        {#snippet popupPageSwitch()}
-            <button type="button" class="popup-toggle popup-page-switch" onclick={() => popupButtonPage = popupButtonPage === 1 ? 2 : 1}
-                title={popupButtonPage === 1 ? 'More' : 'Back'} aria-label={popupButtonPage === 1 ? 'More buttons' : 'Back to the first buttons'}>
-                <span class="page-dot" class:current={popupButtonPage === 1}></span>
-                <span class="page-dot" class:current={popupButtonPage === 2}></span>
-            </button>
         {/snippet}
         {#if activeTokenId !== null && activeReminderPos && (activeCharacterId === null || reminderCache[activeCharacterId])}
             <div bind:this={reminderPopupEl} class="reminder-popup" class:above={activeReminderAbove} style="font-size: {tokenSize * 0.12}px; left: {activeReminderPos.x}px; top: {activeReminderPos.y}px; z-index: {z_indecies.ui};">
@@ -2962,7 +3000,7 @@
                                     <button type="button" class="popup-toggle with-icon" onclick={() => viewCharacter(activeChar.id)}>{@render eyeIcon()}Show</button>
                                 {/if}
                                 <button type="button" class="popup-toggle" onclick={() => pickingCharacter = true}>Change character</button>
-                            {:else if popupButtonPage === 1}
+                            {:else}
                                 <button type="button" class="popup-toggle" class:dead={activeToken.isDead} onclick={toggleAlive}>
                                     {activeToken.isDead ? 'Dead' : 'Alive'}
                                 </button>
@@ -2970,16 +3008,16 @@
                                 <button type="button" class="popup-toggle" class:has-vote={hasDeadVote(activeToken)} disabled={!activeToken.isDead} onclick={toggleDeadVote}>
                                     {activeToken.isDead && activeToken.deadVoteUsed ? 'Vote used' : 'Has vote'}
                                 </button>
-                                <button type="button" class="popup-toggle with-icon" disabled={!activeChar} onclick={() => activeChar && viewCharacter(activeChar.id)}>{@render eyeIcon()}Show</button>
-                                {@render popupPageSwitch()}
-                            {:else}
                                 <button type="button" class="popup-toggle" class:evil={activeToken.alignment === 'evil'} onclick={toggleAlignment}>
                                     {activeToken.alignment === 'evil' ? 'Evil' : 'Good'}
                                 </button>
                                 <button type="button" class="popup-toggle" onclick={() => pickingCharacter = true}>
                                     {activeChar ? 'Change character' : 'Choose character'}
                                 </button>
-                                {@render popupPageSwitch()}
+                                <button type="button" class="popup-toggle with-icon" disabled={!activeChar} onclick={() => activeChar && viewCharacter(activeChar.id)}>{@render eyeIcon()}Show</button>
+                                <!-- The character's own presets for tonight -->
+                                <button type="button" class="popup-toggle with-icon" disabled={characterPresetsFor(activeChar?.id, currentNight).length === 0}
+                                    onclick={() => activeChar && openCharacterComms(activeChar.id, currentNight)}>{@render commsIcon()}Comms</button>
                             {/if}
                         </div>
                         {#if activeChar?.rules}
@@ -3172,6 +3210,9 @@
                         {/if}
                         {#if oc}
                             <button type="button" class="button-style with-icon" onclick={() => viewCharacter(oc.id)}>{@render eyeIcon()}Show</button>
+                            {#if !sideRole && characterPresetsFor(oc.id, currentNight).length > 0}
+                                <button type="button" class="button-style with-icon" onclick={(e) => { e.stopPropagation(); openCharacterComms(oc.id, currentNight); }}>{@render commsIcon()}Comms</button>
+                            {/if}
                         {/if}
                     </div>
                     <button type="button" class="button-style" onclick={(e) => { e.stopPropagation(); pickingCharacter = true; }}>
@@ -3223,6 +3264,8 @@
                                     <div class="night-sheet-name">{entry.name}</div>
                                     <div class="night-sheet-rules">{entry.rules}</div>
                                 </div>
+                                <button class="no-button-style night-sheet-comms" onclick={() => openInfoStepComms(entry)}
+                                    aria-label="{entry.name} communications" title="{entry.name} communications">{@render commsIcon()}</button>
                             </li>
                             {:else}
                             {@const character = entry.character}
@@ -3236,6 +3279,11 @@
                                     </div>
                                     <div class="night-sheet-rules">{(nightOrderSheet === 'first' ? character.firstNightReminder : character.otherNightReminder) || character.rules}</div>
                                 </div>
+                                {#if nightOrderSheet && characterPresetsFor(character.id, nightOrderSheet).length > 0}
+                                    {@const night = nightOrderSheet}
+                                    <button class="no-button-style night-sheet-comms" onclick={() => openCharacterComms(character.id, night)}
+                                        aria-label="{character.name}'s communications" title="{character.name}'s communications">{@render commsIcon()}</button>
+                                {/if}
                             </li>
                             {/if}
                         {/each}
@@ -3257,6 +3305,16 @@
                     {#each bluffSets as _, setIndex}
                         <button class="button-style" onclick={() => showCommsBluffs(setIndex)}>Bluff set {setIndex + 1}</button>
                     {/each}
+                {:else if commsView === 'character' && characterComms}
+                    <div class="overlay-name dumbledore-font">{characterComms.name}</div>
+                    {#each characterComms.presets as preset}
+                        <button class="button-style" onclick={() => showPreset(preset)}>{preset.name || 'Untitled'}</button>
+                    {/each}
+                    {#if characterComms.bluffs}
+                        <button class="button-style" disabled={bluffSets.length === 0 && !(script && loadedPreset)} onclick={chooseBluffs}>
+                            {bluffSets.length === 0 ? 'Bluffs (create a bluff set)' : 'Bluffs'}
+                        </button>
+                    {/if}
                 {:else}
                     {#if commsTabsShown}
                         <div class="overlay-name dumbledore-font">Communications</div>
@@ -3350,13 +3408,15 @@
                     {/if}
                 {/if}
             </div>
-            {#if queuedToast !== null}
-                <div class="locked-toast queued-toast" role="status"
-                    in:fly={{ y: -24, opacity: 0, duration: 300, easing: cubicOut }}
-                    out:fly={{ y: -24, opacity: 0, duration: 250, easing: cubicIn }}>
-                    <span>Queued: {queuedToast}</span>
-                </div>
-            {/if}
+        </div>
+    {/if}
+
+    <!-- Out here, as a character's preset can be queued from their token or the night order with communications closed -->
+    {#if queuedToast !== null}
+        <div class="locked-toast queued-toast" role="status" style="z-index: {z_indecies.ui + 40};"
+            in:fly={{ y: -24, opacity: 0, duration: 300, easing: cubicOut }}
+            out:fly={{ y: -24, opacity: 0, duration: 250, easing: cubicIn }}>
+            <span>Queued: {queuedToast}</span>
         </div>
     {/if}
 

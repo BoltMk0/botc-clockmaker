@@ -1,9 +1,11 @@
 <script lang="ts">
     import { enhance } from '$app/forms';
     import { goto } from '$app/navigation';
-    import { untrack } from 'svelte';
+    import { onMount, untrack } from 'svelte';
     import { createReminderToken, deleteReminderToken, fetchReminderTokensForCharacter, updateReminderToken } from '$lib/resources/client/reminderTokens.js';
     import { ALL_CHARACTER_CATEGORIES, type Character, type ReminderToken } from '$lib/resources/common/gameData.js';
+    import type { MessagePreset, TextOption } from '$lib/common/message';
+    import MessagePresetList, { sectionsByCategory } from '$lib/components/MessagePresetList.svelte';
     import HSlider from '$lib/audio/client/components/HSlider.svelte';
     import CustomOverlay from '$lib/components/CustomOverlay.svelte';
     import ReminderTokenView from '$lib/components/ReminderTokenView.svelte';
@@ -138,6 +140,21 @@
         });
     }
 
+    // For building the character's message presets: every character to show, and the lines of text to pick from.
+    let allCharacters = $state<Character[]>([]);
+    let textOptions = $state<TextOption[]>([]);
+    const allCharactersById = $derived(Object.fromEntries(allCharacters.map(c => [c.id, c])));
+    const presetSections = $derived(sectionsByCategory(allCharacters));
+    onMount(() => {
+        fetch('/api/characters').then(r => r.json()).then((list: Character[]) => {
+            allCharacters = list.sort((a, b) => a.name.localeCompare(b.name));
+        }).catch(() => alert('Failed to fetch characters!'));
+        fetch('/api/textOptions').then(r => r.json()).then((list: TextOption[]) => {
+            textOptions = list;
+        }).catch(() => alert('Failed to fetch text options!'));
+    });
+    const newMessagePreset = (): MessagePreset => ({ name: '', elements: [] });
+
     let imgCacheBust = $state<number>(Date.now());
     let hasImage = $state<boolean>(true);
 
@@ -148,6 +165,15 @@
     });
 
 </script>
+
+{#snippet nightPresets(night: 'first' | 'other')}
+    <p class="presets-description">Messages to show the player that night, offered from their token in the grim and from the night order. A blank is filled in each time it's shown.</p>
+    {#if night === 'first'}
+        <MessagePresetList bind:presets={selectedCharacter.firstNightMessagePresets} bind:textOptions sections={presetSections} characters={allCharactersById} newPreset={newMessagePreset} />
+    {:else}
+        <MessagePresetList bind:presets={selectedCharacter.otherNightMessagePresets} bind:textOptions sections={presetSections} characters={allCharactersById} newPreset={newMessagePreset} />
+    {/if}
+{/snippet}
 
 <style>
     .character-list-main {
@@ -278,6 +304,18 @@
 
     .clear-order-button {
         padding: 0.2em 0.6em;
+    }
+
+    /* A night's reminder and communications while the character doesn't wake then (over the stacked layout's display) */
+    .character-info table.info-grid tr[hidden] {
+        display: none;
+    }
+
+    .presets-description {
+        margin: 0 0 0.6em;
+        font-size: 0.9em;
+        font-style: italic;
+        opacity: 0.8;
     }
 
     #add-reminder-token-button {
@@ -467,6 +505,9 @@
                         }
                     }
                 }}>
+                    <!-- The communications are saved with the rest of the character -->
+                    <input type="hidden" name="firstNightMessagePresets" value={JSON.stringify(selectedCharacter.firstNightMessagePresets)} />
+                    <input type="hidden" name="otherNightMessagePresets" value={JSON.stringify(selectedCharacter.otherNightMessagePresets)} />
                     <table class="info-grid">
                         <tbody>
                             <tr>
@@ -514,13 +555,22 @@
                                     </div>
                                 </td>
                             </tr>
-                            <tr>
+                            <!-- A night's reminder and communications are hidden (but kept) while the character doesn't wake then -->
+                            <tr hidden={selectedCharacter.firstNightOrder == null}>
                                 <th>First Night Reminder</th>
                                 <td><textarea name="firstNightReminder" style="height: 4em;" placeholder="What the storyteller does on the first night (leave empty to show the ability)" bind:value={selectedCharacter.firstNightReminder}></textarea></td>
                             </tr>
-                            <tr>
+                            <tr hidden={selectedCharacter.firstNightOrder == null}>
+                                <th>First Night Communications</th>
+                                <td>{@render nightPresets('first')}</td>
+                            </tr>
+                            <tr hidden={selectedCharacter.otherNightOrder == null}>
                                 <th>Other Nights Reminder</th>
                                 <td><textarea name="otherNightReminder" style="height: 4em;" placeholder="What the storyteller does on other nights (leave empty to show the ability)" bind:value={selectedCharacter.otherNightReminder}></textarea></td>
+                            </tr>
+                            <tr hidden={selectedCharacter.otherNightOrder == null}>
+                                <th>Other Nights Communications</th>
+                                <td>{@render nightPresets('other')}</td>
                             </tr>
                         </tbody>
                     </table>

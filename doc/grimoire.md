@@ -49,13 +49,13 @@ Tap a token to open its popup. At the top is the **player name**: tap the pencil
 is selected, so typing replaces it; Enter or tapping elsewhere finishes). A token only counts as a seated player (for
 the night order, the town square and framing the view) once it has a name.
 
-Below are the buttons. The bottom-right one switches between two pages of them:
+Below are six buttons, in pairs:
 
-| Page 1 | Page 2 |
+| | |
 | --- | --- |
-| **Alive / Dead** — toggles death. Dead players are shown as dead on the 3D town square. | **Good / Evil** — toggles alignment. |
-| **Has vote / Vote used** — tracks a dead player's ghost vote (also shown on the town square). Greyed out while they're alive. | **Change character** / **Choose character** — gives the player a different character (or none), keeping their name, seat and life status. For example after a Pit-Hag or a Snake Charmer swap. |
-| **Show** — shows this character full-screen, with its ability, to hold up to a player. ✕ returns to the grim. | |
+| **Alive / Dead** — toggles death. Dead players are shown as dead on the 3D town square. | **Has vote / Vote used** — tracks a dead player's ghost vote (also shown on the town square). Greyed out while they're alive. |
+| **Good / Evil** — toggles alignment. | **Change character** / **Choose character** — gives the player a different character (or none), keeping their name, seat and life status. For example after a Pit-Hag or a Snake Charmer swap. |
+| **Show** — shows this character full-screen, with its ability, to hold up to a player. ✕ returns to the grim. | **Comms** — the character's own [communications](#character-communications) for tonight. Greyed out when it has none. |
 
 Then the character's **ability text** and setup note, and its **reminder tokens**, ready to drag onto the board.
 
@@ -65,7 +65,8 @@ orange **?** badge, which stays on the token once the popup closes. Tap the badg
 wake off again.
 
 On a phone, tapping a token opens a full-screen overlay with the same controls in one list, under the character's
-token; the wake's **?** is beside that token.
+token; the wake's **?** is beside that token, and **Comms** only shows when the character has communications for
+tonight.
 
 Loric and fabled tokens have no name, alive/dead, alignment or wake controls: just **Show** and **Change character**.
 
@@ -120,6 +121,21 @@ The **night order** button in the sidebar opens the whole night as a sheet, with
 the other nights. Each character shows the storyteller's night reminder, or its ability text when it has none. With 7
 or more seated players (not counting travellers), the first night also lists **Minion Info** and **Demon Info** in
 their places.
+
+A character with [communications](#character-communications) for that night has a speech bubble button at the end of
+its row, which works as **Comms** does in a token's popup. **Minion Info** and **Demon Info** have one too: Minion Info's shows *"This is
+the demon"* straight away, and Demon Info's lists *"These are your minions"* and **Bluffs** (which works as in the
+[Preset](#preset) tab).
+
+### Character communications
+
+A character can have its own message presets for the first night and for the other nights, set in its
+[editor](settings/characters.md#communications). From a token's **Comms** (tonight's: the first night on day 0, the
+other nights from day 1) or the night order sheet's speech bubble (that tab's night):
+
+- with one preset for the night, it's shown straight away (or added to the queue, if it's on);
+- with several, communications opens with a list of them, named after the character, to pick from;
+- a preset with blanks opens in communications' Preset tab to fill them in first, as any preset with blanks does.
 
 The night order comes from the script; it can be edited in
 [Settings → Scripts → Edit Characters](settings/scripts.md#editing-a-scripts-characters-and-night-order).

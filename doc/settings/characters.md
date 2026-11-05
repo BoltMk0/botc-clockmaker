@@ -56,9 +56,24 @@ Characters can also be created by [importing a script](scripts.md#importing-a-sc
 | **Text** | The ability text, shown on tokens, in the grimoire and in the script viewer. |
 | **Setup** | Any setup change, e.g. "+2 Outsiders". Leave empty if it doesn't change setup. Shown in brackets under the ability. |
 | **Night Order** → **First Night** / **Other Nights** | Its place in the night order; leave it empty (or press **✕**) if it doesn't wake that night. Scripts use this when the character is added, and when you press **Reset** on a script's night order. |
-| **First Night Reminder** / **Other Nights Reminder** | What the storyteller does when it wakes, shown on the grimoire's night order sheet. Leave empty to show the ability text there instead. |
+| **First Night Reminder** / **Other Nights Reminder** | What the storyteller does when it wakes, shown on the grimoire's night order sheet. Leave empty to show the ability text there instead. Hidden while that night's order is empty. |
+| **First Night Communications** / **Other Nights Communications** | Messages to show the player when it wakes that night — see [Communications](#communications). Hidden while that night's order is empty. |
 
 Press **Save Changes** to save, or **Delete** to remove the character.
+
+## Communications
+
+Under each night's reminder are the character's own **message presets** for that night: messages to show its player
+when it wakes, offered in the grimoire from the character's token and from the
+[night order sheet](../grimoire.md#character-communications).
+
+- They're built as in [Settings → Communications](communications.md#presets): a **name**, then **Edit** to open the
+  message builder, where **Add element** offers **Text**, **Character**, **Alignment** or **Blank** (filled in each
+  time it's shown). **↑** / **↓** reorder them and **✕** deletes one; **+ Add preset** starts a new one.
+- While a night's order is empty (the character doesn't wake then), its presets are hidden and not offered in the
+  grimoire, but kept: give it an order again and they're back.
+
+They're saved with the rest of the character, by **Save Changes**.
 
 ## Reminder tokens
 

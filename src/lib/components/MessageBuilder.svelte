@@ -176,7 +176,7 @@
     {#if isFoldable(section)}
         {@const open = unfolded.has(section.key)}
         {@const picked = view === 'character' ? section.characters.filter(c => pickedCharacterIds.includes(c.id)).length : 0}
-        <button class="no-button-style section-toggle" aria-expanded={open} onclick={() => toggleSection(section.key)}>
+        <button type="button" class="no-button-style section-toggle" aria-expanded={open} onclick={() => toggleSection(section.key)}>
             <svg viewBox="0 0 24 24" class:collapsed={!open} aria-hidden="true"><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
             {section.title}
             {#if picked > 0}<span class="section-count">{picked} chosen</span>{/if}
@@ -194,7 +194,7 @@
                     {#if element.type === 'text'}
                         <div class="element-body text-preview" class:dumbledore-font={element.style === 'Header'} class:header={element.style === 'Header'}><MessageText text={element.value}/></div>
                     {:else if element.type === 'character'}
-                        <button class="no-button-style element-body element-tokens" title="Change characters" onclick={() => openCharacterPicker(elementIndex)}>
+                        <button type="button" class="no-button-style element-body element-tokens" title="Change characters" onclick={() => openCharacterPicker(elementIndex)}>
                             {#each element.value as characterId (characterId)}
                                 {@const character = characters[characterId]}
                                 {#if character}
@@ -205,61 +205,61 @@
                             {/each}
                         </button>
                     {:else if element.type === 'alignment'}
-                        <button class="no-button-style element-body alignment-preview dumbledore-font {element.value}" title="Switch alignment" onclick={() => toggleAlignment(elementIndex)}>
+                        <button type="button" class="no-button-style element-body alignment-preview dumbledore-font {element.value}" title="Switch alignment" onclick={() => toggleAlignment(elementIndex)}>
                             {element.value === 'good' ? 'GOOD' : 'EVIL'}
                         </button>
                     {:else if blanks === 'fill' && alignmentBlankIndex === elementIndex}
                         <div class="element-body add-element choices">
-                            <button class="button-style alignment-choice good dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'good' })}>GOOD</button>
-                            <button class="button-style alignment-choice evil dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'evil' })}>EVIL</button>
-                            <button class="no-button-style remove-element" title="Back" aria-label="Back" onclick={() => alignmentBlankIndex = null}>✕</button>
+                            <button type="button" class="button-style alignment-choice good dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'good' })}>GOOD</button>
+                            <button type="button" class="button-style alignment-choice evil dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'evil' })}>EVIL</button>
+                            <button type="button" class="no-button-style remove-element" title="Back" aria-label="Back" onclick={() => alignmentBlankIndex = null}>✕</button>
                         </div>
                     {:else if blanks === 'fill'}
                         <!-- To be filled in before the message is shown -->
                         <div class="element-body add-element choices">
-                            <button class="no-button-style element-type" onclick={() => fillBlank(elementIndex, 'text')}>Text</button>
-                            <button class="no-button-style element-type" disabled={sections.length === 0} onclick={() => fillBlank(elementIndex, 'character')}>Character</button>
-                            <button class="no-button-style element-type" onclick={() => fillBlank(elementIndex, 'alignment')}>Alignment</button>
+                            <button type="button" class="no-button-style element-type" onclick={() => fillBlank(elementIndex, 'text')}>Text</button>
+                            <button type="button" class="no-button-style element-type" disabled={sections.length === 0} onclick={() => fillBlank(elementIndex, 'character')}>Character</button>
+                            <button type="button" class="no-button-style element-type" onclick={() => fillBlank(elementIndex, 'alignment')}>Alignment</button>
                         </div>
                     {:else}
                         <div class="element-body blank-preview">Blank</div>
                     {/if}
                     <!-- A blank being filled in has to be filled, so it can't be taken out -->
                     {#if !(blanks === 'fill' && element.type === 'blank')}
-                        <button class="no-button-style remove-element" title="Remove" aria-label="Remove" onclick={() => elements.splice(elementIndex, 1)}>✕</button>
+                        <button type="button" class="no-button-style remove-element" title="Remove" aria-label="Remove" onclick={() => elements.splice(elementIndex, 1)}>✕</button>
                     {/if}
                 </div>
             {/each}
 
             {#if addElementStep === 'type'}
                 <div class="add-element choices">
-                    <button class="no-button-style element-type" onclick={() => view = 'text'}>Text</button>
-                    <button class="no-button-style element-type" disabled={sections.length === 0} onclick={() => openCharacterPicker(null)}>Character</button>
-                    <button class="no-button-style element-type" onclick={() => addElementStep = 'alignment'}>Alignment</button>
+                    <button type="button" class="no-button-style element-type" onclick={() => view = 'text'}>Text</button>
+                    <button type="button" class="no-button-style element-type" disabled={sections.length === 0} onclick={() => openCharacterPicker(null)}>Character</button>
+                    <button type="button" class="no-button-style element-type" onclick={() => addElementStep = 'alignment'}>Alignment</button>
                     {#if blanks === 'add'}
-                        <button class="no-button-style element-type" onclick={() => addElement({ type: 'blank' })}>Blank</button>
+                        <button type="button" class="no-button-style element-type" onclick={() => addElement({ type: 'blank' })}>Blank</button>
                     {/if}
-                    <button class="no-button-style remove-element" title="Cancel" aria-label="Cancel" onclick={() => addElementStep = 'closed'}>✕</button>
+                    <button type="button" class="no-button-style remove-element" title="Cancel" aria-label="Cancel" onclick={() => addElementStep = 'closed'}>✕</button>
                 </div>
             {:else if addElementStep === 'alignment'}
                 <div class="add-element choices">
-                    <button class="button-style alignment-choice good dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'good' })}>GOOD</button>
-                    <button class="button-style alignment-choice evil dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'evil' })}>EVIL</button>
-                    <button class="no-button-style remove-element" title="Back" aria-label="Back" onclick={() => addElementStep = 'type'}>✕</button>
+                    <button type="button" class="button-style alignment-choice good dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'good' })}>GOOD</button>
+                    <button type="button" class="button-style alignment-choice evil dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'evil' })}>EVIL</button>
+                    <button type="button" class="no-button-style remove-element" title="Back" aria-label="Back" onclick={() => addElementStep = 'type'}>✕</button>
                 </div>
             {:else}
-                <button class="no-button-style add-element" onclick={openAddElement}>Add element</button>
+                <button type="button" class="no-button-style add-element" onclick={openAddElement}>Add element</button>
             {/if}
         </div>
     {:else if view === 'text'}
         <div class="builder-title dumbledore-font">Add text</div>
         <div class="text-options">
             {#each textOptions as option}
-                <button class="button-style text-option" class:dumbledore-font={option.style === 'Header'} class:header={option.style === 'Header'} onclick={() => addElement({ type: 'text', value: option.text, style: option.style })}><MessageText text={option.text}/></button>
+                <button type="button" class="button-style text-option" class:dumbledore-font={option.style === 'Header'} class:header={option.style === 'Header'} onclick={() => addElement({ type: 'text', value: option.text, style: option.style })}><MessageText text={option.text}/></button>
             {/each}
         </div>
-        <button class="no-button-style add-element" onclick={openCustomText}>Custom...</button>
-        <button class="no-button-style add-element" disabled={sections.length === 0} onclick={() => view = 'characterRules'}>Character's ability...</button>
+        <button type="button" class="no-button-style add-element" onclick={openCustomText}>Custom...</button>
+        <button type="button" class="no-button-style add-element" disabled={sections.length === 0} onclick={() => view = 'characterRules'}>Character's ability...</button>
     {:else if view === 'customText'}
         <div class="builder-title dumbledore-font">Custom text</div>
         <select class="builder-input" bind:value={customText.style} aria-label="Style">
@@ -271,7 +271,7 @@
         <textarea class="builder-input" rows="3" placeholder="Text" bind:value={customText.text} autofocus></textarea>
         <div class="custom-text-submit">
             <label><input type="checkbox" bind:checked={saveCustomText} /> Save as a text option</label>
-            <button class="button-style highlight" disabled={!customText.text.trim()} onclick={addCustomText}>Add</button>
+            <button type="button" class="button-style highlight" disabled={!customText.text.trim()} onclick={addCustomText}>Add</button>
         </div>
     {:else if view === 'characterRules'}
         <div class="builder-title dumbledore-font">Choose a character</div>
@@ -281,7 +281,7 @@
                 {#if !isFoldable(section) || unfolded.has(section.key)}
                 <div class="picker-grid">
                     {#each section.characters as character (character.id)}
-                        <button class="no-button-style picker-token" class:faded={faded(character.id)} aria-label={character.name} title={character.name} onclick={() => addCharacterRules(character)}>
+                        <button type="button" class="no-button-style picker-token" class:faded={faded(character.id)} aria-label={character.name} title={character.name} onclick={() => addCharacterRules(character)}>
                             <CharacterToken {character} style="position: relative;" size="{tokenSize}px" {imageSize} norules/>
                         </button>
                     {/each}
@@ -297,7 +297,7 @@
                 {#if !isFoldable(section) || unfolded.has(section.key)}
                 <div class="picker-grid">
                     {#each section.characters as character (character.id)}
-                        <button class="no-button-style picker-token" class:picked={pickedCharacterIds.includes(character.id)} class:faded={faded(character.id)} aria-label={character.name} title={character.name} onclick={() => togglePickedCharacter(character.id)}>
+                        <button type="button" class="no-button-style picker-token" class:picked={pickedCharacterIds.includes(character.id)} class:faded={faded(character.id)} aria-label={character.name} title={character.name} onclick={() => togglePickedCharacter(character.id)}>
                             <CharacterToken {character} style="position: relative;" size="{tokenSize}px" {imageSize} norules/>
                         </button>
                     {/each}
@@ -306,8 +306,8 @@
             </div>
         {/each}
         <div class="picker-actions">
-            <button class="button-style cancel" onclick={() => back()}>Cancel</button>
-            <button class="button-style highlight" disabled={pickedCharacterIds.length === 0} onclick={finishCharacterPicker}>
+            <button type="button" class="button-style cancel" onclick={() => back()}>Cancel</button>
+            <button type="button" class="button-style highlight" disabled={pickedCharacterIds.length === 0} onclick={finishCharacterPicker}>
                 {editingElementIndex === null ? 'Add' : 'Done'} ({pickedCharacterIds.length} chosen)
             </button>
         </div>
