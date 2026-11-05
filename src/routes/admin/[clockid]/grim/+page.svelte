@@ -348,8 +348,23 @@
 
     // NIGHT ORDER LOGIC
     const nightOrderFunction = $derived((clockClient?.day || 0) > 0 ? (c: ScriptCharacter) => c.scriptOtherNightOrder : (c: ScriptCharacter) => c.scriptFirstNightOrder);
+    // Players with their own character's "No ability" reminder beside them (any case; matched to them by angle, as
+    // the reminders are everywhere else), by token id: they no longer wake.
+    const noAbilityTokenIds = $derived.by(() => {
+        const ids = new Set<string>();
+        for (const [tokenId, reminders] of remindersBySeatedToken(placedTokens, placedReminders, isSideRoleToken)) {
+            const token = placedTokens.find(t => t.id === tokenId);
+            if (token?.characterId && reminders.some(r => {
+                const reminder = availableReminderTokens[r.tokenId];
+                return reminder?.characterId === token.characterId && reminder.text.trim().toLowerCase() === 'no ability';
+            })) ids.add(tokenId);
+        }
+        return ids;
+    });
+    // Whether a player still wakes in the night order: alive, and with an ability.
+    const wakesInNightOrder = (token: PlacedToken) => !token.isDead && !noAbilityTokenIds.has(token.id);
     const nightOrderByCharacterId = $derived((placedTokens
-        .filter(c=>!c.isDead)
+        .filter(wakesInNightOrder)
         .map(c=>characterById.get(c.characterId ?? ''))
         .filter(c => c !== undefined)
         .map(c=>{return [c.id, nightOrderFunction(c)]})
@@ -3112,7 +3127,8 @@
 
         {#each placedTokens as token (token.id)}
             {@const order = token.characterId ? nightOrderByCharacterId.indexOf(token.characterId) : -1}
-            {@const numbered = order >= 0 && characterById.has(token.characterId ?? '')}
+            <!-- Only on a player who still wakes: not on a dead (or ability-less) one sharing a character with one who does -->
+            {@const numbered = order >= 0 && wakesInNightOrder(token) && characterById.has(token.characterId ?? '')}
             {#if numbered}
             <div
                 class="night-order-badge"
@@ -3406,7 +3422,7 @@
                             <!-- A placed token's summary shows the token itself, its name on it and its type in its ring's colour, with
                                  its night order and custom wake badges where the board has them -->
                             {@const size = OVERLAY_SUMMARY_TOKEN_SIZE}
-                            {@const order = activeToken?.characterId ? nightOrderByCharacterId.indexOf(activeToken.characterId) : -1}
+                            {@const order = activeToken?.characterId && wakesInNightOrder(activeToken) ? nightOrderByCharacterId.indexOf(activeToken.characterId) : -1}
                             <div style="position: relative; flex-shrink: 0; width: {size}px; height: {size}px;">
                                 <CharacterToken character={oc} style="position: relative;" size="{size}px" norules/>
                                 {#if order >= 0}
