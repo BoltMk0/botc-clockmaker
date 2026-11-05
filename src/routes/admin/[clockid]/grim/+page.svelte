@@ -386,6 +386,9 @@
     // In play but every token for them dead, so they may not wake
     const deadCharacterIds = $derived(new Set([...onGrimCharacterIds].filter(id =>
         placedTokens.filter(t => t.characterId === id).every(t => t.isDead))));
+    // In play, not all dead, but none of them waking: the live ones have no ability (see noAbilityTokenIds)
+    const noAbilityCharacterIds = $derived(new Set([...onGrimCharacterIds].filter(id => !deadCharacterIds.has(id) &&
+        placedTokens.filter(t => t.characterId === id).every(t => !wakesInNightOrder(t)))));
     const nightSheetCharacters = $derived.by(() => {
         if (!nightOrderSheet) return [];
         const orderOf = nightOrderSheet === 'first' ? (c: ScriptCharacter) => c.scriptFirstNightOrder : (c: ScriptCharacter) => c.scriptOtherNightOrder;
@@ -3541,13 +3544,14 @@
                             {@const character = entry.character}
                             {@const inPlay = onGrimCharacterIds.has(character.id)}
                             {@const presets = nightOrderSheet ? characterPresetsFor(character.id, nightOrderSheet) : []}
-                            <li class:in-play={inPlay} class:dead={inPlay && deadCharacterIds.has(character.id)}>
+                            {@const asleep = inPlay && (deadCharacterIds.has(character.id) || noAbilityCharacterIds.has(character.id))}
+                            <li class:in-play={inPlay} class:dead={asleep}>
                                 {#snippet characterHead()}
                                     <img src={characterImageUrl(character.id, 128)} alt="" onerror={(e) => (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'} />
                                     <div class="night-sheet-text">
                                         <div class="night-sheet-name">
                                             {character.name}
-                                            {#if inPlay}<span class="night-sheet-badge" class:dead={deadCharacterIds.has(character.id)}>{deadCharacterIds.has(character.id) ? 'Dead' : 'In play'}</span>{/if}
+                                            {#if inPlay}<span class="night-sheet-badge" class:dead={asleep}>{deadCharacterIds.has(character.id) ? 'Dead' : noAbilityCharacterIds.has(character.id) ? 'No ability' : 'In play'}</span>{/if}
                                         </div>
                                         <div class="night-sheet-rules">{(nightOrderSheet === 'first' ? character.firstNightReminder : character.otherNightReminder) || character.rules}</div>
                                     </div>
