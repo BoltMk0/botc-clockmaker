@@ -385,8 +385,9 @@
             rules: 'Show the "These are your minions" card. Point to each Minion. Show the "These characters are not in play" card. Show 3 not-in-play good character tokens.',
             presets: [headerPreset('These are your minions')], bluffs: true }
     ];
-    const playerCount = $derived(placedTokens.filter(t => isPlayerToken(t) && !isSideRoleToken(t)
-        && characterById.get(t.characterId ?? '')?.category !== 'traveler').length);
+    // The players are the named tokens, or every token while none are named (as on a grim set up without a script).
+    const playerCount = $derived(tokensToSeat(placedTokens, isSideRoleToken)
+        .filter(t => characterById.get(t.characterId ?? '')?.category !== 'traveler').length);
     type NightSheetEntry = { kind: 'character'; character: ScriptCharacter } | ({ kind: 'info' } & typeof FIRST_NIGHT_INFO_STEPS[number]);
     const nightSheetEntries = $derived.by(() => {
         const entries: NightSheetEntry[] = nightSheetCharacters.map(character => ({ kind: 'character', character }));

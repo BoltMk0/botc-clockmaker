@@ -121,8 +121,9 @@ Each living, seated character that wakes tonight gets a **number badge** showing
 
 The **night order** button in the sidebar opens the whole night as a sheet, with a tab for the first night and one for
 the other nights. Each character shows the storyteller's night reminder, or its ability text when it has none. With 7
-or more seated players (not counting travellers), the first night also lists **Minion Info** and **Demon Info** in
-their places.
+or more players (not counting travellers), the first night also lists **Minion Info** and **Demon Info** in
+their places. The players are the named tokens, or every token while none are named (as on a grim set up without a
+script); loric and fabled never count.
 
 A character with [communications](#character-communications) for that night has a speech bubble button at the end of
 its row, which works as **Comms** does in a token's popup. **Minion Info** and **Demon Info** have one too: Minion Info's shows *"This is
