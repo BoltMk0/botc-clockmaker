@@ -910,10 +910,10 @@
         commsView = 'main';
     }
 
-    // Opens communications on its Custom tab, for the character.
-    function openCustomComms(characterId: string) {
+    // Opens communications on its Preset tab, for the character.
+    function openPresetComms(characterId: string) {
         openComms(characterId);
-        commsTab = 'custom';
+        commsTab = 'preset';
     }
 
     // For a character's communications pickers: their reminders beside each character (none without a character).
@@ -1057,7 +1057,7 @@
 
     // Whether the player info (the token popup, or the overlay on mobile) is listing the character's presets for
     // tonight in place of its buttons. With only one, it's shown straight away (as showPreset does), and with no presets
-    // of their own, communications' Custom tab is opened instead.
+    // of their own, communications' Preset tab is opened instead.
     let playerCommsShown = $state(false);
     $effect(() => {
         void activeTokenId; void overlayOpen;
@@ -1065,7 +1065,7 @@
     });
     function openPlayerComms(characterId: string) {
         const presets = characterPresetsFor(characterId, currentNight);
-        if (presets.length === 0) openCustomComms(characterId);
+        if (presets.length === 0) openPresetComms(characterId);
         else if (presets.length === 1) showPreset(presets[0], characterId);
         else playerCommsShown = true;
     }

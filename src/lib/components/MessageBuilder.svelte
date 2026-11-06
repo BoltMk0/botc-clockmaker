@@ -9,6 +9,7 @@
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import ReminderTokenView from "$lib/components/ReminderTokenView.svelte";
     import MessageText from "$lib/components/MessageText.svelte";
+    import TrashIcon from "$lib/components/TrashIcon.svelte";
 
     // Builds a message to show a player from text, character and alignment elements - in the grim's communications,
     // and for the message presets in settings. The host shows what goes round it (a title, the Show or Save button,
@@ -138,6 +139,28 @@
             textOptions = updated;
         } catch {
             alert('Failed to save the text option');
+        }
+    }
+
+    // Removes the text option from the saved ones as they are now, as saveTextOption adds to them.
+    async function deleteTextOption(option: TextOption) {
+        const label = option.text.replaceAll('*', '').trim();
+        if (!confirm(`Delete the text "${label}"? This can't be undone.`)) return;
+        try {
+            const current = await fetch('/api/textOptions').then(r => {
+                if (!r.ok) throw new Error(`${r.status}`);
+                return r.json() as Promise<TextOption[]>;
+            });
+            const updated = current.filter(o => !(o.text === option.text && o.style === option.style));
+            const res = await fetch('/api/textOptions', {
+                method: 'POST',
+                body: JSON.stringify(updated),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (!res.ok) throw new Error(`${res.status}`);
+            textOptions = updated;
+        } catch {
+            alert('Failed to delete the text option');
         }
     }
 
@@ -310,12 +333,16 @@
         </div>
     {:else if view === 'text'}
         <div class="builder-title dumbledore-font">Add text</div>
+        <button type="button" class="no-button-style add-element" onclick={openCustomText}>Custom...</button>
         <div class="text-options">
             {#each textOptions as option}
-                <button type="button" class="button-style text-option" class:dumbledore-font={option.style === 'Header'} class:header={option.style === 'Header'} onclick={() => addElement({ type: 'text', value: option.text, style: option.style })}><MessageText text={option.text}/></button>
+                <div class="text-option-row">
+                    <button type="button" class="button-style text-option" class:dumbledore-font={option.style === 'Header'} class:header={option.style === 'Header'} onclick={() => addElement({ type: 'text', value: option.text, style: option.style })}><MessageText text={option.text}/></button>
+                    <button type="button" class="no-button-style text-option-delete" onclick={() => deleteTextOption(option)}
+                        aria-label="Delete {option.text.replaceAll('*', '').trim()}" title="Delete text"><TrashIcon size={20}/></button>
+                </div>
             {/each}
         </div>
-        <button type="button" class="no-button-style add-element" onclick={openCustomText}>Custom...</button>
         <button type="button" class="no-button-style add-element" disabled={sections.length === 0} onclick={() => showPicker('characterRules')}>Character's ability...</button>
     {:else if view === 'customText'}
         <div class="builder-title dumbledore-font">Custom text</div>
@@ -442,6 +469,35 @@
     }
 
     /* Text in its style, as on the message page but smaller */
+    /* A text option's button, with its delete button over its end (as the grim's presets) */
+    .text-option-row {
+        position: relative;
+        width: 100%;
+    }
+
+    .text-option-row > .text-option {
+        width: 100%;
+        padding-inline: 2.8em;
+    }
+
+    .text-option-delete {
+        position: absolute;
+        right: 0.5em;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        padding: 0.35em;
+        border-radius: 0.4em;
+        opacity: 0.6;
+        cursor: pointer;
+        font-size: 1rem;
+    }
+
+    .text-option-delete:hover {
+        opacity: 1;
+        color: #e05a5a;
+    }
+
     .text-preview, .text-option {
         font-size: 1em;
         white-space: pre-line;
