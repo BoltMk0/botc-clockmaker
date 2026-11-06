@@ -26,6 +26,7 @@
         reminders = () => [],
         openSections = [],
         reminderTokens = [],
+        playerAlignment = false,
         tokenSize,
         imageSize = 256,
         blanks = 'none',
@@ -47,6 +48,9 @@
         // With blanks 'add', the reminder tokens a Reminder element can find the character by (a character's own),
         // offered at the top of the character picker.
         reminderTokens?: (ReminderToken & { characterId: string })[];
+        // With blanks 'add', whether Alignment also offers the alignment of the character's player, from their token
+        // on the grim (in the character editor).
+        playerAlignment?: boolean;
         tokenSize: number;
         imageSize?: number;
         blanks?: 'none' | 'add' | 'fill';
@@ -287,6 +291,8 @@
                             {/if}
                             <span>The character by {reminder ? (reminder.text.trim() ? `the ${reminder.text.trim()} reminder` : 'the reminder') : 'a deleted reminder'}, or a blank</span>
                         </button>
+                    {:else if element.type === 'playerAlignment'}
+                        <div class="element-body blank-preview">Their alignment, from their token</div>
                     {:else if blanks === 'fill' && alignmentBlankIndex === elementIndex}
                         <div class="element-body add-element choices">
                             <button type="button" class="button-style alignment-choice good dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'good' })}>GOOD</button>
@@ -326,6 +332,13 @@
                     <button type="button" class="button-style alignment-choice evil dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'evil' })}>EVIL</button>
                     <button type="button" class="no-button-style remove-element" title="Back" aria-label="Back" onclick={() => addElementStep = 'type'}>✕</button>
                 </div>
+                {#if blanks === 'add' && playerAlignment}
+                    <!-- Good or evil as the character's player's token is, each time it's shown -->
+                    <button type="button" class="no-button-style add-element auto-alignment" onclick={() => addElement({ type: 'playerAlignment' })}>
+                        <span class="auto-alignment-title">Auto</span>
+                        <span class="auto-alignment-description">Good or evil, as their player's token is on the grim (or a blank, if it can't tell which player)</span>
+                    </button>
+                {/if}
             {:else if blanks !== 'fill'}
                 <!-- (Filling in a preset's blanks only fills them: nothing more can be added) -->
                 <button type="button" class="no-button-style add-element" onclick={openAddElement}>Add element</button>
@@ -587,6 +600,23 @@
 
     button.add-element {
         width: 100%;
+    }
+
+    /* Their alignment: its title, with what it does beneath, smaller */
+    button.auto-alignment {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.3em;
+        padding: 1em;
+    }
+
+    .auto-alignment-title {
+        font-weight: 600;
+    }
+
+    .auto-alignment-description {
+        font-size: 0.8em;
     }
 
     button.add-element:hover, button.element-type:hover {

@@ -705,7 +705,7 @@
                             <th>First Night</th>
                             <td>
                                 <fieldset class="presets-fieldset" disabled={selectedCharacter.firstNightOrder == null}>
-                                    <MessagePresetList bind:presets={selectedCharacter.firstNightMessagePresets} bind:textOptions sections={presetSections} characters={allCharactersById} newPreset={newMessagePreset} reminderTokens={presetReminderTokens}
+                                    <MessagePresetList bind:presets={selectedCharacter.firstNightMessagePresets} bind:textOptions sections={presetSections} characters={allCharactersById} newPreset={newMessagePreset} reminderTokens={presetReminderTokens} playerAlignment
                                         addLabel={selectedCharacter.firstNightOrder == null ? "This character doesn't wake on the first night" : undefined} />
                                 </fieldset>
                             </td>
@@ -714,14 +714,14 @@
                             <th>Other Nights</th>
                             <td>
                                 <fieldset class="presets-fieldset" disabled={selectedCharacter.otherNightOrder == null}>
-                                    <MessagePresetList bind:presets={selectedCharacter.otherNightMessagePresets} bind:textOptions sections={presetSections} characters={allCharactersById} newPreset={newMessagePreset} reminderTokens={presetReminderTokens}
+                                    <MessagePresetList bind:presets={selectedCharacter.otherNightMessagePresets} bind:textOptions sections={presetSections} characters={allCharactersById} newPreset={newMessagePreset} reminderTokens={presetReminderTokens} playerAlignment
                                         addLabel={selectedCharacter.otherNightOrder == null ? "This character doesn't wake on other nights" : undefined} />
                                 </fieldset>
                             </td>
                         </tr>
                         <tr>
                             <th>Global</th>
-                            <td><MessagePresetList bind:presets={selectedCharacter.globalMessagePresets} bind:textOptions sections={presetSections} characters={allCharactersById} newPreset={newMessagePreset} reminderTokens={presetReminderTokens} /></td>
+                            <td><MessagePresetList bind:presets={selectedCharacter.globalMessagePresets} bind:textOptions sections={presetSections} characters={allCharactersById} newPreset={newMessagePreset} reminderTokens={presetReminderTokens} playerAlignment /></td>
                         </tr>
                     </tbody>
                 </table>

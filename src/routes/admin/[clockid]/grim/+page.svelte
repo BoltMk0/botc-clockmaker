@@ -1012,13 +1012,19 @@
     // seated token nearest it by angle), or a blank to fill in if the reminder isn't on the grim, is on it more than
     // once, or is beside a token with no character. A player with any of the Drunk's reminders beside them is the
     // Drunk, whatever their token shows.
+    // Each Their alignment element is made the alignment of the character's player: the token whose popup it was
+    // opened from, or else the one seated token with that character, or a blank if there's none or more than one.
     const DRUNK_ID = 'drunk';
-    function withRemindersResolved(elements: PresetElement[]): PresetElement[] {
+    function withRemindersResolved(elements: PresetElement[], forCharacterId?: string): PresetElement[] {
         const seated = tokensToSeat(placedTokens, isSideRoleToken);
+        const withCharacter = forCharacterId ? seated.filter(t => t.characterId === forCharacterId) : [];
+        const ownPlayer = forCharacterId && activeToken?.characterId === forCharacterId ? activeToken
+            : withCharacter.length === 1 ? withCharacter[0] : null;
         const remindersByToken = remindersBySeatedToken(placedTokens, placedReminders, isSideRoleToken);
         const isDrunk = (token: PlacedToken) =>
             (remindersByToken.get(token.id) ?? []).some(r => availableReminderTokens[r.tokenId]?.characterId === DRUNK_ID);
         return elements.map((element): PresetElement => {
+            if (element.type === 'playerAlignment') return ownPlayer ? { type: 'alignment', value: ownPlayer.alignment } : { type: 'blank' };
             if (element.type !== 'reminderCharacter') return element;
             const placed = placedReminders.filter(r => r.tokenId === element.reminderTokenId);
             if (placed.length !== 1) return { type: 'blank' };
@@ -1031,7 +1037,7 @@
     // A preset with Reminder elements opens in the builder too, with the characters they found (or blanks) in their
     // places, to check or change before it's shown.
     function showPreset(preset: MessagePreset, forCharacterId?: string) {
-        const elements = withRemindersResolved(preset.elements);
+        const elements = withRemindersResolved(preset.elements, forCharacterId);
         // A preset with blanks opens in the builder first, to fill them in (opening communications, if it isn't open).
         if (!hasNoBlanks(elements) || preset.elements.some(e => e.type === 'reminderCharacter')) {
             if (commsView === null) openComms(forCharacterId ?? null);
