@@ -68,9 +68,10 @@ when it wakes, offered in the grimoire from the character's token and from the
 [night order sheet](../grimoire.md#character-communications).
 
 - They're built as in [Settings → Communications](communications.md#presets): a **name**, then **Edit** to open the
-  message builder, where **Add element** offers **Text**, **Character**, **Alignment**, **Blank** (filled in each
-  time it's shown) or **Reminder**: one of the character's reminder tokens, standing for the character of the player
-  it's beside on the grim. **↑** / **↓** reorder them and **✕** deletes one; **+ Add preset** starts a new one.
+  message builder, where **Add element** offers **Text**, **Character**, **Alignment** or **Blank** (filled in each
+  time it's shown). **Character**'s picker starts with **Autofill from reminder tokens**, the character's own reminder
+  tokens: tap one to add the character of the player that reminder is beside on the grim, filled in when the preset
+  is shown (tap it in the builder to change it). **↑** / **↓** reorder them and **✕** deletes one; **+ Add preset** starts a new one.
 - While a night's order is empty (the character doesn't wake then), its presets are hidden and not offered in the
   grimoire, but kept: give it an order again and they're back.
 

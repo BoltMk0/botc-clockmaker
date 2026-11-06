@@ -43,15 +43,16 @@
         // Folding sections (by key) to open each time a character picker opens (in the grim, the travellers while
         // any are in play).
         openSections?: string[];
-        // With blanks 'add', the reminder tokens a Reminder element can find the character by (a character's own).
+        // With blanks 'add', the reminder tokens a Reminder element can find the character by (a character's own),
+        // offered at the top of the character picker.
         reminderTokens?: (ReminderToken & { characterId: string })[];
         tokenSize: number;
         imageSize?: number;
         blanks?: 'none' | 'add' | 'fill';
     } = $props();
 
-    // What the "Add element" box shows: itself, the element types, the two alignments, or the reminder tokens.
-    let addElementStep = $state<'closed' | 'type' | 'alignment' | 'reminder'>('closed');
+    // What the "Add element" box shows: itself, the element types, or the two alignments.
+    let addElementStep = $state<'closed' | 'type' | 'alignment'>('closed');
     const reminderTokenById = (id: string) => reminderTokens.find(t => t.id === id);
     // The blank being filled in (null when adding a new element), and the blank showing the two alignments, if any.
     let fillingIndex = $state<number | null>(null);
@@ -181,6 +182,18 @@
         else pickedCharacterIds = [...pickedCharacterIds, characterId];
     }
 
+    // A Reminder element, from the top of the character picker: in place of the element being changed, or added.
+    function pickReminder(reminderTokenId: string) {
+        const element: PresetElement = { type: 'reminderCharacter', reminderTokenId };
+        if (editingElementIndex === null) {
+            addElement(element);
+        } else {
+            elements[editingElementIndex] = element;
+            fillingIndex = null;
+            view = 'builder';
+        }
+    }
+
     function finishCharacterPicker() {
         const element: MessageElement = { type: 'character', value: pickedCharacterIds };
         if (editingElementIndex === null) {
@@ -243,14 +256,14 @@
                         </button>
                     {:else if element.type === 'reminderCharacter'}
                         {@const reminder = reminderTokenById(element.reminderTokenId)}
-                        <div class="element-body blank-preview reminder-preview">
+                        <button type="button" class="no-button-style element-body blank-preview reminder-preview" title="Change" onclick={() => openCharacterPicker(elementIndex)}>
                             {#if reminder}
                                 <div class="reminder-preview-token" style="width: {Math.round(tokenSize * 0.8)}px; height: {Math.round(tokenSize * 0.8)}px;">
                                     <ReminderTokenView data={reminder} characterId={reminder.characterId} size="{Math.round(tokenSize * 0.8)}px"/>
                                 </div>
                             {/if}
                             <span>The character by {reminder ? (reminder.text.trim() ? `the ${reminder.text.trim()} reminder` : 'the reminder') : 'a deleted reminder'}, or a blank</span>
-                        </div>
+                        </button>
                     {:else if blanks === 'fill' && alignmentBlankIndex === elementIndex}
                         <div class="element-body add-element choices">
                             <button type="button" class="button-style alignment-choice good dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'good' })}>GOOD</button>
@@ -281,9 +294,6 @@
                     <button type="button" class="no-button-style element-type" onclick={() => addElementStep = 'alignment'}>Alignment</button>
                     {#if blanks === 'add'}
                         <button type="button" class="no-button-style element-type" onclick={() => addElement({ type: 'blank' })}>Blank</button>
-                        {#if reminderTokens.length > 0}
-                            <button type="button" class="no-button-style element-type" title="The character of the player beside a reminder token, or a blank if it's not on the grim (or on it more than once)" onclick={() => addElementStep = 'reminder'}>Reminder</button>
-                        {/if}
                     {/if}
                     <button type="button" class="no-button-style remove-element" title="Cancel" aria-label="Cancel" onclick={() => addElementStep = 'closed'}>✕</button>
                 </div>
@@ -291,17 +301,6 @@
                 <div class="add-element choices">
                     <button type="button" class="button-style alignment-choice good dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'good' })}>GOOD</button>
                     <button type="button" class="button-style alignment-choice evil dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'evil' })}>EVIL</button>
-                    <button type="button" class="no-button-style remove-element" title="Back" aria-label="Back" onclick={() => addElementStep = 'type'}>✕</button>
-                </div>
-            {:else if addElementStep === 'reminder'}
-                <!-- The character beside which reminder -->
-                <div class="add-element choices">
-                    {#each reminderTokens as reminder (reminder.id)}
-                        <button type="button" class="no-button-style reminder-choice" title={reminder.text.trim() || 'Reminder'} aria-label={reminder.text.trim() || 'Reminder'}
-                            onclick={() => addElement({ type: 'reminderCharacter', reminderTokenId: reminder.id })}>
-                            <ReminderTokenView data={reminder} characterId={reminder.characterId} size="{tokenSize}px"/>
-                        </button>
-                    {/each}
                     <button type="button" class="no-button-style remove-element" title="Back" aria-label="Back" onclick={() => addElementStep = 'type'}>✕</button>
                 </div>
             {:else if blanks !== 'fill'}
@@ -350,6 +349,24 @@
         {/each}
     {:else}
         <div class="builder-title dumbledore-font">Choose characters</div>
+        {#if blanks === 'add' && reminderTokens.length > 0}
+            <!-- A Reminder element: the character of the player beside the reminder token on the grim (or a blank
+                 if it's not on it, or on it more than once), picked on its own in place of characters -->
+            {@const editing = editingElementIndex === null ? null : elements[editingElementIndex]}
+            <div class="picker-section">
+                <div>Autofill from reminder tokens</div>
+                <div class="picker-grid">
+                    {#each reminderTokens as reminder (reminder.id)}
+                        <button type="button" class="no-button-style picker-token reminder-choice"
+                            class:picked={editing?.type === 'reminderCharacter' && editing.reminderTokenId === reminder.id}
+                            title="The character beside {reminder.text.trim() ? `the ${reminder.text.trim()} reminder` : 'the reminder'} on the grim, or a blank"
+                            aria-label={reminder.text.trim() || 'Reminder'} onclick={() => pickReminder(reminder.id)}>
+                            <ReminderTokenView data={reminder} characterId={reminder.characterId} size="{tokenSize}px"/>
+                        </button>
+                    {/each}
+                </div>
+            </div>
+        {/if}
         {#each sections as section (section.key)}
             <div class="picker-section">
                 {@render sectionHeader(section)}
