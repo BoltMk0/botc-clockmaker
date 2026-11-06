@@ -73,7 +73,9 @@ when it wakes, offered in the grimoire from the character's token and from the
   tokens: tap one to add the character of the player that reminder is beside on the grim, filled in when the preset
   is shown (tap it in the builder to change it). **Alignment** also offers **Auto**: good
   or evil as the character's player's token is on the grim when it's shown — the token whose **Comms** it was opened
-  from, or else the one player with the character (a blank to fill in if there's none, or more than one). **↑** / **↓** reorder them and **✕** deletes one; **+ Add preset** starts a new one.
+  from, or else the one player with the character (a blank to fill in if there's none, or more than one).
+  Likewise the picker's **Demons** start with **Auto**: the demon in play on the grim when it's shown (a blank to fill
+  in if there's none, or more than one). **↑** / **↓** reorder them and **✕** deletes one; **+ Add preset** starts a new one.
 - While a night's order is empty (the character doesn't wake then), its presets are hidden and not offered in the
   grimoire, but kept: give it an order again and they're back.
 

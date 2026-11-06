@@ -37,7 +37,7 @@
         characters,
         addLabel = '+ Add preset',
         reminderTokens = [],
-        playerAlignment = false,
+        autoFill = false,
     }: {
         presets: T[];
         // A new, empty preset to add.
@@ -50,8 +50,8 @@
         addLabel?: string;
         // The reminder tokens a preset can find a character by (in the character editor, the character's own).
         reminderTokens?: (ReminderToken & { characterId: string })[];
-        // Whether a preset can show the alignment of the character's player (in the character editor).
-        playerAlignment?: boolean;
+        // Whether a preset can have the Auto alignment and demon, found on the grim each time (in the character editor).
+        autoFill?: boolean;
     } = $props();
 
     // In the character editor the list is inside the character's form, which Enter in a name would otherwise submit.
@@ -112,6 +112,8 @@
                             {/if}
                             {reminder ? 'By reminder' : 'By a deleted reminder'}
                         </div>
+                    {:else if element.type === 'inPlayDemon'}
+                        <div class="preview-blank" title="The demon in play on the grim, or a blank if there isn't just one">The demon</div>
                     {:else if element.type === 'playerAlignment'}
                         <div class="preview-blank" title="Their player's alignment, from their token on the grim">Their alignment</div>
                     {:else}
@@ -151,7 +153,7 @@
                     {sections}
                     {characters}
                     {reminderTokens}
-                    {playerAlignment}
+                    {autoFill}
                     tokenSize={56}
                     imageSize={128}
                     blanks="add"

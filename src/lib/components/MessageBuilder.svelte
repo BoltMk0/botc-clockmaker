@@ -26,7 +26,7 @@
         reminders = () => [],
         openSections = [],
         reminderTokens = [],
-        playerAlignment = false,
+        autoFill = false,
         tokenSize,
         imageSize = 256,
         blanks = 'none',
@@ -48,9 +48,9 @@
         // With blanks 'add', the reminder tokens a Reminder element can find the character by (a character's own),
         // offered at the top of the character picker.
         reminderTokens?: (ReminderToken & { characterId: string })[];
-        // With blanks 'add', whether Alignment also offers the alignment of the character's player, from their token
-        // on the grim (in the character editor).
-        playerAlignment?: boolean;
+        // With blanks 'add', whether Alignment also offers Auto, the alignment of the character's player from their
+        // token on the grim, and the character picker's demons Auto, the demon in play (in the character editor).
+        autoFill?: boolean;
         tokenSize: number;
         imageSize?: number;
         blanks?: 'none' | 'add' | 'fill';
@@ -209,9 +209,9 @@
         else pickedCharacterIds = [...pickedCharacterIds, characterId];
     }
 
-    // A Reminder element, from the top of the character picker: in place of the element being changed, or added.
-    function pickReminder(reminderTokenId: string) {
-        const element: PresetElement = { type: 'reminderCharacter', reminderTokenId };
+    // A Reminder element (from the top of the character picker) or the demon in play (Auto, among the demons): in
+    // place of the element being changed, or added.
+    function pickFoundCharacter(element: PresetElement) {
         if (editingElementIndex === null) {
             addElement(element);
         } else {
@@ -291,6 +291,8 @@
                             {/if}
                             <span>The character by {reminder ? (reminder.text.trim() ? `the ${reminder.text.trim()} reminder` : 'the reminder') : 'a deleted reminder'}, or a blank</span>
                         </button>
+                    {:else if element.type === 'inPlayDemon'}
+                        <button type="button" class="no-button-style element-body blank-preview" title="Change" onclick={() => openCharacterPicker(elementIndex)}>The demon in play, or a blank</button>
                     {:else if element.type === 'playerAlignment'}
                         <div class="element-body blank-preview">Their alignment, from their token</div>
                     {:else if blanks === 'fill' && alignmentBlankIndex === elementIndex}
@@ -332,7 +334,7 @@
                     <button type="button" class="button-style alignment-choice evil dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'evil' })}>EVIL</button>
                     <button type="button" class="no-button-style remove-element" title="Back" aria-label="Back" onclick={() => addElementStep = 'type'}>✕</button>
                 </div>
-                {#if blanks === 'add' && playerAlignment}
+                {#if blanks === 'add' && autoFill}
                     <!-- Good or evil as the character's player's token is, each time it's shown -->
                     <button type="button" class="no-button-style add-element auto-alignment" onclick={() => addElement({ type: 'playerAlignment' })}>
                         <span class="auto-alignment-title">Auto</span>
@@ -400,7 +402,7 @@
                         <button type="button" class="no-button-style picker-token reminder-choice"
                             class:picked={editing?.type === 'reminderCharacter' && editing.reminderTokenId === reminder.id}
                             title="The character beside {reminder.text.trim() ? `the ${reminder.text.trim()} reminder` : 'the reminder'} on the grim, or a blank"
-                            aria-label={reminder.text.trim() || 'Reminder'} onclick={() => pickReminder(reminder.id)}>
+                            aria-label={reminder.text.trim() || 'Reminder'} onclick={() => pickFoundCharacter({ type: 'reminderCharacter', reminderTokenId: reminder.id })}>
                             <ReminderTokenView data={reminder} characterId={reminder.characterId} size="{tokenSize}px"/>
                         </button>
                     {/each}
@@ -412,6 +414,13 @@
                 {@render sectionHeader(section)}
                 {#if !isFoldable(section) || unfolded.has(section.key)}
                 <div class="picker-grid">
+                    {#if section.key === 'demon' && blanks === 'add' && autoFill}
+                        <!-- The demon on the grim each time it's shown, picked on its own in place of characters -->
+                        <button type="button" class="no-button-style picker-token auto-demon"
+                            class:picked={editingElementIndex !== null && elements[editingElementIndex]?.type === 'inPlayDemon'}
+                            style="width: {tokenSize}px; height: {tokenSize}px;" title="The demon in play on the grim, or a blank if there isn't just one"
+                            onclick={() => pickFoundCharacter({ type: 'inPlayDemon' })}>Auto</button>
+                    {/if}
                     {#each section.characters as character (character.id)}
                         <button type="button" class="no-button-style picker-token" class:picked={pickedCharacterIds.includes(character.id)} class:faded={faded(character.id)} aria-label={character.name} title={character.name} onclick={() => togglePickedCharacter(character.id)}>
                             <CharacterToken {character} style="position: relative;" size="{tokenSize}px" {imageSize} norules/>
@@ -724,6 +733,21 @@
     .picker-token {
         position: relative;
         border-radius: 50%;
+    }
+
+    /* The demon in play, among the demons: a dashed token */
+    .picker-token.auto-demon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        border: 2px dashed currentColor;
+        font-weight: 600;
+        opacity: 0.7;
+    }
+
+    .picker-token.auto-demon:hover, .picker-token.auto-demon.picked {
+        opacity: 1;
     }
 
     .picker-token.faded {

@@ -44,19 +44,22 @@ export type ReminderCharacterElement = { type: 'reminderCharacter'; reminderToke
 // In a character's message preset: the alignment of the character's player, as their token on the grim shows it.
 // Each time it's shown, it becomes that alignment, or a blank to fill in if it can't tell which player that is.
 export type PlayerAlignmentElement = { type: 'playerAlignment' };
+// In a character's message preset: the demon in play, as the grim shows it. Each time it's shown, it becomes that
+// character, or a blank to fill in if there's no demon on the grim or more than one.
+export type InPlayDemonElement = { type: 'inPlayDemon' };
 // An element of a message preset: one of a message's, a blank, or a character or alignment found on the grim.
-export type PresetElement = MessageElement | BlankElement | ReminderCharacterElement | PlayerAlignmentElement;
+export type PresetElement = MessageElement | BlankElement | ReminderCharacterElement | PlayerAlignmentElement | InPlayDemonElement;
 
 export function isPresetElement(data: any): data is PresetElement {
     if (isMessageElement(data)) return true;
     if (typeof data !== 'object' || data === null) return false;
-    return data.type === 'blank' || data.type === 'playerAlignment' || (data.type === 'reminderCharacter' && typeof data.reminderTokenId === 'string');
+    return data.type === 'blank' || data.type === 'playerAlignment' || data.type === 'inPlayDemon' || (data.type === 'reminderCharacter' && typeof data.reminderTokenId === 'string');
 }
 
-// True once every blank has been filled in (and every reminder's character and player's alignment found), so the
-// message can be shown.
+// True once every blank has been filled in (and every character and alignment to be found on the grim found), so
+// the message can be shown.
 export function hasNoBlanks(elements: PresetElement[]): elements is MessageElement[] {
-    return elements.every(e => e.type !== 'blank' && e.type !== 'reminderCharacter' && e.type !== 'playerAlignment');
+    return elements.every(e => e.type === 'text' || e.type === 'character' || e.type === 'alignment');
 }
 
 // A ready-made message, set up in settings or the grim's communications, and shown from there in one tap (or after

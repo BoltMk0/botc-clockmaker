@@ -1014,16 +1014,19 @@
     // Drunk, whatever their token shows.
     // Each Their alignment element is made the alignment of the character's player: the token whose popup it was
     // opened from, or else the one seated token with that character, or a blank if there's none or more than one.
+    // And each Auto demon is made the demon in play: the one seated demon, or a blank if there's none or more than one.
     const DRUNK_ID = 'drunk';
     function withRemindersResolved(elements: PresetElement[], forCharacterId?: string): PresetElement[] {
         const seated = tokensToSeat(placedTokens, isSideRoleToken);
         const withCharacter = forCharacterId ? seated.filter(t => t.characterId === forCharacterId) : [];
         const ownPlayer = forCharacterId && activeToken?.characterId === forCharacterId ? activeToken
             : withCharacter.length === 1 ? withCharacter[0] : null;
+        const demons = seated.filter(t => characterById.get(t.characterId ?? '')?.category === 'demon');
         const remindersByToken = remindersBySeatedToken(placedTokens, placedReminders, isSideRoleToken);
         const isDrunk = (token: PlacedToken) =>
             (remindersByToken.get(token.id) ?? []).some(r => availableReminderTokens[r.tokenId]?.characterId === DRUNK_ID);
         return elements.map((element): PresetElement => {
+            if (element.type === 'inPlayDemon') return demons.length === 1 ? { type: 'character', value: [demons[0].characterId!] } : { type: 'blank' };
             if (element.type === 'playerAlignment') return ownPlayer ? { type: 'alignment', value: ownPlayer.alignment } : { type: 'blank' };
             if (element.type !== 'reminderCharacter') return element;
             const placed = placedReminders.filter(r => r.tokenId === element.reminderTokenId);
