@@ -1053,7 +1053,7 @@
     };
 
     // Whether the player info (the token popup, or the overlay on mobile) is listing the character's presets for
-    // tonight, and Custom, in place of its buttons. With no presets, Custom is opened straight away instead.
+    // tonight in place of its buttons. With no presets of their own, communications' Custom tab is opened instead.
     let playerCommsShown = $state(false);
     $effect(() => {
         void activeTokenId; void overlayOpen;
@@ -2456,18 +2456,14 @@
         line-height: 1.2;
         min-height: max(40px, calc(2.4em + 1.2em));
     }
-    /* Custom… and Back among a character's presets in the token popup: plain, darker buttons */
+    /* Back among a character's presets in the token popup: a plain, darker button */
     .button-style.comms-plain {
         background-color: var(--theme-bg);
     }
     .button-style.comms-plain:hover {
         background-color: var(--theme-bg-secondary);
     }
-    /* Custom, after a character's presets in the player info: set apart from them */
-    .comms-custom {
-        font-style: italic;
-    }
-    /* A character's presets, Custom and Back, filling the popup in place of its controls and reminders */
+    /* A character's presets and Back, filling the popup in place of its controls and reminders */
     .popup-comms {
         display: flex;
         flex-direction: column;
@@ -2478,7 +2474,7 @@
         white-space: normal;
         line-height: 1.2;
     }
-    /* Custom and Back among the popup's presets: plain buttons, as big as the presets */
+    /* Back among the popup's presets: a plain button, as big as the presets */
     .popup-comms .button-style {
         min-height: 40px;
         font-size: 0.8em;
@@ -3208,12 +3204,11 @@
                     {@const activeChar = characterById.get(activeCharacterId ?? '')}
                     {@const sideRole = isSideRoleCategory(activeChar?.category)}
                     {#if playerCommsShown && activeChar && !sideRole}
-                    <!-- The character's presets for tonight, Custom and Back, in place of everything else -->
+                    <!-- The character's presets for tonight and Back, in place of everything else -->
                     <div class="popup-comms">
                         {#each characterPresetsFor(activeChar.id, currentNight) as preset}
                             <button type="button" class="popup-toggle" onclick={() => showPreset(preset, activeChar.id)}>{presetDisplayName(preset)}</button>
                         {/each}
-                        <button type="button" class="button-style comms-plain comms-custom" onclick={() => openCustomComms(activeChar.id)}>Custom…</button>
                         <button type="button" class="button-style comms-plain" onclick={() => playerCommsShown = false}>&lsaquo; Back</button>
                     </div>
                     {:else}
@@ -3402,12 +3397,11 @@
             <div class="overlay-panel">
                 <button class="overlay-close" onclick={closeOverlay} aria-label="Close">✕</button>
                 {#if overlayFromBoard && activeToken && oc && playerCommsShown}
-                    <!-- The character's presets for tonight, Custom and Back, in place of everything else -->
+                    <!-- The character's presets for tonight and Back, in place of everything else -->
                     <div class="overlay-comms">
                         {#each characterPresetsFor(oc.id, currentNight) as preset}
                             <button type="button" class="popup-toggle" onclick={(e) => { e.stopPropagation(); showPreset(preset, oc.id); }}>{presetDisplayName(preset)}</button>
                         {/each}
-                        <button type="button" class="button-style comms-custom" onclick={(e) => { e.stopPropagation(); openCustomComms(oc.id); }}>Custom…</button>
                         <button type="button" class="button-style" onclick={(e) => { e.stopPropagation(); playerCommsShown = false; }}>&lsaquo; Back</button>
                     </div>
                 {:else}
