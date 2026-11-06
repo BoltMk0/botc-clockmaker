@@ -242,7 +242,7 @@
                 {:else}
                     {#each builder.bluffSets as set, i}
                         <h3>Set {i + 1}</h3>
-                        <CharacterList characters={set.map(id => builder.charById.get(id)).filter(c => !!c)} grouped={false} fullRules />
+                        <CharacterList characters={set.map(id => builder.charById.get(id)).filter(c => !!c)} grouped={false} fullRules isWarned={c => builder.countOf(c.id) > 0} />
                     {/each}
                 {/if}
             </div>

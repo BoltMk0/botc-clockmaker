@@ -1,5 +1,6 @@
 <script lang="ts">
     import CharacterThumb from '$lib/components/CharacterThumb.svelte';
+    import InPlayWarning from '$lib/components/InPlayWarning.svelte';
     import { ALL_CHARACTER_CATEGORIES, CHARACTER_CATEGORY_COLORS, type Character, type CharacterCategory, rulesWithSetup } from '$lib/resources/common/gameData.js';
 
     let {
@@ -11,6 +12,7 @@
         isSelected = () => false,
         isDisabled = () => false,
         isFaded = () => false,
+        isWarned = () => false,
         headingSuffix,
         onadd,
         onremove,
@@ -38,6 +40,8 @@
         isDisabled?: (character: Character) => boolean;
         /** Faded cards are shown at lower opacity but can still be picked. */
         isFaded?: (character: Character) => boolean;
+        /** Warned cards show a yellow warning triangle, e.g. bluffs that are in play. */
+        isWarned?: (character: Character) => boolean;
         /** Optional text appended to a category heading, e.g. a count. */
         headingSuffix?: (category: CharacterCategory) => string;
         /** Multi-pick mode: hovering a card shows a "+1" overlay, and once picked also an "X" overlay to remove one. */
@@ -166,6 +170,7 @@
                             style="--category-color: {CHARACTER_CATEGORY_COLORS[character.category]};"
                         >
                             {@render cardBody(character, selected, count)}
+                            {#if isWarned(character)}<InPlayWarning style="margin-left: auto;"/>{/if}
                             {#if tapMode && selected}
                                 <span
                                     class="more-button"

@@ -1,7 +1,6 @@
 <script lang="ts">
-    import CharacterList from "$lib/components/CharacterList.svelte";
+    import TokenPicker from "./TokenPicker.svelte";
     import type { PresetBuilder } from "./PresetBuilder.svelte.js";
-    import type { CharacterCategory } from "$lib/resources/common/gameData.js";
 
     interface Props {
         builder: PresetBuilder;
@@ -20,20 +19,6 @@
     }
 
     let { builder, step, navigate, afterPlayers = 'tokens', beforeTokens = 'players', afterBluffs = 'summary', onBackFromPlayers, hideBack = false, hideFooter = false }: Props = $props();
-
-    // The player categories show how many of the expected number are chosen; travellers, loric and fabled have no expected number.
-    const COUNT_KEYS: Partial<Record<CharacterCategory, keyof PresetBuilder['expectedCounts']>> = {
-        townsfolk: 'townsfolk',
-        outsider: 'outsiders',
-        minion: 'minions',
-        demon: 'demons'
-    };
-
-    function headingSuffix(category: CharacterCategory): string {
-        const selected = builder.chosenCharacters.filter(c => c.category === category).length;
-        const key = COUNT_KEYS[category];
-        return key ? `${selected}/${builder.expectedCounts[key]} selected` : `${selected} selected`;
-    }
 </script>
 
 <style>
@@ -127,14 +112,7 @@
 {:else if step === 'tokens' && builder.script}
 <div class="step-layout">
     <div class="section plain step-scroll">
-        <CharacterList
-            characters={builder.script.characters}
-            fullRules
-            headingSuffix={headingSuffix}
-            countOf={c => builder.countOf(c.id)}
-            onadd={c => builder.addCharacter(c.id)}
-            onremove={c => builder.removeCharacter(c.id)}
-        />
+        <TokenPicker {builder} />
     </div>
     {#if !hideFooter}
     <div class="footer-actions">
@@ -161,14 +139,7 @@
                 <button class="button-style" onclick={() => builder.removeBluffSet(builder.activeBluffSet)}>Remove set</button>
             </div>
             <div style="opacity: 0.6; font-style: italic; margin-bottom: 0.5em;">Faded characters are already in play.</div>
-            <CharacterList
-                characters={builder.script.characters}
-                fullRules
-                categoryOrder={['townsfolk', 'outsider', 'minion', 'demon']}
-                isSelected={c => builder.bluffSets[builder.activeBluffSet]?.includes(c.id) ?? false}
-                onpick={c => builder.toggleBluff(c.id)}
-                isFaded={c => builder.chosenCharacterIds.includes(c.id)}
-            />
+            <TokenPicker {builder} mode="bluffs" />
         {/if}
     </div>
     {#if !hideFooter}

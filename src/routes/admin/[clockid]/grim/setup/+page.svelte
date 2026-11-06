@@ -3,13 +3,13 @@
     import { alignmentForCategory, bluffSetsOf, presetGrimCharacterIds, presetPlayerCount, type Preset, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import { newGrimoireStateHistory, newGrimoireStateWithTokensRoundCircle } from "$lib/resources/common/grimoireState.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
+    import InPlayWarning from "$lib/components/InPlayWarning.svelte";
     import BagIcon from "$lib/components/BagIcon.svelte";
     import BookIcon from "$lib/components/BookIcon.svelte";
     import TokenSorter from "$lib/components/setup/TokenSorter.svelte";
     import PresetSummary from "$lib/components/setup/PresetSummary.svelte";
     import BuilderSteps from "$lib/components/setup/BuilderSteps.svelte";
     import CharacterCounts from "$lib/components/setup/CharacterCounts.svelte";
-    import TokenPicker from "$lib/components/setup/TokenPicker.svelte";
     import { PresetBuilder } from "$lib/components/setup/PresetBuilder.svelte.js";
     import type { PageData } from "./$types";
 
@@ -428,24 +428,6 @@
     }
 
     /* Only the tokens scroll, so Next is always in view (as in the other steps). */
-    .tokens-step {
-        flex: 1;
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 1em;
-    }
-    .tokens-scroll {
-        flex: 1;
-        min-height: 0;
-        overflow-y: auto;
-    }
-    .tokens-footer {
-        display: flex;
-        justify-content: flex-end;
-        flex-shrink: 0;
-    }
-
     /* Side by side, as wide as each other, or stacked on narrow screens */
     .finish-choices {
         display: grid;
@@ -577,7 +559,10 @@
                                     {#each bluffSet as id (id)}
                                         {@const character = builder.charById.get(id)}
                                         {#if character}
-                                            <CharacterToken {character} size="52px" imageSize={256} norules style="position: relative;" />
+                                            <div style="position: relative;">
+                                                <CharacterToken {character} size="52px" imageSize={256} norules style="position: relative;" />
+                                                {#if builder.countOf(id) > 0}<InPlayWarning size="20px" style="position: absolute; bottom: -3px; right: -3px;"/>{/if}
+                                            </div>
                                         {/if}
                                     {/each}
                                 </div>
@@ -597,15 +582,6 @@
                 <button class="button-style highlight" disabled={submitting || builder.bagCharacterIds.length === 0} onclick={drawTokens}><BagIcon size={26}/>Draw tokens</button>
                 <button class="button-style highlight" disabled={submitting} onclick={goStraightToGrim}><BookIcon size={26}/>Place in the grim</button>
             </div>
-            </div>
-        {:else if step === 'tokens' && builder.script}
-            <div class="tokens-step">
-                <div class="tokens-scroll">
-                    <TokenPicker {builder} />
-                </div>
-                <div class="tokens-footer">
-                    <button class="button-style highlight" disabled={!builder.hasEnoughTokens} onclick={() => step = 'bluffs'}>Next →</button>
-                </div>
             </div>
         {:else}
             <BuilderSteps

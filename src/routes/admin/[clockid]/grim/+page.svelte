@@ -3,6 +3,7 @@
     import { hasNoBlanks, nameFromElements, presetDisplayName, type MessageElement, type MessagePreset, type PresetElement, type TextOption } from "$lib/common/message";
     import { alignmentForCategory, bluffSetsOf, characterMessagePresetsFor, ALL_CHARACTER_CATEGORIES, type Character, type CharacterCategory, type ReminderToken, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
+    import InPlayWarning from "$lib/components/InPlayWarning.svelte";
     import MessageBuilder, { type MessageBuilderView } from "$lib/components/MessageBuilder.svelte";
     import ReminderTokenView from "$lib/components/ReminderTokenView.svelte";
     import { fetchReminderTokensForCharacter } from "$lib/resources/client/reminderTokens.js";
@@ -579,6 +580,8 @@
     const seatedCharacterIds = $derived([...new Set(
         placedTokens.filter(t => isPlayerToken(t) && t.characterId !== null).map(t => t.characterId as string)
     )]);
+
+    const seatedCharacterIdSet = $derived(new Set(seatedCharacterIds));
 
     function isInPlay(characterId: string): boolean {
         return placedCharIds.has(characterId);
@@ -1880,6 +1883,21 @@
         align-items: center;
         overflow-y: auto;
         background: rgba(0, 0, 0, 0.75);
+    }
+
+    /* Each bluff set to choose from in communications: its name over its tokens. */
+    .comms-bluff-set {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.4em;
+    }
+    .comms-bluff-tokens {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 4px;
     }
 
     .overlay-panel {
@@ -3356,6 +3374,7 @@
                                     {#if bluff}
                                         <div style="position: relative; width: 56px; height: 56px;">
                                             <CharacterToken character={bluff} style="position: relative;" size="56px" imageSize={TRAY_IMAGE_SIZE} norules/>
+                                            {#if seatedCharacterIdSet.has(bluffId)}<InPlayWarning size="20px" style="position: absolute; bottom: -3px; right: -3px;"/>{/if}
                                         </div>
                                     {/if}
                                 {/each}
@@ -3602,8 +3621,21 @@
             <div class="overlay-panel comms-panel" onclick={(e) => e.stopPropagation()}>
                 {#if commsView === 'bluffs'}
                     <div class="overlay-name dumbledore-font">Which bluffs?</div>
-                    {#each bluffSets as _, setIndex}
-                        <button class="button-style" onclick={() => showCommsBluffs(setIndex)}>Bluff set {setIndex + 1}</button>
+                    {#each bluffSets as bluffSet, setIndex}
+                        <button class="button-style comms-bluff-set" onclick={() => showCommsBluffs(setIndex)}>
+                            <span>Bluff set {setIndex + 1}</span>
+                            <span class="comms-bluff-tokens">
+                                {#each bluffSet as bluffId (bluffId)}
+                                    {@const bluff = characterById.get(bluffId)}
+                                    {#if bluff}
+                                        <span style="position: relative; width: 52px; height: 52px;">
+                                            <CharacterToken character={bluff} style="position: relative;" size="52px" imageSize={TRAY_IMAGE_SIZE} norules/>
+                                            {#if seatedCharacterIdSet.has(bluffId)}<InPlayWarning size="20px" style="position: absolute; bottom: -3px; right: -3px;"/>{/if}
+                                        </span>
+                                    {/if}
+                                {/each}
+                            </span>
+                        </button>
                     {/each}
                 {:else}
                     {#if commsTabsShown}
@@ -3731,9 +3763,13 @@
                 <div class="overlay-drag-hint">Choose at least 3 bluffs ({newBluffSet.length} chosen). Faded characters are already in play.</div>
                 <div class="picker-grid">
                     {#each sortedScriptCharacters.filter(c => !isSideCategory(c)) as character (character.id)}
-                        <button class="no-button-style tray-token" class:picked={newBluffSet.includes(character.id)} class:in-play={loadedPreset?.character_ids.includes(character.id)} onclick={() => toggleNewBluff(character.id)}>
-                            <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" imageSize={TRAY_IMAGE_SIZE} norules/>
-                        </button>
+                        {@const inPlay = seatedCharacterIdSet.has(character.id) || !!loadedPreset?.character_ids.includes(character.id)}
+                        <div style="position: relative;">
+                            <button class="no-button-style tray-token" class:picked={newBluffSet.includes(character.id)} class:in-play={inPlay} onclick={() => toggleNewBluff(character.id)}>
+                                <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" imageSize={TRAY_IMAGE_SIZE} norules/>
+                            </button>
+                            {#if inPlay && newBluffSet.includes(character.id)}<InPlayWarning size="24px" style="position: absolute; bottom: -4px; right: -4px; pointer-events: none;"/>{/if}
+                        </div>
                     {/each}
                 </div>
                 <button class="button-style highlight" disabled={newBluffSet.length < 3} onclick={addBluffSet}>Add bluff set</button>
