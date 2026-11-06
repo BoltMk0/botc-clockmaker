@@ -350,19 +350,29 @@
     const nightOrderFunction = $derived((clockClient?.day || 0) > 0 ? (c: ScriptCharacter) => c.scriptOtherNightOrder : (c: ScriptCharacter) => c.scriptFirstNightOrder);
     // Players with their own character's "No ability" reminder beside them (any case; matched to them by angle, as
     // the reminders are everywhere else), by token id: they no longer wake.
-    const noAbilityTokenIds = $derived.by(() => {
-        const ids = new Set<string>();
+    // And players with any "Has ability" reminder beside them (any case, from any character), by token id: they keep
+    // waking even while dead.
+    const abilityReminderTokenIds = $derived.by(() => {
+        const noAbility = new Set<string>();
+        const hasAbility = new Set<string>();
         for (const [tokenId, reminders] of remindersBySeatedToken(placedTokens, placedReminders, isSideRoleToken)) {
             const token = placedTokens.find(t => t.id === tokenId);
-            if (token?.characterId && reminders.some(r => {
+            if (!token?.characterId) continue;
+            for (const r of reminders) {
                 const reminder = availableReminderTokens[r.tokenId];
-                return reminder?.characterId === token.characterId && reminder.text.trim().toLowerCase() === 'no ability';
-            })) ids.add(tokenId);
+                const text = reminder?.text.trim().toLowerCase();
+                if (text === 'no ability' && reminder?.characterId === token.characterId) noAbility.add(tokenId);
+                if (text === 'has ability') hasAbility.add(tokenId);
+            }
         }
-        return ids;
+        return { noAbility, hasAbility };
     });
-    // Whether a player still wakes in the night order: alive, and with an ability.
-    const wakesInNightOrder = (token: PlacedToken) => !token.isDead && !noAbilityTokenIds.has(token.id);
+    const noAbilityTokenIds = $derived(abilityReminderTokenIds.noAbility);
+    const hasAbilityTokenIds = $derived(abilityReminderTokenIds.hasAbility);
+    // Whether a player still wakes in the night order: alive (or dead with a "Has ability" reminder), and with an
+    // ability.
+    const wakesInNightOrder = (token: PlacedToken) =>
+        (!token.isDead || hasAbilityTokenIds.has(token.id)) && !noAbilityTokenIds.has(token.id);
     const nightOrderByCharacterId = $derived((placedTokens
         .filter(wakesInNightOrder)
         .map(c=>characterById.get(c.characterId ?? ''))
@@ -383,9 +393,9 @@
         nightCommsOpen = next;
     }
     const onGrimCharacterIds = $derived(new Set(placedTokens.map(t => t.characterId).filter(id => id !== null)));
-    // In play but every token for them dead, so they may not wake
+    // In play but every token for them dead (and none kept waking by a "Has ability" reminder), so they may not wake
     const deadCharacterIds = $derived(new Set([...onGrimCharacterIds].filter(id =>
-        placedTokens.filter(t => t.characterId === id).every(t => t.isDead))));
+        placedTokens.filter(t => t.characterId === id).every(t => t.isDead && !wakesInNightOrder(t)))));
     // In play, not all dead, but none of them waking: the live ones have no ability (see noAbilityTokenIds)
     const noAbilityCharacterIds = $derived(new Set([...onGrimCharacterIds].filter(id => !deadCharacterIds.has(id) &&
         placedTokens.filter(t => t.characterId === id).every(t => !wakesInNightOrder(t)))));
