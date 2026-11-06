@@ -2,7 +2,7 @@
 
 [← Settings overview](README.md) · [Documentation home](../README.md)
 
-The countdown buttons offered on the [clock remote](../clock-remote.md#timer-options), shared by every game.
+The countdown buttons offered on the [clock remote](../clock-remote.md#the-timer-options), shared by every game.
 
 Each row is one option:
 

@@ -16,7 +16,8 @@
     const menuItems = $derived([
         { label: 'Play', href: '/play' },
         ...(data.hasRulesSlides ? [{ label: 'Rules', href: '/rules' }] : []),
-        { label: 'Settings', href: '/settings' }
+        { label: 'Settings', href: '/settings' },
+        { label: 'Help', href: '/help' }
     ]);
 </script>
 

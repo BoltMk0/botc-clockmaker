@@ -9,7 +9,8 @@ export const init: ServerInit = () => {
     startMusicLoudnessWorker();
 };
 
-const PUBLIC_PREFIXES = ['/feedback', '/login', '/script', '/_app/'];
+// /help is the user guide and developer docs, also published in the repository
+const PUBLIC_PREFIXES = ['/feedback', '/login', '/script', '/help', '/_app/'];
 const PUBLIC_PATHS = ['/favicon.ico', '/favicon.png', '/robots.txt'];
 
 function isPublic(pathname: string): boolean {
