@@ -892,7 +892,8 @@
     // with blanks being filled in before it's shown.
     // (forCharacterId: opened from that character's communications, whose pickers show that character's reminders
     // beside each character.)
-    let presetEditor = $state<{ mode: 'new' | 'fill'; name: string; elements: PresetElement[]; forCharacterId?: string } | null>(null);
+    // (hadBlanks: a preset being filled in that opened with blanks, rather than only to check its Reminders' characters.)
+    let presetEditor = $state<{ mode: 'new' | 'fill'; name: string; elements: PresetElement[]; forCharacterId?: string; hadBlanks?: boolean } | null>(null);
     let presetBuilderView = $state<MessageBuilderView>('builder');
     const presetEditorFilled = $derived(presetEditor !== null && presetEditor.elements.length > 0 && hasNoBlanks(presetEditor.elements));
     // The tabs are hidden while either builder is on one of its own screens (picking characters, say).
@@ -1007,7 +1008,6 @@
         goto(`/admin/${data.clockid}/grim/message?${params}`);
     }
 
-    // A preset with blanks opens in the builder first, to fill them in (opening communications, if it isn't open).
     // A preset's elements with each Reminder element made the character of the player beside that reminder (the
     // seated token nearest it by angle), or a blank to fill in if the reminder isn't on the grim, is on it more than
     // once, or is beside a token with no character. A player with any of the Drunk's reminders beside them is the
@@ -1028,13 +1028,16 @@
         });
     }
 
+    // A preset with Reminder elements opens in the builder too, with the characters they found (or blanks) in their
+    // places, to check or change before it's shown.
     function showPreset(preset: MessagePreset, forCharacterId?: string) {
         const elements = withRemindersResolved(preset.elements);
-        if (!hasNoBlanks(elements)) {
+        // A preset with blanks opens in the builder first, to fill them in (opening communications, if it isn't open).
+        if (!hasNoBlanks(elements) || preset.elements.some(e => e.type === 'reminderCharacter')) {
             if (commsView === null) openComms(forCharacterId ?? null);
             commsView = 'main';
             commsTab = 'preset';
-            presetEditor = { mode: 'fill', name: preset.name, elements: structuredClone($state.snapshot(elements)), forCharacterId };
+            presetEditor = { mode: 'fill', name: preset.name, elements: structuredClone($state.snapshot(elements)), forCharacterId, hadBlanks: !hasNoBlanks(elements) };
             presetBuilderView = 'builder';
         } else if (messageQueue.enabled) {
             queueMessage(presetDisplayName(preset), elements);
@@ -1053,7 +1056,8 @@
     };
 
     // Whether the player info (the token popup, or the overlay on mobile) is listing the character's presets for
-    // tonight in place of its buttons. With no presets of their own, communications' Custom tab is opened instead.
+    // tonight in place of its buttons. With only one, it's shown straight away (as showPreset does), and with no presets
+    // of their own, communications' Custom tab is opened instead.
     let playerCommsShown = $state(false);
     $effect(() => {
         void activeTokenId; void overlayOpen;
@@ -1062,6 +1066,7 @@
     function openPlayerComms(characterId: string) {
         const presets = characterPresetsFor(characterId, currentNight);
         if (presets.length === 0) openCustomComms(characterId);
+        else if (presets.length === 1) showPreset(presets[0], characterId);
         else playerCommsShown = true;
     }
 
@@ -3628,7 +3633,7 @@
                                 <input type="text" class="preset-name" placeholder="Preset name" bind:value={presetEditor.name} aria-label="Preset name" />
                             {:else}
                                 <div class="preset-editor-title">{presetEditor.name.trim() || nameFromElements(presetEditor.elements)}</div>
-                                <p class="comms-empty">Fill in the blanks to show it.</p>
+                                <p class="comms-empty">{presetEditor.hadBlanks ? 'Fill in the blanks to show it.' : 'Check it, or change it, before showing it.'}</p>
                             {/if}
                         {/if}
                         <MessageBuilder

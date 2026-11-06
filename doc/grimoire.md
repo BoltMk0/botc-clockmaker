@@ -55,7 +55,7 @@ Below are six buttons, in pairs:
 | --- | --- |
 | **Alive / Dead** — toggles death. Dead players are shown as dead on the 3D town square. | **Has vote / Vote used** — tracks a dead player's ghost vote (also shown on the town square). Greyed out while they're alive. |
 | **Good / Evil** — toggles alignment. | **Change character** / **Choose character** — gives the player a different character (or none), keeping their name, seat and life status. For example after a Pit-Hag or a Snake Charmer swap. |
-| **Show** — shows this character full-screen, with its ability, to hold up to a player. ✕ returns to the grim. | **Comms** — the character's own [communications](#character-communications) for tonight. Greyed out when it has none. |
+| **Show** — shows this character full-screen, with its ability, to hold up to a player. ✕ returns to the grim. | **Comms** — the character's own [communications](#character-communications) for tonight, or communications' Custom tab when it has none. Greyed out with no character. |
 
 Then the character's **ability text** and setup note, and its **reminder tokens**, ready to drag onto the board.
 
@@ -65,8 +65,7 @@ orange **?** badge, which stays on the token once the popup closes. Tap the badg
 wake off again.
 
 On a phone, tapping a token opens a full-screen overlay with the same controls in one list, under the character's
-token; the wake's **?** is beside that token, and **Comms** only shows when the character has communications for
-tonight.
+token; the wake's **?** is beside that token.
 
 Loric and fabled tokens have no name, alive/dead, alignment or wake controls: just **Show** and **Change character**.
 
@@ -138,7 +137,13 @@ other nights from day 1) or the night order sheet's speech bubble (that tab's ni
 
 - with one preset for the night, it's shown straight away (or added to the queue, if it's on);
 - with several, communications opens with a list of them, named after the character, to pick from;
-- a preset with blanks opens in communications' Preset tab to fill them in first, as any preset with blanks does.
+- a preset with blanks opens in communications' Preset tab to fill them in first, as any preset with blanks does;
+- a preset with **Reminders** opens there too, with each made the character of the player beside that reminder token
+  (the Drunk, if they have one of the Drunk's reminders), to check or change before pressing **Show**. A Reminder is
+  left a blank to fill in if its token isn't on the grim, is on it more than once, or is beside a token with no
+  character.
+
+With no presets of their own for the night, **Comms** opens communications' [Custom](#custom) tab instead.
 
 The night order comes from the script; it can be edited in
 [Settings → Scripts → Edit Characters](settings/scripts.md#editing-a-scripts-characters-and-night-order).
