@@ -6,10 +6,13 @@
     let {
         /** Path (or URL) on the current host to point the QR code at. */
         path,
-        title = undefined
+        title = undefined,
+        /** A short caption inside the tile, under the code. */
+        label = undefined
     }: {
         path: string;
         title?: string;
+        label?: string;
     } = $props();
 
     const url = $derived(new URL(path, page.url.origin).href);
@@ -28,12 +31,14 @@
     {#if dataUrl}
         <img src={dataUrl} alt="QR code linking to {url}" />
     {/if}
+    {#if label}
+        <div class="channel-strip-qr-label">{label}</div>
+    {/if}
 </div>
 
 <style>
     .channel-strip-qr {
         width: 100%;
-        aspect-ratio: 1;
         margin-bottom: 5px;
         padding: 3px;
         box-sizing: border-box;
@@ -48,7 +53,17 @@
     .channel-strip-qr img {
         display: block;
         width: 100%;
-        height: 100%;
+        aspect-ratio: 1;
         image-rendering: pixelated;
+    }
+
+    /* The title's lettering, small */
+    .channel-strip-qr-label {
+        font-family: 'Courier New', Courier, monospace;
+        font-weight: bold;
+        font-size: 0.7em;
+        line-height: 1;
+        color: #354a39;
+        text-align: center;
     }
 </style>
