@@ -338,7 +338,7 @@
     $effect(() => {
         if (activeTool.type === 'pen') lastPenTool = activeTool;
     });
-    // The stylus's side button toggles it to the eraser.
+    // A stylus's eraser end erases.
     const penEraserTool = tools.find(t => t.type === 'eraser') ?? null;
 
 

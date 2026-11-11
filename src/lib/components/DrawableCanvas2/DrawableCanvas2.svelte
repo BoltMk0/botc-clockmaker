@@ -1,6 +1,6 @@
 <script lang="ts">
     import { browser } from '$app/environment';
-    import { onDestroy, onMount } from 'svelte';
+    import { onDestroy, onMount, untrack } from 'svelte';
     import RubberIcon from '$lib/components/RubberIcon.svelte';
     import { type CanvasLayer, type CanvasPoint, type CanvasStroke, type CanvasToolType } from './types';
 
@@ -20,7 +20,7 @@
         tool: CanvasToolType | null;
         /** When no tool is active, a stylus still draws with this tool (on the active layer), anywhere outside idleIgnore. */
         penTool?: CanvasToolType | null;
-        /** The stylus's side button toggles it to this tool (its eraser end always uses it), in or out of draw mode. */
+        /** A stylus's eraser end (where reported) uses this tool, in or out of draw mode. */
         eraserTool?: CanvasToolType | null;
         /** When no tool is active: allow two-finger pinch/pan (and two-finger double tap to reset) anywhere on screen. */
         idleGestures?: boolean;
@@ -115,10 +115,13 @@
     ////// EFFECTS /////
     // Redraw canvas when layers is updated
     $effect(()=>{
-        layers; // Triggers when layers updates
+        // Strokes added, removed or replaced (in any layer), but not the points within a stroke: a stroke being drawn
+        // is drawn a segment at a time as it grows, and redrawing everything for every point made fast writing lag
+        // (and drop points) once the board held much.
+        for (const layer of layers) for (const stroke of layer.strokes) void stroke;
         activeLayerIndex; // And when active layer changes, since we draw it with full opacity and others faded.
         viewTx; viewTy; viewScale; // tracked as reactive dependencies
-        redrawFromStrokes();
+        untrack(redrawFromStrokes);
     });
 
 
@@ -194,13 +197,13 @@
         ctx.restore();
     }
 
-    function drawSegment(from: CanvasPoint, to: CanvasPoint, stroke: CanvasStroke) {
+    function drawSegments(from: CanvasPoint, to: CanvasPoint[], stroke: CanvasStroke) {
         if (!ctx) return;
         ctx.save();
         applyStrokeStyle(ctx, stroke);
         ctx.beginPath();
         ctx.moveTo(from.x, from.y);
-        ctx.lineTo(to.x, to.y);
+        for (const point of to) ctx.lineTo(point.x, point.y);
         ctx.stroke();
         ctx.restore();
     }
@@ -569,17 +572,27 @@
         if (!currentStroke) return;
 
         event.preventDefault();
-        extendStroke(currentStroke, getPos(event));
+        extendStroke(currentStroke, event);
     }
 
-    function extendStroke(stroke: CanvasStroke, next: CanvasPoint) {
+    // The browser sends at most one move per frame, merging the rest; take every sample so fast strokes stay smooth.
+    function movePositions(event: PointerEvent): CanvasPoint[] {
+        const samples = event.getCoalescedEvents?.() ?? [];
+        return (samples.length > 0 ? samples : [event]).map(getPos);
+    }
+
+    function extendStroke(stroke: CanvasStroke, event: PointerEvent) {
+        const next = movePositions(event);
         const points = stroke.points;
-        const prev = points[points.length - 1];
-        points.push(next);
+        let prev = points[points.length - 1];
+        points.push(...next);
         if (stroke.tool.type === 'eraser') {
-            eraseAlongPath(prev, next, stroke.tool.width);
+            for (const point of next) {
+                eraseAlongPath(prev, point, stroke.tool.width);
+                prev = point;
+            }
         } else {
-            drawSegment(prev, next, stroke);
+            drawSegments(prev, next, stroke);
             onchange?.();
         }
     }
@@ -683,38 +696,35 @@
         ongesturestart?.();
     }
 
-    ////// STYLUS SIDE BUTTON TOGGLES THE ERASER //////
-    // Pressing a pen's side button while it hovers switches the stylus between drawing and erasing; an icon
-    // beside the hovering pen shows when it's erasing. (Chrome on Android, at least, reports the S Pen's button only on
-    // hover moves - touching down with it held sends nothing - so it can't act as a hold-to-erase.) A pen's
-    // eraser end, where reported, always erases. Tapping with the side button opens a context menu; swallow it.
+    ////// STYLUS ERASER END //////
+    // A pen's eraser end, where reported, always erases; an icon beside the hovering pen shows when the eraser is the
+    // tool. Tapping with the side button opens a context menu; swallow it.
     const PEN_ERASER_BUTTONS = 32;
-    let penEraserOn = $state(false);
+    // The buttons held on the last hover move (Chrome on Android, at least, reports the S Pen's button only on hover)
     let penHoverButtons = 0;
     // Where the pen hovers, for the eraser icon; cleared on contact and once the pen leaves hover range.
     let penCursor = $state<{ x: number; y: number } | null>(null);
     let penCursorHideTimer: ReturnType<typeof setTimeout> | undefined;
     // A hovering pen sends moves constantly from hand jitter, so a lull means it's gone (if pointerout didn't say).
     const PEN_CURSOR_IDLE_MS = 500;
-    const stylusTool = $derived(penEraserOn && eraserTool ? eraserTool : tool ?? penTool);
+    const stylusTool = $derived(tool ?? penTool);
 
     function penEraserFor(event: PointerEvent): CanvasToolType | null {
         if (event.pointerType !== 'pen' || !eraserTool) return null;
-        return penEraserOn || event.buttons & PEN_ERASER_BUTTONS ? eraserTool : null;
+        return event.buttons & PEN_ERASER_BUTTONS ? eraserTool : null;
     }
 
     function onPenMove(event: PointerEvent) {
         if (event.pointerType !== 'pen') return;
         const overBoard = !!ctx && (tool !== null || idleActive())
             && !(idleIgnore && (event.target as Element | null)?.closest?.(idleIgnore));
-        if (event.pressure > 0) { // touching, not hovering; only hover moves carry the side button
+        if (event.pressure > 0) { // touching, not hovering
             hidePenCursor();
             return;
         }
         penCursor = overBoard && eraserTool ? { x: event.clientX, y: event.clientY } : null;
         clearTimeout(penCursorHideTimer);
         if (penCursor) penCursorHideTimer = setTimeout(hidePenCursor, PEN_CURSOR_IDLE_MS);
-        if (eraserTool && event.buttons !== 0 && penHoverButtons === 0) penEraserOn = !penEraserOn;
         penHoverButtons = event.buttons;
     }
 
@@ -797,7 +807,7 @@
 
     function onIdlePointerMove(event: PointerEvent) {
         if (idlePenStroke?.id === event.pointerId) {
-            extendStroke(idlePenStroke.stroke, getPos(event));
+            extendStroke(idlePenStroke.stroke, event);
             event.stopPropagation();
             event.preventDefault();
             return;

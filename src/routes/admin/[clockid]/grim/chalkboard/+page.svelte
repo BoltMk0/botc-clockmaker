@@ -10,7 +10,8 @@
     const ERASER: CanvasToolType = { type: 'eraser', width: 30 };
 
     let layers = $state<CanvasLayer[]>([{ strokes: [] }]);
-    let tool = $state<CanvasToolType>(PEN);
+    // Raw, so it stays the very PEN/ERASER object (a proxy of it would never equal it)
+    let tool = $state.raw<CanvasToolType>(PEN);
     let viewScale = $state(1);
     let viewTx = $state(0);
     let viewTy = $state(0);

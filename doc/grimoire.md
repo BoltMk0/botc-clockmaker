@@ -236,8 +236,8 @@ Draw freehand notes over the board — a quick way to note who claimed what or w
 - **Layers**: drawings live on layers. Pick a layer to draw on it; **clear** wipes a layer; **delete** removes it
   (when there's more than one); **+** adds a new one. Use layers to keep, say, claims and nominations apart.
 - **Undo** (curved arrow) undoes your last change; see [Undo](#undo). A two-finger tap while drawing does the same.
-- **With a stylus**, you can draw at any time, even outside annotate mode, using the last pen you picked. The stylus's
-  side button switches to the eraser.
+- **With a stylus**, you can draw at any time, even outside annotate mode, using the last pen you picked. A stylus with
+  an eraser end erases with it.
 
 Opening the token tray or the audio menu leaves annotate mode.
 
