@@ -2,7 +2,8 @@
     import ChannelStripPan from './ChannelStripPan.svelte';
     import ChannelStripGain from './ChannelStripGain.svelte';
     import type { Snippet } from 'svelte';
-    import AudioMixerText from './AudioMixerText.svelte';    import type { AudioTrackBase } from '../../AudioTrack.svelte';
+    import AudioMixerText from './AudioMixerText.svelte';
+    import ChannelStripQr from './ChannelStripQr.svelte';    import type { AudioTrackBase } from '../../AudioTrack.svelte';
 
     const {
         audioTrack, 
@@ -10,6 +11,8 @@
         onTitleClick = undefined,
         fxSnippet = undefined,
         fxSnippetArg = undefined,
+        qrPath = undefined,
+        qrTitle = undefined,
         style=undefined
     }: {
         audioTrack: AudioTrackBase;
@@ -17,12 +20,18 @@
         onTitleClick?: (ev?: any)=>void;
         fxSnippet?: Snippet<[T|undefined]>;
         fxSnippetArg?: T;
+        /** When set, a QR code to this path shows under the title (e.g. a clock's remote). */
+        qrPath?: string;
+        qrTitle?: string;
         style?: string;
     } = $props();
 
 </script>
 <div class="channel-strip-main" style="{style}">
     <AudioMixerText onclick={onTitleClick} style="margin-bottom: 5px;" title={title}>{title}</AudioMixerText>
+    {#if qrPath}
+    <ChannelStripQr path={qrPath} title={qrTitle}/>
+    {/if}
     {#if fxSnippet}
     {@render fxSnippet(fxSnippetArg)}
     {/if}

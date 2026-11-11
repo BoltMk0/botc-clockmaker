@@ -4,6 +4,7 @@
     import AudioMixerText from './AudioMixerText.svelte';
     import { AudioTrackGroup } from '../../AudioTrackGroup.svelte';
     import { AudioTrack } from '../../AudioTrack.svelte';
+    import { AudioClockTrack } from '../../AudioClockTrack.svelte';
 
     const {
         model,
@@ -40,7 +41,9 @@
     <div class="channel-strip-group-main">
         <div class="channel-strip-group-audio-tracks-container">
             {#each (model instanceof AudioTrackGroup ? model.tracks : model) as audioTrack, i}
-                <ChannelStrip {audioTrack} onTitleClick={()=>{onChildTitleClick?.(audioTrack, i);}} title={audioTrack.title}/>
+                <ChannelStrip {audioTrack} onTitleClick={()=>{onChildTitleClick?.(audioTrack, i);}} title={audioTrack.title}
+                    qrPath={audioTrack instanceof AudioClockTrack ? `/admin/${encodeURIComponent(audioTrack.id)}/remote` : undefined}
+                    qrTitle={audioTrack instanceof AudioClockTrack ? `Scan to open ${audioTrack.title || 'this clock'}'s remote` : undefined}/>
             {/each}
         </div>
     </div>
