@@ -13,4 +13,4 @@ The game logic inside the app is divided into 4 phases:
 
 ## What next?
 - [Understanding the remote](./understanding_the_remote.md)
-- [Understanding the audio mixer](./audio_mixer/index.md)
+- [Understanding the audio mixer](./understanding_the_audio_mixer/index.md)

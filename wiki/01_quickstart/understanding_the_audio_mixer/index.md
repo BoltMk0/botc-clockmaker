@@ -68,6 +68,6 @@ Both mixers behave very similarly, and only 1 will ever play at a time (selectin
 4. Basic skip buttons that let you skip tracks or go back.
 
 ## What next?
-- [Understanding the remote](./understanding_the_remote.md)
-- [Understanding the game phases](./understanding_the_game_phases.md)
-- [Understanding music presets](./understanding_music_presets.md)
+- [Understanding the remote](../understanding_the_remote.md)
+- [Understanding the game phases](../understanding_the_game_phases.md)
+- [Understanding music presets](../understanding_music_presets.md)
