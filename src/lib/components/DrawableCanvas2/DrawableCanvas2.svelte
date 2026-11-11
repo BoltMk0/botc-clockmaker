@@ -22,6 +22,8 @@
         penTool?: CanvasToolType | null;
         /** A stylus's eraser end (where reported) uses this tool, in or out of draw mode. */
         eraserTool?: CanvasToolType | null;
+        /** The stylus's side button toggles it between drawing and eraserTool. */
+        penButtonErases?: boolean;
         /** When no tool is active: allow two-finger pinch/pan (and two-finger double tap to reset) anywhere on screen. */
         idleGestures?: boolean;
         /** Touches starting inside an element matching this selector are ignored by the idle gestures. */
@@ -48,6 +50,7 @@
         tool = $bindable<CanvasToolType|null>(null),
         penTool = null,
         eraserTool = null,
+        penButtonErases = false,
         idleGestures = true,
         idleIgnore = '',
         idlePanIgnore = '',
@@ -696,10 +699,13 @@
         ongesturestart?.();
     }
 
-    ////// STYLUS ERASER END //////
-    // A pen's eraser end, where reported, always erases; an icon beside the hovering pen shows when the eraser is the
-    // tool. Tapping with the side button opens a context menu; swallow it.
+    ////// STYLUS ERASER END AND SIDE BUTTON //////
+    // A pen's eraser end, where reported, always erases. With penButtonErases, pressing the side button while it hovers
+    // switches the stylus between drawing and erasing. (Chrome on Android, at least, reports the S Pen's button only on
+    // hover moves - touching down with it held sends nothing - so it can't act as a hold-to-erase.) An icon beside the
+    // hovering pen shows when it's erasing. Tapping with the side button opens a context menu; swallow it.
     const PEN_ERASER_BUTTONS = 32;
+    let penEraserOn = $state(false);
     // The buttons held on the last hover move (Chrome on Android, at least, reports the S Pen's button only on hover)
     let penHoverButtons = 0;
     // Where the pen hovers, for the eraser icon; cleared on contact and once the pen leaves hover range.
@@ -707,11 +713,11 @@
     let penCursorHideTimer: ReturnType<typeof setTimeout> | undefined;
     // A hovering pen sends moves constantly from hand jitter, so a lull means it's gone (if pointerout didn't say).
     const PEN_CURSOR_IDLE_MS = 500;
-    const stylusTool = $derived(tool ?? penTool);
+    const stylusTool = $derived(penEraserOn && eraserTool ? eraserTool : tool ?? penTool);
 
     function penEraserFor(event: PointerEvent): CanvasToolType | null {
         if (event.pointerType !== 'pen' || !eraserTool) return null;
-        return event.buttons & PEN_ERASER_BUTTONS ? eraserTool : null;
+        return penEraserOn || event.buttons & PEN_ERASER_BUTTONS ? eraserTool : null;
     }
 
     function onPenMove(event: PointerEvent) {
@@ -725,6 +731,7 @@
         penCursor = overBoard && eraserTool ? { x: event.clientX, y: event.clientY } : null;
         clearTimeout(penCursorHideTimer);
         if (penCursor) penCursorHideTimer = setTimeout(hidePenCursor, PEN_CURSOR_IDLE_MS);
+        if (penButtonErases && eraserTool && event.buttons !== 0 && penHoverButtons === 0) penEraserOn = !penEraserOn;
         penHoverButtons = event.buttons;
     }
 

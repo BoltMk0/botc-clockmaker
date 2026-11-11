@@ -7,6 +7,7 @@
         tool: CanvasToolType|null;
         penTool?: CanvasToolType|null;
         eraserTool?: CanvasToolType|null;
+        penButtonErases?: boolean;
         style?: string;
         canvasStyle?: string;
         exportedDimensions?: { width: number, height: number };
@@ -30,6 +31,7 @@
         tool,
         penTool = null,
         eraserTool = null,
+        penButtonErases = false,
         style,
         canvasStyle,
         exportedDimensions,
@@ -80,7 +82,7 @@
     <div class="content-wrapper" style="transform: translate({viewTx}px, {viewTy}px) scale({viewScale});">
         {@render children?.()}
     </div>
-    <DrawableCanvas2 {onchange} {oncommit} {onundo} bind:viewTx bind:viewTy bind:viewScale {tool} {penTool} {eraserTool} {idleGestures} {idleIgnore} {idlePanIgnore} {ongesturestart} {onresetview} {canvasStyle} {exportedDimensions} {layers} {activeLayerIndex}/>
+    <DrawableCanvas2 {onchange} {oncommit} {onundo} bind:viewTx bind:viewTy bind:viewScale {tool} {penTool} {eraserTool} {penButtonErases} {idleGestures} {idleIgnore} {idlePanIgnore} {ongesturestart} {onresetview} {canvasStyle} {exportedDimensions} {layers} {activeLayerIndex}/>
 </div>
 
 
