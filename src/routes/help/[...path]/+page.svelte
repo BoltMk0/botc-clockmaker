@@ -28,15 +28,55 @@
 
     let contentEl: HTMLElement | null = $state(null);
 
+    /** Pages with fewer headings than this are short enough not to need contents. */
+    const MIN_TOC_ENTRIES = 3;
+    const showToc = $derived(data.page.toc.length >= MIN_TOC_ENTRIES);
+
+    /** The page split after its title, so the inline contents can sit under it. */
+    const parts = $derived.by(() => {
+        const html = data.page.html;
+        const end = html.indexOf('</h1>');
+        return end === -1 ? { title: '', body: html } : { title: html.slice(0, end + 5), body: html.slice(end + 5) };
+    });
+
+    /** The heading of the section being read: the last one scrolled past the top of the content. */
+    let activeId = $state<string | null>(null);
+    /** Narrow screens: whether the inline contents box is expanded. */
+    let tocOpen = $state(false);
+
+    function updateActive() {
+        if (!contentEl || !showToc) return;
+        const top = contentEl.getBoundingClientRect().top + 80;
+        const atBottom = contentEl.scrollTop + contentEl.clientHeight >= contentEl.scrollHeight - 2;
+        let current: string | null = null;
+        for (const entry of data.page.toc) {
+            const el = document.getElementById(entry.id);
+            if (el && (atBottom || el.getBoundingClientRect().top <= top)) current = entry.id;
+        }
+        activeId = current;
+    }
+
+    let scrollQueued = false;
+    function onContentScroll() {
+        if (scrollQueued) return;
+        scrollQueued = true;
+        requestAnimationFrame(() => {
+            scrollQueued = false;
+            updateActive();
+        });
+    }
+
     // New page: close the mobile menu and go to the top, or to the #anchor being linked to.
     $effect(() => {
         void data.page;
         menuOpen = false;
+        tocOpen = false;
         const hash = page.url.hash;
         tick().then(() => {
             const target = hash ? document.getElementById(decodeURIComponent(hash.slice(1))) : null;
             if (target) target.scrollIntoView();
             else contentEl?.scrollTo({ top: 0 });
+            updateActive();
         });
     });
 </script>
@@ -44,6 +84,16 @@
 <svelte:head>
     <title>{data.page.title} · Clockmaker Help</title>
 </svelte:head>
+
+{#snippet tocList()}
+    <ul class="wiki-toc-list">
+        {#each data.page.toc as entry (entry.id)}
+            <li class:sub={entry.depth === 3}>
+                <a href="#{entry.id}" class:active={entry.id === activeId} aria-current={entry.id === activeId ? 'location' : undefined} onclick={() => tocOpen = false}>{entry.text}</a>
+            </li>
+        {/each}
+    </ul>
+{/snippet}
 
 {#snippet navTree(nodes: NavNode[], depth: number)}
     <ul class="wiki-nav-list" class:nested={depth > 0}>
@@ -84,10 +134,25 @@
         <div class="wiki-nav-heading">Help</div>
         {@render navTree(data.nav, 0)}
     </nav>
-    <main class="wiki-content" bind:this={contentEl}>
-        <article class="markdown">
-            {@html data.page.html}
-        </article>
+    <main class="wiki-content" bind:this={contentEl} onscroll={onContentScroll}>
+        <div class="wiki-page" class:with-toc={showToc}>
+            <article class="markdown">
+                {@html parts.title}
+                {#if showToc}
+                    <details class="wiki-toc-inline" bind:open={tocOpen}>
+                        <summary>On this page</summary>
+                        {@render tocList()}
+                    </details>
+                {/if}
+                {@html parts.body}
+            </article>
+            {#if showToc}
+                <aside class="wiki-toc-side" aria-label="On this page">
+                    <div class="wiki-toc-heading">On this page</div>
+                    {@render tocList()}
+                </aside>
+            {/if}
+        </div>
     </main>
 </div>
 
@@ -185,6 +250,108 @@
         box-sizing: border-box;
         background-color: var(--theme-app-bg);
         color: var(--theme-on-bg);
+    }
+
+    .wiki-page {
+        display: flex;
+        justify-content: center;
+        gap: 2.5em;
+    }
+
+    .wiki-page .markdown {
+        flex: 1;
+        min-width: 0;
+        margin: 0;
+    }
+
+    /* Contents: down the right on wide screens, a collapsible box at the top of the page otherwise */
+    .wiki-toc-side {
+        display: none;
+        flex: none;
+        width: 220px;
+        position: sticky;
+        top: 0;
+        align-self: flex-start;
+        max-height: calc(100vh - 60px - 3em);
+        overflow-y: auto;
+        padding-top: 0.6em;
+        font-size: 0.9em;
+    }
+
+    .wiki-toc-heading {
+        font-size: 0.85em;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        opacity: 0.6;
+        margin-bottom: 0.6em;
+    }
+
+    /* .markdown is in the selectors so the page's own list and link styles don't apply to the inline box */
+    .markdown .wiki-toc-list, .wiki-toc-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        border-left: 2px solid #ffffff1a;
+    }
+
+    .wiki-toc-list li.sub {
+        padding-left: 0.9em;
+    }
+
+    .markdown .wiki-toc-list li + li {
+        margin-top: 0;
+    }
+
+    .markdown .wiki-toc-list a, .wiki-toc-list a {
+        display: block;
+        margin-left: -2px;
+        padding: 0.3em 0 0.3em 0.9em;
+        border-left: 2px solid transparent;
+        color: var(--theme-on-bg-secondary, var(--theme-on-bg));
+        text-decoration: none;
+        line-height: 1.35;
+        opacity: 0.75;
+    }
+
+    .wiki-toc-list a:hover {
+        opacity: 1;
+    }
+
+    .wiki-toc-list a.active {
+        opacity: 1;
+        color: var(--theme-on-bg);
+        border-left-color: var(--theme-highlight);
+    }
+
+    .wiki-toc-inline {
+        margin: 0 0 1.5em;
+        padding: 0.6em 1em;
+        border: 1px solid #ffffff1a;
+        border-radius: 0.5em;
+        background-color: #ffffff08;
+    }
+
+    .wiki-toc-inline summary {
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+    .wiki-toc-inline[open] summary {
+        margin-bottom: 0.6em;
+    }
+
+    .wiki-toc-inline .wiki-toc-list a.active {
+        border-left-color: transparent;
+    }
+
+    @media (min-width: 1200px) {
+        .wiki-toc-side {
+            display: block;
+        }
+
+        .wiki-toc-inline {
+            display: none;
+        }
     }
 
     /* Rendered inside the TopNavbar (which only shows it on mobile), in place of the app icon */

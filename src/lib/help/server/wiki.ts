@@ -12,7 +12,7 @@ const sources: Record<string, string> = {
 };
 
 /** Images the docs show (repo path → bundled URL). */
-const images: Record<string, string> = import.meta.glob('/res/*.{jpg,jpeg,png,webp,gif,svg}', {
+const images: Record<string, string> = import.meta.glob(['/res/*.{jpg,jpeg,png,webp,gif,svg}', '/wiki/**/*.{jpg,jpeg,png,webp,gif,svg}'], {
     query: '?url', import: 'default', eager: true
 });
 
@@ -33,6 +33,14 @@ export interface WikiPage {
     html: string;
     /** Repo path of the source file, e.g. "doc/grimoire.md". */
     source: string;
+    /** The page's ## and ### headings, for its "On this page" contents. */
+    toc: TocEntry[];
+}
+
+export interface TocEntry {
+    id: string;
+    text: string;
+    depth: 2 | 3;
 }
 
 /** "/doc/grimoire.md" (glob key) → "doc/grimoire.md" */
@@ -40,11 +48,16 @@ const repoPath = (key: string) => key.replace(/^\//, '');
 
 const isIndex = (file: string) => /(^|\/)(README|index)\.md$/.test(file);
 
-/** Repo path → wiki route. Index pages (README.md / index.md) are their folder's route. */
+/** A leading ordering prefix on a wiki file or folder name, e.g. the "01_" in "01_quickstart.md". */
+const ORDER_PREFIX = /^\d+[_\-. ]+(?=.)/;
+
+/** Repo path → wiki route. Index pages (README.md / index.md) are their folder's route. Ordering prefixes are dropped. */
 function routeFor(file: string): string | null {
     const stripIndex = (p: string) => p.replace(/(^|\/)(README|index)\.md$/, '').replace(/\.md$/, '');
     let route: string;
-    if (file.startsWith('wiki/')) route = HELP_ROOT + '/' + stripIndex(file.slice('wiki/'.length));
+    if (file.startsWith('wiki/')) {
+        route = HELP_ROOT + '/' + stripIndex(file.slice('wiki/'.length)).split('/').map(s => s.replace(ORDER_PREFIX, '')).join('/');
+    }
     else if (file === 'README.md') route = DEVELOPER_ROUTE;
     else if (file.startsWith('doc/')) route = DEVELOPER_ROUTE + '/' + stripIndex(file);
     else return null;
@@ -58,9 +71,16 @@ for (const file of files) {
     if (route) fileByRoute.set(route, file);
 }
 
+/** A file or folder name as a title: "02_hello_world.md" → "Hello world". */
+function prettify(name: string): string {
+    const words = name.replace(/\.md$/, '').replace(ORDER_PREFIX, '').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+    return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/** The file's first "# " heading, else its name made readable. */
 function titleOf(file: string): string {
-    const heading = sources['/' + file].match(/^#\s+(.+)$/m)?.[1];
-    return heading?.replace(/[*_`]/g, '').trim() ?? file.split('/').pop()!.replace(/\.md$/, '');
+    const heading = sources['/' + file].match(/^#\s+(.+)$/m)?.[1]?.replace(/[*_`]/g, '').trim();
+    return heading || prettify(file.split('/').pop()!);
 }
 
 /** Normalises "a/b/../c.md" style paths. Returns null if it climbs out of the repo. */
@@ -78,9 +98,16 @@ function normalise(path: string): string | null {
 
 const dirOf = (file: string) => file.includes('/') ? file.slice(0, file.lastIndexOf('/') + 1) : '';
 
-/** A relative link in `file` → the repo path it points to, or null for absolute/external links. */
+/**
+ * A link in `file` → the repo path it points to, or null for external links and fragments. Relative links resolve
+ * against the file's folder; a "/"-rooted link is a repo path (e.g. /wiki/images/x.webp) if that file is bundled.
+ */
 function resolveRepoPath(file: string, href: string): string | null {
-    if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith('/') || href.startsWith('#')) return null;
+    if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith('#')) return null;
+    if (href.startsWith('/')) {
+        const path = normalise(href);
+        return path !== null && (sources['/' + path] !== undefined || images['/' + path]) ? path : null;
+    }
     return normalise(dirOf(file) + href);
 }
 
@@ -115,14 +142,17 @@ function makeSlugger() {
     };
 }
 
-function render(file: string): string {
+function render(file: string): { html: string; toc: TocEntry[] } {
     const slug = makeSlugger();
+    const toc: TocEntry[] = [];
     const marked = new Marked({
         gfm: true,
         renderer: {
             heading({ tokens, depth }: Tokens.Heading) {
                 const inner = this.parser.parseInline(tokens);
-                const id = slug(decodeEntities(inner.replace(/<[^>]+>/g, '')));
+                const text = decodeEntities(inner.replace(/<[^>]+>/g, ''));
+                const id = slug(text);
+                if (depth === 2 || depth === 3) toc.push({ id, text: text.trim(), depth });
                 return `<h${depth} id="${escapeAttr(id)}"><a class="heading-anchor" href="#${escapeAttr(id)}" aria-hidden="true">#</a>${inner}</h${depth}>\n`;
             },
             link({ href, title, tokens }: Tokens.Link) {
@@ -136,7 +166,8 @@ function render(file: string): string {
             }
         }
     });
-    return marked.parse(sources['/' + file], { async: false });
+    const html = marked.parse(sources['/' + file], { async: false });
+    return { html, toc };
 }
 
 const rendered = new Map<string, WikiPage>();
@@ -147,7 +178,7 @@ export function getWikiPage(route: string): WikiPage | null {
     if (!file) return null;
     let page = rendered.get(file);
     if (!page) {
-        page = { title: titleOf(file), html: render(file), source: file };
+        page = { title: titleOf(file), ...render(file), source: file };
         rendered.set(file, page);
     }
     return page;
@@ -189,12 +220,27 @@ function folderNode(dir: string, fallbackTitle: string): NavNode | null {
     return { title: index ? titleOf(index) : fallbackTitle, href: index ? routeFor(index)! : children[0].href, children };
 }
 
-let nav: NavNode[] | null = null;
+/**
+ * The user guide's navigation for one wiki folder: its files and sub-folders in file-name order (so "01_..."
+ * prefixes set the order). A sub-folder is a subtree titled and linked by its index.md, if it has one.
+ */
+function wikiChildren(dir: string): NavNode[] {
+    const inDir = files.filter(f => f.startsWith(dir));
+    const entries = [...new Set(inDir.map(f => f.slice(dir.length).split('/')[0]))]
+        .filter(name => name !== 'index.md')
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    return entries.flatMap((name): NavNode[] => {
+        const path = dir + name;
+        if (sources['/' + path] !== undefined) return [{ title: titleOf(path), href: routeFor(path)!, children: [] }];
+        const children = wikiChildren(path + '/');
+        const index = sources['/' + path + '/index.md'] !== undefined ? path + '/index.md' : null;
+        if (!index && !children.length) return [];
+        return [{ title: index ? titleOf(index) : prettify(name), href: index ? routeFor(index)! : children[0].href, children }];
+    });
+}
 
-/** The wiki's navigation: the user guide's pages at the top level, then the Developer tree. */
-export function getWikiNav(): NavNode[] {
-    if (nav) return nav;
-    const userGuide = folderNode('wiki/', 'Help');
+/** The wiki's navigation, built once: Home (wiki/index.md) and the user guide's pages at the top level, then the Developer tree. */
+const nav: NavNode[] = (() => {
     const docs = folderNode('doc/', 'Documentation');
     const developer: NavNode = {
         title: 'Developer',
@@ -204,9 +250,13 @@ export function getWikiNav(): NavNode[] {
             ...(docs ? [docs] : [])
         ]
     };
-    nav = [
-        ...(userGuide ? [{ ...userGuide, title: 'Home', children: [] }, ...userGuide.children] : []),
+    return [
+        ...(sources['/wiki/index.md'] !== undefined ? [{ title: 'Home', href: HELP_ROOT, children: [] }] : []),
+        ...wikiChildren('wiki/'),
         developer
     ];
+})();
+
+export function getWikiNav(): NavNode[] {
     return nav;
 }
