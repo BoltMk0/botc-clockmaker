@@ -149,8 +149,8 @@
         <tr class="spotify-add-row">
             <td colspan="4">
                 <div class="add-buttons">
-                <button style="flex: 1;" class="add" onclick={()=>rows.push(newRow('single'))}>Add Ambient Playlist</button>
-                <button style="flex: 1;" class="add" onclick={()=>rows.push(newRow('phase'))}>Add Ambient Adaptive Playlist</button>
+                <button style="flex: 1;" class="add" onclick={()=>rows.push(newRow('single'))}>Add Standard Preset</button>
+                <button style="flex: 1;" class="add" onclick={()=>rows.push(newRow('phase'))}>Add Ambient Adaptive Preset</button>
                 </div>
             </td>
         </tr>

@@ -65,8 +65,8 @@ The presets shown on the mixer's **Music** strip. Make at least one playlist fir
 
 Add a preset with one of:
 
-- **Add Ambient Playlist** — one playlist, whatever the phase.
-- **Add Ambient Adaptive Playlist** — a playlist each for **Morning**, **Day**, **Dusk** and **Night**. Leave a
+- **Add Standard Preset** — one playlist, whatever the phase.
+- **Add Ambient Adaptive Preset** — a playlist each for **Morning**, **Day**, **Dusk** and **Night**. Leave a
   phase empty to make it silent.
 
 Give each a **name** (it defaults to its type) and choose its playlist(s). The bin deletes a preset. Press **Save
@@ -75,8 +75,8 @@ changes** to save. How each type behaves is explained under
 
 ## Spotify
 
-The presets shown on the mixer's **Spotify** strip. The same two types are available — **Add Ambient Playlist** and
-**Add Ambient Adaptive Playlist** — but each list is a **Spotify album or playlist
+The presets shown on the mixer's **Spotify** strip. The same two types are available — **Add Standard Preset** and
+**Add Ambient Adaptive Preset** — but each list is a **Spotify album or playlist
 link**: in Spotify, use **Share → Copy link** and paste it in. Links are checked and tidied when you save; invalid ones
 are highlighted.
 
