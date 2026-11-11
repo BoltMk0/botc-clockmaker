@@ -9,6 +9,7 @@ import { getAudioDimHelperInstance, type AudioDimHelper } from '$lib/model/serve
 import { getTimeOfDayTrimHelperInstance, type TimeOfDayTrimHelper } from '$lib/model/server/TimeOfDayTrim/TimeOfDayTrimHelper.js';
 import { getMixerMastersHelperInstance, type MixerMastersHelper } from '$lib/model/server/MixerMasters/MixerMastersHelper.js';
 import { SSEClientManager } from '../../../events/sseClientManager';
+import type { WSMessage } from '$lib/common/comms';
 
 export type emit_cb = (eventName: string, data: string) => Unsafe<void, Error>;
 
@@ -43,7 +44,20 @@ class MixerListener extends SSEClientManager {
         audioDim.on('update', (model) => this.broadcast({ type: 'audioDimUpdate', model }));
         timeOfDayTrim.on('update', (model) => this.broadcast({ type: 'timeOfDayTrimUpdate', model }));
         mixerMasters.on('update', (model) => this.broadcast({ type: 'mixerMastersUpdate', model }));
+        // The server's clock, for counting on from the players' progress reports (stamped with it)
+        setInterval(() => this.broadcast({ type: 'sync', serverTime: Date.now() }), SYNC_INTERVAL_MS).unref?.();
     }
+}
+
+/** How often every client is sent the server's time, and how many times a newcomer is at the start, a little apart. */
+const SYNC_INTERVAL_MS = 2000;
+const SYNC_BURST = 5;
+const SYNC_BURST_INTERVAL_MS = 100;
+
+/** A few of the server's time in quick succession, so a newcomer has a good idea of it straight away. */
+function sendSyncBurst(send: (msg: WSMessage) => void, count = SYNC_BURST) {
+    send({ type: 'sync', serverTime: Date.now() });
+    if (count > 1) setTimeout(() => sendSyncBurst(send, count - 1), SYNC_BURST_INTERVAL_MS);
 }
 
 let mixerListenerInstance: MixerListener | undefined = undefined;
@@ -74,6 +88,7 @@ export function POST() {
                 console.log("Mixer events client connected.", id);
                 // Send the current state of every channel straight away so a (re)connecting client resyncs.
                 unregisterClient = mgr.setupClient(emit, (send) => {
+                    sendSyncBurst(send);
                     send({ type: 'ambienceEngineUpdate', model: mgr.ambienceEngine.model });
                     send({ type: 'stingEngineUpdate', model: mgr.stingEngine.model });
                     send({ type: 'spotifyUpdate', model: mgr.spotify.model });

@@ -5,17 +5,17 @@
     import PlayIcon from "../PlayIcon.svelte";
     import PauseIcon from "../PauseIcon.svelte";
     import type { SpotifyPlayer } from "../../SpotifyPlayer.svelte";
-    import TimeOfDayIcon from "$lib/assets/timeOfDayIcon.svelte";
     import { TIMES_OF_DAY } from "$lib/model/client/types";
-        import { isSameSpotifyContext, isSpotifyAdaptivePreset, spotifyPresetMatches, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
-
-    const NOW_PLAYING_LINE_PX = 14; // Keep in step with .now-playing-text line-height
+    import { isSameSpotifyContext, isSpotifyAdaptivePreset, spotifyPresetMatches, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
+    import NowPlayingPanel, { type PlaybackState } from "./NowPlayingPanel.svelte";
 
     let {
         spotify,
         presets = [],
-        /** Whether this is the selected player (see selectedMusicSource): only then is its loaded preset highlighted, as the selected one. */
+        /** Whether this is the selected player (see selectedMusicSource): only then does its now playing panel show its loaded preset, as the selected one. */
         selected = true,
+        /** Opens the music controls (the remote's music view), from the now playing panel. */
+        onopen,
         // (Spotify plays through its own device/SDK rather than the Web Audio master bus, so the server applies the
         // shared master fader, dim and time-of-day trim to the volume it sends the player instead - see SpotifyHelper.)
         style = undefined
@@ -23,6 +23,7 @@
         spotify: SpotifyPlayer;
         presets?: SpotifyPreset[];
         selected?: boolean;
+        onopen: () => void;
         style?: string;
     } = $props();
 
@@ -46,40 +47,23 @@
             volume = remote;
         });
     });
-    function presetMatches(preset: SpotifyPreset, uri: string | null | undefined) {
-        return spotifyPresetMatches(preset, model, uri);
-    }
-
-    function presetKind(preset: SpotifyPreset) {
-        return isSpotifyAdaptivePreset(preset) ? ' (ambient adaptive)' : '';
-    }
-
-    /**
-     * The loaded preset just toggles play/pause. Another one is scheduled to take over at the next change of phase;
-     * tapped again, it switches straight away. A paused
-     * adaptive playlist is resumed through the server, which switches it to the right list for the phase (or keeps it
-     * quiet, if the phase has none).
-     */
-    function clickPreset(preset: SpotifyPreset, current: boolean, playing: boolean) {
-        if (playing) spotify.togglePlayPause();
-        else if (!current && model?.scheduledPresetId !== preset.id) spotify.schedulePreset(preset.id);
-        else if (isSpotifyAdaptivePreset(preset)) spotify.playAdaptivePreset(preset.id);
-        else if (current) spotify.togglePlayPause();
-        else spotify.playContext(preset.uri);
-    }
-
     let menuOpen = $state(false);
-    let nowPlayingHeight = $state(0);
-    const nowPlayingLines = $derived(Math.max(1, Math.floor(nowPlayingHeight / NOW_PLAYING_LINE_PX)));
     /** Centres a transport button's glyph both ways (an inline SVG otherwise sits on the text baseline). */
-    /** Highlights the preset that's currently loaded. */
-    const CURRENT_PRESET = "background-color: #fff; color: #222;";
-    /** The preset being switched to (during the fade-out), distinct from the one currently loaded. */
-    const PENDING_PRESET = "background-color: #fc6; color: #222;";
-    /** The preset waiting for the next phase change: outlined in the pending colour, as it's next in line. */
-    const SCHEDULED_PRESET = "box-shadow: inset 0 0 0 2px #fc6;";
-    const PRESET_ROW = "display: flex; align-items: center; gap: 4px; text-align: left;";
     const CENTER = "display: flex; justify-content: center; align-items: center; height: 30px;";
+
+    // What the now playing panel shows: the player's state, and its presets loaded, being switched to and waiting
+    /** The preset loaded, while this is the selected player (otherwise the other one has taken over). */
+    const currentPreset = $derived(selected ? presets.find(p => spotifyPresetMatches(p, model, spotify.playback?.contextUri)) : undefined);
+    const silent = $derived(!!currentPreset && isSpotifyAdaptivePreset(currentPreset) && model?.adaptivePresetSilent === true);
+    const playbackState: PlaybackState = $derived(silent ? 'silent' : spotify.playback?.playing ? 'playing' : spotify.playback ? 'paused' : 'idle');
+    /** For an adaptive preset, the phase whose list is loaded. */
+    const loadedPhases = $derived.by(() => {
+        const preset = currentPreset;
+        if (!preset || !isSpotifyAdaptivePreset(preset) || silent) return [];
+        return TIMES_OF_DAY.filter(phase => preset.phaseUris[phase] !== null && isSameSpotifyContext(spotify.playback?.contextUri, preset.phaseUris[phase]));
+    });
+    const pendingName = $derived(presets.find(p => spotifyPresetMatches(p, model, model?.pendingContextUri))?.name ?? null);
+    const nextName = $derived(presets.find(p => p.id === model?.scheduledPresetId)?.name ?? null);
 </script>
 
 <svelte:window
@@ -109,51 +93,10 @@
     {#if !model.hostReady}
         <div class="starting">Starting…</div>
     {:else}
-        <!-- Fills the space left by the rest of the strip; the text is clamped to however many lines fit. -->
-        <div class="now-playing" bind:clientHeight={nowPlayingHeight} title={spotify.playback ? `${spotify.playback.title} - ${spotify.playback.artist}` : ''}>
-            <div class="now-playing-text" style="-webkit-line-clamp: {nowPlayingLines};">
-            {#if spotify.playback}
-                <strong>{spotify.playback.title}</strong><br/>{spotify.playback.artist}
-            {:else}
-                Nothing playing. Pick "Clocktower Mixer" in Spotify.
-            {/if}
-            </div>
-        </div>
-        {#if presets.length > 0}
-        <div class="presets">
-            {#each presets as preset (preset.id)}
-                {@const current = selected && presetMatches(preset, spotify.playback?.contextUri)}
-                {@const playing = current && spotify.playback?.playing === true}
-                {@const pending = presetMatches(preset, model.pendingContextUri)}
-                {@const kind = presetKind(preset)}
-                {@const waiting = current && isSpotifyAdaptivePreset(preset) && model.adaptivePresetSilent}
-                {@const scheduled = model.scheduledPresetId === preset.id}
-                <AudioMixerText
-                    onclick={()=>clickPreset(preset, current, playing)}
-                    style="{PRESET_ROW} {pending ? PENDING_PRESET : current ? CURRENT_PRESET : scheduled ? SCHEDULED_PRESET : ''}"
-                    title={pending ? `Loading ${preset.name}${kind}` : scheduled ? `${preset.name}${kind} plays at the next phase change. Tap again to switch now` : !current ? `Play ${preset.name}${kind} at the next phase change (tap twice to switch now)` : waiting ? `${preset.name}${kind}: silent until a phase with a list` : playing ? `Pause ${preset.name}${kind}` : current ? `Resume ${preset.name}${kind}` : `Play ${preset.name}${kind}`}>
-                    <span class="preset-icon">
-                        <!-- (Component names are the other way round: PlayIcon draws the pause bars, PauseIcon the triangle.) -->
-                        {#if playing}<PlayIcon size={10}/>{:else}<PauseIcon size={10}/>{/if}
-                    </span>
-                    <span class="preset-name">{preset.name}</span>
-                    {#if isSpotifyAdaptivePreset(preset)}
-                        <!-- The phase whose list is loaded (none while silent), or every phase with a list when it isn't playing -->
-                        <span class="preset-icon">
-                            {#each TIMES_OF_DAY as phase}
-                                {@const uri = preset.phaseUris[phase]}
-                                {#if uri !== null && (!current || (!waiting && isSameSpotifyContext(spotify.playback?.contextUri, uri)))}<TimeOfDayIcon timeOfDay={phase} size={10}/>{/if}
-                            {/each}
-                        </span>
-                    {/if}
-                </AudioMixerText>
-            {/each}
-        </div>
-        {/if}
-        <div class="skip">
-            <AudioMixerText onclick={()=>spotify.previous()} style={CENTER} title="Previous track">&#9198;</AudioMixerText>
-            <AudioMixerText onclick={()=>spotify.next()} style={CENTER} title="Next track">&#9197;</AudioMixerText>
-        </div>
+        <!-- Fills the space left by the rest of the strip; opens the music controls -->
+        <NowPlayingPanel playback={playbackState} presetName={currentPreset?.name ?? null} phases={loadedPhases}
+            track={spotify.playback} progress={spotify.playback?.progress ?? null} imageUrl={spotify.playback?.imageUrl ?? null} {pendingName} {nextName} onclick={onopen}
+            emptyText={'Nothing playing. Pick "Clocktower Mixer" in Spotify, or click to pick a preset.'}/>
         <AudioMixerText>Vol<br/>{Math.round(volume)}%</AudioMixerText>
         <div class="volume">
             <VSlider value={volume} min={0} max={100} step={1} onchange={setVolume}/>
@@ -187,24 +130,6 @@
         font-size: 11px;
     }
 
-    .now-playing {
-        flex: 1;
-        min-height: 42px; /* at least three lines */
-        overflow: hidden;
-        margin-top: 2px;
-    }
-
-    .now-playing-text {
-        font-size: 11px;
-        line-height: 14px; /* keep in step with NOW_PLAYING_LINE_PX */
-        text-align: center;
-        word-break: break-word;
-        display: -webkit-box;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
     .spotify-strip {
         position: relative;
     }
@@ -223,33 +148,6 @@
         border: 3px solid var(--theme-slider-trim);
         border-radius: 8px;
         box-shadow: 0 6px 14px #000b;
-    }
-
-    .presets {
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-        margin: 6px 0;
-        max-height: 130px;
-        overflow-y: auto;
-    }
-
-    .preset-icon {
-        display: flex;
-        flex-shrink: 0;
-    }
-
-    .preset-name {
-        flex: 1;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .skip {
-        display: flex;
-        gap: 3px;
-        margin-bottom: 6px;
     }
 
     .transport {

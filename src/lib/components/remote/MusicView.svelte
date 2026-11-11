@@ -8,10 +8,12 @@
     import Marquee from "$lib/audio/client/components/Marquee.svelte";
 
     /** The remote's music view: what's playing, full transport and volume, and the music and Spotify presets as one list. */
-    let { music, audioDim, onback, onmixer }: {
+    let { music, audioDim, onback, backLabel = 'Clock', onmixer }: {
         music: RemoteMusic;
         audioDim: AudioDim | null;
         onback: () => void;
+        /** The back button's label: where it goes back to. */
+        backLabel?: string;
         /** Opens the mixer as a remote, when the page offers it. */
         onmixer?: () => void;
     } = $props();
@@ -215,7 +217,7 @@
     <div class="header">
         <button class="back" onclick={onback}>
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
-            Clock
+            {backLabel}
         </button>
         {#if onmixer}
         <button class="mixer" onclick={onmixer} title="Open the mixer">

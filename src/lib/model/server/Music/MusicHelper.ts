@@ -9,6 +9,7 @@ import { JSONSingletonResourceManager } from "$lib/resources/server/jsonResource
 import { getBOTCTClockInstanceManager } from "../model";
 import { getSpotifyHelperInstance } from "../Spotify/SpotifyHelper";
 import { MusicShuffle } from "./MusicShuffle";
+import { progressChanged, type PlaybackProgressModel, type PlaybackProgressReport } from "$lib/audio/common/model/playbackProgress";
 
 /** The host reports in every few seconds; if it goes quiet for this long its claim lapses and another client may take over. */
 const HOST_TIMEOUT_MS = 15000;
@@ -57,6 +58,8 @@ export class MusicHelper extends EventEmitter {
     #gain = DEFAULT_MUSIC_GAIN;
     #track: MusicTrackPlaybackModel | null = null;
     #loadId = 0;
+    /** How far the host is through the track, as it last reported. */
+    #progress: PlaybackProgressModel | null = null;
     #playing = false;
     #fadeMs = 0;
     #crossfading = false;
@@ -100,6 +103,7 @@ export class MusicHelper extends EventEmitter {
             hostClientId: this.#hostClientId,
             gain: this.#gain,
             track: this.#track,
+            progress: this.#track ? this.#progress : null,
             loadId: this.#loadId,
             playing: this.#playing,
             fadeMs: this.#fadeMs,
@@ -143,6 +147,7 @@ export class MusicHelper extends EventEmitter {
     private releaseHostInternal() {
         this.#hostClientId = null;
         this.#track = null;
+        this.#progress = null;
         this.#playing = false;
         this.#fadeMs = 0;
         this.#presetId = null;
@@ -167,11 +172,12 @@ export class MusicHelper extends EventEmitter {
 
     /**
      * Heartbeat from the host, optionally reporting that the track it was told to play (`loadId`) ended or failed, or is
-     * near enough its end to crossfade into the playlist's next track.
+     * near enough its end to crossfade into the playlist's next track - and how far through it it is.
      */
-    hostReport(clientId: string, report: { event?: MusicHostEvent, loadId?: number }) {
+    hostReport(clientId: string, report: { event?: MusicHostEvent, loadId?: number, progress?: PlaybackProgressReport }) {
         if (this.#hostClientId !== clientId) throw new Error('Not the music player host');
         this.#hostLastSeen = Date.now();
+        if (report.progress && report.loadId === this.#loadId && this.#track) this.setProgress(report.progress);
         // Only about the track playing now; one from before a switch is old news
         if (report.event === undefined || report.loadId !== this.#loadId || !this.#track) return;
         const playlistId = this.#track.playlistId;
@@ -532,9 +538,21 @@ export class MusicHelper extends EventEmitter {
             loudness: track.loudness ?? null
         };
         this.#loadId++;
+        this.#progress = null; // Till the host says how it's getting on with this one
         if (!this.#playing) this.takeOver();
         this.#playing = true;
         this.changed();
+    }
+
+    /**
+     * Keeps the host's latest progress, stamped with the time here. Clients count on from the one they have, so are
+     * only told when it starts or stops, or has wandered from what they'd count to.
+     */
+    private setProgress(report: PlaybackProgressReport) {
+        const progress = { ...report, at: Date.now() };
+        const changed = progressChanged(this.#progress, progress);
+        this.#progress = progress;
+        if (changed) this.changed();
     }
 
     /** @param fadeMs How long to fade in over, if it was paused. */

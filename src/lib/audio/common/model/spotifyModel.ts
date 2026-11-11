@@ -1,3 +1,5 @@
+import type { PlaybackProgressModel } from "./playbackProgress";
+
 export type SpotifyPlaybackModel = {
     playing: boolean;
     title: string;
@@ -6,6 +8,8 @@ export type SpotifyPlaybackModel = {
     imageUrl: string | null;
     /** URI of the album/playlist being played from, if any. */
     contextUri: string | null;
+    /** How far through the track it is, stamped by the server as the host's report comes in (the host leaves out `at`). */
+    progress: PlaybackProgressModel | null;
 };
 
 /** Server-wide Spotify state, shared by every mixer client. */

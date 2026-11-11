@@ -1,5 +1,6 @@
 import type { WSMessage } from "$lib/common/comms";
 import { SSEClient } from "../../model/client/util/sseClient.svelte";
+import { ServerDeltaTimeManager } from "../../model/client/util/serverDeltaTimeManager.svelte";
 
 /**
  * Shared SSE connection for every "global" (not per-clock) mixer channel - ambience engine, sting engine,
@@ -26,6 +27,14 @@ const REPLAYED_TYPES = new Set<WSMessage['type']>([
     'spotifyUpdate', 'spotifyDeviceVolume', 'musicUpdate', 'audioDimUpdate', 'timeOfDayTrimUpdate', 'mixerMastersUpdate'
 ]);
 
+/** How far this device's clock is from the server's, from the server's time the connection sends now and then. */
+const serverTime = new ServerDeltaTimeManager();
+
+/** The server's clock now, as near as this device can tell (its own, before the connection has said). */
+export function mixerServerNow(): number {
+    return Date.now() - serverTime.deltaToServerTime;
+}
+
 let client: SSEClient | null = null;
 let listeners: Set<Listener> | null = null;
 let latest: Map<WSMessage['type'], WSMessage> | null = null;
@@ -35,6 +44,8 @@ export function subscribeMixerEvents(listener: Listener): () => void {
         const activeListeners = listeners = new Set<Listener>();
         const latestMessages = latest = new Map();
         client = new SSEClient('/api/mixer/events', (msg) => {
+            // Only as it arrives (never replayed), so the delay's only the trip here
+            if (msg.type === 'sync') serverTime.handleSyncMessage(msg);
             if (REPLAYED_TYPES.has(msg.type)) latestMessages.set(msg.type, msg);
             for (const l of [...activeListeners]) l(msg);
         });

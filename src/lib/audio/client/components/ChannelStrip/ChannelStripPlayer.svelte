@@ -5,7 +5,8 @@
     import type { MusicPreset } from "$lib/audio/common/musicPreset";
     import ChannelStripSpotify from "./ChannelStripSpotify.svelte";
     import ChannelStripMusic from "./ChannelStripMusic.svelte";
-    import { selectedMusicSource } from "$lib/components/remote/remoteMusic.svelte";
+    import { RemoteMusic, selectedMusicSource } from "$lib/components/remote/remoteMusic.svelte";
+    import MusicOverlay from "./MusicOverlay.svelte";
 
     /**
      * The mixer's music strips: one for the Spotify player and one for the uploaded-music player, each while it's
@@ -41,13 +42,22 @@
     const spotifyOutline = $derived(!!spotify && offerSpotify && !spotifyRunning && (!spotifyModel?.authorized || spotify.canHost));
     const musicOutline = $derived(!!music && !musicRunning && music.canHost);
     const eitherRunning = $derived(spotifyRunning || musicRunning);
+
+    // The remote's music view, opened over the mixer from either strip's now playing panel: both players as one,
+    // with their presets in one list
+    const remoteMusic = $derived(spotify && music ? new RemoteMusic(music, spotify, () => ({ music: musicPresets, spotify: spotifyPresets })) : null);
+    let musicOpen = $state(false);
+    const openMusic = () => musicOpen = true;
 </script>
 
 {#if spotify && spotifyRunning}
-<ChannelStripSpotify {spotify} presets={spotifyPresets} selected={selected === 'spotify'} {style}/>
+<ChannelStripSpotify {spotify} presets={spotifyPresets} selected={selected === 'spotify'} onopen={openMusic} {style}/>
 {/if}
 {#if music && musicRunning}
-<ChannelStripMusic {music} presets={musicPresets} selected={selected === 'music'} {style}/>
+<ChannelStripMusic {music} presets={musicPresets} selected={selected === 'music'} onopen={openMusic} {style}/>
+{/if}
+{#if musicOpen && remoteMusic}
+<MusicOverlay music={remoteMusic} onclose={() => musicOpen = false}/>
 {/if}
 {#if (spotify || music) && (!eitherRunning || spotifyOutline || musicOutline)}
 <div class="player-slot" class:narrow={eitherRunning} {style}>

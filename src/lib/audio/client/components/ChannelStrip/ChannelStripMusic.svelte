@@ -8,11 +8,9 @@
     import PlayIcon from "../PlayIcon.svelte";
     import PauseIcon from "../PauseIcon.svelte";
     import type { MusicPlayer } from "../../MusicPlayer.svelte";
-    import TimeOfDayIcon from "$lib/assets/timeOfDayIcon.svelte";
     import { TIMES_OF_DAY } from "$lib/model/client/types";
     import { isMusicAdaptivePreset, type MusicPreset } from "$lib/audio/common/musicPreset";
-
-    const NOW_PLAYING_LINE_PX = 14; // Keep in step with .now-playing-text line-height
+    import NowPlayingPanel, { type PlaybackState } from "./NowPlayingPanel.svelte";
 
     /**
      * The mixer's strip for the uploaded-music player while it's running - laid out like the Spotify one, which can run
@@ -22,13 +20,16 @@
     let {
         music,
         presets = [],
-        /** Whether this is the selected player (see selectedMusicSource): only then is its loaded preset highlighted, as the selected one. */
+        /** Whether this is the selected player (see selectedMusicSource): only then does its now playing panel show its loaded preset, as the selected one. */
         selected = true,
+        /** Opens the music controls (the remote's music view), from the now playing panel. */
+        onopen,
         style = undefined
     }: {
         music: MusicPlayer;
         presets?: MusicPreset[];
         selected?: boolean;
+        onopen: () => void;
         style?: string;
     } = $props();
 
@@ -54,32 +55,23 @@
         });
     });
 
-    function presetKind(preset: MusicPreset) {
-        return isMusicAdaptivePreset(preset) ? ' (ambient adaptive)' : '';
-    }
-
-    /**
-     * The loaded preset just toggles play/pause (a paused one carries on where it left off). Another one is scheduled
-     * to take over at the next change of phase; tapped again, it switches straight away.
-     */
-    function clickPreset(preset: MusicPreset, current: boolean, playing: boolean) {
-        if (playing) music.togglePlayPause();
-        else if (!current && model?.scheduledPresetId !== preset.id) music.schedulePreset(preset.id);
-        else music.playPreset(preset.id);
-    }
-
     let menuOpen = $state(false);
-    let nowPlayingHeight = $state(0);
-    const nowPlayingLines = $derived(Math.max(1, Math.floor(nowPlayingHeight / NOW_PLAYING_LINE_PX)));
-    /** Highlights the preset that's currently loaded. */
-    const CURRENT_PRESET = "background-color: #fff; color: #222;";
-    /** The preset being switched to (during the fade-out), distinct from the one currently loaded. */
-    const PENDING_PRESET = "background-color: #fc6; color: #222;";
-    /** The preset waiting for the next phase change: outlined in the pending colour, as it's next in line. */
-    const SCHEDULED_PRESET = "box-shadow: inset 0 0 0 2px #fc6;";
-    const PRESET_ROW = "display: flex; align-items: center; gap: 4px; text-align: left;";
     /** Centres a transport button's glyph both ways (an inline SVG otherwise sits on the text baseline). */
     const CENTER = "display: flex; justify-content: center; align-items: center; height: 30px;";
+
+    // What the now playing panel shows: the player's state, and its presets loaded, being switched to and waiting
+    /** The preset loaded, while this is the selected player (otherwise the other one has taken over). */
+    const currentPreset = $derived(selected ? presets.find(p => p.id === model?.presetId) : undefined);
+    const silent = $derived(!!currentPreset && isMusicAdaptivePreset(currentPreset) && model?.presetSilent === true);
+    const playbackState: PlaybackState = $derived(silent ? 'silent' : music.playing ? 'playing' : music.track ? 'paused' : 'idle');
+    /** For an adaptive preset, the phases whose playlist is loaded. */
+    const loadedPhases = $derived.by(() => {
+        const preset = currentPreset;
+        if (!preset || !isMusicAdaptivePreset(preset) || silent) return [];
+        return TIMES_OF_DAY.filter(phase => preset.phasePlaylistIds[phase] !== null && preset.phasePlaylistIds[phase] === music.track?.playlistId);
+    });
+    const pendingName = $derived(presets.find(p => p.id === model?.pendingPresetId)?.name ?? null);
+    const nextName = $derived(presets.find(p => p.id === model?.scheduledPresetId)?.name ?? null);
 </script>
 
 <svelte:window
@@ -107,54 +99,10 @@
         {/if}
     </div>
     {/if}
-    <!-- Fills the space left by the rest of the strip, over the album artwork; the text is clamped to however many lines fit. -->
-    <div class="now-playing" class:has-art={!!music.track?.imageUrl} style:background-image={music.track?.imageUrl ? `url("${music.track.imageUrl}")` : undefined}
-        bind:clientHeight={nowPlayingHeight} title={music.track ? `${music.track.title} - ${music.track.artist}` : ''}>
-        <div class="now-playing-text" style="-webkit-line-clamp: {nowPlayingLines};">
-        {#if music.track}
-            <strong>{music.track.title}</strong><br/>{music.track.artist}
-        {:else if presets.length > 0}
-            Nothing playing. Pick a preset.
-        {:else}
-            Nothing playing. Add music presets in Settings &rarr; Music.
-        {/if}
-        </div>
-    </div>
-    {#if presets.length > 0}
-    <div class="presets">
-        {#each presets as preset (preset.id)}
-            {@const current = selected && model.presetId === preset.id}
-            {@const playing = current && music.playing}
-            {@const pending = model.pendingPresetId === preset.id}
-            {@const kind = presetKind(preset)}
-            {@const waiting = current && isMusicAdaptivePreset(preset) && model.presetSilent}
-            {@const scheduled = model.scheduledPresetId === preset.id}
-            {@const loadedPlaylist = current && !waiting ? music.track?.playlistId : undefined}
-            <AudioMixerText
-                onclick={()=>clickPreset(preset, current, playing)}
-                style="{PRESET_ROW} {pending ? PENDING_PRESET : current ? CURRENT_PRESET : scheduled ? SCHEDULED_PRESET : ''}"
-                title={pending ? `Loading ${preset.name}${kind}` : scheduled ? `${preset.name}${kind} plays at the next phase change. Tap again to switch now` : !current ? `Play ${preset.name}${kind} at the next phase change (tap twice to switch now)` : waiting ? `${preset.name}${kind}: silent until a phase with a playlist` : playing ? `Pause ${preset.name}${kind}` : current ? `Resume ${preset.name}${kind}` : `Play ${preset.name}${kind}`}>
-                <span class="preset-icon">
-                    {#if playing}<PlayIcon size={10}/>{:else}<PauseIcon size={10}/>{/if}
-                </span>
-                <span class="preset-name">{preset.name}</span>
-                {#if isMusicAdaptivePreset(preset)}
-                    <!-- The phases whose playlist is loaded (none while silent), or every phase with one when it isn't playing -->
-                    <span class="preset-icon">
-                        {#each TIMES_OF_DAY as phase}
-                            {@const id = preset.phasePlaylistIds[phase]}
-                            {#if id !== null && (!current || loadedPlaylist === id)}<TimeOfDayIcon timeOfDay={phase} size={10}/>{/if}
-                        {/each}
-                    </span>
-                {/if}
-            </AudioMixerText>
-        {/each}
-    </div>
-    {/if}
-    <div class="skip">
-        <AudioMixerText onclick={()=>music.previous()} style={CENTER} title="Previous track">&#9198;</AudioMixerText>
-        <AudioMixerText onclick={()=>music.next()} style={CENTER} title="Next track">&#9197;</AudioMixerText>
-    </div>
+    <!-- Fills the space left by the rest of the strip; opens the music controls -->
+    <NowPlayingPanel playback={playbackState} presetName={currentPreset?.name ?? null} phases={loadedPhases}
+        track={music.track} progress={model.progress} imageUrl={music.track?.imageUrl ?? null} {pendingName} {nextName} onclick={onopen}
+        emptyText={presets.length > 0 ? 'Nothing playing. Click to pick a preset.' : 'Nothing playing. Add music presets in Settings → Music.'}/>
     <AudioMixerText>Gain<br/>{formatGain(gain)}</AudioMixerText>
     <!-- Laid out as in ChannelStripGain. The meter only shows on the device playing the music. -->
     <div class="volume">
@@ -184,36 +132,6 @@
         color: #ccc;
     }
 
-    .now-playing {
-        flex: 1;
-        min-height: 42px; /* at least three lines */
-        overflow: hidden;
-        margin-top: 2px;
-        border-radius: 4px;
-        background-size: cover;
-        background-position: center;
-    }
-
-    /* Over the artwork: darkened behind the text, so it stays readable */
-    .now-playing.has-art .now-playing-text {
-        height: 100%;
-        box-sizing: border-box;
-        padding: 3px;
-        background-color: #000a;
-        color: #eee;
-    }
-
-    .now-playing-text {
-        font-size: 11px;
-        line-height: 14px; /* keep in step with NOW_PLAYING_LINE_PX */
-        text-align: center;
-        word-break: break-word;
-        display: -webkit-box;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
     .music-strip {
         position: relative;
     }
@@ -232,33 +150,6 @@
         border: 3px solid var(--theme-slider-trim);
         border-radius: 8px;
         box-shadow: 0 6px 14px #000b;
-    }
-
-    .presets {
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-        margin: 6px 0;
-        max-height: 130px;
-        overflow-y: auto;
-    }
-
-    .preset-icon {
-        display: flex;
-        flex-shrink: 0;
-    }
-
-    .preset-name {
-        flex: 1;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .skip {
-        display: flex;
-        gap: 3px;
-        margin-bottom: 6px;
     }
 
     .transport {

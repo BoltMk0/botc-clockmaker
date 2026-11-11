@@ -1,4 +1,5 @@
 import { DEFAULT_MUSIC_GAIN, musicLevellingGainDb, type MusicControlAction, type MusicHostEvent, type MusicModel, type MusicTrackPlaybackModel } from "$lib/audio/common/model/musicModel";
+import type { PlaybackProgressReport } from "$lib/audio/common/model/playbackProgress";
 import { subscribeMixerEvents } from "./MixerEventsClient";
 import { PlayerAutoStart } from "./playerAutoStart";
 
@@ -157,7 +158,8 @@ export class MusicPlayer {
             this.#activeDeck = 0;
             this.#volumeNode = volumeNode;
             this.analyser = analyser;
-            this.#heartbeat = setInterval(() => this.put({}).catch(e => this.failHosting(e)), HEARTBEAT_MS);
+            // With how far the track's got, so every client's count stays in step with it
+            this.#heartbeat = setInterval(() => this.put(this.progressReport()).catch(e => this.failHosting(e)), HEARTBEAT_MS);
             window.addEventListener('pagehide', this.#releaseOnLeave);
             document.addEventListener('pointerdown', this.#retryOnGesture);
             this.#autoStart.remember(true);
@@ -183,6 +185,11 @@ export class MusicPlayer {
         audio.addEventListener('ended', () => { if (deck === this.deck) this.report('ended', deck.loadId); });
         audio.addEventListener('error', () => { if (deck === this.deck && audio.getAttribute('src')) this.report('error', deck.loadId); });
         audio.addEventListener('timeupdate', () => this.checkCrossfade(deck));
+        // Every client counts on from the position the host gives, so it gives it whenever that stops or starts moving,
+        // jumps, or the track's length is known
+        for (const event of ['playing', 'pause', 'waiting', 'seeked', 'durationchange']) {
+            audio.addEventListener(event, () => { if (deck === this.deck) this.sendProgress(); });
+        }
         return deck;
     }
 
@@ -239,6 +246,26 @@ export class MusicPlayer {
     private report(event: MusicHostEvent, loadId: number | null) {
         if (loadId === null) return;
         this.put({ event, loadId }).catch(e => this.failHosting(e));
+    }
+
+    /** How far the playing deck is through the model's track, to report (nothing, if it's not on that track). */
+    private progressReport(): { loadId?: number, progress?: PlaybackProgressReport } {
+        const deck = this.deck;
+        if (!deck || deck.loadId === null || deck.loadId !== this.model?.loadId) return {};
+        const { audio } = deck;
+        return {
+            loadId: deck.loadId,
+            progress: {
+                positionMs: Math.round(audio.currentTime * 1000),
+                durationMs: isFinite(audio.duration) ? Math.round(audio.duration * 1000) : 0,
+                running: !audio.paused && audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA
+            }
+        };
+    }
+
+    private sendProgress() {
+        const report = this.progressReport();
+        if (report.progress) this.put(report).catch(e => console.warn('MusicPlayer - progress report failed', e));
     }
 
     private async put(body: object) {

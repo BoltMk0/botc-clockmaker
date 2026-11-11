@@ -1,3 +1,5 @@
+import type { PlaybackProgressModel } from "./playbackProgress";
+
 /** The track the music player has loaded, as every client shows it. */
 export type MusicTrackPlaybackModel = {
     trackId: string;
@@ -69,6 +71,8 @@ export type MusicModel = {
     /** The strip's fader, as a linear gain (0..MAX_MUSIC_GAIN). */
     gain: number;
     track: MusicTrackPlaybackModel | null;
+    /** How far the host is through the track, as it last reported (null till it has, for each track). */
+    progress: PlaybackProgressModel | null;
     /** Bumped for every track started, so starting the same track again (a one-track playlist) still restarts it. */
     loadId: number;
     playing: boolean;

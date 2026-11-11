@@ -1,4 +1,5 @@
 import type { SpotifyControlAction, SpotifyModel, SpotifyPlaybackModel } from "$lib/audio/common/model/spotifyModel";
+import type { PlaybackProgressModel } from "$lib/audio/common/model/playbackProgress";
 import { subscribeMixerEvents } from "./MixerEventsClient";
 import { PlayerAutoStart } from "./playerAutoStart";
 
@@ -22,7 +23,16 @@ function pickAlbumArt(images: SpotifySDKImage[] | undefined): string | null {
     const sized = [...images].sort((a, b) => (a.width ?? 0) - (b.width ?? 0));
     return (sized.find(i => (i.width ?? 0) >= ALBUM_ART_MIN_PX) ?? sized[sized.length - 1]).url;
 }
-type SpotifySDKState = { paused: boolean, context?: { uri: string | null }, track_window: { current_track: SpotifySDKTrack } };
+type SpotifySDKState = {
+    paused: boolean,
+    /** Where it's up to (ms), as of `timestamp`; and the track's length (ms). */
+    position?: number,
+    duration?: number,
+    timestamp?: number,
+    loading?: boolean,
+    context?: { uri: string | null },
+    track_window: { current_track: SpotifySDKTrack }
+};
 type SpotifySDKPlayer = {
     connect(): Promise<boolean>;
     disconnect(): void;
@@ -258,8 +268,17 @@ export class SpotifyPlayer {
             title: track?.name ?? '',
             artist: track?.artists?.map(a => a.name).join(', ') ?? '',
             imageUrl: pickAlbumArt(track?.album?.images),
-            contextUri: state.context?.uri ?? null
+            contextUri: state.context?.uri ?? null,
+            progress: this.toProgress(state)
         };
+    }
+
+    /** How far through the track the state has it, brought up to now (the server stamps it with its time as it comes in). */
+    private toProgress(state: SpotifySDKState): PlaybackProgressModel | null {
+        if (typeof state.position !== 'number' || typeof state.duration !== 'number') return null;
+        const running = !state.paused && !state.loading;
+        const since = running && typeof state.timestamp === 'number' ? Math.max(0, Date.now() - state.timestamp) : 0;
+        return { positionMs: Math.round(state.position + since), durationMs: Math.round(state.duration), running, at: 0 };
     }
 
     private async put(body: object) {

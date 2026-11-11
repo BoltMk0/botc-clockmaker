@@ -1,5 +1,6 @@
 import { getSpotifyHelperInstance } from '$lib/model/server/Spotify/SpotifyHelper.js';
 import { error } from '@sveltejs/kit';
+import { parseProgressReport } from '$lib/audio/common/model/playbackProgress';
 
 async function readClientId(request: Request) {
     const body = await request.json().catch(() => null);
@@ -39,9 +40,11 @@ export async function PUT({ request }) {
             || typeof playback.title !== 'string'
             || typeof playback.artist !== 'string'
             || (playback.imageUrl != null && typeof playback.imageUrl !== 'string')
-            || (playback.contextUri !== null && typeof playback.contextUri !== 'string'))) {
+            || (playback.contextUri !== null && typeof playback.contextUri !== 'string')
+            || parseProgressReport(playback.progress ?? undefined) === null)) {
             return error(400, { message: 'Invalid playback' });
         }
+        const progress = playback == null ? undefined : parseProgressReport(playback.progress ?? undefined);
         // Rebuilt from the checked fields, so nothing else gets passed on to every client
         spotify.hostReport(body.clientId, {
             playback: playback == null ? playback : {
@@ -50,7 +53,9 @@ export async function PUT({ request }) {
                 artist: playback.artist,
                 // Only ever shown as an <img>, but still only https links
                 imageUrl: typeof playback.imageUrl === 'string' && playback.imageUrl.startsWith('https://') ? playback.imageUrl : null,
-                contextUri: playback.contextUri
+                contextUri: playback.contextUri,
+                // Counted on from the time here, so every client can (whatever their clocks say)
+                progress: progress ? { ...progress, at: Date.now() } : null
             }
         });
     } catch (e) {
