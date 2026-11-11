@@ -5,6 +5,7 @@
     import { untrack } from "svelte";
     import type { RemoteMusic } from "./remoteMusic.svelte";
     import MusicArt from "./MusicArt.svelte";
+    import Marquee from "$lib/audio/client/components/Marquee.svelte";
 
     /** The remote's music view: what's playing, full transport and volume, and the music and Spotify presets as one list. */
     let { music, audioDim, onback, onmixer }: {
@@ -341,7 +342,7 @@
                     <span class="track-number">{index + 1}</span>
                     <MusicArt imageUrl={track.imageUrl} source={null} size={36}/>
                     <span class="track-text">
-                        <span class="track-title">{track.title}</span>
+                        <span class="track-title"><Marquee text={track.title}/></span>
                         {#if track.artist}<span class="track-artist">{track.artist}</span>{/if}
                     </span>
                     <button class="queue-action" onclick={() => moveTrack(track.id, 0)} disabled={index === 0 || drag !== null}
@@ -367,7 +368,7 @@
                     <span class="track-number" aria-hidden="true">–</span>
                     <MusicArt imageUrl={track.imageUrl} source={null} size={36}/>
                     <span class="track-text">
-                        <span class="track-title">{track.title}</span>
+                        <span class="track-title"><Marquee text={track.title}/></span>
                         {#if track.artist}<span class="track-artist">{track.artist}</span>{/if}
                     </span>
                     <button class="queue-action" onclick={() => moveTrack(track.id, 0)} disabled={drag !== null}
@@ -741,7 +742,12 @@
         font-size: 0.9em;
     }
 
-    .track-title, .track-artist {
+    /* Titles too long for the row scroll (see Marquee); artists are cut short */
+    .track-title {
+        min-width: 0;
+    }
+
+    .track-artist {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
