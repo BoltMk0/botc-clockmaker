@@ -30,7 +30,7 @@
 <div class="channel-strip-main" style="{style}">
     <AudioMixerText onclick={onTitleClick} style="margin-bottom: 5px;" title={title}>{title}</AudioMixerText>
     {#if qrPath}
-    <ChannelStripQr path={qrPath} title={qrTitle} label="Remote"/>
+    <ChannelStripQr path={qrPath} title={qrTitle} label="Remote" link/>
     {/if}
     {#if fxSnippet}
     {@render fxSnippet(fxSnippetArg)}

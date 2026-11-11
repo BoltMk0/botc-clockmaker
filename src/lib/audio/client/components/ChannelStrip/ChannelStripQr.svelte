@@ -8,14 +8,24 @@
         path,
         title = undefined,
         /** A short caption inside the tile, under the code. */
-        label = undefined
+        label = undefined,
+        /** When on, tapping the tile opens the path on this device, with a backUrl to come back to this page. */
+        link = false
     }: {
         path: string;
         title?: string;
         label?: string;
+        link?: boolean;
     } = $props();
 
     const url = $derived(new URL(path, page.url.origin).href);
+
+    // The QR itself stays a clean link for other devices; only this device's tap gets the way back
+    const href = $derived.by(() => {
+        const target = new URL(path, page.url.origin);
+        target.searchParams.set('backUrl', page.url.pathname + page.url.search);
+        return target.pathname + target.search;
+    });
 
     let dataUrl = $state('');
 
@@ -27,14 +37,14 @@
     });
 </script>
 
-<div class="channel-strip-qr" title={title ?? url}>
+<svelte:element this={link ? 'a' : 'div'} class="channel-strip-qr" title={title ?? url} href={link ? href : undefined}>
     {#if dataUrl}
         <img src={dataUrl} alt="QR code linking to {url}" />
     {/if}
     {#if label}
         <div class="channel-strip-qr-label">{label}</div>
     {/if}
-</div>
+</svelte:element>
 
 <style>
     .channel-strip-qr {
@@ -48,6 +58,12 @@
         border-radius: 3px;
         box-shadow: 0px 2px 8px 0px #0009 inset;
         border: 3px solid var(--theme-slider-trim);
+        display: block;
+        text-decoration: none;
+    }
+
+    a.channel-strip-qr {
+        cursor: pointer;
     }
 
     .channel-strip-qr img {
