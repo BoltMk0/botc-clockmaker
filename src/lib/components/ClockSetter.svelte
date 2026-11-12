@@ -182,7 +182,8 @@
     /** Starts the game over: dusk on day 0, forgetting the phases' times. */
     function newGame(){
         if (!confirm('Start a new game? It goes back to dusk on day 0, and the times of this game\'s phases are cleared.')) return;
-        post('newGame', undefined, "Couldn't start a new game");
+        // Done with the game controls: back to the slim bar, showing day 0
+        post('newGame', undefined, "Couldn't start a new game").then(ok => { if (ok) gameOpen = false; });
     }
 
     function setPlayers(players: number){
