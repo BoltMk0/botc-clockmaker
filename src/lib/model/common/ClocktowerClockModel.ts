@@ -1,4 +1,5 @@
 import { isTimeOfDay, type TimeOfDay } from "../client/types";
+import { isPhaseLog, type PhaseLogEntry } from "./phaseLog";
 
 export type ClocktowerClockTimeModel =  {
     duration: number;
@@ -49,6 +50,8 @@ export type ClocktowerClockModel = {
     timeOfDay: TimeOfDay;
     /** Set from the remote, the lights show this instead of following the game (bells included), until it's cleared. */
     lightOverride?: LightOverride;
+    /** When each phase of the game began, from the first change of phase after a new game (see PhaseLogEntry). */
+    phaseLog?: PhaseLogEntry[];
 };
 
 export function isClocktowerClockModel(data: any): data is ClocktowerClockModel {
@@ -57,6 +60,7 @@ export function isClocktowerClockModel(data: any): data is ClocktowerClockModel 
     if(typeof data.day !== 'number') return false;
     if(!isTimeOfDay(data.timeOfDay)) return false;
     if(data.lightOverride !== undefined && !isLightOverride(data.lightOverride)) return false;
+    if(data.phaseLog !== undefined && !isPhaseLog(data.phaseLog)) return false;
     if(!isClocktowerClockTimeModel(data.time)){
         console.log("clock.time")
         return false;

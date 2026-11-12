@@ -17,6 +17,8 @@
     import NowPlayingBar from "./remote/NowPlayingBar.svelte";
     import MusicView from "./remote/MusicView.svelte";
     import LightingView from "./remote/LightingView.svelte";
+    import PhaseStatsView from "./remote/PhaseStatsView.svelte";
+    import { formatDuration } from "$lib/model/common/phaseLog";
     import { overrideHex } from "./remote/lighting";
 
     let {
@@ -55,6 +57,20 @@
     let audioDim: AudioDim|null = $state(null);
     let music: RemoteMusic|null = $state(null);
 
+    // The time now, on the second, for the clock and the game's and phase's times
+    let now = $state(Date.now());
+    onMount(() => {
+        let tick: ReturnType<typeof setTimeout>;
+        const next = () => tick = setTimeout(() => { now = Date.now(); next(); }, 1000 - Date.now() % 1000 + 5);
+        next();
+        return () => clearTimeout(tick);
+    });
+
+    const clockTime = $derived(new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    // Counted from the first change of phase after a new game (the first night): none until then
+    const gameStart = $derived(model.phaseLog.length ? model.localTime(model.phaseLog[0].at) : null);
+    const phaseStart = $derived(model.phaseLog.length ? model.localTime(model.phaseLog[model.phaseLog.length - 1].at) : null);
+
     onMount(() => {
         audioDim = new AudioDim();
         const spotify = new SpotifyPlayer({ remoteOnly: true });
@@ -67,7 +83,7 @@
         };
     });
 
-    let view: 'clock' | 'music' | 'lighting' = $state('clock');
+    let view: 'clock' | 'music' | 'lighting' | 'stats' = $state('clock');
     /** The timer picker, when open: to start the day with the timer picked, or only set it up. */
     let pickingTimer: 'start' | 'setup' | null = $state(null);
     let gameOpen = $state(false);
@@ -153,8 +169,10 @@
         return abs % 60 === 0 ? `${sign}${abs / 60}m` : `${sign}${abs}s`;
     }
 
-    function setDay(day: number){
-        post('day', { day }, "Couldn't set the day");
+    /** Starts the game over: dusk on day 0, forgetting the phases' times. */
+    function newGame(){
+        if (!confirm('Start a new game? It goes back to dusk on day 0, and the times of this game\'s phases are cleared.')) return;
+        post('newGame', undefined, "Couldn't start a new game");
     }
 
     function setPlayers(players: number){
@@ -166,6 +184,8 @@
 <MusicView {music} {audioDim} {onmixer} onback={() => view = 'clock'}/>
 {:else if view === 'lighting'}
 <LightingView {model} onback={() => view = 'clock'}/>
+{:else if view === 'stats'}
+<PhaseStatsView {model} onback={() => view = 'clock'}/>
 {:else}
 <div class="clock-setter-main">
     <div class="top-row">
@@ -178,9 +198,13 @@
         {#if gameOpen}
         <div class="game-controls">
             <div class="stepper">
-                <button onclick={() => setDay(model.day - 1)} disabled={model.day <= 0} aria-label="Previous day">−</button>
+                <button onclick={newGame} title="New game: back to dusk on day 0" aria-label="New game">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+                </button>
                 <div><div class="stepper-label">Day</div><div>{model.day}</div></div>
-                <button onclick={() => setDay(model.day + 1)} aria-label="Next day">+</button>
+                <button onclick={() => view = 'stats'} title="How the game's time divided between the phases" aria-label="Game time">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12A9 9 0 1 1 12 3v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg>
+                </button>
             </div>
             <div class="stepper">
                 <button onclick={() => setPlayers(model.playerCount - 1)} disabled={model.playerCount <= 0} aria-label="One fewer player">−</button>
@@ -203,6 +227,22 @@
     </button>
     {/if}
     </div>
+
+    <!-- The time now, and how long the game and the phase have gone on -->
+    <section class="times" aria-label="Times">
+        <div class="time-tile">
+            <span class="time-value">{clockTime}</span>
+            <span class="time-label">Clock</span>
+        </div>
+        <div class="time-tile">
+            <span class="time-value">{gameStart === null ? '—' : formatDuration(now - gameStart)}</span>
+            <span class="time-label">{gameStart === null ? 'From the first night' : 'Game'}</span>
+        </div>
+        <div class="time-tile">
+            <span class="time-value">{phaseStart === null ? '—' : formatDuration(now - phaseStart)}</span>
+            <span class="time-label">{TIME_OF_DAY_LABELS[phase]}</span>
+        </div>
+    </section>
 
     <section class="phase-card">
         <!-- The day's flow, left to right; each phase can also be jumped to by hand -->
@@ -694,6 +734,9 @@
     }
 
     .stepper button {
+        display: flex;
+        justify-content: center;
+        align-items: center;
         padding: 4px 0;
         border: none;
         border-radius: 6px;
@@ -712,6 +755,34 @@
     .stepper-label {
         font-size: 0.7em;
         opacity: 0.55;
+    }
+
+    /* ---- Times ---- */
+
+    .times {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+    }
+
+    .time-tile {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 7px 4px;
+        border-radius: 10px;
+        --surface: color-mix(in srgb, #fff 4%, var(--theme-app-bg));
+        background: var(--surface);
+    }
+
+    .time-value {
+        font-size: 1.05em;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .time-label {
+        font-size: 0.6em;
+        opacity: 0.6;
     }
 
     /* ---- Now playing ---- */

@@ -1,6 +1,7 @@
 import { AudioClockTrack } from "$lib/audio/client/AudioClockTrack.svelte";
 import type { ClocktowerModel as ClocktowerModel } from "../common/ClocktowerModel";
 import type { LightOverride } from "../common/ClocktowerClockModel";
+import type { PhaseLogEntry } from "../common/phaseLog";
 import type { ClocktowerAudioTrackModel } from "$lib/audio/common/model/clocktowerAudioTrackModel.svelte";
 import { SSEClient } from "./util/sseClient.svelte";
 import { isDaytime, type TimeOfDay } from "./types";
@@ -49,6 +50,13 @@ export class Clocktower extends EventEmitter<ClocktowerEvents> {
     get lightscapes(): boolean { return this.#model.config.lightscapes ?? false; }
     /** What the remote has the lights showing instead of following the game, if it has. */
     get lightOverride(): LightOverride|undefined { return this.#model.clock.lightOverride; }
+    /** When each phase of the game began (server time), from its first night. */
+    get phaseLog(): readonly PhaseLogEntry[] { return this.#model.clock.phaseLog ?? []; }
+
+    /** The time on this device (ms) that a server time was, e.g. a phase log entry's. */
+    localTime(serverTime: number): number {
+        return this.#serverDeltaTimeManager.toLocalTime({ time: serverTime, reference: 'server' }).time;
+    }
 
     // Helpers
     readonly running: boolean;

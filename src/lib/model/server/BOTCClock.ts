@@ -50,7 +50,8 @@ export class BOTCTClock extends EventEmitter {
         // undoes a later phase set by hand (e.g. night set before the timer ran out, or before a restart).
         this.#expiryTimeout = setTimeout(()=>{
             this.#expiryTimeout = null;
-            if(isDaytime(this.timeOfDay)) this.timeOfDay = 'dusk';
+            // Dusk fell when the time ran out, even if that was while the server was down
+            if(isDaytime(this.timeOfDay)) this.#setTimeOfDay('dusk', Math.min(Date.now(), startTime + this.#model.clock.time.duration * 1000));
         }, Math.max(0, remainingMs));
     }
 
@@ -95,9 +96,15 @@ export class BOTCTClock extends EventEmitter {
     get timeOfDay(): TimeOfDay { return this.#model.clock.timeOfDay; }
 
     set timeOfDay(timeOfDay: TimeOfDay){
+        this.#setTimeOfDay(timeOfDay);
+    }
+
+    /** Changes the phase, noting (in the phase log) that the new one began `at` (server time). */
+    #setTimeOfDay(timeOfDay: TimeOfDay, at = Date.now()){
         const previous = this.#model.clock.timeOfDay;
         if(previous === timeOfDay) return;
         this.#model.clock.timeOfDay = timeOfDay;
+        (this.#model.clock.phaseLog ??= []).push({ timeOfDay, day: this.#model.clock.day, at });
         if(previous === 'night' && isDaytime(timeOfDay)) this.emit('bellRingRequest', 'start');
         this.scheduleSave();
         this.debouncedEmit('modelUpdated', this.#model);
@@ -174,8 +181,8 @@ export class BOTCTClock extends EventEmitter {
     }
 
     /**
-     * Starts the game over, as a new game starts: dusk before the first night (day 0), with no timer. Going to the
-     * morning then starts day 1, with a new game's timer set up.
+     * Starts the game over, as a new game starts: dusk before the first night (day 0), with no timer, and no phase times.
+     * Going to the morning then starts day 1, with a new game's timer set up.
      */
     newGame() {
         if(this.running){
@@ -188,6 +195,10 @@ export class BOTCTClock extends EventEmitter {
         this.#model.clock.time.setupRingBellWhen = undefined;
         this.day = 0;
         this.timeOfDay = 'dusk';
+        // The game's time is counted from its first change of phase (the first night)
+        this.#model.clock.phaseLog = [];
+        this.scheduleSave();
+        this.debouncedEmit('modelUpdated', this.#model);
     }
 
     /**

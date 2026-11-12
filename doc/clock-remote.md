@@ -21,9 +21,12 @@ From top to bottom:
 
 ### Game
 
-A slim bar showing the **day number** and **player count**. Tap it to open the − / + counters:
+A slim bar showing the **day number** and **player count**. Tap it to open:
 
-- **Day − / +** — corrects the day number. (It normally moves on by itself; see below.)
+- **Day**, with two buttons beside it:
+  - **↺ New game** — starts the game over, at dusk on day 0 with no timer, clearing the game's
+    [phase times](#game-time). It asks first.
+  - **Game time** (the pie) — opens the [game time view](#game-time).
 - **Players − / +** — the number of players. The town square shows the matching character breakdown. When a game
   is set up with the grimoire's token draw, this is set for you.
 
@@ -41,6 +44,32 @@ Tap it to open the lighting view:
 
 While the lights are overridden the bulb is lit in their colour, on every remote. The override stays on until it's
 ended, even through phase changes, new games and restarts.
+
+### The times
+
+Under the Game bar, three times:
+
+- **Clock** — the time of day, on the device.
+- **Game** — how long the game has gone on, from the first night (night falling on day 0, after a new game). Until
+  then it shows —.
+- The current phase (e.g. **Night**) — how long the game has been in it.
+
+### Game time
+
+Clockmaker notes when each phase of the game began, from the first night. The game time view shows how the game's
+time divided between the phases. The phase the game is in now isn't counted. At the end of the game, it's you going
+over the game with the players.
+
+- **Averages** — the average day (morning to the end of its night, over the days that have ended) and the average
+  time a day spent in each phase.
+- **All days** — a pie of the time in each phase, all days together.
+- **Day by day** — a pie of each day's phases in turn, with the days marked off and numbered around the outside
+  (0 is the first night), and a table of each day's times.
+
+Tap (or hover over) a slice for its time and share. **‹ Clock** goes back.
+
+Pausing the timer and starting it again counts both stretches of the day (and the morning between them). A
+**New game** clears the times.
 
 ### The day's flow
 
@@ -141,6 +170,8 @@ device whose audio engine is on — see [which devices make sound](audio-overvie
 | End the day early | **End the day**, and tap it again to confirm. |
 | Go to night | **Night falls**. |
 | Start the next day | **Morning of day N**, then **Start the day** and pick a timer. |
-| Fix a wrong day number | Open **Game** at the top, then Day − / +. |
+| See how long the game and phase have gone on | The times under the Game bar. |
+| See how the game's time was spent | Open **Game** at the top, then the pie button beside Day. |
+| Start a new game | Open **Game** at the top, then **↺** beside Day. |
 | Change the music | Tap the now playing bar and pick a preset. |
 | Quieten the music while you talk | **DIM** on the now playing bar; tap again to restore. |
