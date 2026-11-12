@@ -428,8 +428,9 @@
         background: color-mix(in srgb, #fff 9%, var(--surface));
     }
 
+    /* Up to the current phase: in its dot's blue */
     .flow-step.done::before, .flow-step.current::before {
-        background: color-mix(in srgb, #fff 45%, var(--surface));
+        background: #2c6e9b;
     }
 
     .flow-step button {
