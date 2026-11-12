@@ -257,7 +257,7 @@
                     {/if}
                 </div>
             {/snippet}
-            <ChannelStripGroupAmbience engine={audioEngine.ambienceEngine} stereoHere={audioEngine.playsHere && !audioEngine.surround} timeOfDay={audioEngine.timeOfDay} resources={ambienceResources} onTitleClick={()=>{audioEngine?.ambienceEngine?.togglePlayPause()}} style="--theme-slider-accent: #FAA;" title={ambienceEngineTitle}/>
+            <ChannelStripGroupAmbience engine={audioEngine.ambienceEngine} stereoHere={audioEngine.playsHere && !audioEngine.surround} timeOfDay={audioEngine.timeOfDay} resources={ambienceResources} onTitleClick={()=>{audioEngine?.ambienceEngine?.togglePlayPause()}} style="--theme-slider-accent: #B8B8FF;" title={ambienceEngineTitle}/>
             {/if}
             {#if spotify || music}
             <!-- The music strip, shared by Spotify and the uploaded-music player (whichever is running). Spotify plays
@@ -266,7 +266,7 @@
                  controls it; the music player's host plays through the master bus itself. Either way it's one of this
                  mixer's own channels, so it sits in the same row. MASTER stays the rightmost strip, so this goes just
                  before it. -->
-            <ChannelStripPlayer {spotify} {music} {spotifyPresets} {musicPresets} style="--theme-slider-accent: #AFA;"/>
+            <ChannelStripPlayer {spotify} {music} {spotifyPresets} {musicPresets} style="--theme-slider-accent: #A8E6B8;"/>
             {/if}
             {#snippet timeOfDayTrims()}
                 <div class="time-of-day-trims">
@@ -282,7 +282,7 @@
                     {/each}
                 </div>
             {/snippet}
-            <ChannelStrip audioTrack={audioEngine} title="MASTER" fxSnippet={timeOfDayTrims} style="--theme-slider-accent: #DCC; width: 100px;"/>
+            <ChannelStrip audioTrack={audioEngine} title="MASTER" fxSnippet={timeOfDayTrims} style="--theme-slider-accent: #D6D0CA; width: 100px;"/>
             </div>
         </div>
         <!-- Clocks (player bells) and the sting engine get their own mixer, with its own independent master
@@ -291,12 +291,12 @@
             <div class="mixer-group-title">SFX</div>
             <div class="mixer-channel-strips">
             {#if audioEngine.stingEngine !== null}
-            <ChannelStrip audioTrack={audioEngine.stingEngine} title="STING" onTitleClick={()=>{audioEngine?.stingEngine?.trigger()}} style="--theme-slider-accent: #FA5;"/>
+            <ChannelStrip audioTrack={audioEngine.stingEngine} title="STING" onTitleClick={()=>{audioEngine?.stingEngine?.trigger()}} style="--theme-slider-accent: #FF9F8F;"/>
             {/if}
             <ChannelStripGroup model={audioEngine.clockAudioTracks} onChildTitleClick={(clock, index)=>{
                 clock.ringEndOfDay();
-            }}/>
-            <ChannelStrip audioTrack={audioEngine.clocksMaster} title="MASTER" style="--theme-slider-accent: #DCC"/>
+            }} style="--theme-slider-accent: #E8CF8A;"/>
+            <ChannelStrip audioTrack={audioEngine.clocksMaster} title="MASTER" style="--theme-slider-accent: #D6D0CA;"/>
             </div>
         </div>
         {/if}

@@ -67,7 +67,7 @@
             <div class="add-track-text">+<br/>Ambience<br/>Track</div>
         </button>
         {/if}
-        <ChannelStrip audioTrack={engine} title="BUS" fxSnippet={frontRearBalance} style="--theme-slider-accent: #DCC;"/>
+        <ChannelStrip audioTrack={engine} title="BUS" fxSnippet={frontRearBalance} style="--theme-slider-accent: #D6D0CA;"/>
     </div>
 </div>
 <style>
