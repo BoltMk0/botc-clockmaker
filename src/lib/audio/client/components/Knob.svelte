@@ -3,8 +3,6 @@
 
     /** Degrees either side of straight up that the knob turns through. */
     const SWEEP_DEG = 135;
-    /** Vertical drag distance that takes the knob across its whole range. */
-    const FULL_RANGE_DRAG_PX = 160;
 
     let {
         value = $bindable(0),
@@ -12,6 +10,8 @@
         max = 12,
         step = 0.5,
         size = 26,
+        /** Vertical drag distance that takes the knob across its whole range: larger is finer. */
+        dragRangePx = 160,
         title = undefined,
         onchange = () => {}
     }: {
@@ -20,6 +20,7 @@
         max?: number;
         step?: number;
         size?: number;
+        dragRangePx?: number;
         title?: string;
         onchange?: (value: number) => void;
     } = $props();
@@ -46,7 +47,7 @@
 
     function pointermove(ev: PointerEvent) {
         if (ev.pointerId !== dragPointerId) return;
-        setValue(dragStartValue + (dragStartY - ev.clientY) * (max - min) / FULL_RANGE_DRAG_PX);
+        setValue(dragStartValue + (dragStartY - ev.clientY) * (max - min) / dragRangePx);
     }
 
     function pointerup(ev: PointerEvent) {

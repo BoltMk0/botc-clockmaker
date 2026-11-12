@@ -17,6 +17,9 @@
     import { TIME_OF_DAY_TRIM_RANGE_DB } from "$lib/audio/common/model/timeOfDayTrimModel";
     import { TIME_OF_DAY_LABELS, TIMES_OF_DAY, type TimeOfDay } from "$lib/model/client/types";
 
+    /** The trim knobs move in whole dB, and take a long drag to cross their range (about 17px a dB), so they're easy to set exactly. */
+    const TRIM_STEP_DB = 1;
+    const TRIM_DRAG_RANGE_PX = 400;
     /** How long the trim bubble stays up after the knob stops moving. */
     const TRIM_BUBBLE_MS = 1200;
 
@@ -54,7 +57,8 @@
     }
 
     function formatTrim(db: number) {
-        return `${db > 0 ? '+' : ''}${db.toFixed(1)}`;
+        // Whole dB, as the knobs move in (one set in half dB before still shows its half)
+        return `${db > 0 ? '+' : ''}${Number.isInteger(db) ? db : db.toFixed(1)}`;
     }
 
     $effect(() => () => { if (trimBubbleTimer !== null) clearTimeout(trimBubbleTimer); });
@@ -270,7 +274,7 @@
                         {@const db = audioEngine.timeOfDayTrimDb[phase]}
                         <div class="time-of-day-trim" class:current={audioEngine.timeOfDay === phase}>
                             <TimeOfDayIcon timeOfDay={phase} size={12}/>
-                            <Knob value={db} min={-TIME_OF_DAY_TRIM_RANGE_DB} max={TIME_OF_DAY_TRIM_RANGE_DB} step={0.5}
+                            <Knob value={db} min={-TIME_OF_DAY_TRIM_RANGE_DB} max={TIME_OF_DAY_TRIM_RANGE_DB} step={TRIM_STEP_DB} dragRangePx={TRIM_DRAG_RANGE_PX}
                                 title="{TIME_OF_DAY_LABELS[phase]} level (drag up/down, double-click to reset)"
                                 onchange={(v)=>setTrim(phase, v)}/>
                             <span class="time-of-day-trim-value">{formatTrim(db)}</span>
