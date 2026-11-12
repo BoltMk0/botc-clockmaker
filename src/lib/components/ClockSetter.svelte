@@ -327,6 +327,8 @@
 {/if}
 
 <style>
+    /* Tints are opaque mixes of white into --surface (see style.css), not translucent white, which forced dark modes
+       turn black: flattening the panels into the page and the phase line to grey */
     .clock-setter-main {
         display: flex;
         flex-direction: column;
@@ -345,8 +347,10 @@
         gap: 12px;
         padding: 14px 12px;
         border-radius: 14px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        --surface: color-mix(in srgb, #fff 5%, var(--theme-app-bg));
+        background: var(--surface);
+        /* An inset ring, not a border: forced dark modes brighten dark borders into strong outlines */
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 8%, var(--surface));
     }
 
     .flow {
@@ -372,11 +376,11 @@
         left: calc(-50% + 20px);
         height: 2px;
         border-radius: 1px;
-        background: rgba(255, 255, 255, 0.15);
+        background: color-mix(in srgb, #fff 15%, var(--surface));
     }
 
     .flow-step.done::before, .flow-step.current::before {
-        background: rgba(255, 255, 255, 0.45);
+        background: color-mix(in srgb, #fff 45%, var(--surface));
     }
 
     .flow-step button {
@@ -403,7 +407,7 @@
         width: 36px;
         height: 36px;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.07);
+        background: color-mix(in srgb, #fff 7%, var(--surface));
         color: rgba(255, 255, 255, 0.45);
         transition: background-color 0.3s, color 0.3s, box-shadow 0.3s;
     }
@@ -413,7 +417,7 @@
     }
 
     .flow-step.next .flow-dot {
-        box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.4);
+        box-shadow: inset 0 0 0 1.5px color-mix(in srgb, #fff 40%, var(--surface));
         color: rgba(255, 255, 255, 0.8);
     }
 
@@ -424,7 +428,7 @@
     }
 
     .flow-step button:hover:not(:disabled) .flow-dot {
-        background: rgba(255, 255, 255, 0.15);
+        background: color-mix(in srgb, #fff 15%, var(--surface));
     }
 
     .flow-label {
@@ -476,7 +480,7 @@
     }
 
     .play-pause-btn:hover {
-        background-color: rgba(255, 255, 255, 0.1);
+        background-color: color-mix(in srgb, #fff 10%, var(--surface));
     }
 
     .adjust-row {
@@ -489,7 +493,7 @@
         padding: 11px 0;
         border: none;
         border-radius: 8px;
-        background: rgba(255, 255, 255, 0.08);
+        background: color-mix(in srgb, #fff 8%, var(--surface));
         color: inherit;
         font: inherit;
         font-size: 0.8em;
@@ -498,7 +502,7 @@
     }
 
     .adjust-btn:hover:not(:disabled) {
-        background: rgba(255, 255, 255, 0.15);
+        background: color-mix(in srgb, #fff 15%, var(--surface));
     }
 
     .adjust-btn:disabled {
@@ -515,7 +519,7 @@
         padding: 9px 0;
         border: none;
         border-radius: 8px;
-        background: rgba(255, 255, 255, 0.08);
+        background: color-mix(in srgb, #fff 8%, var(--surface));
         color: inherit;
         font: inherit;
         font-size: 0.85em;
@@ -523,7 +527,7 @@
     }
 
     .preset-btn:hover:not(:disabled) {
-        background: rgba(255, 255, 255, 0.15);
+        background: color-mix(in srgb, #fff 15%, var(--surface));
     }
 
     .preset-btn:disabled {
@@ -606,7 +610,8 @@
         flex: 1;
         min-width: 0;
         border-radius: 12px;
-        background: rgba(255, 255, 255, 0.04);
+        --surface: color-mix(in srgb, #fff 4%, var(--theme-app-bg));
+        background: var(--surface);
         overflow: hidden;
     }
 
@@ -621,17 +626,17 @@
         padding: 0;
         border: none;
         border-radius: 12px;
-        background: rgba(255, 255, 255, 0.04);
+        background: color-mix(in srgb, #fff 4%, var(--surface));
         color: rgba(255, 255, 255, 0.75);
         cursor: pointer;
     }
 
     .lighting-btn:hover {
-        background: rgba(255, 255, 255, 0.1);
+        background: color-mix(in srgb, #fff 10%, var(--surface));
     }
 
     .lighting-btn.on {
-        background: rgba(255, 255, 255, 0.1);
+        background: color-mix(in srgb, #fff 10%, var(--surface));
         box-shadow: 0 0 12px -2px currentColor;
     }
 
@@ -683,7 +688,8 @@
         gap: 6px;
         padding: 6px;
         border-radius: 8px;
-        background: #444;
+        --surface: #444;
+        background: var(--surface);
         text-align: center;
     }
 
@@ -691,7 +697,7 @@
         padding: 4px 0;
         border: none;
         border-radius: 6px;
-        background: rgba(255, 255, 255, 0.08);
+        background: color-mix(in srgb, #fff 8%, var(--surface));
         color: inherit;
         font: inherit;
         font-size: 1.3em;
@@ -737,7 +743,8 @@
         box-sizing: border-box;
         padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
         border-radius: 16px 16px 0 0;
-        background: var(--theme-bg-secondary);
+        --surface: var(--theme-bg-secondary);
+        background: var(--surface);
         color: var(--theme-on-bg);
         animation: slide-up 0.2s ease-out;
     }
@@ -779,7 +786,7 @@
         padding: 4px 10px;
         border: none;
         border-radius: 8px;
-        background: rgba(255, 255, 255, 0.08);
+        background: color-mix(in srgb, #fff 8%, var(--surface));
         color: inherit;
         font: inherit;
         cursor: pointer;

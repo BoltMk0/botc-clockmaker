@@ -488,11 +488,12 @@
     }
 
     .back:hover, .mixer:hover {
-        background: rgba(255, 255, 255, 0.08);
+        background: color-mix(in srgb, #fff 8%, var(--surface));
         opacity: 1;
     }
 
     .preset-picker-btn {
+        border: none;
         align-self: center;
         display: flex;
         align-items: center;
@@ -500,17 +501,18 @@
         max-width: 100%;
         box-sizing: border-box;
         padding: 8px 14px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.06);
+        background: color-mix(in srgb, #fff 6%, var(--surface));
         color: inherit;
         font: inherit;
         font-size: 0.85em;
         cursor: pointer;
+        /* An inset ring, not a border: forced dark modes brighten dark borders into strong outlines */
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 12%, var(--surface));
     }
 
     .preset-picker-btn:hover {
-        background: rgba(255, 255, 255, 0.12);
+        background: color-mix(in srgb, #fff 12%, var(--surface));
     }
 
     .preset-picker-btn svg {
@@ -561,7 +563,7 @@
     }
 
     .upcoming-btn:hover {
-        background: rgba(255, 255, 255, 0.08);
+        background: color-mix(in srgb, #fff 8%, var(--surface));
         opacity: 1;
     }
 
@@ -595,7 +597,7 @@
         padding: 6px 12px;
         border: none;
         border-radius: 10px;
-        background: rgba(255, 255, 255, 0.06);
+        background: color-mix(in srgb, #fff 6%, var(--surface));
         color: inherit;
         font: inherit;
         text-align: left;
@@ -628,15 +630,17 @@
     }
 
     .track-search {
+        border: none;
         flex: none;
         margin-bottom: 8px;
         padding: 8px 12px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 10px;
-        background: rgba(255, 255, 255, 0.06);
+        background: color-mix(in srgb, #fff 6%, var(--surface));
         color: inherit;
         font: inherit;
         font-size: 0.9em;
+        /* An inset ring, not a border: forced dark modes brighten dark borders into strong outlines */
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 12%, var(--surface));
     }
 
     .tracks {
@@ -658,7 +662,8 @@
     .queue-track.dragging {
         position: relative;
         z-index: 1;
-        background: var(--theme-bg-secondary);
+        --surface: var(--theme-bg-secondary);
+        background: var(--surface);
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), inset 0 0 0 2px #fc6;
     }
 
@@ -711,7 +716,7 @@
     }
 
     .queue-action:hover:not(:disabled) {
-        background: rgba(255, 255, 255, 0.08);
+        background: color-mix(in srgb, #fff 8%, var(--surface));
         opacity: 1;
     }
 
@@ -780,7 +785,8 @@
         box-sizing: border-box;
         padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
         border-radius: 16px 16px 0 0;
-        background: var(--theme-bg-secondary);
+        --surface: var(--theme-bg-secondary);
+        background: var(--surface);
         color: var(--theme-on-bg);
         animation: slide-up 0.2s ease-out;
     }
@@ -817,7 +823,7 @@
         padding: 4px 10px;
         border: none;
         border-radius: 8px;
-        background: rgba(255, 255, 255, 0.08);
+        background: color-mix(in srgb, #fff 8%, var(--surface));
         color: inherit;
         font: inherit;
         cursor: pointer;
@@ -913,7 +919,7 @@
     }
 
     .round:hover:not(:disabled):not(.play) {
-        background: rgba(255, 255, 255, 0.1);
+        background: color-mix(in srgb, #fff 10%, var(--surface));
     }
 
     .round:disabled {
@@ -1025,7 +1031,7 @@
         padding: 8px 12px 8px 8px;
         border: none;
         border-radius: 10px;
-        background: rgba(255, 255, 255, 0.05);
+        background: color-mix(in srgb, #fff 5%, var(--surface));
         color: inherit;
         font: inherit;
         text-align: left;
@@ -1034,11 +1040,11 @@
     }
 
     .preset:hover:not(:disabled) {
-        background: rgba(255, 255, 255, 0.1);
+        background: color-mix(in srgb, #fff 10%, var(--surface));
     }
 
     .preset.current {
-        background: rgba(255, 255, 255, 0.16);
+        background: color-mix(in srgb, #fff 16%, var(--surface));
     }
 
     /* As on the mixer's strips: the one being switched to in the pending colour, the one waiting outlined in it */

@@ -218,14 +218,14 @@
     }
 
     .back:hover {
-        background: rgba(255, 255, 255, 0.08);
+        background: color-mix(in srgb, #fff 8%, var(--surface));
         opacity: 1;
     }
 
     .state {
         padding: 4px 10px;
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.08);
+        background: color-mix(in srgb, #fff 8%, var(--surface));
         font-size: 0.7em;
         opacity: 0.8;
     }
@@ -240,8 +240,9 @@
     .swatch {
         height: 90px;
         border-radius: 14px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
         transition: background-color 0.3s, filter 0.3s;
+        /* An inset ring, not a border: forced dark modes brighten dark borders into strong outlines */
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 12%, var(--surface));
     }
 
     .about {
@@ -257,7 +258,8 @@
         gap: 4px;
         padding: 4px;
         border-radius: 10px;
-        background: rgba(255, 255, 255, 0.05);
+        --surface: color-mix(in srgb, #fff 5%, var(--theme-app-bg));
+        background: var(--surface);
     }
 
     .kinds button {
@@ -273,7 +275,7 @@
     }
 
     .kinds button.active {
-        background: rgba(255, 255, 255, 0.14);
+        background: color-mix(in srgb, #fff 14%, var(--surface));
         opacity: 1;
         font-weight: 600;
     }

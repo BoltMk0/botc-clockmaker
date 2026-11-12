@@ -62,7 +62,8 @@
 	:global(html){
 		height: 100%;
 		width: 100%;
-		color-scheme: only light;
+		/* Dark, as in app.html: a page that only claims light gets force-darkened by phone browsers */
+		color-scheme: dark;
 	}
 	
 	:global(body){

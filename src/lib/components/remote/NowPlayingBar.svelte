@@ -44,11 +44,11 @@
         gap: 4px;
         padding: 6px;
         border-radius: 12px;
+        --surface: rgb(40, 40, 44);
         background: rgba(40, 40, 44, 0.85);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
-        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 8%, var(--surface)), 0 4px 18px rgba(0, 0, 0, 0.45);
     }
 
     .info {
@@ -155,7 +155,7 @@
     }
 
     .skip:hover:not(:disabled) {
-        background: rgba(255, 255, 255, 0.1);
+        background: color-mix(in srgb, #fff 10%, var(--surface));
     }
 
     .skip:disabled {

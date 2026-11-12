@@ -112,7 +112,7 @@
     }
 
     .share-button:hover {
-        background: rgba(255, 255, 255, 0.08);
+        background: color-mix(in srgb, #fff 8%, var(--surface));
         opacity: 1;
     }
 
@@ -137,11 +137,11 @@
         width: min(100%, 360px);
         padding: 18px;
         box-sizing: border-box;
-        border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 16px;
-        background: var(--theme-bg-secondary);
+        --surface: var(--theme-bg-secondary);
+        background: var(--surface);
         color: var(--theme-on-bg);
-        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 8%, var(--surface)), 0 16px 40px rgba(0, 0, 0, 0.5);
         animation: pop-in 0.2s ease-out;
     }
 
@@ -171,7 +171,7 @@
         padding: 0;
         border: none;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.08);
+        background: color-mix(in srgb, #fff 8%, var(--surface));
         color: inherit;
         font-size: 1.1rem;
         line-height: 1;
@@ -179,7 +179,7 @@
     }
 
     .share-close:hover {
-        background: rgba(255, 255, 255, 0.16);
+        background: color-mix(in srgb, #fff 16%, var(--surface));
     }
 
     .share-qr-tile {
@@ -208,9 +208,10 @@
         align-items: center;
         gap: 6px;
         padding: 4px 4px 4px 12px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.06);
+        background: color-mix(in srgb, #fff 6%, var(--surface));
+        /* An inset ring, not a border: forced dark modes brighten dark borders into strong outlines */
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 12%, var(--surface));
     }
 
     .share-link {

@@ -18,6 +18,9 @@
     --theme-bg-tertiary: #444;
     /* Behind every page. Keep in sync with app.html (shown before the CSS loads) and the PWA background_color. */
     --theme-app-bg: #282828;
+    /* The opaque colour behind an element, for tints mixed into it (color-mix with #fff) instead of translucent white,
+       which forced dark modes (Brave's night mode, Samsung Internet) turn black. A panel sets it for what's on it. */
+    --surface: var(--theme-app-bg);
 
     --theme-shadow: #0007;
     --theme-on-bg: #eee;

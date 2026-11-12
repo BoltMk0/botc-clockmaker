@@ -65,7 +65,8 @@
         padding: 12px 16px 20px;
         box-sizing: border-box;
         border-radius: 16px;
-        background: var(--theme-bg);
+        --surface: var(--theme-bg);
+        background: var(--surface);
         color: var(--theme-on-bg);
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
         font-size: large;
