@@ -424,7 +424,8 @@
         left: calc(-50% + 20px);
         height: 2px;
         border-radius: 1px;
-        background: color-mix(in srgb, #fff 15%, var(--surface));
+        /* Still to come: dimmer than the line up to the current phase */
+        background: color-mix(in srgb, #fff 9%, var(--surface));
     }
 
     .flow-step.done::before, .flow-step.current::before {
