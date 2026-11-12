@@ -197,13 +197,14 @@
         </button>
         {#if gameOpen}
         <div class="game-controls">
-            <div class="stepper">
-                <button onclick={newGame} title="New game: back to dusk on day 0" aria-label="New game">
+            <div class="game-actions">
+                <button onclick={newGame} title="Restart: back to dusk on day 0">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+                    <span>Restart</span>
                 </button>
-                <div><div class="stepper-label">Day</div><div>{model.day}</div></div>
-                <button onclick={() => view = 'stats'} title="How the game's time divided between the phases" aria-label="Game time">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12A9 9 0 1 1 12 3v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg>
+                <button onclick={() => view = 'stats'} title="How the game's time divided between the phases">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M7 16v-4"/><path d="M12 16V6"/><path d="M17 16v-7"/></svg>
+                    <span>Analysis</span>
                 </button>
             </div>
             <div class="stepper">
@@ -733,10 +734,35 @@
         text-align: center;
     }
 
-    .stepper button {
+    /* The restart and analysis buttons, side by side, as tall as the players stepper beside them */
+    .game-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+    }
+
+    .game-actions button {
         display: flex;
+        flex-direction: column;
         justify-content: center;
         align-items: center;
+        gap: 3px;
+        padding: 6px 2px;
+        border: none;
+        border-radius: 8px;
+        --surface: #444;
+        background: var(--surface);
+        color: inherit;
+        font: inherit;
+        font-size: 0.65em;
+        cursor: pointer;
+    }
+
+    .game-actions button:hover {
+        background: color-mix(in srgb, #fff 8%, var(--surface));
+    }
+
+    .stepper button {
         padding: 4px 0;
         border: none;
         border-radius: 6px;

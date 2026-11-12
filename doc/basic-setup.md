@@ -79,8 +79,8 @@ Other things you can do:
 - **Pause** the countdown with ⏸. Note this stops the clock *and resets it* to the full time, back in the morning;
   ▶ starts it again from the top.
 - **End the day early**: press **End the day**, then again to confirm. The game moves to dusk and the end of day bell rings.
-- **See how the game's time was spent**: tap **Game**, then the pie button beside Day.
-- **Start a new game**: tap **Game**, then ↺ beside Day.
+- **See how the game's time was spent**: tap **Game**, then **Analysis**.
+- **Start a new game**: tap **Game**, then **Restart**.
 
 The full detail is in [The clock remote and the day cycle](clock-remote.md).
 

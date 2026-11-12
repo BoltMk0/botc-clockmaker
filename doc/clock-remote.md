@@ -23,10 +23,9 @@ From top to bottom:
 
 A slim bar showing the **day number** and **player count**. Tap it to open:
 
-- **Day**, with two buttons beside it:
-  - **↺ New game** — starts the game over, at dusk on day 0 with no timer, clearing the game's
-    [phase times](#game-time). It asks first.
-  - **Game time** (the pie) — opens the [game time view](#game-time).
+- **↺ Restart** — starts the game over, at dusk on day 0 with no timer, clearing the game's
+  [phase times](#analysis). It asks first.
+- **Analysis** — opens the [analysis view](#analysis).
 - **Players − / +** — the number of players. The town square shows the matching character breakdown. When a game
   is set up with the grimoire's token draw, this is set for you.
 
@@ -54,9 +53,9 @@ Under the Game bar, three times:
   then it shows —.
 - The current phase (e.g. **Night**) — how long the game has been in it.
 
-### Game time
+### Analysis
 
-Clockmaker notes when each phase of the game began, from the first night. The game time view shows how the game's
+Clockmaker notes when each phase of the game began, from the first night. The analysis view shows how the game's
 time divided between the phases. The phase the game is in now isn't counted. At the end of the game, it's you going
 over the game with the players.
 
@@ -69,7 +68,7 @@ over the game with the players.
 Tap (or hover over) a slice for its time and share. **‹ Clock** goes back.
 
 Pausing the timer and starting it again counts both stretches of the day (and the morning between them). A
-**New game** clears the times.
+**Restart** clears the times.
 
 ### The day's flow
 
@@ -171,7 +170,7 @@ device whose audio engine is on — see [which devices make sound](audio-overvie
 | Go to night | **Night falls**. |
 | Start the next day | **Morning of day N**, then **Start the day** and pick a timer. |
 | See how long the game and phase have gone on | The times under the Game bar. |
-| See how the game's time was spent | Open **Game** at the top, then the pie button beside Day. |
-| Start a new game | Open **Game** at the top, then **↺** beside Day. |
+| See how the game's time was spent | Open **Game** at the top, then **Analysis**. |
+| Start a new game | Open **Game** at the top, then **Restart**. |
 | Change the music | Tap the now playing bar and pick a preset. |
 | Quieten the music while you talk | **DIM** on the now playing bar; tap again to restore. |

@@ -20,7 +20,7 @@
     import PhaseDonut, { type DonutGroup, type DonutSegment } from "./PhaseDonut.svelte";
 
     /**
-     * The remote's game time view: how the game's time has divided between its phases, all days together and day by
+     * The remote's analysis view: how the game's time has divided between its phases, all days together and day by
      * day, with the averages. The phase the game's in now isn't counted: at the end of the game, that's the storyteller
      * going over the game with the players.
      */
@@ -58,7 +58,7 @@
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
             Clock
         </button>
-        <span class="title">Game time</span>
+        <span class="title">Analysis</span>
     </div>
 
     {#if stats.total === 0}
