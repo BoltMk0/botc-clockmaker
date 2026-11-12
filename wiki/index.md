@@ -9,10 +9,10 @@ see the [developer documentation](/help/developer).
 
 ## Where to start
 
-- **New here?** Follow the [Quickstart: your first game](quickstart.md). It takes you from an empty install to a
+- **New here?** Follow the [Quickstart: your first game](./01_quickstart/index.md). It takes you from an empty install to a
   running game in about ten minutes.
-- **Looking for a button?** [Finding your way around](finding-your-way-around.md) is a map of every page and what's on it.
-- **Something not working?** Try the [frequently asked questions](faq.md).
+- **Looking for a button?** [Finding your way around](./finding-your-way-around.md) is a map of every page and what's on it.
+- **Something not working?** Try the [frequently asked questions](./04_faq.md).
 
 ## What you'll need
 
