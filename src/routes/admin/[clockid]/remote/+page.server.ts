@@ -3,13 +3,7 @@ import { getTimerOptions } from '$lib/resources/server/timerOptions';
 import { getMusicPresets } from '$lib/resources/server/musicPresets';
 import { getSpotifyPresets } from '$lib/resources/server/spotifyPresets';
 import { error } from '@sveltejs/kit';
-
-// Where the back link goes instead of the game's town square, e.g. /play. Only same-site paths, so a shared link
-// can't send people off to another site. (Browsers read "//x" and "/\x" as links to the site x.)
-function backUrlFrom(url: URL): string | null {
-    const backUrl = url.searchParams.get('backUrl');
-    return backUrl && /^\/(?![/\\])/.test(backUrl) ? backUrl : null;
-}
+import { backUrlFrom } from '$lib/common/backUrl';
 
 export async function load({params, url}){
     try {

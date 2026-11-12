@@ -46,8 +46,6 @@ export class Clocktower extends EventEmitter<ClocktowerEvents> {
     get day(): number { return this.#model.clock.day; }
     get playerCount(): number { return this.#model.clock.numPlayers; }
     get name(): string { return this.#model.config.teamName ?? this.id; }
-    /** Whether the game's room has Lightscapes lighting, for the remote to offer the lighting override. */
-    get lightscapes(): boolean { return this.#model.config.lightscapes ?? false; }
     /** What the remote has the lights showing instead of following the game, if it has. */
     get lightOverride(): LightOverride|undefined { return this.#model.clock.lightOverride; }
     /** When each phase of the game began (server time), from its first night. */

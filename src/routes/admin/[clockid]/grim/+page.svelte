@@ -3833,7 +3833,7 @@
             <div style="position: relative; background: var(--grim-panel-bg); padding: 48px 20px 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px;" onclick={(e) => e.stopPropagation()} >
                 <button class="overlay-close" onclick={()=>{showTimerOptions = false;}} aria-label="Close">✕</button>
                 {#if clockClient}
-                    <ClockSetter model={clockClient} timerOptions={data.timerOptions} musicPresets={data.musicPresets} spotifyPresets={data.spotifyPresets} onstart={()=>{showTimerOptions = false}} onmixer={() => {showTimerOptions = false; saveGrimoire().then(()=>goto(`/admin/mixer?remote_only=1&back_uri=${encodeURIComponent(location.pathname + location.search)}`))}}/>
+                    <ClockSetter model={clockClient} timerOptions={data.timerOptions} musicPresets={data.musicPresets} spotifyPresets={data.spotifyPresets} onstart={()=>{showTimerOptions = false}} onmixer={() => {showTimerOptions = false; saveGrimoire().then(()=>goto(`/admin/mixer?remote_only=1&back_uri=${encodeURIComponent(location.pathname + location.search)}`))}} onanalysis={(url) => {showTimerOptions = false; saveGrimoire().then(()=>goto(url))}}/>
                 {:else}
                     <div>Connecting to clock...</div>
                 {/if}

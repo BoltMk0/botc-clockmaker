@@ -178,11 +178,6 @@
                     {/each}
                 </select>
             </label>
-            <label class="lightscapes" title="The game's room has Lightscapes lighting: its remote can override the lights">
-                <input type="checkbox" checked={instance.config.lightscapes ?? false}
-                    onchange={(e) => saveConfig(instance, { lightscapes: e.currentTarget.checked }, 'Lightscapes setting')}/>
-                <span>Lightscapes lighting</span>
-            </label>
             <div class="game-panel-actions">
                 <a class="button-style" href="/townsquare/{id}"><TownSquareIcon size={36}/><span>Town Square</span></a>
                 <a class="button-style" href="/admin/{id}/grim"><BookIcon size={36}/><span>Grimoire</span></a>
@@ -426,20 +421,6 @@
     .sfx-preset select:focus {
         outline: none;
         border-color: var(--theme-highlight);
-    }
-
-    .lightscapes {
-        display: flex;
-        align-items: center;
-        gap: 0.5em;
-        cursor: pointer;
-    }
-
-    .lightscapes input {
-        width: 1.2em;
-        height: 1.2em;
-        margin: 0;
-        accent-color: var(--theme-highlight);
     }
 
     /* Script, Players and Day share a row while the script name fits; otherwise

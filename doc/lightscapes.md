@@ -120,8 +120,7 @@ that press isn't acted on.
 ## Overriding the lights
 
 The game's [remote](clock-remote.md#lighting) can set every light in any phase's scene to one white or colour and
-brightness, in place of following the game. Tick **Lightscapes lighting** on the game's card on **Play** for the
-remote to offer it.
+brightness, in place of following the game.
 
 While the lights are overridden:
 - They don't change with the phase or the spectrums.

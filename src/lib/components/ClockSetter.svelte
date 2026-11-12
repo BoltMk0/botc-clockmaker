@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import { goto } from "$app/navigation";
     import { formatTime } from "$lib/common/util";
     import timer from '$lib/assets/timer.png';
     import bell from '$lib/assets/bell.fill.png';
@@ -17,7 +18,6 @@
     import NowPlayingBar from "./remote/NowPlayingBar.svelte";
     import MusicView from "./remote/MusicView.svelte";
     import LightingView from "./remote/LightingView.svelte";
-    import PhaseStatsView from "./remote/PhaseStatsView.svelte";
     import { formatDuration } from "$lib/model/common/phaseLog";
     import { overrideHex } from "./remote/lighting";
 
@@ -27,7 +27,8 @@
         musicPresets = [],
         spotifyPresets = [],
         onstart = () => {},
-        onmixer
+        onmixer,
+        onanalysis
     }: {
         model: Clocktower;
         timerOptions: TimerOption[];
@@ -36,6 +37,8 @@
         onstart?: () => void;
         /** When given, the music view offers the mixer, calling this (to open the mixer as a remote). */
         onmixer?: () => void;
+        /** Opens the analysis page (given the URL, which leads back here); by default, goes straight to it. */
+        onanalysis?: (url: string) => void;
     } = $props();
 
     /** What the time adjustment buttons add or take off, in seconds. */
@@ -83,7 +86,7 @@
         };
     });
 
-    let view: 'clock' | 'music' | 'lighting' | 'stats' = $state('clock');
+    let view: 'clock' | 'music' | 'lighting' = $state('clock');
     /** The timer picker, when open: to start the day with the timer picked, or only set it up. */
     let pickingTimer: 'start' | 'setup' | null = $state(null);
     let gameOpen = $state(false);
@@ -169,6 +172,13 @@
         return abs % 60 === 0 ? `${sign}${abs / 60}m` : `${sign}${abs}s`;
     }
 
+    /** The game's analysis, on its own page, with its back link to this page as it is. */
+    function openAnalysis(){
+        const url = `/admin/${model.id}/analysis?backUrl=${encodeURIComponent(location.pathname + location.search)}`;
+        if (onanalysis) onanalysis(url);
+        else goto(url);
+    }
+
     /** Starts the game over: dusk on day 0, forgetting the phases' times. */
     function newGame(){
         if (!confirm('Start a new game? It goes back to dusk on day 0, and the times of this game\'s phases are cleared.')) return;
@@ -184,8 +194,6 @@
 <MusicView {music} {audioDim} {onmixer} onback={() => view = 'clock'}/>
 {:else if view === 'lighting'}
 <LightingView {model} onback={() => view = 'clock'}/>
-{:else if view === 'stats'}
-<PhaseStatsView {model} onback={() => view = 'clock'}/>
 {:else}
 <div class="clock-setter-main">
     <div class="top-row">
@@ -202,7 +210,7 @@
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
                     <span>Restart</span>
                 </button>
-                <button onclick={() => view = 'stats'} title="How the game's time divided between the phases">
+                <button onclick={openAnalysis} title="How the game's time divided between the phases">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M7 16v-4"/><path d="M12 16V6"/><path d="M17 16v-7"/></svg>
                     <span>Analysis</span>
                 </button>
@@ -215,7 +223,6 @@
         </div>
         {/if}
     </section>
-    {#if model.lightscapes}
     <!-- Lit up in the override's colour while the lights are overridden -->
     <button class="lighting-btn" class:on={model.lightOverride} onclick={() => view = 'lighting'}
         style={model.lightOverride ? `color: ${overrideHex(model.lightOverride)};` : ''}
@@ -226,7 +233,6 @@
             <path d="M10 22h4" fill="none"/>
         </svg>
     </button>
-    {/if}
     </div>
 
     <!-- The time now, and how long the game and the phase have gone on -->

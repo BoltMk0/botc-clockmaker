@@ -24,7 +24,7 @@
      * day, with the averages. The phase the game's in now isn't counted: at the end of the game, that's the storyteller
      * going over the game with the players.
      */
-    let { model, onback }: { model: Clocktower; onback: () => void } = $props();
+    let { model }: { model: Clocktower } = $props();
 
     const stats = $derived(phaseStats(model.phaseLog));
 
@@ -53,14 +53,6 @@
 </script>
 
 <div class="stats-view">
-    <div class="header">
-        <button class="back" onclick={onback}>
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
-            Clock
-        </button>
-        <span class="title">Analysis</span>
-    </div>
-
     {#if stats.total === 0}
     <section class="card empty">
         <p>No phase has ended yet.</p>
@@ -140,38 +132,6 @@
         /* A fixed width, not the content's, as the other views */
         width: min(360px, calc(100vw - 32px));
         margin: 0 auto;
-    }
-
-    .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .back {
-        display: flex;
-        align-items: center;
-        gap: 0.3em;
-        padding: 6px 10px 6px 4px;
-        border: none;
-        border-radius: 8px;
-        background: none;
-        color: inherit;
-        font: inherit;
-        font-size: 0.85em;
-        cursor: pointer;
-        opacity: 0.85;
-    }
-
-    .back:hover {
-        background: color-mix(in srgb, #fff 8%, var(--surface));
-        opacity: 1;
-    }
-
-    .title {
-        font-size: 0.85em;
-        font-weight: 600;
-        opacity: 0.8;
     }
 
     /* Tints are opaque mixes of white into --surface, not translucent white, which forced dark modes turn black */

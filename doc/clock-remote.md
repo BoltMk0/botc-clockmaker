@@ -32,8 +32,8 @@ A slim bar showing the **day number** and **player count**. Tap it to open:
 ### Lighting
 
 With [Lightscapes](lightscapes.md) lighting, the bulb next to the Game bar sets every light to one white or colour,
-in place of following the game. It only shows for a game with **Lightscapes lighting** ticked on its card on **Play**.
-Tap it to open the lighting view:
+in place of following the game. Every remote shows it; without Lightscapes it does nothing. Tap it to open the
+lighting view:
 
 - **White** or **Colour:** a white from warm to cool, or a colour.
 - **Brightness.**
@@ -65,7 +65,8 @@ over the game with the players.
 - **Day by day** — a pie of each day's phases in turn, with the days marked off and numbered around the outside
   (0 is the first night), and a table of each day's times.
 
-Tap (or hover over) a slice for its time and share. **‹ Clock** goes back.
+Tap (or hover over) a slice for its time and share. The view is a page of its own, kept up to date as the game goes on;
+**‹ Remote** (top left) goes back to the remote (or the grimoire) it was opened from.
 
 Pausing the timer and starting it again counts both stretches of the day (and the morning between them). A
 **Restart** clears the times.
