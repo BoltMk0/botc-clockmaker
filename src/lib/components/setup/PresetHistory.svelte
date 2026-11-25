@@ -1,16 +1,40 @@
 <script lang="ts">
-    import type { Preset } from "$lib/resources/common/gameData.js";
-    import { todayPlayDate, type PresetPlaySummary, type PresetWinner } from "$lib/resources/common/presetPlays.js";
+    import GrimSnapshotView from "$lib/components/GrimSnapshotView.svelte";
+    import type { Character, Preset } from "$lib/resources/common/gameData.js";
+    import { todayPlayDate, type PresetPlay, type PresetPlaySummary, type PresetWinner } from "$lib/resources/common/presetPlays.js";
 
     // The games played from a preset, most recent first: ones ended from the virtual grim (with a snapshot of it) and
     // ones logged by hand here. Adding or deleting a game also changes the preset's win counts, passed back in onchange.
+    // Tapping a game with a grim snapshot opens it.
 
-    let { presetId, plays: initialPlays, counts, onchange }: {
+    let { presetId, plays: initialPlays, counts, characters, onchange }: {
         presetId: string;
         plays: PresetPlaySummary[];
         counts: Pick<Preset, 'good_victories' | 'evil_victories'>;
+        /** The script's characters, for showing grim snapshots. */
+        characters?: ReadonlyMap<string, Character>;
         onchange: (preset: Preset) => void;
     } = $props();
+
+    let viewing = $state<{ play: PresetPlay, title: string, when: string } | null>(null);
+
+    // A play's id is a v7 uuid, which starts with the time it was logged: for a grim game, when it was ended.
+    function loggedAt(play: { id: string }): Date {
+        return new Date(parseInt(play.id.replace(/-/g, '').slice(0, 12), 16));
+    }
+    const dateTimeFormat = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+
+    async function openSnapshot(play: PresetPlaySummary) {
+        try {
+            const response = await fetch(`/api/presets/${presetId}/plays/${play.id}`);
+            if (!response.ok) throw new Error(response.statusText);
+            const full: PresetPlay = await response.json();
+            if (!full.grim) throw new Error('This game has no grim snapshot');
+            viewing = { play: full, title: `${formatDate(play.date)} · ${full.grim.day ? `Day ${full.grim.day} · ` : ''}${play.winner === 'good' ? 'Good' : 'Evil'} won`, when: dateTimeFormat.format(loggedAt(play)) };
+        } catch (er) {
+            alert(`Failed to open the grim snapshot: ${er}`);
+        }
+    }
 
     // svelte-ignore state_referenced_locally
     let plays = $state(initialPlays);
@@ -85,11 +109,15 @@
     {:else}
         <ul class="plays">
             {#each plays as play (play.id)}
-                <li class="play">
+                <li class="play" class:openable={play.has_grim}>
+                    {#if play.has_grim}
+                        <!-- Covers the whole row, so tapping anywhere on it opens the snapshot; the delete button sits above it. -->
+                        <button class="row-open" aria-label="Show the grim from {formatDate(play.date)}" onclick={() => openSnapshot(play)}></button>
+                    {/if}
                     <span class="play-date">{formatDate(play.date)}</span>
                     <span class="winner-pill {play.winner}">{play.winner === 'good' ? 'Good' : 'Evil'} won</span>
                     {#if play.has_grim}
-                        <span class="grim-badge" title="A snapshot of the virtual grim was saved when this game was ended">Grim snapshot</span>
+                        <span class="grim-badge" title="Tap to see the virtual grim as it was when this game was ended">Grim snapshot ›</span>
                     {/if}
                     <button class="remove" disabled={busy} aria-label="Delete the game on {formatDate(play.date)}" title="Delete" onclick={() => deletePlay(play)}>✕</button>
                 </li>
@@ -103,6 +131,10 @@
         {/if}
     {/if}
 </div>
+
+{#if viewing?.play.grim}
+    <GrimSnapshotView snapshot={viewing.play.grim.snapshot} title={viewing.title} filename="grim-{viewing.play.date}-{viewing.play.winner}-wins" winner={viewing.play.winner} when={viewing.when} day={viewing.play.grim.day} {characters} onclose={() => viewing = null}/>
+{/if}
 
 <style>
     .history {
@@ -141,6 +173,30 @@
         border-radius: 0.6em;
         background: var(--theme-bg-tertiary);
         color: var(--theme-on-bg-tertiary);
+    }
+
+    .play.openable {
+        position: relative;
+    }
+    .play.openable:hover {
+        background: var(--theme-bg);
+        color: var(--theme-on-bg);
+    }
+    .row-open {
+        position: absolute;
+        inset: 0;
+        padding: 0;
+        border: none;
+        border-radius: inherit;
+        background: none;
+        cursor: pointer;
+    }
+    .row-open:focus-visible {
+        outline: 2px solid var(--theme-highlight);
+        outline-offset: 2px;
+    }
+    .play.openable .remove {
+        position: relative;
     }
 
     .play-date {

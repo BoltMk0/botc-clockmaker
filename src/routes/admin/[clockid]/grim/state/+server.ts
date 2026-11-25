@@ -2,6 +2,7 @@ import { get_grimoire_state_history_resource_for_clock, set_grimoire_state_histo
 import { json } from '@sveltejs/kit';
 import { isGrimoireStateHistory } from '$lib/resources/common/grimoireState';
 import { recordPresetVictory } from '$lib/resources/server/presets';
+import { getBOTCTClockInstanceManager, InstanceNotFoundError } from '$lib/model/server/model';
 
 export async function GET({params}){
     const data = get_grimoire_state_history_resource_for_clock(params.clockid);
@@ -39,6 +40,17 @@ export async function POST({params, request}){
     }
 }
 
+// The clock's in-game day, or null before the first day or if the clock isn't running.
+function clockDay(clockid: string): number | null {
+    try{
+        const day = getBOTCTClockInstanceManager().getInstance(clockid).day;
+        return day > 0 ? day : null;
+    }catch(e){
+        if(e instanceof InstanceNotFoundError) return null;
+        throw e;
+    }
+}
+
 // `?winner=good|evil` logs the game, with a snapshot of the grim as it ends, against the preset it was set up from
 // (if any) before deleting.
 export async function DELETE({params, url}){
@@ -52,8 +64,9 @@ export async function DELETE({params, url}){
         const history = get_grimoire_state_history_resource_for_clock(params.clockid);
         const presetId = history?.loadedPreset?.preset_id;
         if(history && presetId){
+            const day = clockDay(params.clockid);
             presetRecorded = recordPresetVictory(presetId, winner, {
-                grim: { script_id: history.scriptId, snapshot: structuredClone(history.present) }
+                grim: { script_id: history.scriptId, snapshot: structuredClone(history.present), ...(day ? { day } : {}) }
             }) !== null;
         }
     }

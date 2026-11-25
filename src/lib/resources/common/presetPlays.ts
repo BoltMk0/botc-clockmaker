@@ -13,6 +13,8 @@ export type PresetPlay = {
     grim?: {
         script_id: string | null;
         snapshot: GrimoireStateSnapshot;
+        /** The clock's in-game day when the game ended; absent when it wasn't known or the game hadn't started. */
+        day?: number;
     };
 };
 
@@ -36,6 +38,7 @@ export function isPresetPlay(obj: any): obj is PresetPlay {
         (obj.grim === undefined || (
             typeof obj.grim === 'object' &&
             (obj.grim.script_id === null || typeof obj.grim.script_id === 'string') &&
+            (obj.grim.day === undefined || (Number.isInteger(obj.grim.day) && obj.grim.day > 0)) &&
             validateGrimoireState(obj.grim.snapshot)
         ));
 }
