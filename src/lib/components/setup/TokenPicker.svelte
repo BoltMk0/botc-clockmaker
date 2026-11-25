@@ -152,6 +152,18 @@
         gap: 0.4em;
     }
 
+    /* Read-only, short sections share a line, then grow to fill it with their tokens centred. */
+    .token-picker.readonly {
+        flex: 1 1 auto;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 0.8em 2em;
+    }
+    .token-picker.readonly .category-section {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
     /* The character type runs up the left of its tokens, beside a divider in the type's colour. */
     .category-row {
         display: flex;
@@ -333,7 +345,7 @@
     }
 </style>
 
-<div class="token-picker" style="--token: {tokenSize}px;">
+<div class="token-picker" class:readonly style="--token: {tokenSize}px;">
     {#each sections as section (section.key)}
         {@const collapsible = section.collapsible}
         {@const isCollapsed = collapsible && collapsed.has(section.key as CharacterCategory)}

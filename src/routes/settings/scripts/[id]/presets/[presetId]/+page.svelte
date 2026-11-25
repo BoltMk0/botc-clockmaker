@@ -240,7 +240,7 @@
                 {#if builder.bluffSets.length === 0}
                     <div style="opacity: 0.6;">No bluffs chosen.</div>
                 {:else}
-                    <div style="display: flex; flex-direction: column; gap: 0.8em;">
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.8em 2em;">
                         {#each builder.bluffSets as _, i}
                             <TokenPicker {builder} mode="bluffs" readonly bluffSet={i} />
                         {/each}
