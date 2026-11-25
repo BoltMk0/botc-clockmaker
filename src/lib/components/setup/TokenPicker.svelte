@@ -1,7 +1,7 @@
 <script lang="ts">
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import InPlayWarning from "$lib/components/InPlayWarning.svelte";
-    import { ALL_CHARACTER_CATEGORIES, type CharacterCategory, type ScriptCharacter } from "$lib/resources/common/gameData.js";
+    import { ALL_CHARACTER_CATEGORIES, CHARACTER_CATEGORY_COLORS, type CharacterCategory, type ScriptCharacter } from "$lib/resources/common/gameData.js";
     import type { PresetBuilder } from "./PresetBuilder.svelte.js";
 
     // The setup's character step laid out like the grim's token tray: a grid of tokens for each character type.
@@ -10,7 +10,7 @@
     // In bluffs mode it picks the builder's active bluff set instead: only the player types, one copy each, with the
     // characters already in play faded. Each token's ? opens an overlay with the character's token and ability.
 
-    let { builder, tokenSize = 80, mode = 'characters' }: { builder: PresetBuilder; tokenSize?: number; mode?: 'characters' | 'bluffs' } = $props();
+    let { builder, tokenSize = 92, mode = 'characters' }: { builder: PresetBuilder; tokenSize?: number; mode?: 'characters' | 'bluffs' } = $props();
 
     const BLUFF_CATEGORIES: CharacterCategory[] = ['townsfolk', 'outsider', 'minion', 'demon'];
     const activeBluffs = $derived(builder.bluffSets[builder.activeBluffSet] ?? []);
@@ -35,8 +35,13 @@
         demon: 'demons'
     };
 
-    // Travellers, loric and fabled come from the whole character library, so they start folded away.
-    let collapsed = $state(new Set<CharacterCategory>(['traveler', 'loric', 'fabled']));
+    // Travellers, loric and fabled come from the whole character library, so they get a header that folds them away.
+    // They start folded unless the preset already uses one of them.
+    const COLLAPSIBLE: CharacterCategory[] = ['traveler', 'loric', 'fabled'];
+    // svelte-ignore state_referenced_locally
+    let collapsed = $state(new Set<CharacterCategory>(
+        COLLAPSIBLE.filter(category => !builder.chosenCharacters.some(c => c.category === category))
+    ));
 
     function toggleSection(category: CharacterCategory) {
         const next = new Set(collapsed);
@@ -110,13 +115,54 @@
         opacity: 0.7;
     }
 
+    .category-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4em;
+    }
+
+    /* The character type runs up the left of its tokens, beside a divider in the type's colour. */
+    .category-row {
+        display: flex;
+        align-items: stretch;
+        gap: 0.6em;
+    }
+
+    .category-side {
+        flex-shrink: 0;
+        width: 1.6em;
+        border-right: 3px solid var(--category-color);
+    }
+
+    .category-label {
+        position: sticky;
+        top: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.6em;
+        padding: 0.5em 0;
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        white-space: nowrap;
+    }
+
+    .category-name {
+        font-weight: 600;
+    }
+
+    .category-count {
+        opacity: 0.7;
+    }
+
     .token-grid {
-        display: grid;
-        /* Fixed-width columns (not 1fr), as in the grim's tray, so spare width doesn't stretch the gaps. */
-        grid-template-columns: repeat(auto-fill, calc(var(--token) + 8px));
+        flex: 1;
+        min-width: 0;
+        /* Wrapping rows, each centred, so a short last row sits in the middle too. */
+        display: flex;
+        flex-wrap: wrap;
         justify-content: center;
-        justify-items: center;
-        gap: 0.3em;
+        align-content: center;
+        gap: 0.3em calc(0.3em + 8px);
         padding: 0.5em 0;
     }
 
@@ -159,18 +205,18 @@
 
     .info-btn {
         position: absolute;
-        top: -4px;
-        left: -4px;
-        width: 26px;
-        height: 26px;
+        top: -6px;
+        left: -6px;
+        width: 32px;
+        height: 32px;
         padding: 0;
         border: none;
         border-radius: 50%;
         background: var(--theme-bg-tertiary);
         color: var(--theme-on-bg-tertiary);
-        font-size: 15px;
+        font-size: 18px;
         font-weight: 700;
-        line-height: 26px;
+        line-height: 32px;
         cursor: pointer;
         touch-action: manipulation;
     }
@@ -236,17 +282,17 @@
 
     .add-copy {
         position: absolute;
-        top: -4px;
-        right: -4px;
-        width: 26px;
-        height: 26px;
+        top: -6px;
+        right: -6px;
+        width: 32px;
+        height: 32px;
         padding: 0;
         border: none;
         border-radius: 50%;
         background: var(--theme-bg-tertiary);
         color: var(--theme-on-bg-tertiary);
-        font-size: 18px;
-        line-height: 26px;
+        font-size: 22px;
+        line-height: 32px;
         cursor: pointer;
         touch-action: manipulation;
     }
@@ -254,14 +300,26 @@
 
 <div class="token-picker" style="--token: {tokenSize}px;">
     {#each sections as section (section.category)}
-        {@const isCollapsed = collapsed.has(section.category)}
-        <div>
-            <button class="section-toggle" aria-expanded={!isCollapsed} onclick={() => toggleSection(section.category)}>
-                <svg viewBox="0 0 24 24" class:collapsed={isCollapsed}><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
-                {TITLES[section.category]}
-                <span class="section-count">{countText(section.category)} selected</span>
-            </button>
+        {@const collapsible = COLLAPSIBLE.includes(section.category)}
+        {@const isCollapsed = collapsible && collapsed.has(section.category)}
+        <div class="category-section" style="--category-color: {CHARACTER_CATEGORY_COLORS[section.category]};">
+            {#if collapsible}
+                <button class="section-toggle" aria-expanded={!isCollapsed} onclick={() => toggleSection(section.category)}>
+                    <svg viewBox="0 0 24 24" class:collapsed={isCollapsed}><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
+                    {TITLES[section.category]}
+                    <span class="section-count">{countText(section.category)} selected</span>
+                </button>
+            {/if}
             {#if !isCollapsed}
+                <div class="category-row">
+                <div class="category-side">
+                    {#if !collapsible}
+                        <div class="category-label">
+                            <span class="category-name">{TITLES[section.category]}</span>
+                            <span class="category-count">{countText(section.category)}</span>
+                        </div>
+                    {/if}
+                </div>
                 <div class="token-grid">
                     {#each section.characters as character (character.id)}
                         {@const count = countFor(character.id)}
@@ -280,6 +338,7 @@
                             {/if}
                         </div>
                     {/each}
+                </div>
                 </div>
             {/if}
         </div>
