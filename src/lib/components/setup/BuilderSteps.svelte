@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { untrack } from "svelte";
     import TokenPicker from "./TokenPicker.svelte";
     import type { PresetBuilder } from "./PresetBuilder.svelte.js";
 
@@ -19,6 +20,13 @@
     }
 
     let { builder, step, navigate, afterPlayers = 'tokens', beforeTokens = 'players', afterBluffs = 'summary', onBackFromPlayers, hideBack = false, hideFooter = false }: Props = $props();
+
+    // The bluffs step always opens with a set to fill in; any set left empty is dropped on leaving it.
+    $effect(() => {
+        if (step !== 'bluffs') return;
+        untrack(() => { if (builder.bluffSets.length === 0) builder.addBluffSet(); });
+        return () => untrack(() => builder.pruneEmptyBluffSets());
+    });
 </script>
 
 <style>
@@ -61,15 +69,75 @@
 
     .bluff-set-tabs {
         display: flex;
-        flex-wrap: wrap;
-        gap: 0.5em;
+        gap: 0.25rem;
         margin-bottom: 1em;
+        border-bottom: 1px solid var(--theme-bg-tertiary);
+        overflow-x: auto;
     }
-    .bluff-set-header {
+    .bluff-tab {
+        flex-shrink: 0;
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        gap: 1em;
+        border-bottom: 3px solid transparent;
+        border-radius: 6px 6px 0 0;
+        opacity: 0.7;
+    }
+    .bluff-tab:hover {
+        opacity: 1;
+        background-color: var(--theme-bg-secondary);
+    }
+    .bluff-tab.selected {
+        opacity: 1;
+        border-bottom-color: var(--theme-highlight);
+    }
+    .bluff-tab-select,
+    .bluff-tab-remove,
+    .bluff-tab-add {
+        background: none;
+        border: none;
+        color: var(--theme-on-bg);
+        font: inherit;
+        cursor: pointer;
+        touch-action: manipulation;
+        white-space: nowrap;
+    }
+    .bluff-tab-select {
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+        padding: 0.6em 0.4em 0.6em 1em;
+    }
+    .bluff-tab.selected .bluff-tab-select {
+        font-weight: bold;
+    }
+    .bluff-tab-count {
+        font-size: 0.75em;
+        font-weight: normal;
+        padding: 0.1em 0.55em;
+        border-radius: 999px;
+        background-color: var(--theme-bg-tertiary);
+        color: var(--theme-on-bg-tertiary);
+    }
+    .bluff-tab-remove {
+        padding: 0.4em 0.7em;
+        margin-right: 0.2em;
+        border-radius: 50%;
+        opacity: 0.6;
+    }
+    .bluff-tab-remove:hover {
+        opacity: 1;
+        background-color: var(--theme-bg-tertiary);
+    }
+    .bluff-tab-add {
+        flex-shrink: 0;
+        padding: 0.6em 1em;
+        border-bottom: 3px solid transparent;
+        border-radius: 6px 6px 0 0;
+        opacity: 0.7;
+    }
+    .bluff-tab-add:hover {
+        opacity: 1;
+        background-color: var(--theme-bg-secondary);
     }
 
     /* Fills the page's body; only the list scrolls, so the buttons below it are always in view. */
@@ -125,19 +193,22 @@
 <div class="step-layout">
     <div class="section plain step-scroll">
         <h2 style="margin-top: 0;">Bluffs <span style="opacity: 0.6; font-weight: normal; font-size: 0.7em;">(optional)</span></h2>
-        <div class="bluff-set-tabs">
+        <div class="bluff-set-tabs" role="tablist" aria-label="Bluff sets">
             {#each builder.bluffSets as set, i}
-                <button class="button-style" class:highlight={builder.activeBluffSet === i} onclick={() => builder.activeBluffSet = i}>Set {i + 1} ({set.length} chosen)</button>
+                {@const active = builder.activeBluffSet === i}
+                <div class="bluff-tab" class:selected={active}>
+                    <button class="bluff-tab-select" role="tab" aria-selected={active} onclick={() => builder.activeBluffSet = i}>
+                        Set {i + 1}<span class="bluff-tab-count">{set.length}</span>
+                    </button>
+                    <button class="bluff-tab-remove" aria-label="Remove set {i + 1}" title="Remove set {i + 1}" onclick={() => builder.removeBluffSet(i)}>✕</button>
+                </div>
             {/each}
-            <button class="button-style" onclick={() => builder.addBluffSet()}>+ Add bluff set</button>
+            <button class="bluff-tab-add" onclick={() => builder.addBluffSet()} title="Add a bluff set">+ Add set</button>
         </div>
         {#if builder.bluffSets.length === 0}
             <div style="opacity: 0.6; font-style: italic;">No bluff sets. Add one, or continue without bluffs.</div>
         {:else}
-            <div class="bluff-set-header">
-                <h3 style="margin: 0;">Choose at least 3 bluffs for set {builder.activeBluffSet + 1}</h3>
-                <button class="button-style" onclick={() => builder.removeBluffSet(builder.activeBluffSet)}>Remove set</button>
-            </div>
+            <h3 style="margin: 0;">Choose at least 3 bluffs for set {builder.activeBluffSet + 1}</h3>
             <div style="opacity: 0.6; font-style: italic; margin-bottom: 0.5em;">Faded characters are already in play.</div>
             <TokenPicker {builder} mode="bluffs" />
         {/if}

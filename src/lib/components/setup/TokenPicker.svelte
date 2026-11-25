@@ -9,11 +9,20 @@
     // for setups that use the same character more than once (e.g. Legion).
     // In bluffs mode it picks the builder's active bluff set instead: only the player types, one copy each, with the
     // characters already in play faded. Each token's ? opens an overlay with the character's token and ability.
+    // Read-only, it shows just the chosen tokens (or one bluff set's) in the same layout, for overviews.
 
-    let { builder, tokenSize = 92, mode = 'characters' }: { builder: PresetBuilder; tokenSize?: number; mode?: 'characters' | 'bluffs' } = $props();
+    let { builder, tokenSize = 92, mode = 'characters', readonly = false, bluffSet }: {
+        builder: PresetBuilder;
+        tokenSize?: number;
+        mode?: 'characters' | 'bluffs';
+        /** Shows only the chosen characters, with nothing to change. */
+        readonly?: boolean;
+        /** In bluffs mode, which set to show; the builder's active set when omitted. */
+        bluffSet?: number;
+    } = $props();
 
     const BLUFF_CATEGORIES: CharacterCategory[] = ['townsfolk', 'outsider', 'minion', 'demon'];
-    const activeBluffs = $derived(builder.bluffSets[builder.activeBluffSet] ?? []);
+    const activeBluffs = $derived(builder.bluffSets[bluffSet ?? builder.activeBluffSet] ?? []);
 
     let infoCharacter = $state<ScriptCharacter | null>(null);
 
@@ -49,12 +58,34 @@
         collapsed = next;
     }
 
-    const sections = $derived((mode === 'bluffs' ? BLUFF_CATEGORIES : ALL_CHARACTER_CATEGORIES).map(category => ({
-        category,
-        characters: (builder.script?.characters ?? [])
-            .filter(c => c.category === category)
-            .sort((a, b) => a.name.localeCompare(b.name))
-    })).filter(s => s.characters.length > 0));
+    type Section = { key: string; title: string; count: string; color: string; collapsible: boolean; characters: ScriptCharacter[] };
+
+    // A read-only bluff set is one row, titled by its set number, in the order its bluffs were chosen.
+    const sections = $derived.by((): Section[] => {
+        if (readonly && mode === 'bluffs') {
+            const index = bluffSet ?? builder.activeBluffSet;
+            const characters = activeBluffs.map(id => builder.charById.get(id)).filter((c): c is ScriptCharacter => !!c);
+            return characters.length === 0 ? [] : [{
+                key: `set-${index}`,
+                title: `Set ${index + 1}`,
+                count: `${characters.length}`,
+                color: 'color-mix(in srgb, var(--theme-on-bg) 40%, transparent)',
+                collapsible: false,
+                characters
+            }];
+        }
+        return (mode === 'bluffs' ? BLUFF_CATEGORIES : ALL_CHARACTER_CATEGORIES).map(category => ({
+            key: category,
+            title: TITLES[category],
+            count: countText(category),
+            color: CHARACTER_CATEGORY_COLORS[category],
+            collapsible: !readonly && COLLAPSIBLE.includes(category),
+            characters: (builder.script?.characters ?? [])
+                .filter(c => c.category === category)
+                .filter(c => !readonly || countFor(c.id) > 0)
+                .sort((a, b) => a.name.localeCompare(b.name))
+        })).filter(s => s.characters.length > 0);
+    });
 
     function countText(category: CharacterCategory): string {
         if (mode === 'bluffs') return `${activeBluffs.filter(id => builder.charById.get(id)?.category === category).length}`;
@@ -179,6 +210,10 @@
         -webkit-tap-highlight-color: transparent;
     }
 
+    div.picker-token {
+        cursor: default;
+    }
+
     .picker-token.picked {
         outline: 3px solid gold;
         outline-offset: 2px;
@@ -299,15 +334,15 @@
 </style>
 
 <div class="token-picker" style="--token: {tokenSize}px;">
-    {#each sections as section (section.category)}
-        {@const collapsible = COLLAPSIBLE.includes(section.category)}
-        {@const isCollapsed = collapsible && collapsed.has(section.category)}
-        <div class="category-section" style="--category-color: {CHARACTER_CATEGORY_COLORS[section.category]};">
+    {#each sections as section (section.key)}
+        {@const collapsible = section.collapsible}
+        {@const isCollapsed = collapsible && collapsed.has(section.key as CharacterCategory)}
+        <div class="category-section" style="--category-color: {section.color};">
             {#if collapsible}
-                <button class="section-toggle" aria-expanded={!isCollapsed} onclick={() => toggleSection(section.category)}>
+                <button class="section-toggle" aria-expanded={!isCollapsed} onclick={() => toggleSection(section.key as CharacterCategory)}>
                     <svg viewBox="0 0 24 24" class:collapsed={isCollapsed}><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
-                    {TITLES[section.category]}
-                    <span class="section-count">{countText(section.category)} selected</span>
+                    {section.title}
+                    <span class="section-count">{section.count} selected</span>
                 </button>
             {/if}
             {#if !isCollapsed}
@@ -315,8 +350,8 @@
                 <div class="category-side">
                     {#if !collapsible}
                         <div class="category-label">
-                            <span class="category-name">{TITLES[section.category]}</span>
-                            <span class="category-count">{countText(section.category)}</span>
+                            <span class="category-name">{section.title}</span>
+                            <span class="category-count">{section.count}</span>
                         </div>
                     {/if}
                 </div>
@@ -324,16 +359,23 @@
                     {#each section.characters as character (character.id)}
                         {@const count = countFor(character.id)}
                         {@const bluffInPlay = mode === 'bluffs' && builder.countOf(character.id) > 0}
+                        {@const tokenTitle = character.setup ? `${character.rules} [${character.setup}]` : character.rules}
                         <div style="position: relative;">
-                            <button class="picker-token" class:picked={count > 0} class:in-play={bluffInPlay} aria-label={character.name} aria-pressed={count > 0}
-                                title={character.setup ? `${character.rules} [${character.setup}]` : character.rules}
-                                onclick={() => tap(character.id)}>
-                                <CharacterToken {character} style="position: relative;" size="{tokenSize}px" imageSize={256} norules/>
-                            </button>
+                            {#if readonly}
+                                <div class="picker-token" title={tokenTitle}>
+                                    <CharacterToken {character} style="position: relative;" size="{tokenSize}px" imageSize={256} norules/>
+                                </div>
+                            {:else}
+                                <button class="picker-token" class:picked={count > 0} class:in-play={bluffInPlay} aria-label={character.name} aria-pressed={count > 0}
+                                    title={tokenTitle}
+                                    onclick={() => tap(character.id)}>
+                                    <CharacterToken {character} style="position: relative;" size="{tokenSize}px" imageSize={256} norules/>
+                                </button>
+                            {/if}
                             {#if bluffInPlay && count > 0}<InPlayWarning size="26px" style="position: absolute; bottom: -4px; right: -4px; pointer-events: none;"/>{/if}
                             {#if count > 1}<span class="count-badge">×{count}</span>{/if}
                             <button class="info-btn" aria-label="About {character.name}" title="About {character.name}" onclick={() => infoCharacter = character}>?</button>
-                            {#if count > 0 && mode === 'characters'}
+                            {#if count > 0 && mode === 'characters' && !readonly}
                                 <button class="add-copy" aria-label="Add another {character.name}" title="Add another" onclick={() => builder.addCharacter(character.id)}>+</button>
                             {/if}
                         </div>

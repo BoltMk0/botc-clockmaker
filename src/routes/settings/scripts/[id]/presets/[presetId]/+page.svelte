@@ -5,7 +5,7 @@
     import StarRating from "$lib/components/setup/StarRating.svelte";
     import BuilderSteps from "$lib/components/setup/BuilderSteps.svelte";
     import CharacterCounts from "$lib/components/setup/CharacterCounts.svelte";
-    import CharacterList from "$lib/components/CharacterList.svelte";
+    import TokenPicker from "$lib/components/setup/TokenPicker.svelte";
     import TokenSorter from "$lib/components/setup/TokenSorter.svelte";
     import { PresetBuilder } from "$lib/components/setup/PresetBuilder.svelte.js";
 
@@ -232,7 +232,7 @@
             {:else}
                 <div class="section plain">
                     <h2 style="margin-top: 0;">Characters</h2>
-                    <CharacterList characters={builder.chosenCharacters} fullRules />
+                    <TokenPicker {builder} readonly />
                 </div>
             {/if}
             <div class="section plain">
@@ -240,10 +240,11 @@
                 {#if builder.bluffSets.length === 0}
                     <div style="opacity: 0.6;">No bluffs chosen.</div>
                 {:else}
-                    {#each builder.bluffSets as set, i}
-                        <h3>Set {i + 1}</h3>
-                        <CharacterList characters={set.map(id => builder.charById.get(id)).filter(c => !!c)} grouped={false} fullRules isWarned={c => builder.countOf(c.id) > 0} />
-                    {/each}
+                    <div style="display: flex; flex-direction: column; gap: 0.8em;">
+                        {#each builder.bluffSets as _, i}
+                            <TokenPicker {builder} mode="bluffs" readonly bluffSet={i} />
+                        {/each}
+                    </div>
                 {/if}
             </div>
         {:else}

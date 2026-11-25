@@ -33,7 +33,8 @@ export class PresetBuilder {
     /** Every character used as a bluff in any set. */
     allBluffIds = $derived([...new Set(this.bluffSets.flat())]);
     /** True when every bluff set is complete (no sets is fine). */
-    bluffsValid = $derived(this.bluffSets.every(s => s.length >= 3));
+    /** Empty sets are allowed while editing (they're pruned on leaving the bluffs step), so bluffs stay optional. */
+    bluffsValid = $derived(this.bluffSets.every(s => s.length === 0 || s.length >= 3));
 
     charById = $derived(new Map((this.script?.characters ?? []).map(c => [c.id, c])));
 
@@ -121,6 +122,13 @@ export class PresetBuilder {
     addBluffSet() {
         this.bluffSets = [...this.bluffSets, []];
         this.activeBluffSet = this.bluffSets.length - 1;
+    }
+
+    /** Drops bluff sets with nothing chosen, so they aren't saved or shown. */
+    pruneEmptyBluffSets() {
+        if (this.bluffSets.every(s => s.length > 0)) return;
+        this.bluffSets = this.bluffSets.filter(s => s.length > 0);
+        this.activeBluffSet = Math.min(this.activeBluffSet, Math.max(0, this.bluffSets.length - 1));
     }
 
     removeBluffSet(index: number) {
