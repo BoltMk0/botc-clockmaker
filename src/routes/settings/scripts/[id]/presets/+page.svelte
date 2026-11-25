@@ -109,6 +109,7 @@
     }
 
     .preset-row {
+        position: relative;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -116,6 +117,23 @@
         padding: 0.5em;
         background-color: var(--theme-bg);
         border-radius: 0.5em;
+    }
+
+    .preset-row:hover {
+        background-color: var(--theme-bg-secondary);
+    }
+    .row-link {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+    }
+    .row-link:focus-visible {
+        outline: 2px solid var(--theme-highlight);
+        outline-offset: 2px;
+    }
+    .preset-row .delete {
+        position: relative;
+        flex-shrink: 0;
     }
 
     .preset-list {
@@ -140,11 +158,10 @@
             <div class="preset-list">
                 {#each group.presets as { preset, index } (preset.id)}
                     <div class="preset-row">
+                        <!-- Covers the whole row, so clicking anywhere on it opens the preset; Delete sits above it. -->
+                        <a class="row-link" href="/settings/scripts/{data.script.id}/presets/{preset.id}" aria-label="Edit {presetDisplayName(preset, index)}"></a>
                         <PresetSummary {preset} characters={data.script.characters} {index} />
-                        <div style="display: flex; gap: 0.4em;">
-                            <a class="button-style" href="/settings/scripts/{data.script.id}/presets/{preset.id}">Edit</a>
-                            <button class="button-style error" onclick={() => deletePreset(preset.id, presetDisplayName(preset, index))}>Delete</button>
-                        </div>
+                        <button class="button-style error delete" onclick={() => deletePreset(preset.id, presetDisplayName(preset, index))}>Delete</button>
                     </div>
                 {/each}
             </div>
