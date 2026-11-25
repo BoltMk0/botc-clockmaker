@@ -39,7 +39,8 @@ export async function POST({params, request}){
     }
 }
 
-// `?winner=good|evil` credits the game's result to the preset it was set up from (if any) before deleting.
+// `?winner=good|evil` logs the game, with a snapshot of the grim as it ends, against the preset it was set up from
+// (if any) before deleting.
 export async function DELETE({params, url}){
     const winner = url.searchParams.get('winner');
     if(winner !== null && winner !== 'good' && winner !== 'evil'){
@@ -48,8 +49,13 @@ export async function DELETE({params, url}){
 
     let presetRecorded = false;
     if(winner){
-        const presetId = get_grimoire_state_history_resource_for_clock(params.clockid)?.loadedPreset?.preset_id;
-        if(presetId) presetRecorded = recordPresetVictory(presetId, winner) !== null;
+        const history = get_grimoire_state_history_resource_for_clock(params.clockid);
+        const presetId = history?.loadedPreset?.preset_id;
+        if(history && presetId){
+            presetRecorded = recordPresetVictory(presetId, winner, {
+                grim: { script_id: history.scriptId, snapshot: structuredClone(history.present) }
+            }) !== null;
+        }
     }
 
     delete_grimoire_state_history_resource_for_clock(params.clockid);

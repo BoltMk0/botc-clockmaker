@@ -1,4 +1,4 @@
-import { getFullPreset, updatePreset } from '$lib/resources/server/presets';
+import { getFullPreset, listPresetPlays, summarisePresetPlay, updatePreset } from '$lib/resources/server/presets';
 import { getScriptWithCharacters } from '$lib/resources/server/scripts';
 import type { PresetFull } from '$lib/resources/common/gameData';
 import { fail } from '@sveltejs/kit';
@@ -9,14 +9,14 @@ export async function load({ params }) {
         const script = getScriptWithCharacters(params.id);
         if (!script) return { preset: null, error: 'Script not found' };
         const preset: PresetFull = { id: 'new', name: null, script_id: script.id, character_ids: [], bluff_sets: [], evil_victories: 0, good_victories: 0, script };
-        return { preset };
+        return { preset, plays: [] };
     }
     const preset = getFullPreset(params.presetId);
     if (!preset) {
         console.warn(`Preset with id "${params.presetId}" not found`);
         return { preset: null, error: 'Preset not found' };
     }
-    return { preset };
+    return { preset, plays: listPresetPlays(preset.id).map(summarisePresetPlay) };
 }
 
 export const actions = {

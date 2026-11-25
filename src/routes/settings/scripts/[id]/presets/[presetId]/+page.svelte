@@ -2,6 +2,8 @@
     import { goto } from "$app/navigation";
     import type { PresetFull } from "$lib/resources/common/gameData.js";
     import PresetStats from "$lib/components/setup/PresetStats.svelte";
+    import PresetHistory from "$lib/components/setup/PresetHistory.svelte";
+    import type { PresetPlaySummary } from "$lib/resources/common/presetPlays.js";
     import StarRating from "$lib/components/setup/StarRating.svelte";
     import BuilderSteps from "$lib/components/setup/BuilderSteps.svelte";
     import CharacterCounts from "$lib/components/setup/CharacterCounts.svelte";
@@ -12,6 +14,7 @@
     interface Props {
         data: {
             preset: PresetFull | null;
+            plays?: PresetPlaySummary[];
             error?: string;
         }
     }
@@ -31,6 +34,8 @@
     let name = $state(initial?.name ?? '');
     let rating = $state<number | null>(initial?.rating ?? null);
     let notes = $state(initial?.notes ?? '');
+    // Logging or deleting a game in the history changes the win counts.
+    let victories = $state({ good_victories: initial?.good_victories ?? 0, evil_victories: initial?.evil_victories ?? 0 });
     let step = $state<string>('players');
     let saving = $state(false);
     let body = $state<HTMLElement>();
@@ -223,7 +228,7 @@
                     {builder.playerCount} player{builder.playerCount === 1 ? '' : 's'},
                     {builder.bluffSets.length} bluff set{builder.bluffSets.length === 1 ? '' : 's'}
                 </p>
-                <PresetStats preset={initial} />
+                <PresetStats preset={victories} />
             </div>
             {#if builder.surplusCount > 0}
                 <div class="section">
@@ -247,6 +252,12 @@
                     </div>
                 {/if}
             </div>
+            {#if initial.id !== 'new'}
+                <div class="section">
+                    <h2 style="margin-top: 0;">History</h2>
+                    <PresetHistory presetId={initial.id} plays={data.plays ?? []} counts={victories} onchange={(p) => victories = { good_victories: p.good_victories, evil_victories: p.evil_victories }} />
+                </div>
+            {/if}
         {:else}
             <BuilderSteps
                 {builder}
