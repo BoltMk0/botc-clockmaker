@@ -1,8 +1,9 @@
 import { v7 } from "uuid";
 import { JSONMultiResourceManager } from "./jsonResourceManager";
 import { getScriptWithCharacters } from "./scripts";
-import { isPreset, bluffSetsOf, type Preset, type PresetFull, type NewPreset } from "../common/gameData";
-import { isPresetPlay, todayPlayDate, type PresetPlay, type PresetPlaySummary, type PresetWinner } from "../common/presetPlays";
+import { getScriptById } from "./scripts";
+import { isPreset, bluffSetsOf, presetDisplayName, type Preset, type PresetFull, type NewPreset } from "../common/gameData";
+import { byMostRecentPlay, isPresetPlay, todayPlayDate, type PlayHistoryEntry, type PresetPlay, type PresetPlaySummary, type PresetWinner } from "../common/presetPlays";
 
 export const PRESETS_MANAGER = new JSONMultiResourceManager<Preset>('presets', isPreset);
 /** Each game played from a preset, kept apart from the presets so their grim snapshots don't weigh down preset lists. */
@@ -100,12 +101,30 @@ export function recordPresetVictory(id: string, winner: PresetWinner, details: P
 export function listPresetPlays(presetId: string): PresetPlay[] {
     return PRESET_PLAYS_MANAGER.values
         .filter(p => p.preset_id === presetId)
-        // Ids are time-ordered (v7), so they break ties between plays on the same day.
-        .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+        .sort(byMostRecentPlay);
 }
 
 export function summarisePresetPlay({ grim, ...rest }: PresetPlay): PresetPlaySummary {
-    return { ...rest, has_grim: !!grim };
+    return { ...rest, has_grim: !!grim, ...(grim?.day ? { day: grim.day } : {}) };
+}
+
+/** Every logged game from every preset, most recent first, with the preset and script it was played from. */
+export function listPlayHistory(): PlayHistoryEntry[] {
+    const presets = listPresets();
+    const entries: PlayHistoryEntry[] = [];
+    for (const play of PRESET_PLAYS_MANAGER.values) {
+        const preset = presets.find(p => p.id === play.preset_id);
+        if (!preset) continue;
+        // Unnamed presets are numbered by their place among the script's presets, as in the preset list.
+        const index = presets.filter(p => p.script_id === preset.script_id).indexOf(preset);
+        entries.push({
+            ...summarisePresetPlay(play),
+            preset_name: presetDisplayName(preset, index),
+            script_id: preset.script_id,
+            script_name: getScriptById(preset.script_id)?.name ?? null
+        });
+    }
+    return entries.sort(byMostRecentPlay);
 }
 
 export function getPresetPlay(presetId: string, playId: string): PresetPlay | null {

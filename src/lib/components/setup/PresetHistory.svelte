@@ -1,7 +1,7 @@
 <script lang="ts">
     import GrimSnapshotView from "$lib/components/GrimSnapshotView.svelte";
     import type { Character, Preset } from "$lib/resources/common/gameData.js";
-    import { todayPlayDate, type PresetPlay, type PresetPlaySummary, type PresetWinner } from "$lib/resources/common/presetPlays.js";
+    import { byMostRecentPlay, formatPlayDate as formatDate, snapshotViewProps, todayPlayDate, type PresetPlay, type PresetPlaySummary, type PresetWinner } from "$lib/resources/common/presetPlays.js";
 
     // The games played from a preset, most recent first: ones ended from the virtual grim (with a snapshot of it) and
     // ones logged by hand here. Adding or deleting a game also changes the preset's win counts, passed back in onchange.
@@ -16,13 +16,7 @@
         onchange: (preset: Preset) => void;
     } = $props();
 
-    let viewing = $state<{ play: PresetPlay, title: string, when: string } | null>(null);
-
-    // A play's id is a v7 uuid, which starts with the time it was logged: for a grim game, when it was ended.
-    function loggedAt(play: { id: string }): Date {
-        return new Date(parseInt(play.id.replace(/-/g, '').slice(0, 12), 16));
-    }
-    const dateTimeFormat = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    let viewing = $state<PresetPlay | null>(null);
 
     async function openSnapshot(play: PresetPlaySummary) {
         try {
@@ -30,7 +24,7 @@
             if (!response.ok) throw new Error(response.statusText);
             const full: PresetPlay = await response.json();
             if (!full.grim) throw new Error('This game has no grim snapshot');
-            viewing = { play: full, title: `${formatDate(play.date)} · ${full.grim.day ? `Day ${full.grim.day} · ` : ''}${play.winner === 'good' ? 'Good' : 'Evil'} won`, when: dateTimeFormat.format(loggedAt(play)) };
+            viewing = full;
         } catch (er) {
             alert(`Failed to open the grim snapshot: ${er}`);
         }
@@ -46,14 +40,8 @@
     const earlierGood = $derived(Math.max(0, counts.good_victories - plays.filter(p => p.winner === 'good').length));
     const earlierEvil = $derived(Math.max(0, counts.evil_victories - plays.filter(p => p.winner === 'evil').length));
 
-    const dateFormat = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
-    function formatDate(value: string): string {
-        const [y, m, d] = value.split('-').map(Number);
-        return dateFormat.format(new Date(y, m - 1, d));
-    }
-
     function sortPlays(list: PresetPlaySummary[]): PresetPlaySummary[] {
-        return [...list].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+        return [...list].sort(byMostRecentPlay);
     }
 
     async function addPlay() {
@@ -132,8 +120,8 @@
     {/if}
 </div>
 
-{#if viewing?.play.grim}
-    <GrimSnapshotView snapshot={viewing.play.grim.snapshot} title={viewing.title} filename="grim-{viewing.play.date}-{viewing.play.winner}-wins" winner={viewing.play.winner} when={viewing.when} day={viewing.play.grim.day} {characters} onclose={() => viewing = null}/>
+{#if viewing?.grim}
+    <GrimSnapshotView snapshot={viewing.grim.snapshot} {...snapshotViewProps(viewing)} {characters} onclose={() => viewing = null}/>
 {/if}
 
 <style>

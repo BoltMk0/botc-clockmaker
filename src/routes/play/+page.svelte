@@ -1,6 +1,7 @@
 <script lang="ts">
     import { invalidateAll } from '$app/navigation';
     import PlusIcon from '$lib/components/PlusIcon.svelte';
+    import ClockIcon from '$lib/components/ClockIcon.svelte';
     import BookIcon from '$lib/components/BookIcon.svelte';
     import TownSquareIcon from '$lib/components/TownSquareIcon.svelte';
     import TrashIcon from '$lib/components/TrashIcon.svelte';
@@ -104,10 +105,16 @@
   </a>
   <header class="page-header">
     <h1>Play</h1>
-    <button class="new-game" onclick={createNewGame} disabled={creating}>
-        <PlusIcon size={20}/>
-        <span>New Game</span>
-    </button>
+    <div class="header-buttons">
+        <a class="history-button" href="/play/history">
+            <ClockIcon size={20}/>
+            <span>Game History</span>
+        </a>
+        <button class="new-game" onclick={createNewGame} disabled={creating}>
+            <PlusIcon size={20}/>
+            <span>New Game</span>
+        </button>
+    </div>
   </header>
   <p class="description">Open a game's town square or grimoire.</p>
 
@@ -270,6 +277,29 @@
         font-size: 0.9rem;
         font-style: italic;
         opacity: 0.8;
+    }
+
+    .header-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5em;
+    }
+
+    .history-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4em;
+        padding: 0.5em 1.2em;
+        font-weight: 600;
+        text-decoration: none;
+        background-color: var(--theme-bg-tertiary);
+        color: var(--theme-on-bg-tertiary);
+        border: 1px solid var(--theme-bg-tertiary);
+        border-radius: 999px;
+    }
+
+    .history-button:hover {
+        filter: brightness(1.12);
     }
 
     .new-game {
@@ -544,7 +574,8 @@
             gap: 0.75rem;
         }
 
-        .new-game {
+        .new-game,
+        .history-button {
             padding: 0.45em 1em;
         }
 

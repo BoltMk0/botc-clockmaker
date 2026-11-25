@@ -18,8 +18,41 @@ export type PresetPlay = {
     };
 };
 
-/** A play as sent to the preset page: just whether it has a grim snapshot, not the snapshot itself. */
-export type PresetPlaySummary = Omit<PresetPlay, 'grim'> & { has_grim: boolean };
+/** A play as sent to lists: whether it has a grim snapshot (and its day), not the snapshot itself. */
+export type PresetPlaySummary = Omit<PresetPlay, 'grim'> & { has_grim: boolean; day?: number };
+
+/** A play in the list of every game, with what it was played from. */
+export type PlayHistoryEntry = PresetPlaySummary & {
+    preset_name: string;
+    script_id: string;
+    script_name: string | null;
+};
+
+/** Most recent first; ids are time-ordered (v7), so they break ties between plays on the same day. */
+export function byMostRecentPlay(a: Pick<PresetPlay, 'date' | 'id'>, b: Pick<PresetPlay, 'date' | 'id'>): number {
+    return b.date.localeCompare(a.date) || b.id.localeCompare(a.id);
+}
+
+const playDateFormat = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+const shortPlayDateFormat = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+
+/** A play's YYYY-MM-DD date for showing, e.g. "Wed, 25 Nov 2026" (or "25 Nov 2026" when short). */
+export function formatPlayDate(value: string, short = false): string {
+    const [y, m, d] = value.split('-').map(Number);
+    return (short ? shortPlayDateFormat : playDateFormat).format(new Date(y, m - 1, d));
+}
+
+/** What the grim snapshot view shows for a play. */
+export function snapshotViewProps(play: PresetPlay) {
+    const won = play.winner === 'good' ? 'Good' : 'Evil';
+    return {
+        title: `${formatPlayDate(play.date)} · ${play.grim?.day ? `Day ${play.grim.day} · ` : ''}${won} won`,
+        when: formatPlayDate(play.date, true),
+        filename: `grim-${play.date}-${play.winner}-wins`,
+        winner: play.winner,
+        day: play.grim?.day
+    };
+}
 
 export function isPresetWinner(value: unknown): value is PresetWinner {
     return value === 'good' || value === 'evil';
