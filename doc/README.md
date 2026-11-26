@@ -46,10 +46,11 @@ straight to a page:
 | [QR Codes](settings/qr-codes.md) | QR codes shown on the town square |
 | [Audio](settings/audio.md) | Dim strength, loudness levelling, crossfade, clock bell sounds, ambience and sting libraries |
 | [Music](settings/music.md) | The music library, playlists, music presets and Spotify presets |
+| [Lightscapes](lightscapes.md) | Approve Lightscapes hubs and make lighting presets |
 | [Rules Slides](settings/rules-slides.md) | The images in the rules slideshow |
 | [Feedback](settings/feedback.md) | Reading feedback sent through the feedback form |
 | [Password](settings/password.md) | Resetting the site password |
-| [API Token](settings/api-token.md) | The token other programs, like Lightscapes, use the API with |
+| [API Token](settings/api-token.md) | The token other programs use the API with |
 
 ## Reference
 

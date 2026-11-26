@@ -16,7 +16,7 @@ const images: Record<string, string> = import.meta.glob(['/res/*.{jpg,jpeg,png,w
     query: '?url', import: 'default', eager: true
 });
 
-/** Links to repo files that aren't part of the wiki (e.g. lightscapes/README.md, scripts/) go to GitHub. */
+/** Links to repo files that aren't part of the wiki (e.g. scripts/) go to GitHub. */
 const REPO_URL = 'https://github.com/BoltMk0/botc-clockmaker/blob/main';
 
 export const HELP_ROOT = '/help';

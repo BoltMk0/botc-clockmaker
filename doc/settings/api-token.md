@@ -2,9 +2,9 @@
 
 [← Settings overview](README.md) · [Documentation home](../README.md)
 
-The API token lets other programs, such as [Lightscapes](../lightscapes.md), use Clockmaker's API and follow its
-games without the password. A program sends it with each request, as `Authorization: Bearer <token>`. It works for the
-API and the games' event streams only, not the site's pages.
+The API token lets other programs use Clockmaker's API and follow its games without the password. A program sends
+it with each request, as `Authorization: Bearer <token>`. It works for the API and the games' event streams only, not
+the site's pages. [Lightscapes](../lightscapes.md) hubs don't need it: they're approved in Settings → Lightscapes.
 
 There's one token at a time. Only give it to programs you trust: it can do anything the clock remote can.
 

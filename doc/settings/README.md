@@ -17,10 +17,11 @@ On a phone, the list of pages is behind the ☰ button at the top left.
 | [QR Codes](qr-codes.md) | Show QR codes (a feedback form, a website, Wi-Fi details…) on the town square. |
 | [Audio](audio.md) | Set the dim strength, music loudness levelling and crossfade; make clock bell presets; upload ambience and sting sounds. |
 | [Music](music.md) | Upload music, make playlists, and set up music and Spotify presets. |
+| [Lightscapes](../lightscapes.md) | Approve Lightscapes hubs, and make the lighting presets games' lights follow. |
 | [Rules Slides](rules-slides.md) | Upload and order the images for the rules slideshow. |
 | [Feedback](feedback.md) | Read and delete feedback sent through the feedback form. |
 | [Password](password.md) | Reset the site password and sign out every device. |
-| [API Token](api-token.md) | Create, replace or revoke the token other programs (like [Lightscapes](../lightscapes.md)) use the API with. |
+| [API Token](api-token.md) | Create, replace or revoke the token other programs use the API with. |
 
 Some pages save as you go ("Changes here apply straight away"); others have a **Save changes** button that lights up
 when you have unsaved edits. Each page's guide says which.

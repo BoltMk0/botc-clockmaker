@@ -6,7 +6,7 @@ This is by far the simplest way of storytelling, as it's the most familiar to ex
 - Physical Grimoire
 - Ambience hosts, any combination of:
     - Phone/tablet/laptop for audio playback
-    - laptop set up for lightscapes
+    - a Lightscapes hub for the lights, approved in Settings → Lightscapes
 - Mobile phone or tablet for remote control (or any device with access to the server really)
 
 ## Setup
@@ -16,7 +16,7 @@ This is by far the simplest way of storytelling, as it's the most familiar to ex
 3. If there are no games defined:
     - Tap the "New Game" button (in the top-right corner). The new game's card should now appear. 
     - Set the Clock SFX as desired.
-    - Enable "Lightscapes lighting"
+    - Under "Lights", tick the Lightscapes hubs in the room (and pick a lighting preset, if there's more than one)
 
 ### Part 2: Mobile remote control
 1. Open the clockmaker app on your mobile device

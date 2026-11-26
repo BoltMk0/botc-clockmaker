@@ -2,35 +2,58 @@
 
 [← Documentation home](README.md)
 
-Lightscapes sets the room's lights to follow a game. It's a separate program that runs next to the game, on a small
-computer with a Zigbee USB adapter (a Raspberry Pi is plenty), and talks to Clockmaker over the network. Installing it
-is covered in [lightscapes/README.md](../lightscapes/README.md). This page is about setting it up for your games.
+Lightscapes sets the room's lights to follow a game. A **hub** drives the lights: a separate program on a small
+computer with a Zigbee USB adapter (a Raspberry Pi is plenty), next to the lights. Installing a hub is covered in the
+[Lightscapes repository](https://github.com/BoltMk0/lightscapes). Everything the lights do is set up here, in
+Clockmaker:
+- **Settings → Lightscapes** approves the hubs and holds the **lighting presets**: what a game's lights do.
+- **Play** picks which hubs follow each game, and the game's preset.
 
-Lightscapes has its own page, on port 8090 of the computer it runs on. The menu down the side (along the top, on a
-phone) has its pages: **Phases & bells**, **Spectrums**, **Buttons**, **Activity** and **Settings**. Changes on any
-of them are kept when you click **Save** in the bar at the bottom.
+## Connecting a hub
 
-## The status bar
+1. On the hub's own page (port 8090 of the computer it runs on), set its address to Clockmaker's, followed by
+   `/lightscapes`: for example `http://homelab:3000/lightscapes`. The exact address is shown on
+   **Settings → Lightscapes**.
+2. The hub asks to connect. It shows on **Settings → Lightscapes** under **Asking to connect**.
+3. Click **Approve**. **Reject** turns it away; it won't ask again until it's told to on its own page.
 
-The top of the page shows what Lightscapes is connected to:
-- **Clockmaker:** the game it follows.
-- **MQTT:** the message broker.
-- **Zigbee2MQTT:** what drives the Zigbee adapter.
-- The game's day and phase.
+A hub doesn't need the password or the [API token](settings/api-token.md). It's known by an id and secret of its own
+from the first time it connects. Up to 10 hubs can wait to be approved at once, and one not approved within a day is
+forgotten.
 
-A red chip says what's wrong; hover it for more. If Clockmaker can't be reached, the lights stay as they are until it
-can. Lightscapes then sets them to the game's phase straight away.
+The approved hubs are listed with whether they're online, the game they follow, and how many lights they have.
+**Details** shows each one's lights and their states, its buttons, and what it's done recently. **Remove** stops it
+driving the lights; it has to be told to ask again on its own page.
 
-## Settings
+A hub set up before Clockmaker drove it shows **Old settings**. Its details offer **Import as a preset**, which makes a
+lighting preset from its scenes, spectrums, bells and buttons and opens it.
 
-Settings has the Clockmaker to follow. Until it's set up, the page opens on Settings.
+## Choosing a game's lights
 
-- **Address:** Clockmaker's address, as the Lightscapes computer reaches it.
-- **API token:** made in Clockmaker's [Settings → API Token](settings/api-token.md). Once saved it isn't shown again.
-  Enter a new one to replace it.
-- **Game:** click **Find games** to list Clockmaker's games, then pick the one in this room.
+On **Play**, each game has a **Lights** section once a hub is approved:
+- Tick the hubs in the game's room. A game can have several. A hub follows one game at a time, so ticking one that
+  follows another game asks first, then moves it. An offline hub is greyed out; it picks up its game when it's back.
+- When there's more than one lighting preset, pick the game's. Otherwise games use the only one.
 
-## Phases
+A game that hasn't picked a preset, or whose preset was deleted, uses the first one made: the one marked **Default**
+in Settings.
+
+## Lighting presets
+
+**+ Lighting Preset** on **Settings → Lightscapes** makes one; **Duplicate** copies one, and the pencil opens it.
+Changes are kept when you click **Save** in the bar at the bottom, and games using the preset change at once.
+**Delete this preset** is at the bottom of the page.
+
+Lights and buttons are picked from what the approved hubs have, labelled with the hub's name when there's more than
+one hub. A light no hub has any more is marked **(not on any hub)**.
+
+### Previews
+
+The bar at the bottom picks the hub to **Preview on**. Previews show the preset as it is on the page, including
+changes you haven't saved. They last a minute, or until **Back to the game**, then the lights follow the hub's game
+again. Previews aren't shown while the lights are [overridden from the remote](#overriding-the-lights).
+
+### Phases
 
 Each phase has a **scene**: a list of lights or groups, and what to set each one to. The phases follow the game as in
 [The clock remote and the day cycle](clock-remote.md):
@@ -46,15 +69,15 @@ For each light you choose:
 - **On or off.**
 - **Brightness:** leave it unticked to keep the light's brightness as it is.
 - **Colour:** *Keep colour*, a *Colour*, a *White* from warm to cool, or one of the [spectrums](#spectrums). A light
-  following a spectrum takes its brightness from the spectrum too.
+  following a spectrum takes its brightness from the spectrum, scaled by its own.
+
+A note says when a light can't show what it's set to, say a colour on a white-only bulb. It then shows the nearest it
+can.
 
 Lights not in a phase's scene are left as they are. **Fade between phases over** sets how long the lights take to
-change when the phase does.
+change when the phase does. **Preview** shows a phase's lights; for the day, at the point in the countdown you pick.
 
-**Preview** shows a phase's lights now, including changes you haven't saved. The lights go back to following the game
-after a minute, or when you click **Back to the game** in the banner.
-
-## Spectrums
+### Spectrums
 
 A spectrum fades lights through a list of colours as the day's countdown runs. You can make as many as you like, say a
 sky for the main lights and a firelight for the lamps, and each one is a colour a phase's light can pick.
@@ -71,7 +94,7 @@ What a light following a spectrum shows depends on the phase:
 it is. Under each spectrum's name is the list of lights that follow it, in each phase.
 
 - **Colours:** each one is placed at a point in the countdown, from 0% at the start to 100% at the end. You can edit
-  them, add your own, or remove them. The bar above shows the result, with a line marking where the game is now.
+  them, add your own, or remove them. The bar above shows the result.
   **Use the town square's sky** fills them in from the sky behind the town square's clocktower:
   - pale dawn blue at the start
   - a clear midday blue
@@ -89,22 +112,24 @@ it is. Under each spectrum's name is the list of lights that follow it, in each 
 
 As on the town square, a spectrum stops just short of its last colour until the countdown runs out.
 
-## Bells
+### Reactions
 
-The bells are on the **Phases & bells** page. When a bell rings, its lights fade to the bell's over **Fade over**
-seconds (0 to switch at once), stay for **Hold for** seconds, then fade back to the phase's over the same time.
+When a bell rings or a sting plays, its lights fade to the reaction's over **Fade over** seconds (0 to switch at
+once), stay for **Hold for** seconds, then fade back to the phase's over the same time.
 - **Start of day bell:** rings when night turns to day.
 - **Reminder bell:** rings when the countdown gets to the reminder time its [timer option](settings/timer-options.md)
-  has.
-- **Hand bell:** rung from the remote, or from a button.
+  has. Its lights are timed to land with the bell.
+- **Hand bell, and the end of the day:** rung from the remote or a button, and as the countdown runs out.
+- **Sting A, Sting B:** when the mixer's first or second sting plays.
 
-A bell's lights can also play an **effect** that the light does by itself, like *Blink* or *Breathe*. **Test** rings
-the bell's lights now.
+A reaction's lights can also play an **effect** that the light does by itself, like *Blink* or *Breathe*. **Test**
+shows the reaction's lights now.
 
-## Buttons
+### Buttons
 
-Zigbee buttons and remotes can control the clock. Each binding is a button, one of its actions (e.g. *single*,
-*double*, *hold*, or *on* and *off* for a two-button remote), and what it does:
+Zigbee buttons and remotes paired with a hub can control the clock of the game the hub follows. Each binding is a
+button, one of its actions (e.g. *single*, *double*, *hold*, or *on* and *off* for a two-button remote), and what it
+does:
 
 | Does | Like the remote's |
 | --- | --- |
@@ -114,8 +139,8 @@ Zigbee buttons and remotes can control the clock. Each binding is a button, one 
 | Ring the bell | The bell |
 | Play the armed sting | The mixer's sting trigger |
 
-**Learn a button** waits 30 seconds for a button press, then adds it: pick what it does and save. While learning,
-that press isn't acted on.
+**Learn a button** (on the hub picked to preview on) waits 30 seconds for a button press, then adds it: pick what it
+does and save. While learning, that press isn't acted on.
 
 ## Overriding the lights
 
@@ -124,13 +149,13 @@ brightness, in place of following the game.
 
 While the lights are overridden:
 - They don't change with the phase or the spectrums.
-- The bells don't flash them.
-- Previews from this page aren't shown. A preview or bell being shown when the override started ends.
+- The bells and stings don't flash them.
+- Previews from Settings aren't shown.
 
-The status bar shows **Overridden from the remote**. When it's ended on the remote, the lights fade to the phase's.
-A light not in that phase's scene stays as the override left it, as lights not in a scene always do.
+When it's ended on the remote, the lights fade to the phase's. A light not in that phase's scene stays as the override
+left it, as lights not in a scene always do.
 
-## Activity
+## If a hub goes offline
 
-The Activity page lists what Lightscapes did recently: phase changes, bells, overrides, button presses, and anything
-that went wrong.
+A hub keeps its lights as the game last had them, and puts them back after a restart. When it's back online it picks
+up its game where it's got to.
