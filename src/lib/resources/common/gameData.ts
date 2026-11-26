@@ -130,6 +130,9 @@ export type Preset = {
     good_victories: number;
 };
 
+/** A preset as listed by the API, with the date (YYYY-MM-DD) of its most recent logged play, if any. */
+export type PresetListEntry = Preset & { last_played?: string };
+
 export const PRESET_MAX_RATING = 5;
 
 /** True for a whole number of stars from 1 to PRESET_MAX_RATING. */

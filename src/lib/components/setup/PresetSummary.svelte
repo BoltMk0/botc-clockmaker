@@ -5,6 +5,7 @@
     import StarRating from "./StarRating.svelte";
     import { onMount } from "svelte";
     import { fetchAllCharacters, withSideCharacters } from "$lib/resources/client/scriptWithSideCharacters.js";
+    import { formatPlayedAgo } from "$lib/resources/common/presetPlays.js";
 
     interface Props {
         preset: Preset;
@@ -12,9 +13,11 @@
         characters: ScriptCharacter[];
         /** Position in the script's preset list, used to name unnamed presets. */
         index: number;
+        /** The date (YYYY-MM-DD) it was last played, shown as how long ago that was. */
+        lastPlayed?: string;
     }
 
-    let { preset, characters, index }: Props = $props();
+    let { preset, characters, index, lastPlayed }: Props = $props();
 
     // Travellers, loric and fabled aren't in a script's own list, so look them up separately.
     let sideCharacters = $state<ScriptCharacter[]>([]);
@@ -58,6 +61,18 @@
         gap: 1em;
     }
 
+    .preset-played {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        flex-shrink: 0;
+    }
+
+    .preset-last-played {
+        font-size: 0.8em;
+        opacity: 0.7;
+    }
+
     .preset-tokens {
         display: flex;
         flex-wrap: wrap;
@@ -94,7 +109,12 @@
             <span>{presetDisplayName(preset, index)}</span>
             <StarRating rating={preset.rating} />
         </span>
-        <PresetStats {preset} />
+        <span class="preset-played">
+            <PresetStats {preset} />
+            {#if lastPlayed}
+                <span class="preset-last-played">Last played {formatPlayedAgo(lastPlayed)}</span>
+            {/if}
+        </span>
     </div>
     <div class="preset-tokens">
         {#each bagCharacters as character, i (character.id + i)}

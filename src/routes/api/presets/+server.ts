@@ -1,13 +1,13 @@
 import { json } from '@sveltejs/kit';
 import { isValidPresetRating } from '$lib/resources/common/gameData';
-import { createPreset, listPresets, listPresetsForScript } from '$lib/resources/server/presets';
+import { createPreset, listPresets, listPresetsForScript, withLastPlayed } from '$lib/resources/server/presets';
 
 export async function GET({ url }) {
     const scriptId = url.searchParams.get('script_id');
     if (scriptId) {
-        return json(listPresetsForScript(scriptId));
+        return json(withLastPlayed(listPresetsForScript(scriptId)));
     }
-    return json(listPresets());
+    return json(withLastPlayed(listPresets()));
 }
 
 export async function POST({ request }) {

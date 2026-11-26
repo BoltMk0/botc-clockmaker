@@ -81,3 +81,20 @@ export function todayPlayDate(): string {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
+
+// "today" and "yesterday", but "1 week ago" rather than "last week", which reads oddly after "Last played".
+const relativeDayFormat = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+const relativeFormat = new Intl.RelativeTimeFormat(undefined, { numeric: 'always' });
+
+/** How long ago a YYYY-MM-DD play date was, from today, e.g. "yesterday", "2 weeks ago", "3 months ago". */
+export function formatPlayedAgo(value: string): string {
+    const [y, m, d] = value.split('-').map(Number);
+    const [ty, tm, td] = todayPlayDate().split('-').map(Number);
+    // Whole calendar days, counted in UTC so daylight saving doesn't shift them.
+    const days = Math.max(0, Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(y, m - 1, d)) / 86_400_000));
+    if (days < 7) return relativeDayFormat.format(-days, 'day');
+    if (days < 30) return relativeFormat.format(-Math.floor(days / 7), 'week');
+    const months = Math.round(days / 30.44);
+    if (months < 12) return relativeFormat.format(-Math.max(1, months), 'month');
+    return relativeFormat.format(-Math.max(1, Math.round(days / 365.25)), 'year');
+}

@@ -1,6 +1,6 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
-    import { alignmentForCategory, bluffSetsOf, presetGrimCharacterIds, presetPlayerCount, type Preset, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
+    import { alignmentForCategory, bluffSetsOf, presetGrimCharacterIds, presetPlayerCount, type Preset, type PresetListEntry, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import { newGrimoireStateHistory, newGrimoireStateWithTokensRoundCircle } from "$lib/resources/common/grimoireState.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import InPlayWarning from "$lib/components/InPlayWarning.svelte";
@@ -44,7 +44,7 @@
         body?.scrollTo({ top: 0 });
     });
     const builder = new PresetBuilder();
-    let presets = $state<Preset[]>([]);
+    let presets = $state<PresetListEntry[]>([]);
     let loadingPresets = $state(false);
     let submitting = $state(false);
     let chosenPresetId = $state<string | null>(null);
@@ -532,7 +532,7 @@
                     <div style="opacity: 0.6;">No presets for this script and player count.</div>
                 {:else}
                     {#each matchingPresets as p (p.id)}
-                        <button class="button-style" style="text-align: left;" onclick={() => applyPreset(p)}><PresetSummary preset={p} characters={builder.script.characters} index={presets.indexOf(p)} /></button>
+                        <button class="button-style" style="text-align: left;" onclick={() => applyPreset(p)}><PresetSummary preset={p} characters={builder.script.characters} index={presets.indexOf(p)} lastPlayed={p.last_played} /></button>
                     {/each}
                 {/if}
                 <button class="button-style highlight" onclick={startNewGame}>New Game</button>

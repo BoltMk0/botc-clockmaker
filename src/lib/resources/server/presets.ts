@@ -2,7 +2,7 @@ import { v7 } from "uuid";
 import { JSONMultiResourceManager } from "./jsonResourceManager";
 import { getScriptWithCharacters } from "./scripts";
 import { getScriptById } from "./scripts";
-import { isPreset, bluffSetsOf, presetDisplayName, type Preset, type PresetFull, type NewPreset } from "../common/gameData";
+import { isPreset, bluffSetsOf, presetDisplayName, type Preset, type PresetFull, type NewPreset, type PresetListEntry } from "../common/gameData";
 import { byMostRecentPlay, isPresetPlay, todayPlayDate, type PlayHistoryEntry, type PresetPlay, type PresetPlaySummary, type PresetWinner } from "../common/presetPlays";
 
 export const PRESETS_MANAGER = new JSONMultiResourceManager<Preset>('presets', isPreset);
@@ -125,6 +125,19 @@ export function listPlayHistory(): PlayHistoryEntry[] {
         });
     }
     return entries.sort(byMostRecentPlay);
+}
+
+/** The presets with the date each was last played (from the logged plays; games from before they were logged don't count). */
+export function withLastPlayed(presets: Preset[]): PresetListEntry[] {
+    const latest = new Map<string, string>();
+    for (const play of PRESET_PLAYS_MANAGER.values) {
+        const current = latest.get(play.preset_id);
+        if (!current || play.date > current) latest.set(play.preset_id, play.date);
+    }
+    return presets.map(p => {
+        const last_played = latest.get(p.id);
+        return last_played ? { ...p, last_played } : p;
+    });
 }
 
 export function getPresetPlay(presetId: string, playId: string): PresetPlay | null {
