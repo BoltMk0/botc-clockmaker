@@ -1,11 +1,6 @@
-import { getScriptWithCharacters } from '$lib/resources/server/scripts';
-import { listPresetsForScript } from '$lib/resources/server/presets';
+import { redirect } from '@sveltejs/kit';
 
+// The script's presets are listed on its page, under its characters.
 export async function load({ params }) {
-    const script = getScriptWithCharacters(params.id);
-    if (!script) {
-        throw new Error('Script not found');
-    }
-    const presets = listPresetsForScript(params.id);
-    return { script, presets };
+    redirect(308, `/settings/scripts/${params.id}#presets`);
 }

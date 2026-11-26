@@ -9,14 +9,17 @@
     // for setups that use the same character more than once (e.g. Legion).
     // In bluffs mode it picks the builder's active bluff set instead: only the player types, one copy each, with the
     // characters already in play faded. Each token's ? opens an overlay with the character's token and ability.
-    // Read-only, it shows just the chosen tokens (or one bluff set's) in the same layout, for overviews.
+    // Read-only, it shows just the chosen tokens (or one bluff set's) in the same layout, for overviews, or with
+    // showAll, every character in the builder's script.
 
-    let { builder, tokenSize = 92, mode = 'characters', readonly = false, bluffSet }: {
+    let { builder, tokenSize = 92, mode = 'characters', readonly = false, showAll = false, bluffSet }: {
         builder: PresetBuilder;
         tokenSize?: number;
         mode?: 'characters' | 'bluffs';
         /** Shows only the chosen characters, with nothing to change. */
         readonly?: boolean;
+        /** Read-only, shows all the script's characters instead of only the chosen ones, counting them by type. */
+        showAll?: boolean;
         /** In bluffs mode, which set to show; the builder's active set when omitted. */
         bluffSet?: number;
     } = $props();
@@ -82,12 +85,13 @@
             collapsible: !readonly && COLLAPSIBLE.includes(category),
             characters: (builder.script?.characters ?? [])
                 .filter(c => c.category === category)
-                .filter(c => !readonly || countFor(c.id) > 0)
+                .filter(c => !readonly || showAll || countFor(c.id) > 0)
                 .sort((a, b) => a.name.localeCompare(b.name))
         })).filter(s => s.characters.length > 0);
     });
 
     function countText(category: CharacterCategory): string {
+        if (readonly && showAll) return `${(builder.script?.characters ?? []).filter(c => c.category === category).length}`;
         if (mode === 'bluffs') return `${activeBluffs.filter(id => builder.charById.get(id)?.category === category).length}`;
         const selected = builder.chosenCharacters.filter(c => c.category === category).length;
         const key = COUNT_KEYS[category];
@@ -381,7 +385,8 @@
     }
 </style>
 
-<div class="token-picker" class:readonly style="--token: {tokenSize}px;">
+<!-- A read-only list of every character keeps one type per row, like the picker; a short one shares rows. -->
+<div class="token-picker" class:readonly={readonly && !showAll} style="--token: {tokenSize}px;">
     {#each sections as section (section.key)}
         {@const collapsible = section.collapsible}
         {@const isCollapsed = collapsible && collapsed.has(section.key as CharacterCategory)}

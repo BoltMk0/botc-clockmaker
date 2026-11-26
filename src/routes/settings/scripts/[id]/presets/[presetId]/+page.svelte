@@ -70,7 +70,7 @@
 
     function goBack() {
         if (stepIndex <= 0) {
-            goto(`/settings/scripts/${initial!.script.id}/presets`);
+            goto(`/settings/scripts/${initial!.script.id}#presets`);
         } else {
             step = STEPS[stepIndex - 1][0];
         }
@@ -105,7 +105,7 @@
                 })
             });
             if (!response.ok) throw new Error(`${response.status}`);
-            goto(`/settings/scripts/${initial.script.id}/presets`);
+            goto(`/settings/scripts/${initial.script.id}#presets`);
         } catch (er) {
             alert(`Failed to save preset: ${er}`);
         } finally {
