@@ -3,14 +3,18 @@ import { isValidSessionToken, SESSION_COOKIE } from "$lib/auth/server/auth";
 import { bearerToken, isValidApiToken } from "$lib/auth/server/apiToken";
 import { migrateCharacterIds } from "$lib/resources/server/migrateCharacterIds";
 import { startMusicLoudnessWorker } from "$lib/resources/server/musicLoudness";
+import { getLightingService } from "$lib/lighting/server/service";
 
 export const init: ServerInit = () => {
     migrateCharacterIds();
     startMusicLoudnessWorker();
+    // Follows the games from the start, for hubs to connect to
+    getLightingService();
 };
 
-// /help is the user guide and developer docs, also published in the repository
-const PUBLIC_PREFIXES = ['/feedback', '/login', '/script', '/help', '/_app/'];
+// /help is the user guide and developer docs, also published in the repository.
+// /lightscapes is where Lightscapes hubs connect: they're checked by their own id and secret, not a session.
+const PUBLIC_PREFIXES = ['/feedback', '/login', '/script', '/help', '/lightscapes', '/_app/'];
 const PUBLIC_PATHS = ['/favicon.ico', '/favicon.png', '/robots.txt'];
 
 function isPublic(pathname: string): boolean {

@@ -59,8 +59,9 @@ export default defineConfig({
 	},
 	server: {
 		fs: {
-			// The remote shares Lightscapes' whites (src/lib/components/remote/lighting.ts); the help wiki shows images from res/ and wiki/
-			allow: ['lightscapes/public/whites.js', 'res', 'wiki']
+			// The help wiki shows images from res/ and wiki/. ../lightscapes is the Lightscapes library while it's installed
+			// from a clone next to this one (file:../lightscapes), whose files the browser loads from there
+			allow: ['res', 'wiki', '../lightscapes']
 		}
 	},
 	preview: {

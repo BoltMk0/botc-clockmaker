@@ -5,6 +5,8 @@ export type Config = {
     };
     /** The ClockSfxPreset this clock rings, or null for no bells. */
     clockSfxPresetId: string|null;
+    /** The Lightscapes lighting preset its hubs show; the default (oldest) one if it's not set, or it's gone. */
+    lightingPresetId?: string|null;
 }
 
 export function isConfig(data: any): data is Config {
@@ -12,6 +14,7 @@ export function isConfig(data: any): data is Config {
     if(typeof data.teamName !== 'string') return false;
     if(typeof data.theme !== 'object') return false;
     if(typeof data.clockSfxPresetId !== 'string' && data.clockSfxPresetId !== null) return false;
+    if(data.lightingPresetId !== undefined && typeof data.lightingPresetId !== 'string' && data.lightingPresetId !== null) return false;
     return true;
 }
 

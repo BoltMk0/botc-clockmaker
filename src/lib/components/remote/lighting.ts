@@ -1,6 +1,6 @@
 import type { LightOverride } from "$lib/model/common/ClocktowerClockModel";
 // Lightscapes' own whites, so the remote shows the white the lights are sent
-import { COOLEST, WARMEST, miredsToHex } from "../../../../lightscapes/public/whites.js";
+import { COOLEST_MIREDS as COOLEST, WARMEST_MIREDS as WARMEST, miredsToHex } from "@boltmk0/lightscapes/color";
 
 export { COOLEST, WARMEST, miredsToHex };
 
