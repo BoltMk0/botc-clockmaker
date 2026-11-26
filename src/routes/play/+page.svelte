@@ -10,6 +10,8 @@
     import type { Config } from '$lib/common/config';
     import type { ClocktowerModel } from '$lib/model/common/ClocktowerModel';
     import type { ClockSfxPreset } from '$lib/audio/common/clockSfxPreset';
+    import { onMount } from 'svelte';
+    import { fetchOverview, hubAction, type HubSummary, type LightingOverview } from '$lib/lighting/common/api';
 
     let { data }: { data: {
         games: { instance: ClocktowerModel, scriptId: string | null, scriptName: string | null }[],
@@ -86,6 +88,49 @@
         renamingId = null;
         const name = renameValue.trim();
         if(name && name !== instance.config.teamName) saveConfig(instance, { teamName: name }, 'game name');
+    }
+
+    // --- Lights: the Lightscapes hubs each game drives, and its lighting preset ---
+
+    /** The hubs and lighting presets, kept up to date while the page is open as hubs come and go. */
+    let lighting = $state<LightingOverview | null>(null);
+    const lightingHubs = $derived(lighting?.hubs.filter(h => h.status === 'approved') ?? []);
+
+    async function refreshLighting(){
+        try {
+            lighting = await fetchOverview();
+        } catch {
+            // Leaves the last known; the hubs' dots say if they're offline
+        }
+    }
+
+    onMount(() => {
+        refreshLighting();
+        const timer = setInterval(refreshLighting, 5000);
+        return () => clearInterval(timer);
+    });
+
+    async function toggleHub(instance: ClocktowerModel, hub: HubSummary, on: boolean, checkbox: HTMLInputElement){
+        const id = instance.clock.clockId;
+        if(on && hub.clockId && hub.clockId !== id){
+            const other = data.games.find(g => g.instance.clock.clockId === hub.clockId)?.instance.config.teamName ?? 'another game';
+            if(!confirm(`${hub.name} is driving the lights for ${other}. Move it to ${instance.config.teamName ?? id}?`)){
+                checkbox.checked = false;
+                return;
+            }
+        }
+        try {
+            await hubAction(hub.hubId, { action: 'assign', clockId: on ? id : null });
+        } catch(err) {
+            alert(`Failed to change the lights: ${(err as Error).message}`);
+        }
+        await refreshLighting();
+    }
+
+    /** The preset a game uses: the one it picked, if it's still there, or the first. */
+    function lightingPresetOf(instance: ClocktowerModel): string {
+        const picked = instance.config.lightingPresetId;
+        return picked && lighting?.presets.some(p => p.id === picked) ? picked : lighting?.defaultPresetId ?? '';
     }
 
     function focusAndSelect(input: HTMLInputElement){
@@ -185,6 +230,28 @@
                     {/each}
                 </select>
             </label>
+            {#if lightingHubs.length}
+                <div class="lights">
+                    <span class="stat-label">Lights</span>
+                    <div class="lights-hubs">
+                        {#each lightingHubs as hub (hub.hubId)}
+                            <label class="lights-hub" class:offline={!hub.online} title={hub.online ? undefined : `${hub.name} is offline`}>
+                                <input type="checkbox" checked={hub.clockId === id} onchange={(e) => toggleHub(instance, hub, e.currentTarget.checked, e.currentTarget)}/>
+                                <span class="dot" class:online={hub.online}></span>{hub.name}
+                            </label>
+                        {/each}
+                    </div>
+                    {#if (lighting?.presets.length ?? 0) > 1}
+                        <select aria-label="Lighting preset" value={lightingPresetOf(instance)} onchange={(e) => saveConfig(instance, { lightingPresetId: e.currentTarget.value }, 'lighting preset')}>
+                            {#each lighting?.presets ?? [] as preset (preset.id)}
+                                <option value={preset.id}>{preset.name}</option>
+                            {/each}
+                        </select>
+                    {:else if lighting?.presets.length === 0}
+                        <a class="lights-hint" href="/settings/lightscapes">Make a lighting preset in Settings</a>
+                    {/if}
+                </div>
+            {/if}
             <div class="game-panel-actions">
                 <a class="button-style" href="/townsquare/{id}"><TownSquareIcon size={36}/><span>Town Square</span></a>
                 <a class="button-style" href="/admin/{id}/grim"><BookIcon size={36}/><span>Grimoire</span></a>
@@ -437,7 +504,52 @@
         gap: 0.2em;
     }
 
-    .sfx-preset select {
+    .lights {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3em;
+    }
+
+    .lights-hubs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3em 1em;
+    }
+
+    .lights-hub {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4em;
+        cursor: pointer;
+    }
+
+    .lights-hub.offline {
+        opacity: 0.55;
+    }
+
+    .lights-hub input {
+        accent-color: var(--theme-highlight);
+    }
+
+    .lights .dot {
+        display: inline-block;
+        width: 0.55em;
+        height: 0.55em;
+        border-radius: 50%;
+        background-color: var(--theme-slider-trim);
+    }
+
+    .lights .dot.online {
+        background-color: #3cb371;
+    }
+
+    .lights-hint {
+        font-size: 0.9em;
+        color: inherit;
+        opacity: 0.8;
+    }
+
+    .sfx-preset select, .lights select {
         width: 100%;
         box-sizing: border-box;
         padding: 0.5rem 0.6rem;
@@ -448,7 +560,7 @@
         font: inherit;
     }
 
-    .sfx-preset select:focus {
+    .sfx-preset select:focus, .lights select:focus {
         outline: none;
         border-color: var(--theme-highlight);
     }

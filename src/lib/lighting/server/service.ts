@@ -1,13 +1,14 @@
-import { LightscapesController, type HubRecord, type HubView } from "@boltmk0/lightscapes/controller";
+import { LightscapesController, type HubRecord } from "@boltmk0/lightscapes/controller";
 import type { AssignMessage, InputMessage, Layer, Program } from "@boltmk0/lightscapes/protocol";
 import { JSONSingletonResourceManager } from "$lib/resources/server/jsonResourceManager";
 import { getBOTCTClockInstanceManager } from "$lib/model/server/model";
 import type { BOTCTClock } from "$lib/model/server/BOTCClock";
 import { getStingEngineHelperInstance } from "$lib/model/server/StingEngine/StingEngineHelper";
-import { TIMES_OF_DAY, type TimeOfDay } from "$lib/model/client/types";
+import { TIMES_OF_DAY } from "$lib/model/client/types";
 import { COMMAND_LABELS, type Command, type LightingPreset, type ReactionEvent } from "../common/lightingPreset";
 import { PRIORITY, overrideLayer, phaseLayer, phaseScene, presetProgram, reactionCue, reminderAt } from "../common/program";
 import { lightingPresetFor } from "./presets";
+import type { HubSummary, PreviewRequest } from "../common/api";
 
 /** How long the lights take to follow the remote's override as it's changed (it's sent as often as every 400ms). */
 const OVERRIDE_FADE_SECONDS = 0.5;
@@ -31,12 +32,6 @@ const HUBS = new JSONSingletonResourceManager<HubRecord[]>('lightscapes-hubs', i
 /** Which game each hub follows, by hub id. */
 const ASSIGNMENTS = new JSONSingletonResourceManager<Record<string, string>>('lightscapes-assignments', isStringRecord);
 
-/** What a preview from Settings shows: a phase (at a point through the day), a reaction, or a spectrum played through. */
-export type PreviewRequest =
-    | { phase: TimeOfDay; progress?: number }
-    | { reaction: ReactionEvent }
-    | { play: string; seconds: number };
-
 type Preview = { what: string; program: Program; layer: Layer | null; timer: ReturnType<typeof setTimeout> };
 
 type ClockState = {
@@ -46,14 +41,6 @@ type ClockState = {
     overriding: boolean;
     /** The reminder bell each of its hubs was last cued for. */
     reminders: Map<string, number | null>;
-};
-
-export type HubSummary = HubView & {
-    /** The game it follows, if any. */
-    clockId: string | null;
-    /** Settings it had before Clockmaker drove it, to import, if it has them. */
-    hasLegacyConfig: boolean;
-    previewing: string | null;
 };
 
 /**

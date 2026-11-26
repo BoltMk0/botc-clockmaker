@@ -10,6 +10,7 @@
         '/settings/qrCodes',
         '/settings/audio',
         '/settings/music',
+        '/settings/lightscapes',
         '/settings/rulesSlides',
         '/settings/feedback',
         '/settings/password',
