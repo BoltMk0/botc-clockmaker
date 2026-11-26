@@ -2,6 +2,7 @@ import { v7 } from "uuid";
 import { JSONMultiResourceManager } from "./jsonResourceManager";
 import { characterIdFromName } from "../common/util";
 import {
+    defaultAllowedInBag,
     isCharacter,
     splitSetupFromRules,
     type Character,
@@ -55,6 +56,13 @@ for (const character of [...CHARACTERS_MANAGER.values]) {
     }
 }
 
+// Characters saved before it was kept whether they go in the bag get the default.
+for (const character of [...CHARACTERS_MANAGER.values]) {
+    if (character.allowedInBag === undefined) {
+        CHARACTERS_MANAGER.add({ ...character, allowedInBag: defaultAllowedInBag(character) });
+    }
+}
+
 export function listCharacters(): Character[] {
     return [...CHARACTERS_MANAGER.values].sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -85,7 +93,8 @@ export function addCharacter(character: NewCharacter): Character {
     if (CHARACTERS_MANAGER.get(id)) {
         throw new Error(`A character with the name "${character.name}" already exists`);
     }
-    return CHARACTERS_MANAGER.add({ id, ...character, reminderTokens: [], firstNightMessagePresets: [], otherNightMessagePresets: [], globalMessagePresets: [] });
+    const allowedInBag = character.allowedInBag ?? defaultAllowedInBag({ id, category: character.category });
+    return CHARACTERS_MANAGER.add({ id, ...character, allowedInBag, reminderTokens: [], firstNightMessagePresets: [], otherNightMessagePresets: [], globalMessagePresets: [] });
 }
 
 export function updateCharacter(id: string, fields: Partial<Omit<Character, 'id' | 'reminderTokens'>>): Character | null {

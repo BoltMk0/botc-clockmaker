@@ -162,7 +162,7 @@
     // The character's fields this page edits, as saved by the updateCharacter action
     function characterFields(c: Character) {
         return {
-            name: c.name, category: c.category, rules: c.rules, setup: c.setup,
+            name: c.name, category: c.category, rules: c.rules, setup: c.setup, allowedInBag: c.allowedInBag,
             firstNightOrder: c.firstNightOrder ?? null, otherNightOrder: c.otherNightOrder ?? null,
             firstNightReminder: c.firstNightReminder, otherNightReminder: c.otherNightReminder,
             firstNightMessagePresets: c.firstNightMessagePresets, otherNightMessagePresets: c.otherNightMessagePresets,
@@ -190,6 +190,7 @@
         formData.set('category', c.category ?? '');
         formData.set('rules', c.rules ?? '');
         formData.set('setup', c.setup ?? '');
+        formData.set('allowedInBag', String(c.allowedInBag));
         formData.set('firstNightOrder', c.firstNightOrder == null ? '' : String(c.firstNightOrder));
         formData.set('otherNightOrder', c.otherNightOrder == null ? '' : String(c.otherNightOrder));
         formData.set('firstNightReminder', c.firstNightReminder ?? '');
@@ -651,6 +652,15 @@
                             <tr>
                                 <th>Setup</th>
                                 <td><input name="setup" type="text" placeholder="e.g. +2 Outsiders (leave empty if it doesn't change setup)" bind:value={selectedCharacter.setup} /></td>
+                            </tr>
+                            <tr>
+                                <th>In the bag</th>
+                                <td>
+                                    <label>
+                                        <input type="checkbox" name="allowedInBag" bind:checked={selectedCharacter.allowedInBag} />
+                                        Can go in the bag (otherwise its token goes straight on the grim, like the Drunk's)
+                                    </label>
+                                </td>
                             </tr>
                             <tr>
                                 <th>Night Order</th>

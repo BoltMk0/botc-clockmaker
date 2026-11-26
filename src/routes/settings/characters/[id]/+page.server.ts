@@ -56,6 +56,8 @@ export const actions = {
             return fail(400, {error: 'Setup must be a string' });
         }
 
+        const allowedInBag = formData.get('allowedInBag') === 'true';
+
         const firstNightReminder = formData.get('firstNightReminder');
         const otherNightReminder = formData.get('otherNightReminder');
         if (typeof firstNightReminder !== 'string' || typeof otherNightReminder !== 'string') {
@@ -74,7 +76,7 @@ export const actions = {
         const firstNightOrder = parseNightOrderField(formData.get('firstNightOrder'));
         const otherNightOrder = parseNightOrderField(formData.get('otherNightOrder'));
 
-        const character = updateCharacter(id, {name, category, rules, setup: setup.trim(), firstNightOrder, otherNightOrder, firstNightReminder: firstNightReminder.trim(), otherNightReminder: otherNightReminder.trim(), firstNightMessagePresets, otherNightMessagePresets, globalMessagePresets});
+        const character = updateCharacter(id, {name, category, rules, setup: setup.trim(), allowedInBag, firstNightOrder, otherNightOrder, firstNightReminder: firstNightReminder.trim(), otherNightReminder: otherNightReminder.trim(), firstNightMessagePresets, otherNightMessagePresets, globalMessagePresets});
 
         if(!character){
             return fail(404, {error: 'Character not found'});

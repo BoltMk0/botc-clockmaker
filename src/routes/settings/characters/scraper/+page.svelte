@@ -24,7 +24,7 @@
     );
 
     function thumbCharacter(category: CharacterCategory, name: string): Character {
-        return { id: characterIdFromName(name), name, category, rules: '', setup: '', firstNightOrder: null, otherNightOrder: null, firstNightReminder: '', otherNightReminder: '', reminderTokens: [], firstNightMessagePresets: [], otherNightMessagePresets: [], globalMessagePresets: [] };
+        return { id: characterIdFromName(name), name, category, rules: '', setup: '', allowedInBag: true, firstNightOrder: null, otherNightOrder: null, firstNightReminder: '', otherNightReminder: '', reminderTokens: [], firstNightMessagePresets: [], otherNightMessagePresets: [], globalMessagePresets: [] };
     }
 
     let progress = writable(0);

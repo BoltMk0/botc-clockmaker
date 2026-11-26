@@ -7,6 +7,7 @@
     import StarRating from "$lib/components/setup/StarRating.svelte";
     import BuilderSteps from "$lib/components/setup/BuilderSteps.svelte";
     import CharacterCounts from "$lib/components/setup/CharacterCounts.svelte";
+    import BagProgress from "$lib/components/setup/BagProgress.svelte";
     import TokenPicker from "$lib/components/setup/TokenPicker.svelte";
     import TokenSorter from "$lib/components/setup/TokenSorter.svelte";
     import { PresetBuilder } from "$lib/components/setup/PresetBuilder.svelte.js";
@@ -62,7 +63,7 @@
     // Whether the current step is done, so the header's Next button can move on from it.
     const canContinue = $derived(
         step === 'players' ? builder.playerCount !== null
-        : step === 'tokens' ? builder.hasEnoughTokens
+        : step === 'tokens' ? builder.hasExactTokens
         : step === 'bluffs' ? builder.bluffsValid
         : false
     );
@@ -160,6 +161,9 @@
 
     .editor-counts {
         flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6em;
     }
 
     .editor-body {
@@ -212,6 +216,7 @@
     {#if step === 'tokens'}
         <div class="editor-counts">
             <CharacterCounts {builder} reversed />
+            <BagProgress {builder} />
         </div>
     {/if}
 

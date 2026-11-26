@@ -34,6 +34,9 @@ export type Character = {
     // How the character changes setup, without the brackets the wiki and scripts print it in, e.g.
     // "+2 Outsiders" for the Baron. Empty when it doesn't change setup.
     setup: string;
+    // Whether the character's token can go in the bag for a player to draw. Those that can't (loric, fabled, and
+    // characters a player thinks they're something else, like the Drunk) go straight on the grim.
+    allowedInBag: boolean;
     // The character's canonical night order rank, as published by the game (e.g. from the
     // bra1n/townsquare role dataset). Scripts derive their own per-script night order from
     // this; null means the character doesn't wake on that night.
@@ -63,7 +66,16 @@ export function characterMessagePresetsFor(
     return [...nightPresets, ...(character.globalMessagePresets ?? [])];
 }
 
-export type NewCharacter = Omit<Character, 'id' | 'reminderTokens' | 'firstNightMessagePresets' | 'otherNightMessagePresets' | 'globalMessagePresets'>;
+export type NewCharacter = Omit<Character, 'id' | 'allowedInBag' | 'reminderTokens' | 'firstNightMessagePresets' | 'otherNightMessagePresets' | 'globalMessagePresets'>
+    & { allowedInBag?: boolean };
+
+/** Characters (besides every loric and fabled) whose tokens stay out of the bag unless set otherwise. */
+const KEPT_OUT_OF_BAG_IDS = ['drunk', 'marionette', 'lilmonsta'];
+
+/** Whether a character's token goes in the bag when nothing's been set for it. */
+export function defaultAllowedInBag(character: Pick<Character, 'id' | 'category'>): boolean {
+    return character.category !== 'loric' && character.category !== 'fabled' && !KEPT_OUT_OF_BAG_IDS.includes(character.id);
+}
 
 /** Splits a trailing "[...]" setup note off ability text, as the wiki and scripts print it, e.g. "There are extra Outsiders in play. [+2 Outsiders]". */
 export function splitSetupFromRules(text: string): { rules: string; setup: string } {
@@ -202,6 +214,8 @@ export function isCharacter(obj: any): obj is Character {
         typeof obj.rules === "string" &&
         // Absent on characters saved before setup was split out of the rules; characters.ts fills it in.
         (obj.setup === undefined || typeof obj.setup === "string") &&
+        // Absent on characters saved before it was kept; characters.ts fills it in.
+        (obj.allowedInBag === undefined || typeof obj.allowedInBag === "boolean") &&
         // Characters saved before the night order lost its "default" prefix have defaultFirstNightOrder and
         // defaultOtherNightOrder (and wakes_first_night / wakes_other_nights) instead; characters.ts converts them.
         (isNightOrder(obj.firstNightOrder) || isNightOrder(obj.defaultFirstNightOrder)) &&

@@ -1,10 +1,7 @@
 import { browser } from "$app/environment";
 import { getPlayerCount } from "$lib/common/util.js";
 import { fetchAllCharacters, withSideCharacters } from "$lib/resources/client/scriptWithSideCharacters.js";
-import type { CharacterCategory, ScriptCharacter, ScriptWithCharacters } from "$lib/resources/common/gameData.js";
-
-/** Loric and fabled aren't player characters, so they never go in the bag. */
-const GRIM_ONLY_CATEGORIES: CharacterCategory[] = ['loric', 'fabled'];
+import { defaultAllowedInBag, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
 
 /** Removes one occurrence of each of `remove` from `ids`, keeping the order of the rest. */
 function subtractIds(ids: string[], remove: string[]): string[] {
@@ -46,18 +43,25 @@ export class PresetBuilder {
         demons: this.chosenCharacters.filter(c => c.category === 'demon').length
     });
 
-    /** Loric and fabled always go straight on the grim. (Travellers start in the bag, and count as players there.) */
+    /**
+     * Tokens of characters that can't go in the bag (loric, fabled, the Drunk...) always go straight on the grim.
+     * (Travellers start in the bag, and count as players there.)
+     */
     grimOnlyCharacterIds = $derived(this.chosenCharacterIds.filter(id => {
-        const category = this.charById.get(id)?.category;
-        return !!category && GRIM_ONLY_CATEGORIES.includes(category);
+        const character = this.charById.get(id);
+        return !!character && !(character.allowedInBag ?? defaultAllowedInBag(character));
     }));
+    /** How many of the chosen tokens can go in the bag. */
+    bagAllowedCount = $derived(this.chosenCharacterIds.length - this.grimOnlyCharacterIds.length);
 
     bagCharacterIds = $derived(subtractIds(this.chosenCharacterIds, this.grimCharacterIds));
     /** Travellers in the bag take a seat, but don't change how many of each type the rest of the players get. */
     expectedCounts = $derived(getPlayerCount((this.playerCount ?? 5) - this.bagCharacterIds.filter(id => this.charById.get(id)?.category === 'traveler').length));
     /** Tokens beyond one per player, which have to be sorted into the bag and the grim. */
     surplusCount = $derived(Math.max(0, this.chosenCharacterIds.length - this.grimOnlyCharacterIds.length - (this.playerCount ?? 0)));
-    hasEnoughTokens = $derived(this.chosenCharacterIds.length - this.grimOnlyCharacterIds.length >= (this.playerCount ?? 0));
+    hasEnoughTokens = $derived(this.bagAllowedCount >= (this.playerCount ?? 0));
+    /** True when exactly one token per player can go in the bag, as a preset needs. */
+    hasExactTokens = $derived(this.playerCount !== null && this.bagAllowedCount === this.playerCount);
     /** True once the bag holds exactly one token per player. */
     isSorted = $derived(this.hasEnoughTokens && this.bagCharacterIds.length === this.playerCount);
 

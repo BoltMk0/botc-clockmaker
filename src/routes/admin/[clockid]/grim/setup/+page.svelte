@@ -10,6 +10,7 @@
     import PresetSummary from "$lib/components/setup/PresetSummary.svelte";
     import BuilderSteps from "$lib/components/setup/BuilderSteps.svelte";
     import CharacterCounts from "$lib/components/setup/CharacterCounts.svelte";
+    import BagProgress from "$lib/components/setup/BagProgress.svelte";
     import { PresetBuilder } from "$lib/components/setup/PresetBuilder.svelte.js";
     import type { PageData } from "./$types";
 
@@ -339,6 +340,9 @@
 
     .setup-counts {
         flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6em;
     }
 
     .setup-body {
@@ -484,6 +488,7 @@
     {#if step === 'tokens'}
         <div class="setup-counts">
             <CharacterCounts {builder} reversed />
+            <BagProgress {builder} />
         </div>
     {/if}
 
