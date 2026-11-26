@@ -213,6 +213,7 @@
         <button class="button-style" onclick={onclose}>Close</button>
     </div>
     <div class="snapshot-body">
+        <div class="snapshot-bg" aria-hidden="true"></div>
         <AnotatableViewV2 tool={null} {layers} activeLayerIndex={0} onresetview={fitView} idleIgnore=".snapshot-header" idlePanIgnore="button" bind:viewScale bind:viewTx bind:viewTy canvasStyle="z-index: 10; pointer-events: none;">
             <div class="board" bind:this={boardEl}>
                 {#each ALIGNMENT_RING_FACTORS as factor}
@@ -228,6 +229,7 @@
 {#if exporting}
     <!-- Hidden behind the overlay while it's captured. -->
     <div class="export-frame" bind:this={exportEl} style="width: {exportBounds.width}px; height: {exportBounds.height}px;">
+        <div class="snapshot-bg" aria-hidden="true"></div>
         <canvas class="export-canvas" bind:this={exportCanvas} width={exportBounds.width} height={exportBounds.height}></canvas>
         <div class="export-origin" style="left: {-exportBounds.minX}px; top: {-exportBounds.minY}px;">
             {@render pieces()}
@@ -246,6 +248,15 @@
         color: var(--theme-on-bg);
         pointer-events: none;
     }
+    /* The town's backdrop, blurred and dimmed so the tokens stand out. Overscaled so the blur's soft edges are cropped. */
+    .snapshot-bg {
+        position: absolute;
+        inset: -40px;
+        background: url('/botc-official-bg.webp') center / cover no-repeat;
+        filter: brightness(0.35);
+        pointer-events: none;
+    }
+
     .export-canvas {
         position: absolute;
         inset: 0;
@@ -289,6 +300,7 @@
         position: relative;
         flex: 1;
         min-height: 0;
+        overflow: hidden;
         touch-action: none;
     }
 
