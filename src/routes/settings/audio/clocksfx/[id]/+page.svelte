@@ -1,6 +1,6 @@
 <script lang="ts">
     import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
-    import { arrowBackIcon, saveIcon } from "$lib/icons/material.js";
+    import { arrowBackIcon, deleteIcon, saveIcon } from "$lib/icons/material.js";
     import { goto } from '$app/navigation';
     import HSlider from '$lib/audio/client/components/HSlider.svelte';
     import { bellBalanceGains, CLOCK_SFX_SLOT_LABELS, CLOCK_SFX_SLOT_TIMES_OF_DAY, CLOCK_SFX_SLOTS, clockSfxFileUrl, type ClockSfxPreset, type ClockSfxSlot } from '$lib/audio/common/clockSfxPreset';
@@ -162,7 +162,7 @@
     </div>
 
     <div class="actions">
-        <button class="delete" onclick={onDelete} disabled={saving}>Delete</button>
+        <button class="delete" onclick={onDelete} disabled={saving} aria-label="Delete preset" title="Delete preset"><MaterialIcon icon={deleteIcon} size="1.25em"/></button>
         <button class="save" onclick={onSave} disabled={saving}><MaterialIcon icon={saveIcon} size="1.2em"/> {saving ? 'Saving...' : 'Save'}</button>
     </div>
 </div>

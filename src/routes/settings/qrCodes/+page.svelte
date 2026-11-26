@@ -1,6 +1,6 @@
 <script lang="ts">
     import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
-    import { closeIcon, saveIcon } from "$lib/icons/material.js";
+    import { deleteIcon, saveIcon } from "$lib/icons/material.js";
     import type { QrCode } from "$lib/resources/server/qrCodes";
     import { DEFAULT_QR_POSITION, QR_POSITIONS, QR_POSITION_LABELS } from "$lib/resources/common/qrCodes";
     import { onMount } from "svelte";
@@ -70,7 +70,7 @@
                             {/each}
                         </select>
                     </label>
-                    <button class="delete" title="Delete" aria-label="Delete entry" onclick={() => codes.splice(i, 1)}><MaterialIcon icon={closeIcon} size="1.25em"/></button>
+                    <button class="delete" title="Delete" aria-label="Delete entry" onclick={() => codes.splice(i, 1)}><MaterialIcon icon={deleteIcon} size="1.25em"/></button>
                 </li>
             {/each}
         </ul>

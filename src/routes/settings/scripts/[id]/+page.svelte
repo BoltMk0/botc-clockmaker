@@ -1,6 +1,6 @@
 <script lang="ts">
     import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
-    import { arrowBackIcon, downloadIcon, editIcon, visibilityIcon } from "$lib/icons/material.js";
+    import { arrowBackIcon, deleteIcon, downloadIcon, editIcon, visibilityIcon } from "$lib/icons/material.js";
     import { invalidateAll } from "$app/navigation";
     import { presetDisplayName, presetPlayerCount, type PresetListEntry } from "$lib/resources/common/gameData.js";
     import PresetSummary from "$lib/components/setup/PresetSummary.svelte";
@@ -167,6 +167,14 @@
     .preset-row .delete {
         position: relative;
         flex-shrink: 0;
+        align-self: flex-start;
+        /* A square button around its bin icon */
+        width: 2.2em;
+        height: 2.2em;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     @media (max-width: 560px) {
@@ -221,7 +229,7 @@
                             <!-- Covers the whole row, so clicking anywhere on it opens the preset; Delete sits above it. -->
                             <a class="row-link" href="/settings/scripts/{data.script.id}/presets/{preset.id}" aria-label="Edit {presetDisplayName(preset, index)}"></a>
                             <PresetSummary {preset} characters={data.script.characters} {index} lastPlayed={preset.last_played} />
-                            <button class="button-style error delete" onclick={() => deletePreset(preset.id, presetDisplayName(preset, index))}>Delete</button>
+                            <button class="button-style error delete" onclick={() => deletePreset(preset.id, presetDisplayName(preset, index))} aria-label="Delete preset" title="Delete preset"><MaterialIcon icon={deleteIcon} size="1.25em"/></button>
                         </div>
                     {/each}
                 </div>

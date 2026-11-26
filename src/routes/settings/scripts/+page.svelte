@@ -276,7 +276,7 @@
                         <div class="script-subtitle">{script.characters.length} character{script.characters.length === 1 ? '' : 's'}</div>
                     </div>
                     <div onclick={(e)=>e.stopPropagation()} role="presentation">
-                    <CustomOverlay title="Confirm Delete" buttonTitle="Delete" buttonIcon={deleteIcon}>
+                    <CustomOverlay title="Confirm Delete" buttonTitle="" buttonIcon={deleteIcon} buttonLabel="Delete {script.name}">
                         <form action="?/deleteScript" method="POST" use:enhance={()=>{
                             return async ({result}) => {
                                 switch(result.type){

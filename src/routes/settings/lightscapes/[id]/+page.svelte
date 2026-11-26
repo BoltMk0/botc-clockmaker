@@ -1,6 +1,6 @@
 <script lang="ts">
     import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
-    import { arrowBackIcon, arrowForwardIcon, playArrowFillIcon, saveIcon, stopFillIcon } from "$lib/icons/material.js";
+    import { arrowBackIcon, arrowForwardIcon, deleteIcon, playArrowFillIcon, saveIcon, stopFillIcon } from "$lib/icons/material.js";
     import { beforeNavigate, goto } from '$app/navigation';
     import { onMount } from 'svelte';
     import { COOLEST_KELVIN, WARMEST_KELVIN, hexToKelvin, kelvinToHex } from '@boltmk0/lightscapes/color';
@@ -331,7 +331,7 @@
                 <div class="row">
                     <input class="name" type="text" bind:value={spectrum.name} aria-label="Spectrum name"/>
                     <span class="spacer"></span>
-                    <button class="remove" onclick={() => removeSpectrum(spectrum)}>Delete</button>
+                    <button class="remove" onclick={() => removeSpectrum(spectrum)} aria-label="Delete spectrum" title="Delete spectrum"><MaterialIcon icon={deleteIcon} size="1.25em"/></button>
                 </div>
                 <p class="hint small">{use.length ? `Followed in ${use.map(u => u.text).join(' · ')}` : "Not followed yet: pick it as a light's colour in a phase."}</p>
                 <div class="gradient" style:background={gradientCss(spectrum.stops)}>
@@ -483,7 +483,7 @@
     </div>
 
     <div class="panel">
-        <button class="remove wide" onclick={deletePreset}>Delete this preset</button>
+        <button class="remove wide" onclick={deletePreset} aria-label="Delete this preset" title="Delete this preset"><MaterialIcon icon={deleteIcon} size="1.25em"/></button>
     </div>
 </div>
 </div>

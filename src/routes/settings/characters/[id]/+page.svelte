@@ -1,6 +1,6 @@
 <script lang="ts">
     import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
-    import { addIcon, chevronLeftIcon, closeIcon } from "$lib/icons/material.js";
+    import { addIcon, chevronLeftIcon, closeIcon, deleteIcon } from "$lib/icons/material.js";
     import { deserialize } from '$app/forms';
     import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
     import { onMount, untrack } from 'svelte';
@@ -589,7 +589,7 @@
                     </table>
                     <div class="button-row">
                         <button class="button-style" onclick={resetReminderToken} disabled={!reminderTokenChanged}>Reset Changes</button>
-                        <button class="button-style error" onclick={()=>onDeleteReminderToken(selectedReminderTokenId)}>Delete Token</button>
+                        <button class="button-style error" onclick={()=>onDeleteReminderToken(selectedReminderTokenId)} aria-label="Delete token" title="Delete token"><MaterialIcon icon={deleteIcon} size="1.25em"/></button>
                     </div>
                 </div>
             {:else}
@@ -612,7 +612,7 @@
 
                         <div class="button-row">
                             <button class="button-style" onclick={resetCharacter} disabled={!characterChanged && !pendingImageFile}>Reset Changes</button>
-                            <button class="button-style error" onclick={() => deleteCharacter(selectedCharacter.id)}>Delete</button>
+                            <button class="button-style error" onclick={() => deleteCharacter(selectedCharacter.id)} aria-label="Delete character" title="Delete character"><MaterialIcon icon={deleteIcon} size="1.25em"/></button>
                         </div>
                     </div>
                 </div>

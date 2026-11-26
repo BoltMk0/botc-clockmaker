@@ -6,6 +6,7 @@
         title,
         buttonTitle = title,
         buttonIcon,
+        buttonLabel,
         visible = $bindable(false),
         showButton = true,
         showClose = true,
@@ -16,6 +17,8 @@
         buttonTitle?: string;
         /** An icon for the trigger button, from $lib/icons/material. */
         buttonIcon?: string;
+        /** What an icon-only trigger button is called (its tooltip and screen reader name); the title by default. */
+        buttonLabel?: string;
         visible?: boolean;
         /** Set to false to open the overlay only through `visible`, with no trigger button. */
         showButton?: boolean;
@@ -67,7 +70,7 @@
 </style>
 
 {#if showButton}
-    <button class="button-style" onclick={()=>{visible = true;}} aria-label={buttonTitle ? undefined : title} title={buttonTitle ? undefined : title}>
+    <button class="button-style" onclick={()=>{visible = true;}} aria-label={buttonTitle ? undefined : buttonLabel ?? title} title={buttonTitle ? undefined : buttonLabel ?? title}>
         {#if buttonIcon}<MaterialIcon icon={buttonIcon} size="1.2em"/>{/if}
         {buttonTitle}
     </button>

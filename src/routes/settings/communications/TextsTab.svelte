@@ -1,6 +1,6 @@
 <script lang="ts">
     import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
-    import { closeIcon, keyboardArrowDownIcon, keyboardArrowUpIcon, saveIcon } from "$lib/icons/material.js";
+    import { deleteIcon, keyboardArrowDownIcon, keyboardArrowUpIcon, saveIcon } from "$lib/icons/material.js";
     import { TEXT_STYLES, type TextOption } from "$lib/common/message";
     import { onMount } from "svelte";
 
@@ -67,7 +67,7 @@
             <textarea class="option-text" class:dumbledore-font={option.style === 'Header'} class:header={option.style === 'Header'} rows="1" bind:value={option.text} placeholder="Text"></textarea>
             <button title="Move up" aria-label="Move up" disabled={i === 0} onclick={() => move(i, -1)}><MaterialIcon icon={keyboardArrowUpIcon} size="1.25em"/></button>
             <button title="Move down" aria-label="Move down" disabled={i === options.length - 1} onclick={() => move(i, 1)}><MaterialIcon icon={keyboardArrowDownIcon} size="1.25em"/></button>
-            <button title="Delete" aria-label="Delete" onclick={() => options.splice(i, 1)}><MaterialIcon icon={closeIcon} size="1.25em"/></button>
+            <button title="Delete" aria-label="Delete" onclick={() => options.splice(i, 1)}><MaterialIcon icon={deleteIcon} size="1.25em"/></button>
         </div>
     {:else}
         <div class="empty">No text options yet.</div>

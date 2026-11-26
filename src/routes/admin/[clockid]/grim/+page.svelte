@@ -3346,7 +3346,7 @@
                                 {/each}
                             </span>
                         </button>
-                        <button class="delete-bluff-set-btn" onclick={() => deleteBluffSet(setIndex)} title="Delete bluff set" aria-label="Delete bluff set"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
+                        <button class="delete-bluff-set-btn" onclick={() => deleteBluffSet(setIndex)} title="Delete bluff set" aria-label="Delete bluff set"><MaterialIcon icon={deleteIcon} size="1.25em"/></button>
                         </div>
                         {/each}
                         <button class="button-style show-bluffs-btn add-bluff-set-btn" onclick={() => newBluffSet = []} title="Add bluff set" aria-label="Add bluff set">

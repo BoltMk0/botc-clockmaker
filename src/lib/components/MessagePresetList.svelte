@@ -22,7 +22,7 @@
 
 <script lang="ts" generics="T extends MessagePreset">
     import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
-    import { ICON_VIEWBOX, chevronLeftIcon, closeIcon, editIcon, keyboardArrowDownIcon, keyboardArrowUpIcon } from "$lib/icons/material.js";
+    import { ICON_VIEWBOX, chevronLeftIcon, deleteIcon, editIcon, keyboardArrowDownIcon, keyboardArrowUpIcon } from "$lib/icons/material.js";
     import { nameFromElements, type MessagePreset, type TextOption } from "$lib/common/message";
     import { characterImageUrl } from "$lib/resources/common/characterImages";
     import MessageBuilder, { type MessageBuilderView } from "$lib/components/MessageBuilder.svelte";
@@ -92,7 +92,7 @@
                 <button type="button" onclick={() => edit(i)}><MaterialIcon icon={editIcon} size="1.2em"/> Edit</button>
                 <button type="button" title="Move up" aria-label="Move up" disabled={i === 0} onclick={() => move(i, -1)}><MaterialIcon icon={keyboardArrowUpIcon} size="1.25em"/></button>
                 <button type="button" title="Move down" aria-label="Move down" disabled={i === presets.length - 1} onclick={() => move(i, 1)}><MaterialIcon icon={keyboardArrowDownIcon} size="1.25em"/></button>
-                <button type="button" title="Delete" aria-label="Delete" onclick={() => presets.splice(i, 1)}><MaterialIcon icon={closeIcon} size="1.25em"/></button>
+                <button type="button" title="Delete" aria-label="Delete" onclick={() => presets.splice(i, 1)}><MaterialIcon icon={deleteIcon} size="1.25em"/></button>
             </div>
             <div class="preset-preview">
                 {#each preset.elements as element}

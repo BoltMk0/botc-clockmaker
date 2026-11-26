@@ -1,6 +1,6 @@
 <script lang="ts">
     import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
-    import { closeIcon } from "$lib/icons/material.js";
+    import { deleteIcon } from "$lib/icons/material.js";
     import { invalidateAll } from "$app/navigation";
     import type { PageData } from "./$types";
 
@@ -35,7 +35,7 @@
                     <li>
                         <div class="entry-header">
                             <span class="entry-date">{new Date(entry.timestamp).toLocaleString()}</span>
-                            <button class="delete" title="Delete" aria-label="Delete entry" onclick={() => deleteEntry(entry.filename)}><MaterialIcon icon={closeIcon} size="1.25em"/></button>
+                            <button class="delete" title="Delete" aria-label="Delete entry" onclick={() => deleteEntry(entry.filename)}><MaterialIcon icon={deleteIcon} size="1.25em"/></button>
                         </div>
                         <p class="entry-text">{entry.text}</p>
                     </li>
