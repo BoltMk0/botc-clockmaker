@@ -240,7 +240,34 @@
         outline: 3px dashed gold;
     }
 
+    /* A picked character that changes setup says how, over the bottom of its token. */
+    .setup-warning {
+        position: absolute;
+        left: 50%;
+        bottom: -4px;
+        transform: translateX(-50%);
+        z-index: 1;
+        width: calc(var(--token) + 12px);
+        box-sizing: border-box;
+        padding: 0.15em 0.35em;
+        border-radius: 6px;
+        background: #f59e0b;
+        color: #000;
+        font-size: 0.65em;
+        font-weight: 600;
+        line-height: 1.2;
+        text-align: center;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+        line-clamp: 3;
+        overflow: hidden;
+        pointer-events: none;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    }
+
     .count-badge {
+        z-index: 2;
         position: absolute;
         bottom: -2px;
         left: -2px;
@@ -395,6 +422,7 @@
                                 </button>
                             {/if}
                             {#if bluffInPlay && count > 0}<InPlayWarning size="26px" style="position: absolute; bottom: -4px; right: -4px; pointer-events: none;"/>{/if}
+                            {#if mode === 'characters' && count > 0 && character.setup}<span class="setup-warning">⚠ {character.setup}</span>{/if}
                             {#if count > 1}<span class="count-badge">×{count}</span>{/if}
                             <button class="info-btn" aria-label="About {character.name}" title="About {character.name}" onclick={() => infoCharacter = character}>?</button>
                             {#if count > 0 && mode === 'characters' && !readonly}
