@@ -3,6 +3,8 @@ FROM node:22-alpine AS build
 
 WORKDIR /app
 
+# The Lightscapes library is installed from its GitHub repository
+RUN apk add --no-cache git
 COPY . .
 RUN npm install
 RUN npm run build

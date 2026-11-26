@@ -59,9 +59,8 @@ export default defineConfig({
 	},
 	server: {
 		fs: {
-			// The help wiki shows images from res/ and wiki/. ../lightscapes is the Lightscapes library while it's installed
-			// from a clone next to this one (file:../lightscapes), whose files the browser loads from there
-			allow: ['res', 'wiki', '../lightscapes']
+			// The help wiki shows images from res/ and wiki/
+			allow: ['res', 'wiki']
 		}
 	},
 	preview: {
