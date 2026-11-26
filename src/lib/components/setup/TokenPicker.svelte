@@ -2,7 +2,7 @@
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import InPlayWarning from "$lib/components/InPlayWarning.svelte";
     import { ALL_CHARACTER_CATEGORIES, CHARACTER_CATEGORY_COLORS, type CharacterCategory, type ScriptCharacter } from "$lib/resources/common/gameData.js";
-    import type { PresetBuilder } from "./PresetBuilder.svelte.js";
+    import { PresetBuilder } from "./PresetBuilder.svelte.js";
 
     // The setup's character step laid out like the grim's token tray: a grid of tokens for each character type.
     // Tapping a token picks it (or, once picked, takes every copy back out); a picked token's + adds another copy,
@@ -231,6 +231,15 @@
         outline-offset: 2px;
     }
 
+    /* Tokens that don't go in the bag (loric, fabled, the Drunk...) go straight on the grim. */
+    .picker-token.kept-out {
+        outline: 2px dashed color-mix(in srgb, var(--theme-on-bg) 55%, transparent);
+        outline-offset: 2px;
+    }
+    .picker-token.kept-out.picked {
+        outline: 3px dashed gold;
+    }
+
     .count-badge {
         position: absolute;
         bottom: -2px;
@@ -371,14 +380,15 @@
                     {#each section.characters as character (character.id)}
                         {@const count = countFor(character.id)}
                         {@const bluffInPlay = mode === 'bluffs' && builder.countOf(character.id) > 0}
-                        {@const tokenTitle = character.setup ? `${character.rules} [${character.setup}]` : character.rules}
+                        {@const keptOut = mode === 'characters' && !PresetBuilder.allowedInBag(character)}
+                        {@const tokenTitle = (character.setup ? `${character.rules} [${character.setup}]` : character.rules) + (keptOut ? '\n\nDoesn\'t go in the bag: goes straight on the grim.' : '')}
                         <div style="position: relative;">
                             {#if readonly}
-                                <div class="picker-token" title={tokenTitle}>
+                                <div class="picker-token" class:kept-out={keptOut} title={tokenTitle}>
                                     <CharacterToken {character} style="position: relative;" size="{tokenSize}px" imageSize={256} norules/>
                                 </div>
                             {:else}
-                                <button class="picker-token" class:picked={count > 0} class:in-play={bluffInPlay} aria-label={character.name} aria-pressed={count > 0}
+                                <button class="picker-token" class:picked={count > 0} class:kept-out={keptOut} class:in-play={bluffInPlay} aria-label={character.name} aria-pressed={count > 0}
                                     title={tokenTitle}
                                     onclick={() => tap(character.id)}>
                                     <CharacterToken {character} style="position: relative;" size="{tokenSize}px" imageSize={256} norules/>

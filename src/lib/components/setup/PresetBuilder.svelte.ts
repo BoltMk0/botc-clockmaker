@@ -49,7 +49,7 @@ export class PresetBuilder {
      */
     grimOnlyCharacterIds = $derived(this.chosenCharacterIds.filter(id => {
         const character = this.charById.get(id);
-        return !!character && !(character.allowedInBag ?? defaultAllowedInBag(character));
+        return !!character && !PresetBuilder.allowedInBag(character);
     }));
     /** How many of the chosen tokens can go in the bag. */
     bagAllowedCount = $derived(this.chosenCharacterIds.length - this.grimOnlyCharacterIds.length);
@@ -64,6 +64,10 @@ export class PresetBuilder {
     hasExactTokens = $derived(this.playerCount !== null && this.bagAllowedCount === this.playerCount);
     /** True once the bag holds exactly one token per player. */
     isSorted = $derived(this.hasEnoughTokens && this.bagCharacterIds.length === this.playerCount);
+
+    static allowedInBag(character: ScriptCharacter): boolean {
+        return character.allowedInBag ?? defaultAllowedInBag(character);
+    }
 
     setScript(script: ScriptWithCharacters | null) {
         this.script = script;
