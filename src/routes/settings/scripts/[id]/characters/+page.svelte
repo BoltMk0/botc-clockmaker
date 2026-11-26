@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { saveIcon } from "$lib/icons/material.js";
     import { ALL_CHARACTER_CATEGORIES, CHARACTER_CATEGORIES, CHARACTER_CATEGORY_COLORS, wakesFirstNight, wakesOtherNights, type Character, type CharacterCategory, type ScriptCharacter } from "$lib/resources/common/gameData.js";
     import CharacterThumb from "$lib/components/CharacterThumb.svelte";
     import { goto } from "$app/navigation";
@@ -397,7 +399,7 @@
                 <input type="color" bind:value={data.script.hue} style="width: 2.2em; height: 2.2em; padding: 0;" title="Script colour"/>
                 <input type="text" placeholder="Script Name" bind:value={data.script.name} style="font-size: large; padding: 0.2em 0.5em;" class="input-style" required/>
             </div>
-            <button class="button-style highlight" onclick={save}>Save</button>
+            <button class="button-style highlight" onclick={save}><MaterialIcon icon={saveIcon} size="1.2em"/> Save</button>
         </div>
         <div style="width: 100%; height: 100%; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1em; overflow: hidden;" class="padded">
             <div class="character-category-column-main">

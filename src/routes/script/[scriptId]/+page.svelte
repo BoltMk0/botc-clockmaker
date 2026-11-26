@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { ICON_VIEWBOX, chevronLeftIcon, keyboardArrowUpIcon, qrCode2Icon } from "$lib/icons/material.js";
     import { page } from '$app/state';
     import { tick } from 'svelte';
     import CharacterThumb from '$lib/components/CharacterThumb.svelte';
@@ -97,25 +98,16 @@
     <header>
         {#if data.backUrl}
             <a class="back-button" href={data.backUrl} aria-label="Back">
-                <svg width={28} height={28} viewBox="0 0 24 24">
-                    <path d="M15 5l-7 7 7 7" />
-                </svg>
+                <svg width={28} height={28} viewBox={ICON_VIEWBOX} fill="currentColor"><path d={chevronLeftIcon}/></svg>
             </a>
         {/if}
         <h1>{data.script.name}</h1>
         <button class="share-button button-style" onclick={() => showQr = true} aria-label="Share with a QR code">
-            <svg width={22} height={22} viewBox="0 0 24 24">
-                <rect x="3" y="3" width="7" height="7" rx="1"/>
-                <rect x="14" y="3" width="7" height="7" rx="1"/>
-                <rect x="3" y="14" width="7" height="7" rx="1"/>
-                <path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/>
-            </svg>
+            <svg width={22} height={22} viewBox={ICON_VIEWBOX} fill="currentColor"><path d={qrCode2Icon}/></svg>
             Share
         </button>
         <button class="to-top" class:visible={scrolledDown} tabindex={scrolledDown ? 0 : -1} aria-hidden={!scrolledDown} onclick={() => scroller?.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Back to top">
-            <svg width={22} height={22} viewBox="0 0 24 24">
-                <path d="M6 15l6-6 6 6" />
-            </svg>
+            <svg width={22} height={22} viewBox={ICON_VIEWBOX} fill="currentColor"><path d={keyboardArrowUpIcon}/></svg>
         </button>
     </header>
 
@@ -201,11 +193,7 @@
     }
 
     svg {
-        fill: none;
-        stroke: currentColor;
-        stroke-width: 2.5;
-        stroke-linecap: round;
-        stroke-linejoin: round;
+        fill: currentColor;
     }
 
     /* Hangs just below the sticky header, centred, over the list. */
@@ -235,18 +223,11 @@
         pointer-events: auto;
         transform: translate(-50%, 0);
     }
-    .to-top svg {
-        stroke-width: 3;
-    }
-
     .share-button {
         flex-shrink: 0;
         display: flex;
         align-items: center;
         gap: 0.4em;
-    }
-    .share-button svg {
-        stroke-width: 2;
     }
 
     main {

@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { inputIcon, warningIcon } from "$lib/icons/material.js";
     import { goto } from '$app/navigation';
     import { onMount } from 'svelte';
     import { shownHex } from '@boltmk0/lightscapes/color';
@@ -147,7 +149,7 @@
                     <tr class="hub-row" class:open onclick={() => openHubId = open ? null : hub.hubId}>
                         <td>
                             <span class="dot" class:online={hub.online} title={hub.online ? 'Online' : 'Offline'}></span>{hub.name}
-                            {#if hub.adapters.some(a => !a.ok)}<span class="warning" title={hub.adapters.filter(a => !a.ok).map(a => `${a.name}: ${a.detail ?? 'not working'}`).join('\n')}>⚠</span>{/if}
+                            {#if hub.adapters.some(a => !a.ok)}<span class="warning" title={hub.adapters.filter(a => !a.ok).map(a => `${a.name}: ${a.detail ?? 'not working'}`).join('\n')}><MaterialIcon icon={warningIcon} size="1.2em"/></span>{/if}
                             {#if hub.hasLegacyConfig}<span class="tag" title="It has settings from before Clockmaker drove it">Old settings</span>{/if}
                         </td>
                         <td>{gameName(hub.clockId)}</td>
@@ -164,7 +166,7 @@
                                             <span>{hub.name} has settings from before Clockmaker drove it: its scenes, spectrums, bells and buttons.</span>
                                             <span class="callout-actions">
                                                 <button disabled={busy} onclick={() => act(hub, { action: 'forgetLegacy' })}>Dismiss</button>
-                                                <button class="save" disabled={busy} onclick={() => importLegacy(hub)}>Import as a preset</button>
+                                                <button class="save" disabled={busy} onclick={() => importLegacy(hub)}><MaterialIcon icon={inputIcon} size="1.2em"/> Import as a preset</button>
                                             </span>
                                         </div>
                                     {/if}

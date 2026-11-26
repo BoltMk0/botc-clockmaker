@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { ICON_VIEWBOX, checkIcon, closeIcon, contentCopyIcon, qrCode2Icon } from "$lib/icons/material.js";
     import QRCode from 'qrcode';
 
     // A button that opens a QR code for a link (e.g. to hand a remote to another phone), with the link itself to copy.
@@ -55,12 +57,7 @@
 
 <button class="share-button" onclick={() => open = true} aria-label={title} title={title} {style}>
     <!-- A QR code: three finder squares and a few modules -->
-    <svg width={26} height={26} viewBox="0 0 24 24" style="fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round;">
-        <rect x="3" y="3" width="7" height="7" rx="1" />
-        <rect x="14" y="3" width="7" height="7" rx="1" />
-        <rect x="3" y="14" width="7" height="7" rx="1" />
-        <path d="M14 14h3v3h-3zM18 18h3v3h-3zM14 20v1M20 14v1" style="fill: currentColor; stroke-width: 1.5;" />
-    </svg>
+    <svg width={26} height={26} viewBox={ICON_VIEWBOX} fill="currentColor"><path d={qrCode2Icon}/></svg>
 </button>
 
 {#if open}
@@ -72,7 +69,7 @@
                     <h3 class="share-title">{title}</h3>
                     <div class="share-subtitle">Scan with a phone's camera, or send the link</div>
                 </div>
-                <button class="share-close" onclick={() => open = false} aria-label="Close">✕</button>
+                <button class="share-close" onclick={() => open = false} aria-label="Close"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
             </div>
             <div class="share-qr-tile">
                 {#if error}
@@ -85,10 +82,10 @@
                 <a class="share-link" href={url} title={url}>{url.replace(/^https?:\/\//, '')}</a>
                 <button class="share-copy" class:copied onclick={copy}>
                     {#if copied}
-                        <svg width={16} height={16} viewBox="0 0 24 24" style="fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;"><path d="M5 12l5 5 9-10" /></svg>
+                        <svg width={16} height={16} viewBox={ICON_VIEWBOX} fill="currentColor"><path d={checkIcon}/></svg>
                         Copied
                     {:else}
-                        <svg width={16} height={16} viewBox="0 0 24 24" style="fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round;"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V6a2 2 0 0 1 2-2h8" /></svg>
+                        <svg width={16} height={16} viewBox={ICON_VIEWBOX} fill="currentColor"><path d={contentCopyIcon}/></svg>
                         Copy
                     {/if}
                 </button>

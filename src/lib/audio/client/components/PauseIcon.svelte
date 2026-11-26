@@ -1,4 +1,8 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { playArrowFillIcon } from "$lib/icons/material.js";
+
+    // Shown while paused: the play arrow.
     let {size = 12}: {size?: number} = $props();
 </script>
-<svg width="{size}" height="{size}" viewBox="0 0 16 16" fill="currentColor"><path d="M3 2l11 6-11 6z"/></svg>
+<MaterialIcon icon={playArrowFillIcon} {size}/>

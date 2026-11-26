@@ -1,16 +1,21 @@
 <script lang="ts">
     import type { Snippet } from 'svelte';
+    import MaterialIcon from '$lib/icons/MaterialIcon.svelte';
 
     let {
         title,
         buttonTitle = title,
+        buttonIcon,
         visible = $bindable(false),
         showButton = true,
         showClose = true,
         children,
     }: {
         title: string;
+        /** The trigger button's text; leave it empty, with an icon, for an icon-only button (named by the title). */
         buttonTitle?: string;
+        /** An icon for the trigger button, from $lib/icons/material. */
+        buttonIcon?: string;
         visible?: boolean;
         /** Set to false to open the overlay only through `visible`, with no trigger button. */
         showButton?: boolean;
@@ -62,7 +67,8 @@
 </style>
 
 {#if showButton}
-    <button class="button-style" onclick={()=>{visible = true;}}>
+    <button class="button-style" onclick={()=>{visible = true;}} aria-label={buttonTitle ? undefined : title} title={buttonTitle ? undefined : title}>
+        {#if buttonIcon}<MaterialIcon icon={buttonIcon} size="1.2em"/>{/if}
         {buttonTitle}
     </button>
 {/if}

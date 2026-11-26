@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { closeIcon } from "$lib/icons/material.js";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
@@ -54,7 +56,7 @@
 
 <div class="bluffs-view">
     <ChalkboardButton clockid={data.clockid} returnTo={page.url.pathname + page.url.search}/>
-    <button class="close-btn" onclick={() => goto(`/admin/${data.clockid}/grim`)} aria-label="Close" title="Back to the grim">✕</button>
+    <button class="close-btn" onclick={() => goto(`/admin/${data.clockid}/grim`)} aria-label="Close" title="Back to the grim"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
 
     <h1 class="dumbledore-font">These roles are not in play</h1>
 

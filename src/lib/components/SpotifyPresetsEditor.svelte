@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { saveIcon } from "$lib/icons/material.js";
     import { onMount } from "svelte";
     import { isSpotifyAdaptivePreset, parseSpotifyContextUri, type SpotifyPreset } from "$lib/audio/common/spotifyPreset";
     import TimeOfDayIcon from "$lib/assets/timeOfDayIcon.svelte";
@@ -108,7 +110,7 @@
 <div class="panel">
 <div class="panel-header">
     <h2>Spotify Presets</h2>
-    <button class="save" disabled={!dirty} onclick={save}>Save changes</button>
+    <button class="save" disabled={!dirty} onclick={save}><MaterialIcon icon={saveIcon} size="1.2em"/> Save changes</button>
 </div>
 <p class="description">Albums and playlists shown on the Spotify strip in the mixer. Clicking one starts it playing straight away. In Spotify, use Share &rarr; Copy link and paste it here.<br/>An ambient adaptive playlist has a list for each phase: it plays the one for the current phase, and fades out to a random track from the next phase's list whenever the games' phase changes. Leave a phase empty to keep it silent: the music fades out and pauses through it, and picks up again by itself when a phase with a list comes round. A phase with the same list as the one playing carries straight on. The morning is daytime before the countdown's started (or while it's paused), and the day while it runs, so with only day and night lists it plays just while the countdown runs and at night.</p>
 <div class="data-table-scroll">

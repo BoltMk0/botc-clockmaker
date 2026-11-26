@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { saveIcon } from "$lib/icons/material.js";
     import type { MessagePreset, TextOption } from "$lib/common/message";
     import type { Character } from "$lib/resources/common/gameData";
     import MessagePresetList, { sectionsByCategory } from "$lib/components/MessagePresetList.svelte";
@@ -62,7 +64,7 @@
 <div class="panel">
 <div class="panel-header">
     <h2>Presets</h2>
-    <button class="save" disabled={!dirty} onclick={save}>Save changes</button>
+    <button class="save" disabled={!dirty} onclick={save}><MaterialIcon icon={saveIcon} size="1.2em"/> Save changes</button>
 </div>
 <p class="description">Messages listed in the Preset tab of the grim's communications, in this order, in all games, to show in one tap. Each is built like a custom message.</p>
 
@@ -72,11 +74,8 @@
 
 <style>
 
+    /* The Communications page scrolls and centres the tabs, with their tab bar above this panel. */
     .main {
-        height: 100%;
-        overflow-y: auto;
-        box-sizing: border-box;
-        padding: 1.5rem;
         align-items: flex-start;
     }
 
@@ -114,8 +113,11 @@
 
     button {
         border: 1px solid var(--theme-slider-trim);
-        border-radius: 4px;
         cursor: pointer;
+        /* The QR Codes tab's button size. */
+        font: inherit;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
     }
 
     button:hover {
@@ -128,7 +130,6 @@
     }
 
     button.save {
-        padding: 0.5em 1.2em;
         background-color: var(--theme-highlight);
         color: var(--theme-on-highlight);
         border-color: var(--theme-highlight);

@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { arrowBackIcon, chevronRightIcon } from "$lib/icons/material.js";
     import { goto } from "$app/navigation";
     import { alignmentForCategory, bluffSetsOf, presetGrimCharacterIds, presetPlayerCount, type Preset, type PresetListEntry, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import { newGrimoireStateHistory, newGrimoireStateWithTokensRoundCircle } from "$lib/resources/common/grimoireState.js";
@@ -469,14 +471,14 @@
 <div class="setup-main" ondragstart={(e) => e.preventDefault()} role="presentation">
     <div class="setup-header">
         {#if step === 'script'}
-            <a href="/admin/{data.clockid}/grim" class="button-style">← Back</a>
+            <a href="/admin/{data.clockid}/grim" class="button-style"><MaterialIcon icon={arrowBackIcon} size="1.2em"/> Back</a>
         {:else}
-            <button class="button-style" onclick={goBack}>← Back</button>
+            <button class="button-style" onclick={goBack}><MaterialIcon icon={arrowBackIcon} size="1.2em"/> Back</button>
         {/if}
         <h1 style="margin: 0; font-size: 1.2em;">Setup new game</h1>
         <div class="setup-steps">
             {#each STEPS as [key, label], i}
-                {#if i > 0}<span class="full">›</span>{/if}
+                {#if i > 0}<span class="full"><MaterialIcon icon={chevronRightIcon} size="1.2em"/></span>{/if}
                 <span class="full" class:active={step === key}>{i + 1}. {label}</span>
             {/each}
             {#each STEPS as [key, label], i}

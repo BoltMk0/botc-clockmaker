@@ -4,6 +4,8 @@
 </script>
 
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { ICON_VIEWBOX, closeIcon, keyboardArrowDownIcon } from "$lib/icons/material.js";
     import { TEXT_STYLES, type MessageElement, type PresetElement, type TextOption } from "$lib/common/message";
     import { rulesWithSetup, type Character, type ReminderToken } from "$lib/resources/common/gameData";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
@@ -250,7 +252,7 @@
         {@const open = unfolded.has(section.key)}
         {@const picked = view === 'character' ? section.characters.filter(c => pickedCharacterIds.includes(c.id)).length : 0}
         <button type="button" class="no-button-style section-toggle" aria-expanded={open} onclick={() => toggleSection(section.key)}>
-            <svg viewBox="0 0 24 24" class:collapsed={!open} aria-hidden="true"><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
+            <svg viewBox={ICON_VIEWBOX} class:collapsed={!open} aria-hidden="true" fill="currentColor"><path d={keyboardArrowDownIcon}/></svg>
             {section.title}
             {#if picked > 0}<span class="section-count">{picked} chosen</span>{/if}
         </button>
@@ -299,7 +301,7 @@
                         <div class="element-body add-element choices">
                             <button type="button" class="button-style alignment-choice good dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'good' })}>GOOD</button>
                             <button type="button" class="button-style alignment-choice evil dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'evil' })}>EVIL</button>
-                            <button type="button" class="no-button-style remove-element" title="Back" aria-label="Back" onclick={() => alignmentBlankIndex = null}>✕</button>
+                            <button type="button" class="no-button-style remove-element" title="Back" aria-label="Back" onclick={() => alignmentBlankIndex = null}><MaterialIcon icon={closeIcon} size="1.25em"/></button>
                         </div>
                     {:else if blanks === 'fill'}
                         <!-- To be filled in before the message is shown -->
@@ -313,7 +315,7 @@
                     {/if}
                     <!-- A blank being filled in has to be filled, so it can't be taken out -->
                     {#if !(blanks === 'fill' && element.type === 'blank')}
-                        <button type="button" class="no-button-style remove-element" title="Remove" aria-label="Remove" onclick={() => elements.splice(elementIndex, 1)}>✕</button>
+                        <button type="button" class="no-button-style remove-element" title="Remove" aria-label="Remove" onclick={() => elements.splice(elementIndex, 1)}><MaterialIcon icon={closeIcon} size="1.25em"/></button>
                     {/if}
                 </div>
             {/each}
@@ -326,13 +328,13 @@
                     {#if blanks === 'add'}
                         <button type="button" class="no-button-style element-type" onclick={() => addElement({ type: 'blank' })}>Blank</button>
                     {/if}
-                    <button type="button" class="no-button-style remove-element" title="Cancel" aria-label="Cancel" onclick={() => addElementStep = 'closed'}>✕</button>
+                    <button type="button" class="no-button-style remove-element" title="Cancel" aria-label="Cancel" onclick={() => addElementStep = 'closed'}><MaterialIcon icon={closeIcon} size="1.25em"/></button>
                 </div>
             {:else if addElementStep === 'alignment'}
                 <div class="add-element choices">
                     <button type="button" class="button-style alignment-choice good dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'good' })}>GOOD</button>
                     <button type="button" class="button-style alignment-choice evil dumbledore-font" onclick={() => addElement({ type: 'alignment', value: 'evil' })}>EVIL</button>
-                    <button type="button" class="no-button-style remove-element" title="Back" aria-label="Back" onclick={() => addElementStep = 'type'}>✕</button>
+                    <button type="button" class="no-button-style remove-element" title="Back" aria-label="Back" onclick={() => addElementStep = 'type'}><MaterialIcon icon={closeIcon} size="1.25em"/></button>
                 </div>
                 {#if blanks === 'add' && autoFill}
                     <!-- Good or evil as the character's player's token is, each time it's shown -->

@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { warningIcon } from "$lib/icons/material.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import type { PresetBuilder } from "./PresetBuilder.svelte.js";
 
@@ -91,7 +93,7 @@
     </div>
     {#if !builder.isSorted}
         <div class="status bad">
-            ⚠ There {builder.bagCharacterIds.length === 1 ? 'is' : 'are'} {builder.bagCharacterIds.length} token{builder.bagCharacterIds.length === 1 ? '' : 's'} in the bag
+            <MaterialIcon icon={warningIcon} size="1.2em"/> There {builder.bagCharacterIds.length === 1 ? 'is' : 'are'} {builder.bagCharacterIds.length} token{builder.bagCharacterIds.length === 1 ? '' : 's'} in the bag
             for {builder.playerCount} player{builder.playerCount === 1 ? '' : 's'}
             ({builder.bagCharacterIds.length > (builder.playerCount ?? 0) ? 'move some to the grim' : 'move some back to the bag'}).
         </div>

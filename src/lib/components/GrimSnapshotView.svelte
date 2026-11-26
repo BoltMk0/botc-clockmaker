@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { downloadIcon } from "$lib/icons/material.js";
     import { onMount, tick } from "svelte";
     import { domToPng } from "modern-screenshot";
     import AnotatableViewV2 from "$lib/components/DrawableCanvas2/AnotatableViewV2.svelte";
@@ -209,7 +211,7 @@
     <div class="snapshot-header">
         <span class="snapshot-title">{title}</span>
         <button class="button-style" onclick={fitView}>Fit</button>
-        <button class="button-style" disabled={exporting} onclick={saveAsPng}>{exporting ? 'Saving…' : 'Save as PNG'}</button>
+        <button class="button-style" disabled={exporting} onclick={saveAsPng}><MaterialIcon icon={downloadIcon} size="1.2em"/> {exporting ? 'Saving…' : 'Save as PNG'}</button>
         <button class="button-style" onclick={onclose}>Close</button>
     </div>
     <div class="snapshot-body">

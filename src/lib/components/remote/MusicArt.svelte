@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { ICON_VIEWBOX, musicNoteFillIcon } from "$lib/icons/material.js";
     import type { MusicSource } from "./remoteMusic.svelte";
 
     /** A track's album art, or a placeholder note when it has none. */
@@ -9,9 +10,7 @@
     {#if imageUrl}
     <img src={imageUrl} alt=""/>
     {:else}
-    <svg viewBox="0 0 24 24" fill="currentColor" style:width="{size / 2}px" style:height="{size / 2}px">
-        <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/>
-    </svg>
+    <svg viewBox={ICON_VIEWBOX} fill="currentColor" style:width="{size / 2}px" style:height="{size / 2}px"><path d={musicNoteFillIcon}/></svg>
     {/if}
     {#if source === 'spotify'}
     <span class="badge" title="Spotify"></span>

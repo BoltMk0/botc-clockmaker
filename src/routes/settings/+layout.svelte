@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { ICON_VIEWBOX, closeIcon, menuIcon } from "$lib/icons/material.js";
     import { page } from '$app/state';
     import TopNavbar from '$lib/components/TopNavbar.svelte';
 
@@ -44,9 +45,9 @@
     {#snippet mobileBrand()}
         <button class="settings-menu-toggle" onclick={() => menuOpen = !menuOpen} aria-label={menuOpen ? 'Close settings menu' : 'Open settings menu'} aria-expanded={menuOpen}>
             {#if menuOpen}
-                <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                <svg viewBox={ICON_VIEWBOX} width="28" height="28" fill="currentColor" aria-hidden="true"><path d={closeIcon}/></svg>
             {:else}
-                <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+                <svg viewBox={ICON_VIEWBOX} width="28" height="28" fill="currentColor" aria-hidden="true"><path d={menuIcon}/></svg>
             {/if}
         </button>
     {/snippet}

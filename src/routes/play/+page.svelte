@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { ICON_VIEWBOX, chevronLeftIcon, listIcon } from "$lib/icons/material.js";
     import { invalidateAll } from '$app/navigation';
     import PlusIcon from '$lib/components/PlusIcon.svelte';
     import ClockIcon from '$lib/components/ClockIcon.svelte';
@@ -143,9 +144,7 @@
 <div class="play">
   <div class="column">
   <a class="back-link" href="/" target="_self">
-    <svg width={24} height={24} viewBox="0 0 24 24" style="fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;">
-        <path d="M15 5l-7 7 7 7" />
-    </svg>
+    <svg width={24} height={24} viewBox={ICON_VIEWBOX} fill="currentColor"><path d={chevronLeftIcon}/></svg>
     Back
   </a>
   <header class="page-header">
@@ -202,9 +201,7 @@
                     <span>{scriptName ?? '-'}</span>
                     {#if scriptId}
                         <a class="view-script" href="/script/{scriptId}?backUrl=/play" aria-label="View script characters" title="View characters">
-                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">
-                                <path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>
-                            </svg>
+                            <svg viewBox={ICON_VIEWBOX} width="20" height="20" focusable="false" fill="currentColor"><path d={listIcon}/></svg>
                         </a>
                     {/if}
                 </div>

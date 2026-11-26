@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { ICON_VIEWBOX, checkCircleFillIcon, checkIcon, closeIcon, editIcon, layersIcon, radioButtonUncheckedIcon } from "$lib/icons/material.js";
     import { browser } from '$app/environment';
     import PenIcon from '$lib/components/PenIcon.svelte';
     import RubberIcon from '$lib/components/RubberIcon.svelte';
@@ -843,13 +845,9 @@
         title={editing ? 'Commit' : 'Edit'}
     >
         {#if editing}
-            <svg viewBox="0 0 24 24" aria-hidden="true" style="width:100%;height:100%">
-                <path fill="currentColor" d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-            </svg>
+            <svg viewBox={ICON_VIEWBOX} aria-hidden="true" style="width:100%;height:100%" fill="currentColor"><path d={checkIcon}/></svg>
         {:else}
-            <svg viewBox="0 0 24 24" aria-hidden="true" style="width:100%;height:100%">
-                <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-            </svg>
+            <svg viewBox={ICON_VIEWBOX} aria-hidden="true" style="width:100%;height:100%" fill="currentColor"><path d={editIcon}/></svg>
         {/if}
     </button>
     {/if}
@@ -865,19 +863,9 @@
         title={isSaved ? 'Saved' : 'Unsaved changes'}
     >
         {#if isSaved}
-            <svg class="save-icon saved" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                    fill="currentColor"
-                    d="M12 2a10 10 0 1 0 0 20a10 10 0 0 0 0-20Zm-1.1 14.2L6.7 12l1.4-1.4l2.8 2.8l6.2-6.2l1.4 1.4l-7.6 7.6Z"
-                />
-            </svg>
+            <svg class="save-icon saved" viewBox={ICON_VIEWBOX} aria-hidden="true" fill="currentColor"><path d={checkCircleFillIcon}/></svg>
         {:else}
-            <svg class="save-icon unsaved" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                    fill="currentColor"
-                    d="M12 2a10 10 0 1 0 0 20a10 10 0 0 0 0-20Zm0 18a8 8 0 1 1 0-16a8 8 0 0 1 0 16Z"
-                />
-            </svg>
+            <svg class="save-icon unsaved" viewBox={ICON_VIEWBOX} aria-hidden="true" fill="currentColor"><path d={radioButtonUncheckedIcon}/></svg>
         {/if}
     </span>
 
@@ -915,9 +903,7 @@
             aria-label="Layers"
             title="Layers"
         >
-            <svg viewBox="0 0 24 24" aria-hidden="true" style="width:100%;height:100%">
-                <path fill="currentColor" d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27z"/>
-            </svg>
+            <svg viewBox={ICON_VIEWBOX} aria-hidden="true" style="width:100%;height:100%" fill="currentColor"><path d={layersIcon}/></svg>
         </button>
         {#if layerDropdownOpen}
         <div class="layer-dropdown">
@@ -936,7 +922,7 @@
                         onclick={(e) => { e.stopPropagation(); removeLayer(i); }}
                         aria-label="Delete {layer.name}"
                         title="Delete layer"
-                    >&times;</button>
+                    ><MaterialIcon icon={closeIcon} size="1em"/></button>
                     {/if}
                 </div>
             {/each}

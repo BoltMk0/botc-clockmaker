@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { ICON_VIEWBOX, chevronLeftIcon } from "$lib/icons/material.js";
     import { onMount } from 'svelte';
     import { browser } from '$app/environment';
     import PhaseStatsView from '$lib/components/remote/PhaseStatsView.svelte';
@@ -25,9 +26,7 @@
 <div class="analysis-page">
     <!-- As the remote page's back link -->
     <a class="back-link" href={data.backUrl} target="_self">
-        <svg width={28} height={28} viewBox="0 0 24 24" style="fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;">
-            <path d="M15 5l-7 7 7 7" />
-        </svg>
+        <svg width={28} height={28} viewBox={ICON_VIEWBOX} fill="currentColor"><path d={chevronLeftIcon}/></svg>
         Remote
     </a>
     <div class="content">

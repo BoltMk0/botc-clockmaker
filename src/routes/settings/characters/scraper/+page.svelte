@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { chevronRightIcon, stopFillIcon, travelExploreIcon } from "$lib/icons/material.js";
     import CharacterThumb from "$lib/components/CharacterThumb.svelte";
     import type { Character, CharacterCategory } from "$lib/resources/common/gameData";
     import { ALL_CHARACTER_CATEGORIES } from "$lib/resources/common/gameData";
@@ -92,7 +94,7 @@
         </div>
         <div class="toolbar-actions">
             <button class="button-style primary" onclick={() => ($running ? running.set(false) : scrapeAll())}>
-                {$running ? 'Stop' : 'Scrape All'}
+                {#if $running}<MaterialIcon icon={stopFillIcon} size="1.2em"/> Stop{:else}<MaterialIcon icon={travelExploreIcon} size="1.2em"/> Scrape All{/if}
             </button>
             <progress value={$progress} max={allListings.length}></progress>
             <div class="toolbar-status">
@@ -112,7 +114,7 @@
             {@const listings = data.listingsByCategory[category]}
             <div class="category-group">
                 <button class="category-header no-button-style" onclick={() => toggleCategory(category)}>
-                    <span class="chevron" class:open={$openCategories.has(category)}>&rsaquo;</span>
+                    <span class="chevron" class:open={$openCategories.has(category)}><MaterialIcon icon={chevronRightIcon} size="1em"/></span>
                     <span class="category-name">{category}</span>
                     <span class="category-count">{listings.length}</span>
                 </button>

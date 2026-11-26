@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { checkIcon } from "$lib/icons/material.js";
     import { goto } from "$app/navigation";
     import type { ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import { fetchScriptWithSideCharacters } from "$lib/resources/client/scriptWithSideCharacters";
@@ -296,7 +298,7 @@
         <div class="number-grid">
             {#each slots as slot (slot.number)}
                 <button class="number-btn" disabled={slot.claimed} onclick={() => tapNumber(slot.number)}>
-                    {slot.claimed ? '✓' : slot.number}
+                    {#if slot.claimed}<MaterialIcon icon={checkIcon} size="1.2em"/>{:else}{slot.number}{/if}
                 </button>
             {/each}
         </div>
@@ -330,7 +332,7 @@
                 {/if}
                 <div class="name-row">
                     <input type="text" class="input-style name-input" placeholder="Your name" bind:value={nameInput} use:focusOnMount oninput={limitName} oncompositionend={limitName} onkeydown={(e) => { if (e.key === 'Enter') confirmName(); }}/>
-                    <button class="tick-btn" aria-label="Confirm" onclick={confirmName} disabled={confirming || !nameInput.trim()}>✓</button>
+                    <button class="tick-btn" aria-label="Confirm" onclick={confirmName} disabled={confirming || !nameInput.trim()}><MaterialIcon icon={checkIcon} size="1.25em"/></button>
                 </div>
             {/if}
         </div>

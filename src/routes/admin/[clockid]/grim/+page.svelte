@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { ICON_VIEWBOX, addBoxIcon, addIcon, arrowBackIcon, checkIcon, chevronLeftIcon, closeIcon, cycleIcon, deleteIcon, editIcon, inkEraserIcon, keyboardArrowDownIcon, keyboardArrowUpIcon, layersClearIcon, listAltIcon, lockIcon, lockOpenIcon, menuIcon, refreshIcon, saveIcon, scheduleIcon, smsIcon, sportsScoreIcon, syncIcon, timerIcon, undoIcon, visibilityIcon, warningFillIcon } from "$lib/icons/material.js";
     import { fetchScriptWithSideCharacters } from "$lib/resources/client/scriptWithSideCharacters";
     import { hasNoBlanks, nameFromElements, presetDisplayName, type MessageElement, type MessagePreset, type PresetElement, type TextOption } from "$lib/common/message";
     import { alignmentForCategory, bluffSetsOf, characterMessagePresetsFor, ALL_CHARACTER_CATEGORIES, type Character, type CharacterCategory, type ReminderToken, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
@@ -2925,11 +2927,11 @@
         : 'Unsaved changes'
     }>
         {#if saveStatus === 'saved'}
-            <svg viewBox="0 0 24 24"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={checkIcon}/></svg>
         {:else if saveStatus === 'saving'}
-            <svg viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm-6.7 3.2-1.46-1.46A7.93 7.93 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8z"/></svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={syncIcon}/></svg>
         {:else if saveStatus === 'error'}
-            <svg viewBox="0 0 24 24"><path d="M12 2 1 21h22L12 2zm0 15a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5zm-1-7h2v5h-2v-5z"/></svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={warningFillIcon}/></svg>
         {:else}
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/></svg>
         {/if}
@@ -2938,7 +2940,7 @@
     {#if undo.canUndo}
     <!-- Undo this device's last change -->
     <button class="sidebar-btn undo-stroke-btn" class:drag-hidden={isDraggingAnything} style="z-index: {z_indecies.ui};" onclick={undoLastChange} title="Undo" aria-label="Undo">
-        <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+        <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={undoIcon}/></svg>
     </button>
     {/if}
 
@@ -2946,7 +2948,7 @@
     <div class="locked-toast" role="status" style="z-index: {z_indecies.ui + 40};"
         in:fly={{ y: -24, opacity: 0, duration: 300, easing: cubicOut }}
         out:fly={{ y: -24, opacity: 0, duration: 250, easing: cubicIn }}>
-        <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2z"/></svg>
+        <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={lockIcon}/></svg>
         <span>Grimoire Tokens Locked</span>
     </div>
     {/if}
@@ -2960,44 +2962,44 @@
             if (!sidebarOpen) editing = false;
         }} title="{sidebarOpen ? 'Hide' : 'Show'} menu">
             {#if sidebarOpen}
-                <svg viewBox="0 0 24 24"><path d="M7.41 15.41 12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+                <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={keyboardArrowUpIcon}/></svg>
             {:else}
-                <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+                <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={menuIcon}/></svg>
             {/if}
         </button>
 
         <!-- Clock controls, as tapping the clock in the middle opens -->
         <button class="sidebar-btn" class:active={showTimerOptions} onclick={() => showTimerOptions = true} title="Clock controls">
-            <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={timerIcon}/></svg>
         </button>
 
         <!-- Communications: things to show a player -->
         <button class="sidebar-btn" class:active={commsView !== null} onclick={() => openComms()} title="Communications">
-            <svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM6.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0zM10.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0zM14.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0z"/></svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={smsIcon}/></svg>
         </button>
 
         <!-- Night order: who wakes, and when, on the first night and the other nights -->
         <button class="sidebar-btn" class:active={nightOrderSheet !== null} onclick={() => nightOrderSheet = (clockClient?.day || 0) > 0 ? 'other' : 'first'} title="Night order">
-            <svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M6 2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM6 4v16h12V4H6zM7.3 8a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0zM7.3 12a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0zM7.3 16a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0zM11 7h5.5v2H11zM11 11h5.5v2H11zM11 15h5.5v2H11z"/></svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={listAltIcon}/></svg>
         </button>
 
         <!-- Hide the grim behind a blank page, e.g. before leaving the device unattended. Replaces this page in the
              history, so the browser's back button doesn't bring it back up (and Unhide does the same the other way). -->
         <button class="sidebar-btn" onclick={() => {saveGrimoire().then(()=>goto(`/admin/${data.clockid}/grim/hidden`, { replaceState: true }))} } title="Hide grimoire">
-            <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={visibilityIcon}/></svg>
         </button>
         </div>
 
         {#if sidebarOpen}
         <!-- Go back -->
         <button class="sidebar-btn labelled" onclick={() => {saveGrimoire().then(()=>goto(`/play`, { replaceState: true }))} } title="Back to Play">
-            <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={arrowBackIcon}/></svg>
             <span>Go back</span>
         </button>
 
         <!-- Set up a new game on this grim (or reset it) -->
         <button class="sidebar-btn" onclick={() => {saveGrimoire().then(()=>goto(`/admin/${data.clockid}/grim/setup`))} } title="Set up a new game">
-            <svg viewBox="0 0 24 24"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={addBoxIcon}/></svg>
         </button>
 
         <!-- Canvas control -->
@@ -3008,9 +3010,7 @@
                     showFooter = false;
                 }
             }} title="{editing ? 'Exit annotate mode' : 'Enter annotate mode'}">
-                <svg viewBox="0 0 24 24">
-                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.83z"/>
-                </svg>
+                <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={editIcon}/></svg>
             </button>
             {#if editing}
             <!-- Raised one square (button + gap) to sit beside the back button rather than below it. -->
@@ -3023,9 +3023,7 @@
                                 <circle cx="12" cy="12" r="9" fill={tool.color} stroke="currentColor" stroke-width="2"/>
                             </svg>
                         {:else if tool.type === 'eraser'}
-                            <svg viewBox="0 0 24 24">
-                                <path d="M16.24 3.56L7.05 12.75a2.003 2.003 0 0 0 0 2.83l4.24 4.24c.78.78 2.05.78 2.83 0l9.19-9.19a2.003 2.003 0 0 0 0-2.83L19.07 3.56a2.003 2.003 0 0 0-2.83 0zM5.63 13.34a1.003 1.003 0 0 1 0-1.42l1.41-1.41a1.003 1.003 0 0 1 1.42 0l1.41 1.41a1.003 1.003 0 0 1-1.42 1.42L7.05 14a1.003 1.003 0 0 1-1.42-.08z"/>
-                            </svg>
+                            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={inkEraserIcon}/></svg>
                         {/if}
                     </button>
                 {/each}
@@ -3042,9 +3040,7 @@
                     <div style="display: flex; gap: 4px; position: absolute; left: 52px; top: 0;">
                         <!-- Reset button -->
                         <button class="sidebar-btn" onclick={()=>{clearLayer(index)}} title="Clear layer">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M12 5V2M12 22v-3M5.64 5.64l-2.12-2.12M18.36 18.36l-2.12-2.12M1 12H4M20 12h3M5.64 18.36l-2.12 2.12M18.36 5.64l-2.12 2.12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            </svg>
+                            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={layersClearIcon}/></svg>
                         </button>
 
                         {#if canvasLayers.length > 1}
@@ -3053,13 +3049,7 @@
                         <button class="sidebar-btn" onclick={()=>{
                             deleteLayer(index);
                         }} title="Delete layer">
-                            <svg viewBox="0 0 24 28">
-                                <rect x="5" y="7" width="14" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                                <path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" fill="none" stroke="currentColor" stroke-width="2"/>
-                                <line x1="10" y1="13" x2="10" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                <line x1="14" y1="13" x2="14" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                <line x1="3" y1="7" x2="21" y2="7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            </svg>
+                            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={deleteIcon}/></svg>
                         </button>
 
                         {/if}
@@ -3069,9 +3059,7 @@
                 {/each}
                 <!-- Add layer button -->
                 <button class="sidebar-btn" onclick={addLayer} title="Add new layer">
-                <svg viewBox="0 0 24 24">
-                    <path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
+                <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={addIcon}/></svg>
                 </button>
             </div>
             {/if}
@@ -3080,54 +3068,32 @@
         <!-- Lock/Unlock token positions -->
         <button class="sidebar-btn" class:active={tokensLocked} onclick={() => setTokensLocked(!(tokensLocked))} title="{tokensLocked ? 'Unlock' : 'Lock'} token positions">
             {#if tokensLocked}
-                <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2z"/></svg>
+                <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={lockIcon}/></svg>
             {:else}
-                <svg viewBox="0 0 24 24"><path d="M12 17c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6h1.9c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm0 12H6V10h12v10z"/></svg>
+                <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={lockOpenIcon}/></svg>
             {/if}
         </button>
 
         {#if !tokensLocked}
         <!-- Auto-arrange: space the players evenly round a ring -->
         <button class="sidebar-btn" onclick={autoArrangeTokens} title="Auto-arrange tokens">
-            <svg viewBox="0 0 24 24">
-                <!-- Three seats round a ring, each with an arrow round to the next, and an A in the middle -->
-                {#each [0, 120, 240] as angle}
-                    <g transform="rotate({angle} 12 13.1)" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="2.9" r="2.3" fill="currentColor" stroke="none"/>
-                        <path d="M15.53 3.53A10.2 10.2 0 0 1 22.11 14.44"/>
-                        <path d="M21.08 12.84 22.05 14.83 23.64 13.28"/>
-                    </g>
-                {/each}
-                <path d="M8.9 17.1 12 8.9l3.1 8.2M10.1 14.4h3.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={cycleIcon}/></svg>
         </button>
         {/if}
 
         <!-- Show/Hide clock -->
         <button class="sidebar-btn" class:active={showClock} onclick={() => showClock = !showClock} title="{showClock ? 'Hide' : 'Show'} clock">
-            <svg viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"/>
-                <line x1="12" y1="12" x2="12" y2="7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <line x1="12" y1="12" x2="16" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={scheduleIcon}/></svg>
         </button>
 
         <!-- Refresh page button -->
         <button class="sidebar-btn" onclick={() => location.reload()} title="Refresh page">
-            <svg viewBox="0 0 24 24">
-                <path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
-            </svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={refreshIcon}/></svg>
         </button>
 
         <!-- End the game, recording who won, and clear the grim -->
         <button class="sidebar-btn end-game-btn" onclick={() => showEndGame = true} title="End game">
-            <svg viewBox="0 0 24 28">
-                <rect x="5" y="7" width="14" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                <path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" fill="none" stroke="currentColor" stroke-width="2"/>
-                <line x1="10" y1="13" x2="10" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <line x1="14" y1="13" x2="14" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                <line x1="3" y1="7" x2="21" y2="7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={sportsScoreIcon}/></svg>
         </button>
 
         {/if}
@@ -3230,10 +3196,10 @@
             {/if}
         {/snippet}
         {#snippet commsIcon()}
-            <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM6.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0zM10.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0zM14.7 10a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0z"/></svg>
+            <svg class="button-icon" viewBox={ICON_VIEWBOX} aria-hidden="true" fill="currentColor"><path d={smsIcon}/></svg>
         {/snippet}
         {#snippet eyeIcon()}
-            <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>
+            <svg class="button-icon" viewBox={ICON_VIEWBOX} aria-hidden="true" fill="currentColor"><path d={visibilityIcon}/></svg>
         {/snippet}
         {#snippet wakeToggle(on: boolean, style: string, onclick: (e: MouseEvent) => void)}
             <button type="button" class="night-order-badge wake-toggle" class:off={!on} {style} {onclick}
@@ -3251,7 +3217,7 @@
                         {#each characterPresetsFor(activeChar.id, currentNight) as preset}
                             <button type="button" class="popup-toggle" onclick={() => showPreset(preset, activeChar.id)}>{presetDisplayName(preset)}</button>
                         {/each}
-                        <button type="button" class="button-style comms-plain" onclick={() => playerCommsShown = false}>&lsaquo; Back</button>
+                        <button type="button" class="button-style comms-plain" onclick={() => playerCommsShown = false}><MaterialIcon icon={chevronLeftIcon} size="1.2em"/> Back</button>
                     </div>
                     {:else}
                     <div class="popup-meta" bind:clientHeight={popupMetaHeight}>
@@ -3353,7 +3319,7 @@
     <div class="grimoire-footer" bind:this={footerEl} style="--tray-token: {trayTokenSize}px; transform: translateY({showFooter && !dragging && !draggingReminder ? '0' : '100%'}); z-index: {z_indecies.ui};">
         <div class="token-tray-container">
             <div class="token-tray-header">
-                <button class="overlay-close tray-close-btn" onclick={() => showFooter = false} aria-label="Close">✕</button>
+                <button class="overlay-close tray-close-btn" onclick={() => showFooter = false} aria-label="Close"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
                 <div class="tray-title">Token Tray</div>
             </div>
             <div class="token-tray">
@@ -3380,7 +3346,7 @@
                                 {/each}
                             </span>
                         </button>
-                        <button class="delete-bluff-set-btn" onclick={() => deleteBluffSet(setIndex)} title="Delete bluff set" aria-label="Delete bluff set">✕</button>
+                        <button class="delete-bluff-set-btn" onclick={() => deleteBluffSet(setIndex)} title="Delete bluff set" aria-label="Delete bluff set"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
                         </div>
                         {/each}
                         <button class="button-style show-bluffs-btn add-bluff-set-btn" onclick={() => newBluffSet = []} title="Add bluff set" aria-label="Add bluff set">
@@ -3397,7 +3363,7 @@
                 <div>
                     {#if section.collapsible}
                         <button class="tray-section-toggle" aria-expanded={!collapsed} onclick={() => toggleTraySection(section.key)}>
-                            <svg viewBox="0 0 24 24" class:collapsed><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
+                            <svg viewBox={ICON_VIEWBOX} class:collapsed fill="currentColor"><path d={keyboardArrowDownIcon}/></svg>
                             {section.title}
                             <span class="tray-section-count">{section.characters.length}</span>
                         </button>
@@ -3438,14 +3404,14 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 10};" onclick={(e) => { if (!(e.target as Element).closest('input')) closeOverlay(); }}>
             <div class="overlay-panel">
-                <button class="overlay-close" onclick={closeOverlay} aria-label="Close">✕</button>
+                <button class="overlay-close" onclick={closeOverlay} aria-label="Close"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
                 {#if overlayFromBoard && activeToken && oc && playerCommsShown}
                     <!-- The character's presets for tonight and Back, in place of everything else -->
                     <div class="overlay-comms">
                         {#each characterPresetsFor(oc.id, currentNight) as preset}
                             <button type="button" class="popup-toggle" onclick={(e) => { e.stopPropagation(); showPreset(preset, oc.id); }}>{presetDisplayName(preset)}</button>
                         {/each}
-                        <button type="button" class="button-style" onclick={(e) => { e.stopPropagation(); playerCommsShown = false; }}>&lsaquo; Back</button>
+                        <button type="button" class="button-style" onclick={(e) => { e.stopPropagation(); playerCommsShown = false; }}><MaterialIcon icon={chevronLeftIcon} size="1.2em"/> Back</button>
                     </div>
                 {:else}
                     {#if overlayFromBoard && activeToken && !sideRole}
@@ -3540,7 +3506,7 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 20};" onclick={() => nightOrderSheet = null}>
             <!-- Outside the panel, so it stays put while the panel scrolls -->
-            <button class="overlay-close overlay-corner-close" onclick={(e) => { e.stopPropagation(); nightOrderSheet = null; }} aria-label="Close" title="Close">✕</button>
+            <button class="overlay-close overlay-corner-close" onclick={(e) => { e.stopPropagation(); nightOrderSheet = null; }} aria-label="Close" title="Close"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <div class="overlay-panel night-sheet" onclick={(e) => e.stopPropagation()}>
                 <div class="overlay-tabs" role="tablist" aria-label="Night order">
@@ -3616,7 +3582,7 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 20};" onclick={() => commsView = null}>
             <!-- Outside the panel, so it stays put while the panel scrolls -->
-            <button class="overlay-close overlay-corner-close" onclick={(e) => { e.stopPropagation(); commsView = null; }} aria-label="Close" title="Close">✕</button>
+            <button class="overlay-close overlay-corner-close" onclick={(e) => { e.stopPropagation(); commsView = null; }} aria-label="Close" title="Close"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <div class="overlay-panel comms-panel" onclick={(e) => e.stopPropagation()}>
                 {#if commsView === 'bluffs'}
@@ -3666,12 +3632,12 @@
                                     <div class="queue-item-summary">{messageSummary(message.elements)}</div>
                                 </div>
                                 <button class="queue-item-btn" disabled={i === 0} onclick={() => messageQueue.move(message.id, -1)} aria-label="Move up" title="Move up">
-                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.4 15.4 12 10.8l4.6 4.6L18 14l-6-6-6 6z"/></svg>
+                                    <svg viewBox={ICON_VIEWBOX} aria-hidden="true" fill="currentColor"><path d={keyboardArrowUpIcon}/></svg>
                                 </button>
                                 <button class="queue-item-btn" disabled={i === messageQueue.messages.length - 1} onclick={() => messageQueue.move(message.id, 1)} aria-label="Move down" title="Move down">
-                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z"/></svg>
+                                    <svg viewBox={ICON_VIEWBOX} aria-hidden="true" fill="currentColor"><path d={keyboardArrowDownIcon}/></svg>
                                 </button>
-                                <button class="queue-item-btn" onclick={() => messageQueue.remove(message.id)} aria-label="Remove" title="Remove">✕</button>
+                                <button class="queue-item-btn" onclick={() => messageQueue.remove(message.id)} aria-label="Remove" title="Remove"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
                             </div>
                         {/each}
                         {#if messageQueue.messages.length > 0}
@@ -3702,7 +3668,7 @@
                         />
                         {#if presetBuilderView === 'builder'}
                             {#if presetEditor.mode === 'new'}
-                                <button class="button-style highlight" disabled={presetEditor.elements.length === 0} onclick={saveNewPreset}>Save preset</button>
+                                <button class="button-style highlight" disabled={presetEditor.elements.length === 0} onclick={saveNewPreset}><MaterialIcon icon={saveIcon} size="1.2em"/> Save preset</button>
                             {:else}
                                 <button class="button-style highlight" disabled={!presetEditorFilled} onclick={showFilledPreset}>{messageQueue.enabled ? 'Add to queue' : 'Show'}</button>
                             {/if}
@@ -3758,7 +3724,7 @@
         <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 20};" onclick={() => newBluffSet = null}>
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <div class="overlay-panel" style="width: min(94vw, 720px);" onclick={(e) => e.stopPropagation()}>
-                <button class="overlay-close" onclick={() => newBluffSet = null} aria-label="Close">✕</button>
+                <button class="overlay-close" onclick={() => newBluffSet = null} aria-label="Close"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
                 <div class="overlay-name dumbledore-font">New bluff set</div>
                 <div class="overlay-drag-hint">Choose at least 3 bluffs ({newBluffSet.length} chosen). Faded characters are already in play.</div>
                 <div class="picker-grid">
@@ -3781,7 +3747,7 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 20};" onclick={() => pickingCharacter = false}>
             <div class="overlay-panel" style="width: min(94vw, 720px);">
-                <button class="overlay-close" onclick={() => pickingCharacter = false} aria-label="Close">✕</button>
+                <button class="overlay-close" onclick={() => pickingCharacter = false} aria-label="Close"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
                 <div class="overlay-name dumbledore-font">{activeToken.playerName || 'Player'}</div>
                 <div class="overlay-drag-hint">Choose a character</div>
                 <div class="picker-grid">
@@ -3819,9 +3785,7 @@
     {#snippet deleteZones()}
         {#each ['top', 'bottom'] as edge}
             <div class="delete-zone {edge}" class:active={ghostPos !== null && deleteEdgeFor(ghostPos) === edge} style="height: {EDGE_THRESHOLD}px; z-index: {z_indecies.ui};">
-                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 10v6M14 10v6"/>
-                </svg>
+                <svg viewBox={ICON_VIEWBOX} width="28" height="28" fill="currentColor"><path d={deleteIcon}/></svg>
             </div>
         {/each}
     {/snippet}
@@ -3831,7 +3795,7 @@
         <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {z_indecies.ui};" onclick={() => {showTimerOptions = false;}} role="dialog" tabindex="0">
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div style="position: relative; background: var(--grim-panel-bg); padding: 48px 20px 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px;" onclick={(e) => e.stopPropagation()} >
-                <button class="overlay-close" onclick={()=>{showTimerOptions = false;}} aria-label="Close">✕</button>
+                <button class="overlay-close" onclick={()=>{showTimerOptions = false;}} aria-label="Close"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
                 {#if clockClient}
                     <ClockSetter model={clockClient} timerOptions={data.timerOptions} musicPresets={data.musicPresets} spotifyPresets={data.spotifyPresets} onstart={()=>{showTimerOptions = false}} onmixer={() => {showTimerOptions = false; saveGrimoire().then(()=>goto(`/admin/mixer?remote_only=1&back_uri=${encodeURIComponent(location.pathname + location.search)}`))}} onanalysis={(url) => {showTimerOptions = false; saveGrimoire().then(()=>goto(url))}}/>
                 {:else}

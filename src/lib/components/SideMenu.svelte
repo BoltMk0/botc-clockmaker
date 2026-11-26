@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { ICON_VIEWBOX, chevronLeftIcon, menuIcon } from "$lib/icons/material.js";
     import { onMount } from "svelte";
     import HSlider from "$lib/audio/client/components/HSlider.svelte";
     import { appSettings, NOW_PLAYING_MODES, NOW_PLAYING_MODE_LABELS, NOW_PLAYING_POSITIONS, NOW_PLAYING_POSITION_LABELS } from "$lib/model/client/appSettings.svelte";
@@ -211,18 +212,12 @@
 </style>
 
 <button aria-label="Menu" class="no-button-style hamburger" onclick={()=>{visible = true;}} style="position: absolute; top: 10px; left: 10px;">
-    <svg width={36} height={36} viewBox="0 0 100 100" style="fill: #FFF; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));">
-        <rect x={0} y={0} width={100} height={20} rx={10} ry={10}/>
-        <rect x={0} y={40} width={100} height={20} rx={10} ry={10}/>
-        <rect x={0} y={80} width={100} height={20} rx={10} ry={10}/>
-    </svg>
+    <svg width={36} height={36} viewBox={ICON_VIEWBOX} style="filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6))" fill="#FFF"><path d={menuIcon}/></svg>
 </button>
 
 <div class="navbar-main" style="transform: translateX({visible ? "0" : "-100%"});">
     <button onclick={()=>{visible = false;}} class="no-button-style menu-close" aria-label="Close menu">
-        <svg width={28} height={28} viewBox="0 0 24 24" style="fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;">
-            <path d="M15 5l-7 7 7 7" />
-        </svg>
+        <svg width={28} height={28} viewBox={ICON_VIEWBOX} fill="currentColor"><path d={chevronLeftIcon}/></svg>
     </button>
     {#if !townSquare}
     <ul style="list-style-type: none; padding: 0 2em 0 1em; margin: 0; margin-bottom: 1em;">

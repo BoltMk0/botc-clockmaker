@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { closeIcon, keyboardArrowDownIcon, keyboardArrowUpIcon, saveIcon } from "$lib/icons/material.js";
     import { TEXT_STYLES, type TextOption } from "$lib/common/message";
     import { onMount } from "svelte";
 
@@ -50,7 +52,7 @@
 <div class="panel">
 <div class="panel-header">
     <h2>Texts</h2>
-    <button class="save" disabled={!dirty} onclick={save}>Save changes</button>
+    <button class="save" disabled={!dirty} onclick={save}><MaterialIcon icon={saveIcon} size="1.2em"/> Save changes</button>
 </div>
 <p class="description">The text the grim's communications builder offers, in this order, in all games. A Header is shown large, as a title; Text is shown smaller.</p>
 
@@ -63,9 +65,9 @@
                 {/each}
             </select>
             <textarea class="option-text" class:dumbledore-font={option.style === 'Header'} class:header={option.style === 'Header'} rows="1" bind:value={option.text} placeholder="Text"></textarea>
-            <button title="Move up" aria-label="Move up" disabled={i === 0} onclick={() => move(i, -1)}>↑</button>
-            <button title="Move down" aria-label="Move down" disabled={i === options.length - 1} onclick={() => move(i, 1)}>↓</button>
-            <button title="Delete" aria-label="Delete" onclick={() => options.splice(i, 1)}>✕</button>
+            <button title="Move up" aria-label="Move up" disabled={i === 0} onclick={() => move(i, -1)}><MaterialIcon icon={keyboardArrowUpIcon} size="1.25em"/></button>
+            <button title="Move down" aria-label="Move down" disabled={i === options.length - 1} onclick={() => move(i, 1)}><MaterialIcon icon={keyboardArrowDownIcon} size="1.25em"/></button>
+            <button title="Delete" aria-label="Delete" onclick={() => options.splice(i, 1)}><MaterialIcon icon={closeIcon} size="1.25em"/></button>
         </div>
     {:else}
         <div class="empty">No text options yet.</div>
@@ -77,11 +79,8 @@
 
 <style>
 
+    /* The Communications page scrolls and centres the tabs, with their tab bar above this panel. */
     .main {
-        height: 100%;
-        overflow-y: auto;
-        box-sizing: border-box;
-        padding: 1.5rem;
         align-items: flex-start;
     }
 
@@ -173,6 +172,10 @@
         background-color: var(--theme-bg-tertiary);
         color: var(--theme-on-bg-tertiary);
         cursor: pointer;
+        /* The QR Codes tab's button size. */
+        font: inherit;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
     }
 
     button:hover {
@@ -185,7 +188,6 @@
     }
 
     button.save {
-        padding: 0.5em 1.2em;
         background-color: var(--theme-highlight);
         color: var(--theme-on-highlight);
         border-color: var(--theme-highlight);

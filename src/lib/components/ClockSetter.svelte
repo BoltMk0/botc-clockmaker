@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { ICON_VIEWBOX, barChartIcon, chevronRightIcon, closeIcon, lightbulbFillIcon, lightbulbIcon, pauseFillIcon, playArrowFillIcon, restartAltIcon } from "$lib/icons/material.js";
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import { formatTime } from "$lib/common/util";
@@ -202,17 +204,17 @@
         <button class="game-summary" onclick={() => gameOpen = !gameOpen} aria-expanded={gameOpen}>
             <span class="game-title">Game</span>
             <span class="game-values">Day {model.day} · {model.playerCount} players</span>
-            <svg class="chevron" class:open={gameOpen} viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+            <svg class="chevron" class:open={gameOpen} viewBox={ICON_VIEWBOX} width="18" height="18" fill="currentColor"><path d={chevronRightIcon}/></svg>
         </button>
         {#if gameOpen}
         <div class="game-controls">
             <div class="game-actions">
                 <button onclick={newGame} title="Restart: back to dusk on day 0">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+                    <svg viewBox={ICON_VIEWBOX} width="18" height="18" aria-hidden="true" fill="currentColor"><path d={restartAltIcon}/></svg>
                     <span>Restart</span>
                 </button>
                 <button onclick={openAnalysis} title="How the game's time divided between the phases">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M7 16v-4"/><path d="M12 16V6"/><path d="M17 16v-7"/></svg>
+                    <svg viewBox={ICON_VIEWBOX} width="18" height="18" aria-hidden="true" fill="currentColor"><path d={barChartIcon}/></svg>
                     <span>Analysis</span>
                 </button>
             </div>
@@ -229,10 +231,7 @@
         style={model.lightOverride ? `color: ${overrideHex(model.lightOverride)};` : ''}
         title={model.lightOverride ? "The lights are overridden: they don't follow the game" : 'Override the lights'}
         aria-label={model.lightOverride ? 'Lighting (overridden)' : 'Lighting'}>
-        <svg viewBox="0 0 24 24" width="22" height="22" fill={model.lightOverride ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M12 2a7 7 0 0 0-4 12.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26A7 7 0 0 0 12 2z"/>
-            <path d="M10 22h4" fill="none"/>
-        </svg>
+        <svg viewBox={ICON_VIEWBOX} width="22" height="22" fill="currentColor" aria-hidden="true"><path d={model.lightOverride ? lightbulbFillIcon : lightbulbIcon}/></svg>
     </button>
     </div>
 
@@ -269,11 +268,11 @@
         <div class="time-display" class:dim={!adjustable}>
             {#if counting}
             <button class="play-pause-btn" onclick={() => post('stop', undefined, "Couldn't pause the timer")} title="Pause (the timer goes back to the start, in the morning)" aria-label="Pause the timer">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={pauseFillIcon}/></svg>
             </button>
             {:else if phase === 'morning'}
             <button class="play-pause-btn" onclick={start} title="Start the timer as it's set up" aria-label="Start the timer">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={playArrowFillIcon}/></svg>
             </button>
             {/if}
             <span class="time">{formatTime(model.secondsRemaining)}</span>
@@ -343,7 +342,7 @@
                 <h3>{pickingTimer === 'start' ? 'Start the day' : 'Pick a preset'}</h3>
                 <div class="picker-subtitle">Day {phase === 'morning' && model.day > 0 ? model.day : nextDay} · pick a timer {pickingTimer === 'start' ? 'to start it' : 'to set it up'}</div>
             </div>
-            <button class="picker-close" onclick={() => pickingTimer = null} aria-label="Close">✕</button>
+            <button class="picker-close" onclick={() => pickingTimer = null} aria-label="Close"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
         </div>
         <div class="button-container">
             {#each timerOptions as option, index}

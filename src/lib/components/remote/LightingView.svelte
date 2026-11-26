@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { ICON_VIEWBOX, chevronLeftIcon } from "$lib/icons/material.js";
     import { onDestroy, untrack } from "svelte";
     import type { Clocktower } from "$lib/model/client/Clocktower.svelte";
     import type { LightOverride } from "$lib/model/common/ClocktowerClockModel";
@@ -131,7 +132,7 @@
 <div class="lighting-view">
     <div class="header">
         <button class="back" onclick={onback}>
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+            <svg viewBox={ICON_VIEWBOX} width="22" height="22" fill="currentColor"><path d={chevronLeftIcon}/></svg>
             Clock
         </button>
         <span class="state" class:on={overridden}>{overridden ? 'Overridden' : 'Following the game'}</span>

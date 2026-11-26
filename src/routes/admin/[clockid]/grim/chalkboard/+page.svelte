@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { ICON_VIEWBOX, closeIcon, editIcon, inkEraserIcon } from "$lib/icons/material.js";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import DrawableCanvas2 from "$lib/components/DrawableCanvas2/DrawableCanvas2.svelte";
@@ -30,14 +32,14 @@
 
     <div class="tools">
         <button class="tool-btn" class:active={tool === PEN} onclick={() => tool = PEN} title="Pen" aria-label="Pen">
-            <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.83z"/></svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={editIcon}/></svg>
         </button>
         <button class="tool-btn" class:active={tool === ERASER} onclick={() => tool = ERASER} title="Eraser" aria-label="Eraser">
-            <svg viewBox="0 0 24 24"><path d="M16.24 3.56L7.05 12.75a2.003 2.003 0 0 0 0 2.83l4.24 4.24c.78.78 2.05.78 2.83 0l9.19-9.19a2.003 2.003 0 0 0 0-2.83L19.07 3.56a2.003 2.003 0 0 0-2.83 0zM5.63 13.34a1.003 1.003 0 0 1 0-1.42l1.41-1.41a1.003 1.003 0 0 1 1.42 0l1.41 1.41a1.003 1.003 0 0 1-1.42 1.42L7.05 14a1.003 1.003 0 0 1-1.42-.08z"/></svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={inkEraserIcon}/></svg>
         </button>
     </div>
 
-    <button class="close-btn" onclick={close} aria-label="Close" title="Back">✕</button>
+    <button class="close-btn" onclick={close} aria-label="Close" title="Back"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
 </div>
 
 <style>

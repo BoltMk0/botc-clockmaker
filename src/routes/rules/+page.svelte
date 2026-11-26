@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { ICON_VIEWBOX, chevronLeftIcon } from "$lib/icons/material.js";
     import { onMount } from 'svelte';
     import type { PageData } from './$types';
     import PillIndexDisplay from './PillIndexDisplay.svelte';
@@ -75,9 +76,7 @@
 {/if}
 
 <a class="back-button" href="/" aria-label="Back to main menu">
-    <svg width={36} height={36} viewBox="0 0 24 24" style="fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));">
-        <path d="M15 5l-7 7 7 7" />
-    </svg>
+    <svg width={36} height={36} viewBox={ICON_VIEWBOX} style="filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6))" fill="currentColor"><path d={chevronLeftIcon}/></svg>
 </a>
 
 <style>

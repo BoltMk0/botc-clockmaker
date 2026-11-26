@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { ICON_VIEWBOX, checkIcon, chevronRightIcon, closeIcon, saveIcon } from "$lib/icons/material.js";
     import CharacterThumb from '$lib/components/CharacterThumb.svelte';
     import InPlayWarning from '$lib/components/InPlayWarning.svelte';
     import { ALL_CHARACTER_CATEGORIES, CHARACTER_CATEGORY_COLORS, type Character, type CharacterCategory, rulesWithSetup } from '$lib/resources/common/gameData.js';
@@ -117,9 +119,7 @@
         {#if count > 1 && !tapMode}
             <span class="count-badge">×{count}</span>
         {:else if selected}
-            <svg class="tick" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="4,13 10,19 20,6"/>
-            </svg>
+            <svg class="tick" viewBox={ICON_VIEWBOX} fill="#16a34a"><path d={checkIcon}/></svg>
         {/if}
     </div>
     <div class="character-text">
@@ -138,7 +138,7 @@
         <div class="category-group">
             {#if category !== null}
             <button class="category-header no-button-style" onclick={() => toggleCategory(category)}>
-                <span class="chevron" class:open={openCategories.has(category)}>&rsaquo;</span>
+                <span class="chevron" class:open={openCategories.has(category)}><MaterialIcon icon={chevronRightIcon} size="1em"/></span>
                 <span class="category-name">{category}</span>
                 {#if headingSuffix}
                     <span class="category-count">{headingSuffix(category)}</span>
@@ -183,7 +183,7 @@
                             {/if}
                             {#if onadd && !tapMode}
                                 {#if selected}
-                                    <button class="overlay remove" onclick={() => onremove?.(character)} aria-label="Remove one {character.name}">✕</button>
+                                    <button class="overlay remove" onclick={() => onremove?.(character)} aria-label="Remove one {character.name}"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
                                     <button class="overlay add" onclick={() => onadd(character)} aria-label="Add another {character.name}">+1</button>
                                 {:else}
                                     <button class="overlay add full" onclick={() => onadd(character)} aria-label="Add {character.name}">+1</button>
@@ -215,7 +215,7 @@
             {/if}
             <div class="popup-actions">
                 <button class="button-style" onclick={() => editing = null}>Cancel</button>
-                <button class="button-style highlight" onclick={applyDraft}>Save</button>
+                <button class="button-style highlight" onclick={applyDraft}><MaterialIcon icon={saveIcon} size="1.2em"/> Save</button>
             </div>
         </div>
     </div>

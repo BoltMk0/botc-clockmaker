@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { refreshIcon, stopFillIcon, travelExploreIcon } from "$lib/icons/material.js";
     import type { ScriptScrapeResult } from "$lib/scraper/common/types";
     import { writable } from "svelte/store";
 
@@ -49,7 +51,7 @@
             <p>Creates the three base scripts - Trouble Brewing, Bad Moon Rising, and Sects &amp; Violets - and fills in their character rosters from the <a href="https://wiki.bloodontheclocktower.com/Main_Page" target="_blank" rel="noreferrer">wiki</a>.</p>
         </div>
         <button class="button-style primary" onclick={() => ($running ? running.set(false) : scrapeAll())}>
-            {$running ? 'Stop' : 'Scrape All'}
+            {#if $running}<MaterialIcon icon={stopFillIcon} size="1.2em"/> Stop{:else}<MaterialIcon icon={travelExploreIcon} size="1.2em"/> Scrape All{/if}
         </button>
     </div>
 
@@ -69,7 +71,7 @@
                         {job ? (job.status === 'created' ? 'Created' : job.status === 'updated' ? 'Updated' : 'Error') : (alreadySaved ? 'Saved' : 'Not scraped')}
                     </span>
                     <button class="button-style" disabled={$running} onclick={() => scrapeOne(entry.name)}>
-                        {alreadySaved || job ? 'Re-scrape' : 'Scrape'}
+                        {#if alreadySaved || job}<MaterialIcon icon={refreshIcon} size="1.2em"/> Re-scrape{:else}<MaterialIcon icon={travelExploreIcon} size="1.2em"/> Scrape{/if}
                     </button>
                 </div>
 

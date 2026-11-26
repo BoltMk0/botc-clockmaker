@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { ICON_VIEWBOX, lockIcon } from "$lib/icons/material.js";
     import { enhance } from "$app/forms";
 
     let { data, form } = $props();
@@ -8,10 +9,7 @@
 <main>
     <div class="card">
         <div class="icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="4" y="11" width="16" height="10" rx="2" />
-                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-            </svg>
+            <svg viewBox={ICON_VIEWBOX} width="28" height="28" fill="currentColor"><path d={lockIcon}/></svg>
         </div>
         <h1 class="dumbledore-font">{data.needsSetup ? "Set a password" : "Welcome back"}</h1>
         <p class="subtitle">

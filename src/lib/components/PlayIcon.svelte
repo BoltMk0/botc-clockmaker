@@ -1,7 +1,8 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { playArrowFillIcon } from "$lib/icons/material.js";
+
     let { size = 24, color = "currentColor" }: { size?: number; color?: string } = $props();
 </script>
 
-<svg viewBox="0 0 24 24" width={size} height={size} fill={color} focusable="false">
-    <path d="M8 5v14l11-7z" />
-</svg>
+<MaterialIcon icon={playArrowFillIcon} {size} {color}/>

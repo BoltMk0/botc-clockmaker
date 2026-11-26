@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { arrowBackIcon, arrowForwardIcon, chevronRightIcon, saveIcon } from "$lib/icons/material.js";
     import { goto } from "$app/navigation";
     import type { PresetFull } from "$lib/resources/common/gameData.js";
     import PresetStats from "$lib/components/setup/PresetStats.svelte";
@@ -195,20 +197,20 @@
 {:else}
 <div class="editor-main">
     <div class="editor-header">
-        <button class="button-style" onclick={goBack}>← Back</button>
+        <button class="button-style" onclick={goBack}><MaterialIcon icon={arrowBackIcon} size="1.2em"/> Back</button>
         <h1 style="margin: 0; font-size: 1.2em;">Edit preset</h1>
         <span style="opacity: 0.6;">{initial.script.name}</span>
         <div class="editor-steps">
             {#each STEPS as [key, label], i}
-                {#if i > 0}<span>›</span>{/if}
+                {#if i > 0}<span><MaterialIcon icon={chevronRightIcon} size="1.2em"/></span>{/if}
                 <button class:active={step === key} onclick={() => goBackToStep(key)}>{i + 1}. {label}</button>
             {/each}
         </div>
         <div class="editor-next">
             {#if step === 'summary'}
-                <button class="button-style highlight" disabled={saving || builder.playerCount === null || !builder.isSorted} onclick={save}>Save</button>
+                <button class="button-style highlight" disabled={saving || builder.playerCount === null || !builder.isSorted} onclick={save}><MaterialIcon icon={saveIcon} size="1.2em"/> Save</button>
             {:else}
-                <button class="button-style highlight" disabled={!canContinue} onclick={goNext}>Next →</button>
+                <button class="button-style highlight" disabled={!canContinue} onclick={goNext}>Next <MaterialIcon icon={arrowForwardIcon} size="1.2em"/></button>
             {/if}
         </div>
     </div>

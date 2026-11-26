@@ -12,6 +12,7 @@
 </script>
 
 <div class="communications-page">
+<div class="communications-column">
 
 <div class="tab-bar" role="tablist" aria-label="Communications">
     {#each TABS as t}
@@ -30,36 +31,46 @@
 </div>
 
 </div>
+</div>
 
 <style>
+    /* Scrolls as a whole, with the tabs sitting on top of the tab's panel like folder tabs. */
     .communications-page {
         height: 100%;
+        overflow-y: auto;
+        box-sizing: border-box;
+        padding: 1.5rem;
         display: flex;
-        flex-direction: column;
-        min-height: 0;
+        justify-content: center;
+        align-items: flex-start;
     }
 
-    /* The tab bar from the music settings */
+    .communications-column {
+        width: 100%;
+        max-width: 44rem;
+        display: flex;
+        flex-direction: column;
+    }
+
     .tab-bar {
-        flex-shrink: 0;
         display: flex;
         gap: 0.25rem;
-        padding: 0.75rem 1.5rem 0;
-        border-bottom: 1px solid var(--theme-bg-tertiary);
-        overflow-x: auto;
+        /* Clear of the panel's rounded corner */
+        padding: 0 1rem;
     }
 
     .tab-bar button {
+        position: relative;
         display: flex;
         align-items: center;
         gap: 0.5em;
-        padding: 0.6em 1.2em;
-        font-size: 1rem;
+        padding: 0.6em 1.4em;
+        font: inherit;
         background: none;
         color: var(--theme-on-bg);
-        border: none;
-        border-bottom: 3px solid transparent;
-        border-radius: 6px 6px 0 0;
+        border: 1px solid transparent;
+        border-bottom: none;
+        border-radius: 10px 10px 0 0;
         opacity: 0.7;
         white-space: nowrap;
         cursor: pointer;
@@ -67,18 +78,18 @@
 
     .tab-bar button:hover {
         opacity: 1;
-        background-color: var(--theme-bg-secondary);
+        background-color: color-mix(in srgb, var(--theme-bg-secondary) 50%, transparent);
     }
 
+    /* The open tab takes the panel's colour and border, and covers the panel's top edge beneath it, so they join. */
     .tab-bar button.selected {
+        z-index: 1;
+        margin-bottom: -1px;
+        padding-bottom: calc(0.6em + 1px);
         opacity: 1;
-        border-bottom-color: var(--theme-highlight);
         font-weight: bold;
-    }
-
-    .tab-content {
-        flex: 1;
-        min-height: 0;
+        background-color: var(--theme-bg-secondary);
+        border-color: var(--theme-bg-tertiary);
     }
 
     .tab-content[hidden] {
@@ -86,9 +97,12 @@
     }
 
     @media (max-width: 560px) {
+        .communications-page {
+            padding: 0.75rem;
+        }
+
         .tab-bar {
-            padding: 0.5rem 0.75rem 0;
-            gap: 0;
+            padding: 0 0.5rem;
         }
 
         .tab-bar button {

@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { ICON_VIEWBOX, chevronRightIcon, closeIcon, menuIcon } from "$lib/icons/material.js";
     import { page } from '$app/state';
     import { tick } from 'svelte';
     import TopNavbar from '$lib/components/TopNavbar.svelte';
@@ -102,7 +103,7 @@
                 <div class="wiki-nav-row" class:active={node.href === currentPath && !(depth === 0 && node.children.length && node.children[0].href === node.href)}>
                     {#if node.children.length}
                         <button class="wiki-nav-toggle" onclick={() => toggle(node)} aria-expanded={isOpen(node)} aria-label={(isOpen(node) ? 'Collapse ' : 'Expand ') + node.title}>
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true" class:open={isOpen(node)}><path d="M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+                            <svg viewBox={ICON_VIEWBOX} width="18" height="18" fill="currentColor" aria-hidden="true" class:open={isOpen(node)}><path d={chevronRightIcon}/></svg>
                         </button>
                     {:else}
                         <span class="wiki-nav-spacer"></span>
@@ -121,9 +122,9 @@
     {#snippet mobileBrand()}
         <button class="wiki-menu-toggle" onclick={() => menuOpen = !menuOpen} aria-label={menuOpen ? 'Close help menu' : 'Open help menu'} aria-expanded={menuOpen}>
             {#if menuOpen}
-                <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                <svg viewBox={ICON_VIEWBOX} width="28" height="28" fill="currentColor" aria-hidden="true"><path d={closeIcon}/></svg>
             {:else}
-                <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+                <svg viewBox={ICON_VIEWBOX} width="28" height="28" fill="currentColor" aria-hidden="true"><path d={menuIcon}/></svg>
             {/if}
         </button>
     {/snippet}

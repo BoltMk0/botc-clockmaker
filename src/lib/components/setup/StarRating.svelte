@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { starFillIcon, starIcon } from "$lib/icons/material.js";
     import { PRESET_MAX_RATING } from "$lib/resources/common/gameData.js";
 
     interface Props {
@@ -16,10 +18,10 @@
     {#each stars as star}
         {#if onchange}
             <button type="button" class:filled={!!rating && star <= rating} aria-label={`${star} star${star === 1 ? '' : 's'}`} onclick={() => onchange(star === rating ? null : star)}>
-                {!!rating && star <= rating ? '★' : '☆'}
+                <MaterialIcon icon={!!rating && star <= rating ? starFillIcon : starIcon} size="1em"/>
             </button>
         {:else}
-            <span class:filled={!!rating && star <= rating}>{!!rating && star <= rating ? '★' : '☆'}</span>
+            <span class:filled={!!rating && star <= rating}><MaterialIcon icon={!!rating && star <= rating ? starFillIcon : starIcon} size="1.15em"/></span>
         {/if}
     {/each}
 </span>

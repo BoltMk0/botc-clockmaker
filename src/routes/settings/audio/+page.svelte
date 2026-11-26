@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { ICON_VIEWBOX, checkIcon, infoIcon, saveIcon } from "$lib/icons/material.js";
     import TimeOfDayIcon from "$lib/assets/timeOfDayIcon.svelte";
     import BinIcon from "$lib/assets/binIcon.svelte";
     import { onMount, tick } from "svelte";
@@ -358,7 +360,7 @@
         {#each data.clockSfxPresets as preset (preset.id)}
             <tr>
                 <td>{preset.name}</td>
-                {#each CLOCK_SFX_SLOTS as slot}<td class="has-sound">{preset[slot] ? '✓' : '—'}</td>{/each}
+                {#each CLOCK_SFX_SLOTS as slot}<td class="has-sound">{#if preset[slot]}<MaterialIcon icon={checkIcon} size="1.2em"/>{:else}—{/if}</td>{/each}
                 <td class="row-actions edit-cell"><a class="edit-link" href="/settings/audio/clocksfx/{preset.id}" aria-label="Edit {preset.name}" title="Edit"><PencilIcon size={18}/></a></td>
             </tr>
         {/each}
@@ -439,7 +441,7 @@
                     {#if list.options.metadata}
                         <button class="icon-button details-button" class:active={list.detailsId === res.id} onclick={(e) => { e.stopPropagation(); list.toggleDetails(res); }}
                             aria-label="Details for {displayName(res)}" aria-expanded={list.detailsId === res.id} title="Track details">
-                            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="11" y="10.5" width="2" height="7" rx="1" fill="currentColor"/><circle cx="12" cy="7.5" r="1.3" fill="currentColor"/></svg>
+                            <svg viewBox={ICON_VIEWBOX} width="18" height="18" aria-hidden="true" fill="currentColor"><path d={infoIcon}/></svg>
                         </button>
                     {/if}
                     <button class="icon-button" onclick={(e) => { e.stopPropagation(); list.delete(res); }} aria-label="Delete {displayName(res)}" title="Delete"><BinIcon size={18}/></button>
@@ -457,7 +459,7 @@
                             {/each}
                             <div class="details-actions">
                                 <button type="button" onclick={() => list.detailsId = null}>Cancel</button>
-                                <button type="submit" class="save" disabled={list.savingDetails}>{list.savingDetails ? 'Saving...' : 'Save'}</button>
+                                <button type="submit" class="save" disabled={list.savingDetails}><MaterialIcon icon={saveIcon} size="1.2em"/> {list.savingDetails ? 'Saving...' : 'Save'}</button>
                             </div>
                         </form>
                     </td>

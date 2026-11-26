@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { saveIcon } from "$lib/icons/material.js";
     import type { TimerOption } from "$lib/common/timerOption";
     import { onMount } from "svelte";
     import BinIcon from "$lib/assets/binIcon.svelte";
@@ -50,7 +52,7 @@
 <div class="panel">
 <div class="panel-header">
     <h2>Timer Options</h2>
-    <button class="save" disabled={!dirty} onclick={save}>Save changes</button>
+    <button class="save" disabled={!dirty} onclick={save}><MaterialIcon icon={saveIcon} size="1.2em"/> Save changes</button>
 </div>
 <p class="description">Sets the timer options across all games.</p>
 <div class="data-table-scroll">
@@ -177,6 +179,10 @@
         background-color: var(--theme-bg-tertiary);
         color: var(--theme-on-bg-tertiary);
         cursor: pointer;
+        /* The QR Codes tab's button size. */
+        font: inherit;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
     }
 
     button:hover {
@@ -215,7 +221,6 @@
     }
 
     button.save {
-        padding: 0.5em 1.2em;
         background-color: var(--theme-highlight);
         color: var(--theme-on-highlight);
         border-color: var(--theme-highlight);

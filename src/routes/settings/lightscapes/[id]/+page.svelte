@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { arrowBackIcon, arrowForwardIcon, playArrowFillIcon, saveIcon, stopFillIcon } from "$lib/icons/material.js";
     import { beforeNavigate, goto } from '$app/navigation';
     import { onMount } from 'svelte';
     import { COOLEST_KELVIN, WARMEST_KELVIN, hexToKelvin, kelvinToHex } from '@boltmk0/lightscapes/color';
@@ -275,7 +277,7 @@
 
 <div class="scroll">
 <div class="main">
-    <a class="back" href="/settings/lightscapes">&larr; Lightscapes</a>
+    <a class="back" href="/settings/lightscapes"><MaterialIcon icon={arrowBackIcon} size="1.2em"/> Lightscapes</a>
 
     <div class="panel">
         <h2>General</h2>
@@ -406,7 +408,7 @@
                         </select>
                     </label>
                     <button disabled={use.length === 0 || !canPreview} title={use.length ? undefined : 'No light follows it'}
-                        onclick={() => isPlaying ? endPreview() : play(spectrum)}>{isPlaying ? '■ Stop' : '▶ Play'}</button>
+                        onclick={() => isPlaying ? endPreview() : play(spectrum)}>{#if isPlaying}<MaterialIcon icon={stopFillIcon} size="1.2em"/> Stop{:else}<MaterialIcon icon={playArrowFillIcon} size="1.2em"/> Play{/if}</button>
                 </div>
             </div>
         {/each}
@@ -463,7 +465,7 @@
                     {:else}
                         <input type="text" placeholder="Action, e.g. single" bind:value={binding.action}/>
                     {/if}
-                    <span>→</span>
+                    <span><MaterialIcon icon={arrowForwardIcon} size="1.2em"/></span>
                     <select bind:value={binding.command}>
                         {#each COMMANDS as command (command)}<option value={command}>{COMMAND_LABELS[command]}</option>{/each}
                     </select>
@@ -507,7 +509,7 @@
         <div class="bar-save">
             {#if saveError}<span class="error">{saveError}</span>{:else}<span class="hint">Unsaved changes</span>{/if}
             <button onclick={discard} disabled={saving}>Discard</button>
-            <button class="save" onclick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+            <button class="save" onclick={save} disabled={saving}><MaterialIcon icon={saveIcon} size="1.2em"/> {saving ? 'Saving…' : 'Save'}</button>
         </div>
     {/if}
 </div>

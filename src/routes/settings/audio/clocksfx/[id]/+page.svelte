@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { arrowBackIcon, saveIcon } from "$lib/icons/material.js";
     import { goto } from '$app/navigation';
     import HSlider from '$lib/audio/client/components/HSlider.svelte';
     import { bellBalanceGains, CLOCK_SFX_SLOT_LABELS, CLOCK_SFX_SLOT_TIMES_OF_DAY, CLOCK_SFX_SLOTS, clockSfxFileUrl, type ClockSfxPreset, type ClockSfxSlot } from '$lib/audio/common/clockSfxPreset';
@@ -98,7 +100,7 @@
 
 <div class="scroll">
 <div class="main">
-    <a class="back" href="/settings/audio">&larr; Audio</a>
+    <a class="back" href="/settings/audio"><MaterialIcon icon={arrowBackIcon} size="1.2em"/> Audio</a>
 
     <div class="panel">
         <h2>General</h2>
@@ -161,7 +163,7 @@
 
     <div class="actions">
         <button class="delete" onclick={onDelete} disabled={saving}>Delete</button>
-        <button class="save" onclick={onSave} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
+        <button class="save" onclick={onSave} disabled={saving}><MaterialIcon icon={saveIcon} size="1.2em"/> {saving ? 'Saving...' : 'Save'}</button>
     </div>
 </div>
 </div>

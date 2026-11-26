@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { addIcon, travelExploreIcon } from "$lib/icons/material.js";
     import { enhance } from '$app/forms';
     import { goto } from '$app/navigation';
     import CharacterList from '$lib/components/CharacterList.svelte';
@@ -19,7 +21,7 @@
         </div>
         <input class="search" type="search" placeholder="Search characters..." aria-label="Search characters" bind:value={searchQuery} />
         <div class="toolbar-actions">
-            <CustomOverlay title="Create New Character" buttonTitle="Create Character" bind:visible={newCharacterOverlayIsVisible}>
+            <CustomOverlay title="Create New Character" buttonTitle="Create Character" buttonIcon={addIcon} bind:visible={newCharacterOverlayIsVisible}>
                 <form action="?/createCharacter" method="POST" use:enhance={() => {
                     return async ({ result }) => {
                         if (result.type === 'success') {
@@ -39,7 +41,7 @@
                     <button type="submit">Submit</button>
                 </form>
             </CustomOverlay>
-            <a class="button-style" href="/settings/characters/scraper">Wiki Scraper</a>
+            <a class="button-style" href="/settings/characters/scraper"><MaterialIcon icon={travelExploreIcon} size="1.2em"/> Wiki Scraper</a>
         </div>
     </div>
 

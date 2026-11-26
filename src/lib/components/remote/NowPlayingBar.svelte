@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { ICON_VIEWBOX, skipNextFillIcon } from "$lib/icons/material.js";
     import type { RemoteMusic } from "./remoteMusic.svelte";
     import type { AudioDim } from "$lib/audio/client/AudioDim.svelte";
     import { DEFAULT_DIM_AMOUNT_DB } from "$lib/audio/common/model/audioDimModel";
@@ -33,7 +34,7 @@
         <span class="dim-amount">{audioDim?.dimmed ? `-${audioDim.amountDb}` : 0} dB</span>
     </button>
     <button class="skip" onclick={() => music.next()} disabled={!nowPlaying} title="Skip track" aria-label="Skip track">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+        <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={skipNextFillIcon}/></svg>
     </button>
 </div>
 

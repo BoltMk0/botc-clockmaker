@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { chevronRightIcon, closeIcon } from "$lib/icons/material.js";
     import GrimSnapshotView from "$lib/components/GrimSnapshotView.svelte";
     import type { Character, Preset } from "$lib/resources/common/gameData.js";
     import { byMostRecentPlay, formatPlayDate as formatDate, snapshotViewProps, todayPlayDate, type PresetPlay, type PresetPlaySummary, type PresetWinner } from "$lib/resources/common/presetPlays.js";
@@ -105,9 +107,9 @@
                     <span class="play-date">{formatDate(play.date)}</span>
                     <span class="winner-pill {play.winner}">{play.winner === 'good' ? 'Good' : 'Evil'} won</span>
                     {#if play.has_grim}
-                        <span class="grim-badge" title="Tap to see the virtual grim as it was when this game was ended">Grim snapshot ›</span>
+                        <span class="grim-badge" title="Tap to see the virtual grim as it was when this game was ended">Grim snapshot <MaterialIcon icon={chevronRightIcon} size="1.2em"/></span>
                     {/if}
-                    <button class="remove" disabled={busy} aria-label="Delete the game on {formatDate(play.date)}" title="Delete" onclick={() => deletePlay(play)}>✕</button>
+                    <button class="remove" disabled={busy} aria-label="Delete the game on {formatDate(play.date)}" title="Delete" onclick={() => deletePlay(play)}><MaterialIcon icon={closeIcon} size="1.25em"/></button>
                 </li>
             {/each}
         </ul>

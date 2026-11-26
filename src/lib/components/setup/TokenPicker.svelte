@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { ICON_VIEWBOX, closeIcon, keyboardArrowDownIcon, warningIcon } from "$lib/icons/material.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import InPlayWarning from "$lib/components/InPlayWarning.svelte";
     import { ALL_CHARACTER_CATEGORIES, CHARACTER_CATEGORY_COLORS, type CharacterCategory, type ScriptCharacter } from "$lib/resources/common/gameData.js";
@@ -393,7 +395,7 @@
         <div class="category-section" style="--category-color: {section.color};">
             {#if collapsible}
                 <button class="section-toggle" aria-expanded={!isCollapsed} onclick={() => toggleSection(section.key as CharacterCategory)}>
-                    <svg viewBox="0 0 24 24" class:collapsed={isCollapsed}><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
+                    <svg viewBox={ICON_VIEWBOX} class:collapsed={isCollapsed} fill="currentColor"><path d={keyboardArrowDownIcon}/></svg>
                     {section.title}
                     <span class="section-count">{section.count} selected</span>
                 </button>
@@ -427,7 +429,7 @@
                                 </button>
                             {/if}
                             {#if bluffInPlay && count > 0}<InPlayWarning size="26px" style="position: absolute; bottom: -4px; right: -4px; pointer-events: none;"/>{/if}
-                            {#if mode === 'characters' && count > 0 && character.setup}<span class="setup-warning">⚠ {character.setup}</span>{/if}
+                            {#if mode === 'characters' && count > 0 && character.setup}<span class="setup-warning"><MaterialIcon icon={warningIcon} size="1.2em"/> {character.setup}</span>{/if}
                             {#if count > 1}<span class="count-badge">×{count}</span>{/if}
                             <button class="info-btn" aria-label="About {character.name}" title="About {character.name}" onclick={() => infoCharacter = character}>?</button>
                             {#if count > 0 && mode === 'characters' && !readonly}
@@ -448,7 +450,7 @@
     {@const c = infoCharacter}
     <div class="info-overlay" role="dialog" aria-modal="true" aria-label={c.name} tabindex="-1" onclick={() => infoCharacter = null} onkeydown={() => {}}>
         <div class="info-panel" role="presentation" onclick={(e) => e.stopPropagation()}>
-            <button class="info-close" onclick={() => infoCharacter = null} aria-label="Close">✕</button>
+            <button class="info-close" onclick={() => infoCharacter = null} aria-label="Close"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
             <CharacterToken character={c} style="position: relative;" size="min(50vw, 180px)" imageSize={256} norules/>
             <div class="info-name dumbledore-font">{c.name}</div>
             <div class="info-category">{c.category}</div>

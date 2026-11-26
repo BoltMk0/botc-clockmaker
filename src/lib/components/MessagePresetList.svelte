@@ -21,6 +21,8 @@
 </script>
 
 <script lang="ts" generics="T extends MessagePreset">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { ICON_VIEWBOX, chevronLeftIcon, closeIcon, editIcon, keyboardArrowDownIcon, keyboardArrowUpIcon } from "$lib/icons/material.js";
     import { nameFromElements, type MessagePreset, type TextOption } from "$lib/common/message";
     import { characterImageUrl } from "$lib/resources/common/characterImages";
     import MessageBuilder, { type MessageBuilderView } from "$lib/components/MessageBuilder.svelte";
@@ -87,10 +89,10 @@
         <div class="preset-card">
             <div class="preset-header">
                 <input class="preset-name" type="text" bind:value={preset.name} placeholder={nameFromElements(preset.elements)} aria-label="Name" onkeydown={keepEnterFromForm} />
-                <button type="button" onclick={() => edit(i)}>Edit</button>
-                <button type="button" title="Move up" aria-label="Move up" disabled={i === 0} onclick={() => move(i, -1)}>↑</button>
-                <button type="button" title="Move down" aria-label="Move down" disabled={i === presets.length - 1} onclick={() => move(i, 1)}>↓</button>
-                <button type="button" title="Delete" aria-label="Delete" onclick={() => presets.splice(i, 1)}>✕</button>
+                <button type="button" onclick={() => edit(i)}><MaterialIcon icon={editIcon} size="1.2em"/> Edit</button>
+                <button type="button" title="Move up" aria-label="Move up" disabled={i === 0} onclick={() => move(i, -1)}><MaterialIcon icon={keyboardArrowUpIcon} size="1.25em"/></button>
+                <button type="button" title="Move down" aria-label="Move down" disabled={i === presets.length - 1} onclick={() => move(i, 1)}><MaterialIcon icon={keyboardArrowDownIcon} size="1.25em"/></button>
+                <button type="button" title="Delete" aria-label="Delete" onclick={() => presets.splice(i, 1)}><MaterialIcon icon={closeIcon} size="1.25em"/></button>
             </div>
             <div class="preset-preview">
                 {#each preset.elements as element}
@@ -138,7 +140,7 @@
         <div class="builder-frame" onclick={(e) => e.stopPropagation()}>
             <!-- Outside the panel, so it stays put while the panel scrolls -->
             <button type="button" class="builder-back" onclick={back}>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6z"/></svg>
+                <svg viewBox={ICON_VIEWBOX} aria-hidden="true" fill="currentColor"><path d={chevronLeftIcon}/></svg>
                 Back
             </button>
             <div class="builder-panel">
@@ -293,6 +295,10 @@
         background-color: var(--theme-bg-tertiary);
         color: var(--theme-on-bg-tertiary);
         cursor: pointer;
+        /* The QR Codes tab's button size. */
+        font: inherit;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
     }
 
     button:hover {

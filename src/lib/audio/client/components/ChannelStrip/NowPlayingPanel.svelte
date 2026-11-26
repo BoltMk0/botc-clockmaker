@@ -3,6 +3,7 @@
 </script>
 
 <script lang="ts">
+    import { ICON_VIEWBOX, musicNoteFillIcon, pauseFillIcon, stopFillIcon, volumeOffFillIcon } from "$lib/icons/material.js";
     import TimeOfDayIcon from "$lib/assets/timeOfDayIcon.svelte";
     import type { TimeOfDay } from "$lib/model/client/types";
     import Marquee from "../Marquee.svelte";
@@ -80,7 +81,7 @@
 <button class="now-playing" class:has-art={!!imageUrl} style:background-image={imageUrl ? `url("${imageUrl}")` : undefined}
     {onclick} title={tooltip} aria-haspopup="dialog">
     <span class="status" class:dim={!presetName}>
-        <svg class="status-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
+        <svg class="status-icon" viewBox={ICON_VIEWBOX} fill="currentColor" aria-hidden="true"><path d={musicNoteFillIcon}/></svg>
         <span class="status-name">{#if presetName}<Marquee text={presetName}/>{:else}No preset{/if}</span>
         {#each phases as phase (phase)}<TimeOfDayIcon timeOfDay={phase} size={10}/>{/each}
     </span>
@@ -95,11 +96,11 @@
             {#if playback === 'playing'}
             <span class="bars"><i></i><i></i><i></i></span>
             {:else if playback === 'paused'}
-            <svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12"/><rect x="9" y="2" width="4" height="12"/></svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={pauseFillIcon}/></svg>
             {:else if playback === 'silent'}
-            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 6v4h3l4 3V3L5 6z"/><path d="M10.5 5.5l4 5m0-5l-4 5" stroke="currentColor" stroke-width="1.5"/></svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={volumeOffFillIcon}/></svg>
             {:else}
-            <svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10"/></svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={stopFillIcon}/></svg>
             {/if}
         </span>
         {#if shownProgress && playback !== 'silent'}

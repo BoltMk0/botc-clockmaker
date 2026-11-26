@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { arrowBackIcon, downloadIcon, editIcon, visibilityIcon } from "$lib/icons/material.js";
     import { invalidateAll } from "$app/navigation";
     import { presetDisplayName, presetPlayerCount, type PresetListEntry } from "$lib/resources/common/gameData.js";
     import PresetSummary from "$lib/components/setup/PresetSummary.svelte";
@@ -188,21 +190,21 @@
 
 <div class="script-main padded">
     <div class="title-row">
-        <a class="button-style back" href="/settings/scripts">← Back</a>
+        <a class="button-style back" href="/settings/scripts"><MaterialIcon icon={arrowBackIcon} size="1.2em"/> Back</a>
         <div class="title">
             <div class="title-swatch" style="background-color: {data.script.hue};"></div>
             <h2>{data.script.name}</h2>
         </div>
         <div class="page-actions">
-            <a class="button-style" href="/script/{data.script.id}?backUrl=/settings/scripts/{data.script.id}">View Script</a>
-            <a class="button-style" href="/api/scripts/{data.script.id}/export" download>Export</a>
+            <a class="button-style" href="/script/{data.script.id}?backUrl=/settings/scripts/{data.script.id}"><MaterialIcon icon={visibilityIcon} size="1.2em"/> View Script</a>
+            <a class="button-style" href="/api/scripts/{data.script.id}/export" download><MaterialIcon icon={downloadIcon} size="1.2em"/> Export</a>
         </div>
     </div>
     <div class="script-scroll">
         <section class="panel">
             <div class="section-header">
                 <h3>Characters ({data.script.characters.length})</h3>
-                <a class="button-style highlight" href="/settings/scripts/{data.script.id}/characters">Edit</a>
+                <a class="button-style highlight" href="/settings/scripts/{data.script.id}/characters"><MaterialIcon icon={editIcon} size="1.2em"/> Edit</a>
             </div>
             <TokenPicker {builder} readonly showAll />
         </section>

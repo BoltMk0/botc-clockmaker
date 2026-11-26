@@ -1,4 +1,8 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { ICON_VIEWBOX, bedtimeFillIcon, chevronLeftIcon, closeIcon, dragHandleIcon, keyboardArrowDownIcon, musicNoteFillIcon, pauseFillIcon, playArrowFillIcon, playlistPlayIcon, queueMusicIcon, skipNextFillIcon, skipPreviousFillIcon, sunnyFillIcon, tuneIcon, verticalAlignTopIcon, volumeOffFillIcon, volumeUpFillIcon, wbTwilight2FillIcon, wbTwilightFillIcon } from "$lib/icons/material.js";
+
+    const PHASE_ICONS: Record<TimeOfDay, string> = { morning: wbTwilightFillIcon, day: sunnyFillIcon, dusk: wbTwilight2FillIcon, night: bedtimeFillIcon };
     import type { AudioDim } from "$lib/audio/client/AudioDim.svelte";
     import { DEFAULT_DIM_AMOUNT_DB } from "$lib/audio/common/model/audioDimModel";
     import { TIME_OF_DAY_LABELS, TIMES_OF_DAY, type TimeOfDay } from "$lib/model/client/types";
@@ -216,37 +220,30 @@
 <div class="music-view">
     <div class="header">
         <button class="back" onclick={onback}>
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+            <svg viewBox={ICON_VIEWBOX} width="22" height="22" fill="currentColor"><path d={chevronLeftIcon}/></svg>
             {backLabel}
         </button>
         {#if onmixer}
         <button class="mixer" onclick={onmixer} title="Open the mixer">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
-                <path d="M4 5h2v14H4zM11 5h2v14h-2zM18 5h2v14h-2z"/>
-                <rect x="2" y="13" width="6" height="3" rx="1"/>
-                <rect x="9" y="7" width="6" height="3" rx="1"/>
-                <rect x="16" y="11" width="6" height="3" rx="1"/>
-            </svg>
+            <svg viewBox={ICON_VIEWBOX} width="18" height="18" fill="currentColor" aria-hidden="true"><path d={tuneIcon}/></svg>
             Mixer
         </button>
         {/if}
     </div>
 
     <button class="preset-picker-btn" onclick={() => pickingPreset = true} aria-haspopup="dialog">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M4 6h16v2H4zm0 5h10v2H4zm0 5h10v2H4zm12-1v-4l5 3z"/></svg>
+        <svg viewBox={ICON_VIEWBOX} width="16" height="16" fill="currentColor" aria-hidden="true"><path d={queueMusicIcon}/></svg>
         <span class="preset-picker-text">
             <span class="preset-picker-name">{currentPreset?.name ?? 'Choose a preset'}</span>
             {#if scheduledPreset && scheduledPreset !== currentPreset}<span class="preset-picker-next">Next phase: {scheduledPreset.name}</span>{/if}
         </span>
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        <svg viewBox={ICON_VIEWBOX} width="16" height="16" aria-hidden="true" fill="currentColor"><path d={keyboardArrowDownIcon}/></svg>
     </button>
 
     {#if upcomingLists.length > 0}
     {@const first = upcomingLists[0]}
     <button class="upcoming-btn" onclick={openUpcoming} aria-haspopup="dialog">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M3 6h12M3 12h12M3 18h8M17 15l4 3-4 3z"/>
-        </svg>
+        <svg viewBox={ICON_VIEWBOX} width="14" height="14" aria-hidden="true" fill="currentColor"><path d={playlistPlayIcon}/></svg>
         <span class="upcoming-btn-text">
             {#if first.current && first.tracks[0]}Up next: <b>{first.tracks[0].title}</b>{:else}Up next{/if}
         </span>
@@ -266,17 +263,17 @@
 
     <div class="transport">
         <button class="round" onclick={() => music.previous()} disabled={!nowPlaying} title="Previous track" aria-label="Previous track">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={skipPreviousFillIcon}/></svg>
         </button>
         <button class="round play" onclick={() => music.togglePlayPause()} disabled={!nowPlaying} title={nowPlaying?.playing ? 'Pause' : 'Play'} aria-label={nowPlaying?.playing ? 'Pause' : 'Play'}>
             {#if nowPlaying?.playing}
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={pauseFillIcon}/></svg>
             {:else}
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={playArrowFillIcon}/></svg>
             {/if}
         </button>
         <button class="round" onclick={() => music.next()} disabled={!nowPlaying} title="Next track" aria-label="Next track">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={skipNextFillIcon}/></svg>
         </button>
     </div>
 
@@ -284,9 +281,9 @@
         <button class="mute" class:active={music.muted} onclick={() => music.toggleMute()} disabled={!nowPlaying}
             title={music.muted ? 'Unmute music' : 'Mute music'} aria-label="Mute music" aria-pressed={music.muted}>
             {#if music.muted}
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M15.3 9.7l1.4-1.4 2.3 2.3 2.3-2.3 1.4 1.4-2.3 2.3 2.3 2.3-1.4 1.4-2.3-2.3-2.3 2.3-1.4-1.4 2.3-2.3z"/></svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor" aria-hidden="true"><path d={volumeOffFillIcon}/></svg>
             {:else}
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg>
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor" aria-hidden="true"><path d={volumeUpFillIcon}/></svg>
             {/if}
         </button>
         <input type="range" min="0" max="1" step="0.01" value={volume} disabled={!nowPlaying}
@@ -314,7 +311,7 @@
     <div class="sheet" onclick={(e) => e.stopPropagation()} role="dialog" aria-label="Up next" tabindex="-1">
         <div class="sheet-header">
             <h3>Up next</h3>
-            <button class="sheet-close" onclick={() => showingUpcoming = false} aria-label="Close">✕</button>
+            <button class="sheet-close" onclick={() => showingUpcoming = false} aria-label="Close"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
         </div>
         {#if upcomingLists.length > 1}
         <div class="list-tabs" role="tablist">
@@ -349,14 +346,14 @@
                     </span>
                     <button class="queue-action" onclick={() => moveTrack(track.id, 0)} disabled={index === 0 || drag !== null}
                         title="Play first" aria-label="Play {track.title} first">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14M12 20V9M7 13l5-5 5 5"/></svg>
+                        <svg viewBox={ICON_VIEWBOX} aria-hidden="true" fill="currentColor"><path d={verticalAlignTopIcon}/></svg>
                     </button>
                     {#if !upcomingFilter.trim()}
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <span class="drag-handle" title="Drag to reorder" aria-hidden="true"
                         onpointerdown={(e) => startDrag(e, track.id, i)} onpointermove={onDragMove}
                         onpointerup={endDrag} onpointercancel={cancelDrag}>
-                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 7h16v2H4zm0 4h16v2H4zm0 4h16v2H4z"/></svg>
+                        <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={dragHandleIcon}/></svg>
                     </span>
                     {/if}
                 </div>
@@ -375,7 +372,7 @@
                     </span>
                     <button class="queue-action" onclick={() => moveTrack(track.id, 0)} disabled={drag !== null}
                         title="Play first" aria-label="Play {track.title} first">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14M12 20V9M7 13l5-5 5 5"/></svg>
+                        <svg viewBox={ICON_VIEWBOX} aria-hidden="true" fill="currentColor"><path d={verticalAlignTopIcon}/></svg>
                     </button>
                     <span class="drag-handle-space" aria-hidden="true"></span>
                 </div>
@@ -395,7 +392,7 @@
     <div class="sheet" onclick={(e) => e.stopPropagation()} role="dialog" aria-label="Presets" tabindex="-1">
         <div class="sheet-header">
             <h3>Presets</h3>
-            <button class="sheet-close" onclick={() => pickingPreset = false} aria-label="Close">✕</button>
+            <button class="sheet-close" onclick={() => pickingPreset = false} aria-label="Close"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
         </div>
         <div class="sheet-body">
             <div class="hint">Picks wait for the next phase · tap twice to play now</div>
@@ -411,7 +408,7 @@
                             {#if preset.playing}
                             <span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>
                             {:else}
-                            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
+                            <svg viewBox={ICON_VIEWBOX} fill="currentColor" aria-hidden="true"><path d={musicNoteFillIcon}/></svg>
                             {/if}
                         </span>
                         <span class="preset-name">
@@ -422,17 +419,9 @@
                                 {@const phases = preset.phases}
                                 <span class="phases">
                                     {#each TIMES_OF_DAY as phase (phase)}
-                                    <svg class:active={phases[phase]} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <svg class:active={phases[phase]} viewBox={ICON_VIEWBOX} fill="currentColor">
                                         <title>{phase[0].toUpperCase() + phase.slice(1)}: {phases[phase] ? 'playlist' : 'silent'}</title>
-                                        {#if phase === 'morning'}
-                                        <path d="M3 19h18M7 19a5 5 0 0 1 10 0M12 4v6M9.5 6.5 12 4l2.5 2.5"/>
-                                        {:else if phase === 'day'}
-                                        <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
-                                        {:else if phase === 'dusk'}
-                                        <path d="M3 19h18M7 19a5 5 0 0 1 10 0M12 4v6M9.5 7.5 12 10l2.5-2.5"/>
-                                        {:else}
-                                        <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>
-                                        {/if}
+                                        <path d={PHASE_ICONS[phase]}/>
                                     </svg>
                                     {/each}
                                 </span>

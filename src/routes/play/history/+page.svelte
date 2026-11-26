@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { ICON_VIEWBOX, chevronLeftIcon, chevronRightIcon } from "$lib/icons/material.js";
     import GrimSnapshotView from '$lib/components/GrimSnapshotView.svelte';
     import { formatPlayDate, snapshotViewProps, type PlayHistoryEntry, type PresetPlay } from '$lib/resources/common/presetPlays';
 
@@ -24,9 +26,7 @@
 <div class="history-page">
   <div class="column">
   <a class="back-link" href="/play">
-    <svg width={24} height={24} viewBox="0 0 24 24" style="fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;">
-        <path d="M15 5l-7 7 7 7" />
-    </svg>
+    <svg width={24} height={24} viewBox={ICON_VIEWBOX} fill="currentColor"><path d={chevronLeftIcon}/></svg>
     Back
   </a>
   <h1>Game History</h1>
@@ -51,7 +51,7 @@
                     <div class="play-source">
                         {play.script_name ?? 'Unknown script'} ·
                         <a class="preset-link" href="/settings/scripts/{play.script_id}/presets/{play.preset_id}">{play.preset_name}</a>
-                        {#if play.has_grim}<span class="grim-badge">Grim snapshot ›</span>{/if}
+                        {#if play.has_grim}<span class="grim-badge">Grim snapshot <MaterialIcon icon={chevronRightIcon} size="1.2em"/></span>{/if}
                     </div>
                 </li>
             {/each}

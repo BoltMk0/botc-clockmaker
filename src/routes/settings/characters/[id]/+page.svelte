@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { addIcon, chevronLeftIcon, closeIcon } from "$lib/icons/material.js";
     import { deserialize } from '$app/forms';
     import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
     import { onMount, untrack } from 'svelte';
@@ -455,9 +457,11 @@
         width: 80px;
         height: 80px;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        font-size: 2em;
+        gap: 0.1em;
+        font-size: 1em;
         background-color: var(--theme-bg-secondary);
         border: 1px dashed #ccc;
         border-radius: 8px;
@@ -552,9 +556,9 @@
         <div class="character-info">
             <!-- Changes are saved on going back -->
             {#if selectedReminderToken}
-                <button type="button" class="button-style back-link" onclick={closeReminderToken} disabled={saving}>&lsaquo; {selectedCharacter.name || 'Character'}</button>
+                <button type="button" class="button-style back-link" onclick={closeReminderToken} disabled={saving}><MaterialIcon icon={chevronLeftIcon} size="1.2em"/> {selectedCharacter.name || 'Character'}</button>
             {:else}
-                <a class="button-style back-link" href="/settings/characters">{saving ? 'Saving…' : '‹ All Characters'}</a>
+                <a class="button-style back-link" href="/settings/characters">{#if saving}Saving…{:else}<MaterialIcon icon={chevronLeftIcon} size="1.2em"/>All Characters{/if}</a>
             {/if}
             {#if selectedReminderToken}
                 <div class="reminder-token-editor-container">
@@ -670,12 +674,12 @@
                                         <label>
                                             First Night
                                             <input type="number" name="firstNightOrder" placeholder="Doesn't wake" bind:value={selectedCharacter.firstNightOrder} />
-                                            <button type="button" class="button-style clear-order-button" title="Doesn't wake on the first night" disabled={selectedCharacter.firstNightOrder == null} onclick={() => selectedCharacter.firstNightOrder = null}>✕</button>
+                                            <button type="button" class="button-style clear-order-button" title="Doesn't wake on the first night" disabled={selectedCharacter.firstNightOrder == null} onclick={() => selectedCharacter.firstNightOrder = null}><MaterialIcon icon={closeIcon} size="1.25em"/></button>
                                         </label>
                                         <label>
                                             Other Nights
                                             <input type="number" name="otherNightOrder" placeholder="Doesn't wake" bind:value={selectedCharacter.otherNightOrder} />
-                                            <button type="button" class="button-style clear-order-button" title="Doesn't wake on other nights" disabled={selectedCharacter.otherNightOrder == null} onclick={() => selectedCharacter.otherNightOrder = null}>✕</button>
+                                            <button type="button" class="button-style clear-order-button" title="Doesn't wake on other nights" disabled={selectedCharacter.otherNightOrder == null} onclick={() => selectedCharacter.otherNightOrder = null}><MaterialIcon icon={closeIcon} size="1.25em"/></button>
                                         </label>
                                     </div>
                                 </td>
@@ -702,7 +706,7 @@
                         <ReminderTokenView data={token} characterId={selectedCharacterId} size="80px" />
                         </button>
                     {/each}
-                    <button id="add-reminder-token-button" onclick={createNewReminderToken} >+</button>
+                    <button id="add-reminder-token-button" onclick={createNewReminderToken} title="Add a reminder token"><MaterialIcon icon={addIcon} size="1.6em"/>Add</button>
                 </div>
 
                 <h3>Communications</h3>

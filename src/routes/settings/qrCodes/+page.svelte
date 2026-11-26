@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { closeIcon, saveIcon } from "$lib/icons/material.js";
     import type { QrCode } from "$lib/resources/server/qrCodes";
     import { DEFAULT_QR_POSITION, QR_POSITIONS, QR_POSITION_LABELS } from "$lib/resources/common/qrCodes";
     import { onMount } from "svelte";
@@ -39,7 +41,7 @@
             <h1>QR Codes</h1>
             <div class="actions">
                 <button onclick={() => codes.push({ url: '', title: '', position: DEFAULT_QR_POSITION })}>+ Add</button>
-                <button class="save" onclick={save}>Save</button>
+                <button class="save" onclick={save}><MaterialIcon icon={saveIcon} size="1.2em"/> Save</button>
             </div>
         </header>
         <p class="description">Sets the QR codes shown on the town square across all games.</p>
@@ -68,7 +70,7 @@
                             {/each}
                         </select>
                     </label>
-                    <button class="delete" title="Delete" aria-label="Delete entry" onclick={() => codes.splice(i, 1)}>✕</button>
+                    <button class="delete" title="Delete" aria-label="Delete entry" onclick={() => codes.splice(i, 1)}><MaterialIcon icon={closeIcon} size="1.25em"/></button>
                 </li>
             {/each}
         </ul>

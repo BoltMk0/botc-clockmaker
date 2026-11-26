@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { arrowBackIcon, arrowForwardIcon, closeIcon } from "$lib/icons/material.js";
     import { untrack } from "svelte";
     import TokenPicker from "./TokenPicker.svelte";
     import type { PresetBuilder } from "./PresetBuilder.svelte.js";
@@ -167,7 +169,7 @@
         <div class="picker-header">
             <h2 style="margin: 0;">How Many Players?</h2>
             {#if onBackFromPlayers && !hideBack}
-                <button class="button-style" onclick={onBackFromPlayers}>← Back</button>
+                <button class="button-style" onclick={onBackFromPlayers}><MaterialIcon icon={arrowBackIcon} size="1.2em"/> Back</button>
             {/if}
         </div>
         <div style="font-style: italic; opacity: 0.6; margin-top: -0.5em;">Include travellers who'll draw from the bag; others can be added after the grim setup</div>
@@ -184,8 +186,8 @@
     </div>
     {#if !hideFooter}
     <div class="footer-actions">
-        {#if !hideBack}<button class="button-style" onclick={() => navigate(beforeTokens)}>← Back</button>{:else}<span></span>{/if}
-        <button class="button-style highlight" disabled={!builder.hasEnoughTokens} onclick={() => navigate('bluffs')}>Next →</button>
+        {#if !hideBack}<button class="button-style" onclick={() => navigate(beforeTokens)}><MaterialIcon icon={arrowBackIcon} size="1.2em"/> Back</button>{:else}<span></span>{/if}
+        <button class="button-style highlight" disabled={!builder.hasEnoughTokens} onclick={() => navigate('bluffs')}>Next <MaterialIcon icon={arrowForwardIcon} size="1.2em"/></button>
     </div>
     {/if}
 </div>
@@ -200,7 +202,7 @@
                     <button class="bluff-tab-select" role="tab" aria-selected={active} onclick={() => builder.activeBluffSet = i}>
                         Set {i + 1}<span class="bluff-tab-count">{set.length}</span>
                     </button>
-                    <button class="bluff-tab-remove" aria-label="Remove set {i + 1}" title="Remove set {i + 1}" onclick={() => builder.removeBluffSet(i)}>✕</button>
+                    <button class="bluff-tab-remove" aria-label="Remove set {i + 1}" title="Remove set {i + 1}" onclick={() => builder.removeBluffSet(i)}><MaterialIcon icon={closeIcon} size="1.25em"/></button>
                 </div>
             {/each}
             <button class="bluff-tab-add" onclick={() => builder.addBluffSet()} title="Add a bluff set">+ Add set</button>
@@ -215,8 +217,8 @@
     </div>
     {#if !hideFooter}
     <div class="footer-actions">
-        {#if !hideBack}<button class="button-style" onclick={() => navigate('tokens')}>← Back</button>{:else}<span></span>{/if}
-        <button class="button-style highlight" disabled={!builder.bluffsValid} onclick={() => navigate(afterBluffs)}>Next →</button>
+        {#if !hideBack}<button class="button-style" onclick={() => navigate('tokens')}><MaterialIcon icon={arrowBackIcon} size="1.2em"/> Back</button>{:else}<span></span>{/if}
+        <button class="button-style highlight" disabled={!builder.bluffsValid} onclick={() => navigate(afterBluffs)}>Next <MaterialIcon icon={arrowForwardIcon} size="1.2em"/></button>
     </div>
     {/if}
 </div>

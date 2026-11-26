@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { ICON_VIEWBOX, addIcon, arrowBackIcon, checkIcon, closeIcon, keyboardArrowDownIcon, keyboardArrowUpIcon, musicNoteFillIcon, refreshIcon, removeIcon, saveIcon, skipNextFillIcon, skipPreviousFillIcon } from "$lib/icons/material.js";
     import { invalidateAll } from "$app/navigation";
     import { onMount, tick, untrack } from "svelte";
     import { SvelteSet } from "svelte/reactivity";
@@ -718,7 +720,7 @@
         {#if url}
             <img src={url} alt="" loading="lazy"/>
         {:else}
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
+            <svg viewBox={ICON_VIEWBOX} aria-hidden="true" fill="currentColor"><path d={musicNoteFillIcon}/></svg>
         {/if}
     </div>
 {/snippet}
@@ -759,9 +761,9 @@
                     aria-label="Add {track.title} to a playlist" aria-haspopup="dialog" aria-expanded={addMenuFor(track)}
                     title={inPlaylists > 0 ? `In ${inPlaylists} playlist${inPlaylists === 1 ? '' : 's'}` : 'Add to playlist'}>
                     {#if inPlaylists > 0}
-                        <svg class="in-playlist-tick" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>
+                        <svg class="in-playlist-tick" viewBox={ICON_VIEWBOX} width="18" height="18" aria-hidden="true" fill="currentColor"><path d={checkIcon}/></svg>
                     {:else}
-                        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+                        <svg viewBox={ICON_VIEWBOX} width="18" height="18" aria-hidden="true" fill="currentColor"><path d={addIcon}/></svg>
                     {/if}
                 </button>
                 <button class="icon-button edit-button" class:active={detailsId === track.id} onclick={(e) => { e.stopPropagation(); toggleDetails(track); }}
@@ -790,11 +792,11 @@
                                     disabled={remeasuringId === track.id}/>
                                 <button type="button" class="icon-button remeasure-button" class:spinning={remeasuringId === track.id}
                                     disabled={remeasuringId !== null} onclick={() => remeasureLoudness(track)}
-                                    aria-label="Re-measure the loudness" title="Re-measure the loudness">↻</button>
+                                    aria-label="Re-measure the loudness" title="Re-measure the loudness"><MaterialIcon icon={refreshIcon} size="1.2em"/></button>
                             </span></label>
                         <div class="details-actions">
                             <button type="button" onclick={() => detailsId = null}>Cancel</button>
-                            <button type="submit" class="save" disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
+                            <button type="submit" class="save" disabled={saving}><MaterialIcon icon={saveIcon} size="1.2em"/> {saving ? 'Saving...' : 'Save'}</button>
                         </div>
                     </form>
                 </td>
@@ -848,7 +850,7 @@
                     <p class="form-note">Tracks credited to the album's artist follow a change of artist. Giving it the title and artist of another album merges the two.</p>
                     <div class="details-actions">
                         <button type="button" onclick={() => albumEditId = null}>Close</button>
-                        <button type="submit" class="save" disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
+                        <button type="submit" class="save" disabled={saving}><MaterialIcon icon={saveIcon} size="1.2em"/> {saving ? 'Saving...' : 'Save'}</button>
                     </div>
                 </div>
             </form>
@@ -945,7 +947,7 @@
                 {/if}
             </div>
         {:else}
-            <button class="small-button back" onclick={() => openAlbumId = null}>&larr; All albums</button>
+            <button class="small-button back" onclick={() => openAlbumId = null}><MaterialIcon icon={arrowBackIcon} size="1.2em"/> All albums</button>
             {#if openAlbumId === 'singles'}
                 <div class="album-block">
                     <div class="album-header">
@@ -1028,13 +1030,13 @@
                                     {@render loudnessCell(track)}
                                     <td class="row-actions">
                                         <button class="icon-button" disabled={i === 0} onclick={(e) => { e.stopPropagation(); movePlaylistTrack(playlist, i, -1); }} aria-label="Move {track.title} up" title="Move up">
-                                            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M7.4 15.4 12 10.8l4.6 4.6L18 14l-6-6-6 6z"/></svg>
+                                            <svg viewBox={ICON_VIEWBOX} width="16" height="16" aria-hidden="true" fill="currentColor"><path d={keyboardArrowUpIcon}/></svg>
                                         </button>
                                         <button class="icon-button" disabled={i === openPlaylistTracks.length - 1} onclick={(e) => { e.stopPropagation(); movePlaylistTrack(playlist, i, 1); }} aria-label="Move {track.title} down" title="Move down">
-                                            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z"/></svg>
+                                            <svg viewBox={ICON_VIEWBOX} width="16" height="16" aria-hidden="true" fill="currentColor"><path d={keyboardArrowDownIcon}/></svg>
                                         </button>
                                         <button class="icon-button delete-button" onclick={(e) => { e.stopPropagation(); removeFromOpenPlaylist(track); }} aria-label="Remove {track.title} from the playlist" title="Remove from playlist">
-                                            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                                            <svg viewBox={ICON_VIEWBOX} width="16" height="16" aria-hidden="true" fill="currentColor"><path d={closeIcon}/></svg>
                                         </button>
                                     </td>
                                 </tr>
@@ -1064,7 +1066,7 @@
 <div class="panel presets-panel tab-panel" id="music-tab-presets" role="tabpanel" tabindex="0" aria-labelledby="music-tab-button-presets" hidden={tab !== 'presets'}>
     <div class="panel-header">
         <h2>Music Presets</h2>
-        <button class="save" disabled={!presetsDirty || savingPresets} onclick={savePresets}>{savingPresets ? 'Saving...' : 'Save changes'}</button>
+        <button class="save" disabled={!presetsDirty || savingPresets} onclick={savePresets}><MaterialIcon icon={saveIcon} size="1.2em"/> {savingPresets ? 'Saving...' : 'Save changes'}</button>
     </div>
     <p class="description">Playlists shown on the music player's strip in the mixer, which can run beside Spotify's: only one plays at a time, so picking a preset on either fades the other out (or, while the other is playing, schedules it for the next phase change, as within one player). Each always plays shuffled, and remembers its place in the shuffle: switching back to a playlist carries on with tracks it hasn't played yet, rather than repeating ones it has, until it's been through them all.<br/>An ambient adaptive playlist has a playlist for each phase: it plays the one for the current phase, and fades out to the next phase's whenever the games' phase changes. Leave a phase empty to keep it silent: the music fades out and pauses through it, and picks up again by itself when a phase with a playlist comes round. The morning is daytime before the countdown's started (or while it's paused), and the day while it runs, so with only day and night playlists it plays just while the countdown runs and at night.</p>
     {#if data.library.playlists.length === 0}
@@ -1138,9 +1140,9 @@
                     title={state === 'all' ? `Take ${menu.trackIds.length === 1 ? 'it' : 'them'} off ${playlist.name}` : `Add to ${playlist.name}`}>
                     <span class="checkbox" class:checked={state === 'all'} class:mixed={state === 'some'} aria-hidden="true">
                         {#if state === 'all'}
-                            <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>
+                            <svg viewBox={ICON_VIEWBOX} width="14" height="14" fill="currentColor"><path d={checkIcon}/></svg>
                         {:else if state === 'some'}
-                            <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M5 11h14v2H5z"/></svg>
+                            <svg viewBox={ICON_VIEWBOX} width="14" height="14" fill="currentColor"><path d={removeIcon}/></svg>
                         {/if}
                     </span>
                     <span class="add-menu-name">{playlist.name}</span>
@@ -1171,11 +1173,11 @@
         </div>
         <div class="now-playing-controls">
             <button class="skip" onclick={() => step(-1)} disabled={queueIndex <= 0} aria-label="Previous track" title="Previous">
-                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+                <svg viewBox={ICON_VIEWBOX} width="16" height="16" aria-hidden="true" fill="currentColor"><path d={skipPreviousFillIcon}/></svg>
             </button>
             <div class="player"><MusicPreviewPlayer bind:this={player} url={playingTrack ? `/api/resources/${playingTrack.file}` : null} gainDb={playingGainDb} onended={() => step(1)}/></div>
             <button class="skip" onclick={() => step(1)} disabled={queueIndex < 0 || queueIndex >= queue.length - 1} aria-label="Next track" title="Next">
-                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                <svg viewBox={ICON_VIEWBOX} width="16" height="16" aria-hidden="true" fill="currentColor"><path d={skipNextFillIcon}/></svg>
             </button>
         </div>
     </div>

@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
+    import { addIcon, deleteIcon, travelExploreIcon, uploadIcon } from "$lib/icons/material.js";
     import { enhance } from "$app/forms";
     import { goto } from "$app/navigation";
     import type { Character } from "$lib/resources/common/gameData";
@@ -60,6 +62,12 @@
         justify-content: space-between;
         align-items: center;
         gap: 0.75rem 1.5rem;
+    }
+
+    /* The QR Codes tab's button size, for this page's buttons (and its pop-ups'). */
+    .scripts-main :global(.button-style) {
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
     }
 
     .header-actions {
@@ -172,8 +180,8 @@
     <div class="scripts-main-header">
         <h2>Scripts</h2>
         <div class="header-actions">
-        <a class="button-style" href="scripts/scraper">Wiki Scraper</a>
-        <CustomOverlay title="Import Script" buttonTitle="Import">
+        <a class="button-style" href="scripts/scraper"><MaterialIcon icon={travelExploreIcon} size="1.2em"/> Wiki Scraper</a>
+        <CustomOverlay title="Import Script" buttonTitle="Import" buttonIcon={uploadIcon}>
             <form class="import-form" action="?/importScript" method="POST" enctype="multipart/form-data" use:enhance={()=>{
                 importError = null;
                 return async ({result}) => {
@@ -204,10 +212,10 @@
                         {/if}
                     </div>
                 {/if}
-                <button class="button-style" type="submit">Import</button>
+                <button class="button-style" type="submit"><MaterialIcon icon={uploadIcon} size="1.2em"/> Import</button>
             </form>
         </CustomOverlay>
-        <CustomOverlay title="Create New Script" buttonTitle="+">
+        <CustomOverlay title="Create New Script" buttonTitle="Add" buttonIcon={addIcon}>
             <form action="?/createScript" method="POST" use:enhance={()=>{
                 return async ({result}) => {
                     switch(result.type){
@@ -268,7 +276,7 @@
                         <div class="script-subtitle">{script.characters.length} character{script.characters.length === 1 ? '' : 's'}</div>
                     </div>
                     <div onclick={(e)=>e.stopPropagation()} role="presentation">
-                    <CustomOverlay title="Confirm Delete" buttonTitle="Delete">
+                    <CustomOverlay title="Confirm Delete" buttonTitle="Delete" buttonIcon={deleteIcon}>
                         <form action="?/deleteScript" method="POST" use:enhance={()=>{
                             return async ({result}) => {
                                 switch(result.type){

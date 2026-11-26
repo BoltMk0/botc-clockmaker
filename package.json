@@ -10,10 +10,12 @@
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"icons": "node scripts/material-icons.mjs",
 		"docker:build": "node scripts/docker-build.mjs",
 		"docker:push": "node scripts/build-and-push.mjs"
 	},
 	"devDependencies": {
+		"@material-symbols/svg-400": "^0.49.0",
 		"@sveltejs/adapter-auto": "^7.0.0",
 		"@sveltejs/adapter-node": "^5.4.0",
 		"@sveltejs/kit": "^2.49.1",
