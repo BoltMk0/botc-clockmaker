@@ -1825,7 +1825,7 @@
     }
     /* The Minion Info and Demon Info wakes, told apart from the characters' own in evil's red */
     .night-order-badge.info-wake {
-        background-color: rgb(150, 20, 30);
+        background-color: rgb(110, 25, 32);
     }
     /* An open token's wake badge, tapped to turn the wake on or off: a dotted outline while it's off; and a night order
        number, tapped to show what wakes then */
