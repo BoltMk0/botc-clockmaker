@@ -1,6 +1,6 @@
 <script lang="ts">
     import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
-    import { ICON_VIEWBOX, chevronLeftIcon, chevronRightIcon } from "$lib/icons/material.js";
+    import { ICON_VIEWBOX, chevronLeftIcon, chevronRightIcon, visibilityIcon } from "$lib/icons/material.js";
     import GrimSnapshotView from '$lib/components/GrimSnapshotView.svelte';
     import { formatPlayDate, snapshotViewProps, type PlayHistoryEntry, type PresetPlay } from '$lib/resources/common/presetPlays';
 
@@ -40,19 +40,19 @@
             {#each data.plays as play (play.id)}
                 <li class="play" class:openable={play.has_grim}>
                     {#if play.has_grim}
-                        <!-- Covers the whole row, so tapping anywhere on it opens the snapshot; the preset link sits above it. -->
+                        <!-- Covers the whole row, so tapping anywhere on it opens the snapshot; the preset button sits above it. -->
                         <button class="row-open" aria-label="Show the grim from {formatPlayDate(play.date)}" onclick={() => openSnapshot(play)}></button>
+                        <span class="grim-chevron" aria-hidden="true"><MaterialIcon icon={visibilityIcon} size="1.4em"/><MaterialIcon icon={chevronRightIcon} size="2em"/></span>
                     {/if}
                     <div class="play-main">
                         <span class="play-date">{formatPlayDate(play.date)}</span>
                         <span class="winner-pill {play.winner}">{play.winner === 'good' ? 'Good' : 'Evil'} won</span>
                         {#if play.day}<span class="play-day">Day {play.day}</span>{/if}
                     </div>
-                    <div class="play-source">
-                        {play.script_name ?? 'Unknown script'} ·
-                        <a class="preset-link" href="/settings/scripts/{play.script_id}/presets/{play.preset_id}">{play.preset_name}</a>
-                        {#if play.has_grim}<span class="grim-badge">Grim snapshot <MaterialIcon icon={chevronRightIcon} size="1.2em"/></span>{/if}
-                    </div>
+                    <!-- What it was played from, opening the preset -->
+                    <a class="preset-link" href="/settings/scripts/{play.script_id}/presets/{play.preset_id}">
+                        {play.script_name ?? 'Unknown script'} · {play.preset_name}
+                    </a>
                 </li>
             {/each}
         </ul>
@@ -149,6 +149,10 @@
         color: var(--theme-on-bg);
         border: 1px solid var(--theme-bg-tertiary);
     }
+    /* Clear of the chevron */
+    .play.openable {
+        padding-right: 4.4em;
+    }
     .play.openable:hover {
         background: var(--theme-bg-tertiary);
         color: var(--theme-on-bg-tertiary);
@@ -168,7 +172,9 @@
         outline-offset: 2px;
     }
 
+    /* Taps on the text go through to the row beneath it */
     .play-main {
+        pointer-events: none;
         display: flex;
         flex-wrap: wrap;
         align-items: center;
@@ -195,21 +201,38 @@
         opacity: 0.8;
     }
 
-    .play-source {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 0.3em;
-        font-size: 0.9em;
-        opacity: 0.75;
-    }
+    /* A button only as wide as its text, at the row's left, above the row's own button */
     .preset-link {
         position: relative;
+        align-self: flex-start;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 0.25em 0.7em;
+        border-radius: 8px;
+        border: 1px solid var(--theme-bg-tertiary);
+        background: var(--theme-bg-secondary);
         color: inherit;
-    }
-    .grim-badge {
-        margin-left: auto;
         font-size: 0.9em;
+        text-decoration: none;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .preset-link:hover {
+        border-color: var(--theme-highlight);
+    }
+
+    /* At the row's right, centred top to bottom; a tap on it opens the snapshot */
+    .grim-chevron {
+        position: absolute;
+        right: 0.5em;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        align-items: center;
+        gap: 0.1em;
+        opacity: 0.75;
+        pointer-events: none;
     }
 
     @media (max-width: 560px) {
