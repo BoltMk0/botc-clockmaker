@@ -33,9 +33,9 @@
         position: relative;
 
 
-        background-color: hsl(281, 16%, 20%);
+        background-color: hsl(281, 23%, 19%);
         color: #EEE;
-        border: calc(var(--size) * 0.05) solid hsl(285, 16%, 15%);
+        border: calc(var(--size) * 0.06) solid hsl(287, 22%, 20%);
         border-radius: 50%;
     }
 
