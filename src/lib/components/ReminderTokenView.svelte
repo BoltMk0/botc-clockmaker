@@ -1,5 +1,7 @@
 <script lang="ts">
+    import { onMount } from "svelte";
     import type { ReminderToken } from "$lib/resources/common/gameData";
+    import { fitReminderText, REMINDER_FONT_FAMILY, REMINDER_LINE_HEIGHT } from "./reminderTextFit";
 
     interface Props {
         data: ReminderToken;
@@ -16,6 +18,10 @@
     let hasImage = $state(true);
 
     let isBlank = $derived(data.text.trim() === '');
+    // Text is measured in the browser only, after hydration, so the first render matches the server's.
+    let mounted = $state(false);
+    onMount(() => { mounted = true; });
+    let fit = $derived(fitReminderText(data.text, mounted));
 </script>
 
 <style>
@@ -27,9 +33,9 @@
         position: relative;
 
 
-        background-color: hsl(129, 36%, 18%);
-        color: white;
-        border: calc(var(--size) * 0.05) solid hsl(40, 72%, 45%);
+        background-color: hsl(281, 16%, 20%);
+        color: #EEE;
+        border: calc(var(--size) * 0.05) solid hsl(285, 16%, 15%);
         border-radius: 50%;
     }
 
@@ -48,12 +54,14 @@
         justify-content: center;
         left:-15%;
         width: 130%;
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        font-family: var(--font-family);
+        line-height: var(--line-height);
         text-transform: uppercase;
     }
 
     .reminder-token-text > * {
         width: 100%;
+        white-space: nowrap;
         padding: 0;
         margin: 0;
     }
@@ -116,8 +124,8 @@
 
             </div>
         {/if}
-        <div class="reminder-token-text" style="--font-size: calc({size} * {data.textSize/250});">
-            {#each data.text.split('\n') as line}
+        <div class="reminder-token-text" style="--font-size: calc({size} * {fit.font}); --font-family: {REMINDER_FONT_FAMILY}; --line-height: {REMINDER_LINE_HEIGHT};">
+            {#each fit.lines as line}
                 <div>{line}</div>
             {/each}
         </div>

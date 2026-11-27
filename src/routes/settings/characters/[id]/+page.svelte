@@ -8,7 +8,6 @@
     import { ALL_CHARACTER_CATEGORIES, type Character, type ReminderToken } from '$lib/resources/common/gameData.js';
     import type { MessagePreset, TextOption } from '$lib/common/message';
     import MessagePresetList, { sectionsByCategory } from '$lib/components/MessagePresetList.svelte';
-    import HSlider from '$lib/audio/client/components/HSlider.svelte';
     import CustomOverlay from '$lib/components/CustomOverlay.svelte';
     import ReminderTokenView from '$lib/components/ReminderTokenView.svelte';
 
@@ -576,13 +575,6 @@
                                 <th>Text</th>
                                 <td>
                                     <textarea style="height: 8em;" bind:value={selectedReminderToken.text}></textarea>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th>Text Size</th>
-                                <td>
-                                    <div style="text-align: center;">{selectedReminderToken.textSize}%</div>
-                                    <HSlider bind:value={selectedReminderToken.textSize} min={10} max={100} step={1} />
                                 </td>
                             </tr>
                         </tbody>
