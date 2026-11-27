@@ -104,7 +104,16 @@ export class BOTCTClock extends EventEmitter {
         const previous = this.#model.clock.timeOfDay;
         if(previous === timeOfDay) return;
         this.#model.clock.timeOfDay = timeOfDay;
-        (this.#model.clock.phaseLog ??= []).push({ timeOfDay, day: this.#model.clock.day, at });
+        const log = this.#model.clock.phaseLog ??= [];
+        if(previous === 'morning' && timeOfDay === 'night' && this.#model.clock.day > 0){
+            // Back to night from a morning that never started is a roll-back: it's still the night before
+            const day = --this.#model.clock.day;
+            const last = log[log.length - 1], before = log[log.length - 2];
+            if(last?.timeOfDay === 'morning' && before?.timeOfDay === 'night' && before.day === day){
+                // That night goes on, as if it had never turned to morning
+                log.pop();
+            } else log.push({ timeOfDay, day, at });
+        } else log.push({ timeOfDay, day: this.#model.clock.day, at });
         if(previous === 'night' && isDaytime(timeOfDay)) this.emit('bellRingRequest', 'start');
         this.scheduleSave();
         this.debouncedEmit('modelUpdated', this.#model);
