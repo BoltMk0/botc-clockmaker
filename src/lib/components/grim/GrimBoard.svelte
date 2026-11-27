@@ -45,6 +45,7 @@
         sidebarTop,
         sidebarMenuStart,
         sidebarMenuEnd,
+        topRight,
         centre,
         ignoreGesturesOn = '',
         activeTokenId = $bindable(null),
@@ -76,6 +77,8 @@
         /** Buttons at the start and end of the sidebar's menu. */
         sidebarMenuStart?: Snippet;
         sidebarMenuEnd?: Snippet;
+        /** Buttons in the top right corner, after the undo button (which --grim-undo-right moves clear of them). */
+        topRight?: Snippet;
         /** Shown in the middle of the board, zooming with it (e.g. the clock). */
         centre?: Snippet;
         /** Selectors for elements outside the board over which the board mustn't be panned or drawn on. */
@@ -916,6 +919,7 @@
         <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={undoIcon}/></svg>
     </button>
     {/if}
+    {@render topRight?.()}
 
     {#if lockedToastVisible}
     <div class="locked-toast" role="status" style="z-index: {GRIM_Z.ui + 40};"
@@ -1828,10 +1832,11 @@
         gap: 8px;
     }
 
-    /* In the top right: just left of the page's save status, if it has one (--grim-undo-right) */
+    /* In the top right: just left of the page's save status, if it has one (--grim-undo-right, and --grim-undo-top
+       to line it up with what's beside it) */
     .undo-stroke-btn {
         position: absolute;
-        top: 4px;
+        top: var(--grim-undo-top, 4px);
         right: var(--grim-undo-right, 52px);
     }
 

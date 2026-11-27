@@ -1,7 +1,6 @@
 <script lang="ts">
     import "$lib/components/grim/grimUi.css";
-    import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
-    import { downloadIcon } from "$lib/icons/material.js";
+    import { ICON_VIEWBOX, closeIcon, fitScreenIcon, photoCameraIcon, restartAltIcon } from "$lib/icons/material.js";
     import { onMount, tick } from "svelte";
     import { domToPng } from "modern-screenshot";
     import type { ScriptCharacter, ScriptWithCharacters } from "$lib/resources/common/gameData.js";
@@ -10,7 +9,7 @@
     import { GrimoireUndo } from "$lib/model/client/GrimoireUndo.svelte";
     import GrimBoard from "$lib/components/grim/GrimBoard.svelte";
     import GrimPieces from "$lib/components/grim/GrimPieces.svelte";
-    import { GrimModel, asScriptCharacters, normaliseHistory, scriptSummaries, type GrimScriptSummary } from "$lib/components/grim/GrimModel.svelte";
+    import { GRIM_Z, GrimModel, asScriptCharacters, normaliseHistory, scriptSummaries, type GrimScriptSummary } from "$lib/components/grim/GrimModel.svelte";
 
     // A grim as it was saved, shown over the whole page on the grim board, where it can be changed (tokens and
     // reminders added, moved or taken off, players changed, lines drawn) before it's saved as a picture. The changes
@@ -59,6 +58,8 @@
 
     const undo = new GrimoireUndo(() => grim);
     let board = $state<GrimBoard>();
+    // Whether a token or reminder is being dragged on the board, which hides the Close button as it hides its own
+    let dragging = $state(false);
     // Whether the grim has been changed from how it was saved (and not all undone)
     const changed = $derived(undo.canUndo);
 
@@ -71,15 +72,11 @@
         board?.fitView();
     }
 
-    function close() {
-        if (changed && !confirm('Close the grim? Your changes to it will be lost.')) return;
-        onclose();
-    }
 
     function onkeydown(e: KeyboardEvent) {
         // Escape in a text box (a player's name) only leaves the box
         if (e.key !== 'Escape' || (e.target as Element | null)?.closest('input, textarea')) return;
-        close();
+        onclose();
     }
 
     // SAVING AS PNG
@@ -188,25 +185,41 @@
     {/if}
 {/snippet}
 
+<!-- Beside the board's menu button -->
+{#snippet sidebarTop()}
+    <button class="sidebar-btn" disabled={exporting} onclick={saveAsPng} title={exporting ? 'Saving…' : 'Save as PNG'} aria-label="Save as PNG">
+        <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={photoCameraIcon}/></svg>
+    </button>
+    <button class="sidebar-btn" onclick={() => board?.fitView()} title="Fit to screen" aria-label="Fit to screen">
+        <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={fitScreenIcon}/></svg>
+    </button>
+    <button class="sidebar-btn" disabled={!changed} onclick={reset} title="Reset to as it was saved" aria-label="Reset to as it was saved">
+        <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={restartAltIcon}/></svg>
+    </button>
+{/snippet}
+
+<!-- In the top right corner, as the sidebar is in the top left; under the token tray, as the board's own buttons are -->
+{#snippet topRight()}
+    <button class="sidebar-btn close-btn" class:drag-hidden={dragging} style="z-index: {GRIM_Z.ui};" onclick={onclose} title="Close" aria-label="Close">
+        <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={closeIcon}/></svg>
+    </button>
+{/snippet}
+
 <svelte:window {onkeydown} />
 
 <!-- Not a dialog role: the board treats anything in one as outside it (see GrimBoard) -->
 <section class="snapshot-overlay grim-ui" aria-label={title}>
-    <div class="snapshot-header">
-        <span class="snapshot-title">{title}</span>
-        <button class="button-style" disabled={!changed} onclick={reset}>Reset</button>
-        <button class="button-style" onclick={() => board?.fitView()}>Fit</button>
-        <button class="button-style" disabled={exporting} onclick={saveAsPng}><MaterialIcon icon={downloadIcon} size="1.2em"/> {exporting ? 'Saving…' : 'Save as PNG'}</button>
-        <button class="button-style" onclick={close}>Close</button>
-    </div>
     <div class="snapshot-body">
         <div class="snapshot-bg" aria-hidden="true"></div>
         <GrimBoard
             bind:this={board}
             {model}
             {undo}
+            bind:dragging
+            ignoreGesturesOn=".close-btn"
             centre={winnerBanner}
-            ignoreGesturesOn=".snapshot-header"
+            {sidebarTop}
+            {topRight}
         />
     </div>
 </section>
@@ -264,32 +277,21 @@
         color: var(--theme-on-bg);
     }
 
-    .snapshot-header {
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        gap: 0.6em;
-        padding: 0.6em 1em;
-        border-bottom: 1px solid var(--theme-bg-tertiary);
-    }
-
-    .snapshot-title {
-        flex: 1;
-        min-width: 0;
-        font-weight: 600;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
     .snapshot-body {
         position: relative;
         flex: 1;
         min-height: 0;
         overflow: hidden;
         touch-action: none;
-        /* No save status beside the undo button here */
-        --grim-undo-right: 8px;
+        /* The undo button sits just left of the Close button */
+        --grim-undo-right: 60px;
+        --grim-undo-top: 8px;
+    }
+
+    .close-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
     }
 
     .winner-banner {

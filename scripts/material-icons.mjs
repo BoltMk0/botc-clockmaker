@@ -12,7 +12,7 @@ const STYLE = 'rounded';
 const ICONS = [
     // Actions
     'add', 'add_box', 'close', 'remove', 'check', 'edit', 'save', 'delete', 'undo', 'refresh', 'restart_alt', 'sync',
-    'content_copy', 'download', 'upload', 'input', 'travel_explore', 'qr_code_2', 'visibility', 'lock', 'lock_open', 'tune', 'settings', 'cycle',
+    'content_copy', 'download', 'upload', 'input', 'travel_explore', 'qr_code_2', 'visibility', 'fit_screen', 'photo_camera', 'lock', 'lock_open', 'tune', 'settings', 'cycle',
     // Navigation
     'arrow_back', 'arrow_forward', 'chevron_left', 'chevron_right', 'keyboard_arrow_up', 'keyboard_arrow_down', 'menu',
     'vertical_align_top', 'drag_handle',
