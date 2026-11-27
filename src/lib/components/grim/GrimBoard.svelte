@@ -951,10 +951,10 @@
 <!-- A night order number; tapped, it shows what wakes then (with onwakenumber) -->
 {#snippet wakeNumberBadge(wake: { number: number; key: string }, style: string)}
     {#if onwakenumber}
-    <button type="button" class="night-order-badge wake-number" {style} onclick={(e) => { e.stopPropagation(); onwakenumber(wake.key, wake.number); }}
+    <button type="button" class="night-order-badge wake-number" class:info-wake={wake.key in FIRST_NIGHT_INFO_ORDERS} {style} onclick={(e) => { e.stopPropagation(); onwakenumber(wake.key, wake.number); }}
         title="What wakes {wake.number}{ordinalSuffix(wake.number)}" aria-label="Wakes {wake.number}{ordinalSuffix(wake.number)}">{wake.number}</button>
     {:else}
-    <div class="night-order-badge" {style}>{wake.number}</div>
+    <div class="night-order-badge" class:info-wake={wake.key in FIRST_NIGHT_INFO_ORDERS} {style}>{wake.number}</div>
     {/if}
 {/snippet}
 
@@ -1815,6 +1815,10 @@
         justify-content: center;
         pointer-events: none;
         user-select: none;
+    }
+    /* The Minion Info and Demon Info wakes, told apart from the characters' own in evil's red */
+    .night-order-badge.info-wake {
+        background-color: rgb(150, 20, 30);
     }
     /* An open token's wake badge, tapped to turn the wake on or off: a dotted outline while it's off; and a night order
        number, tapped to show what wakes then */
