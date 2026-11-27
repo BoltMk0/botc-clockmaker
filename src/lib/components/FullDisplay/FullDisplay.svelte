@@ -19,7 +19,8 @@
         showClockNames = undefined,
         size=undefined,
         showInstructions = true,
-        subtitle = undefined
+        subtitle = undefined,
+        outerShadow = 'glow'
     } : {
         model: Clocktower;
         models?: Clocktower[];
@@ -30,6 +31,8 @@
         showInstructions?: boolean;
         /** Text below the clock, mirroring its name above it (the "original" display only). */
         subtitle?: string | Snippet;
+        /** Round the clock face: a sky-coloured glow, or a dark drop shadow (the "original" display only). */
+        outerShadow?: 'glow' | 'shadow';
     } = $props();
 
     let otherClockNotificationPresent: boolean = $state(false);
@@ -159,7 +162,7 @@
     {:else if shownDisplayMode === "original"}
         <div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);">
             <div class="clock-name-title dumbledore-font" style="font-size: {shownSize/10}px; transform: translateY(-100%); height: 0.5em;">{model.name}</div>
-            <OldClockFace totalTime={model.duration} progress={progress} dayNumber={model.day} size={size ?? shownSize} hue={model.hue}/>
+            <OldClockFace totalTime={model.duration} progress={progress} dayNumber={model.day} size={size ?? shownSize} hue={model.hue} {outerShadow}/>
             {#if subtitle}
             <div class="clock-name-title dumbledore-font" style="font-size: {shownSize/10}px; transform: translateY(-0.7em); height: 0.5em;">{#if typeof subtitle === 'string'}{subtitle}{:else}{@render subtitle()}{/if}</div>
             {/if}

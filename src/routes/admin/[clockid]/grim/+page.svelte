@@ -3174,7 +3174,7 @@
         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 2em; text-shadow: 0 0 10px rgba(0,0,0,0.7); z-index: {z_indecies.clock}; pointer-events: none;">
             {#if clockClient}
             <div style="position: relative; width: {tokenSize * CLOCK_SCALE + 35}px; height: {tokenSize * CLOCK_SCALE + 35}px; margin: 0 auto;">
-                <FullDisplay model={clockClient} size={tokenSize * CLOCK_SCALE} displayMode='original' showInstructions={false}>
+                <FullDisplay model={clockClient} size={tokenSize * CLOCK_SCALE} displayMode='original' showInstructions={false} outerShadow='shadow'>
                     <!-- Under the clock: the alive count, its number larger than the word (line-height 0 so it doesn't push the line down) -->
                     {#snippet subtitle()}<span style="font-size: 1.8em; line-height: 0;">{aliveCount}</span> alive{/snippet}
                 </FullDisplay>
