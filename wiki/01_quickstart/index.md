@@ -45,7 +45,7 @@ Made a mistake with the day number? Tap **Game** and use the Day **−** / **+**
 
 A new install has no sounds, so the clock is silent until you add some:
 
-1. Go to **Settings → Audio**. Under **Clock SFX**, press **+ Clock SFX Preset**.
+1. Go to **Settings → Audio Settings**. Under **Clock SFX**, press **+ Clock SFX Preset**.
 2. Give it a name and upload a sound for **End of Day**. You can also add **Start of Day** and **Reminder Bell**
    sounds. Save.
 3. Back on **Play**, choose your new preset in the game's **Clock SFX** dropdown. (3)

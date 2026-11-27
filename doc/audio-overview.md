@@ -16,10 +16,10 @@ through building up a full setup step by step.
 
 | Source | What it is | Set up in |
 | --- | --- | --- |
-| **Clock bells** | Each game's start of day, reminder and end of day sounds. | [Settings → Audio → Clock SFX](settings/audio.md#clock-sfx) |
-| **Ambience** | Looping background tracks (rain, crickets, tavern chatter…), each switched on or off for morning, day, dusk and night. | Files: [Settings → Audio → Ambience Assets](settings/audio.md#ambience-assets). Tracks: the [mixer](audio-mixer.md#ambience) |
-| **Stings** | Short dramatic sounds; each press of the sting button plays a random one. | [Settings → Audio → Audio Stings](settings/audio.md#audio-stings) |
-| **Music player** | Your own uploaded music, played from playlists and presets. | [Settings → Music](settings/music.md) |
+| **Clock bells** | Each game's start of day, reminder and end of day sounds. | [Settings → Audio Settings → Clock SFX](settings/audio.md#clock-sfx) |
+| **Ambience** | Looping background tracks (rain, crickets, tavern chatter…), each switched on or off for morning, day, dusk and night. | Files: [Settings → Audio Settings → Ambience Assets](settings/audio.md#ambience-assets). Tracks: the [mixer](audio-mixer.md#ambience) |
+| **Stings** | Short dramatic sounds; each press of the sting button plays a random one. | [Settings → Audio Settings → Audio Stings](settings/audio.md#audio-stings) |
+| **Music player** | Your own uploaded music, played from playlists and presets. | [Settings → Music Library](settings/music.md) |
 | **Spotify** | A Spotify account played through the browser. | [Music & Spotify](music-and-spotify.md#spotify) |
 
 ## Which devices make sound
@@ -78,13 +78,13 @@ every game is.
 ## Building up a setup, step by step
 
 1. **Bells.** Create a clock SFX preset and upload an End of Day sound, then pick the preset on each game's card on
-   **Play**. → [Settings → Audio](settings/audio.md#clock-sfx)
+   **Play**. → [Settings → Audio Settings](settings/audio.md#clock-sfx)
 2. **Ambience.** Upload a few looping sounds under **Ambience Assets**. On the town square, open ☰ → **Audio
    Mixer**, load a sound into each ambience track (tap the track's name), set its Morning / Day / Dusk / Night
    switches, and tap **Ambience Engine** to start it. → [The audio mixer](audio-mixer.md#ambience)
 3. **Stings.** Upload some under **Audio Stings**. Trigger them from the mixer's STING strip or the grimoire's audio
    menu.
-4. **Music.** Upload tracks in **Settings → Music**, make playlists, and create music presets. In the mixer, press
+4. **Music.** Upload tracks in **Settings → Music Library**, make playlists, and create music presets. In the mixer, press
    **+ Music** to start the player on this device and pick a preset. → [Music & Spotify](music-and-spotify.md)
 5. **Balance the levels** with the mixer's faders and the per-phase trims, and set the dim strength.
 6. **Control it from your phone**: the clock remote's now playing bar (skip), and its music view (presets, volume, DIM and the mixer).

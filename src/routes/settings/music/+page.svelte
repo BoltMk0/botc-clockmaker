@@ -15,10 +15,25 @@
     import { MusicSettings } from "$lib/audio/client/MusicSettings.svelte";
     import { levellingGainDb } from "$lib/audio/common/model/musicModel";
     import SpotifyPresetsEditor from "$lib/components/SpotifyPresetsEditor.svelte";
+    import ServiceSettingsForm, { type ServiceSettingGroup, type ServiceSettingsData } from "$lib/components/settings/ServiceSettingsForm.svelte";
     import { getAcceptedExtensionsForResourceType } from "$lib/resources/common/types";
     import { formatMusicDuration, musicNameKey, MUSIC_LOUDNESS_MAX, MUSIC_LOUDNESS_MIN, MUSIC_NUMBER_MAX, MUSIC_TEXT_MAX_LENGTH, type MusicAlbum, type MusicLibrary, type MusicPlaylist, type MusicTrack, type MusicTrackDetails } from "$lib/audio/common/musicLibrary";
 
-    let { data }: { data: { library: MusicLibrary, musicPresets: MusicPreset[] } } = $props();
+    let { data, form }: {
+        data: { library: MusicLibrary, musicPresets: MusicPreset[], services: ServiceSettingsData },
+        form: { error?: string } | null
+    } = $props();
+
+    const SPOTIFY_APP_GROUPS: ServiceSettingGroup[] = [
+        {
+            title: 'Credentials',
+            description: 'The Client ID and Client secret of your Spotify developer app. Both are needed for Spotify to be offered in the mixer.',
+            fields: [
+                { name: 'SPOTIFY_CLIENT_ID', label: 'Client ID' },
+                { name: 'SPOTIFY_CLIENT_SECRET', label: 'Client secret' }
+            ]
+        }
+    ];
 
     const acceptedAudioExtensions = getAcceptedExtensionsForResourceType('music');
     const acceptedImageExtensions = getAcceptedExtensionsForResourceType('albumart');
@@ -1124,6 +1139,10 @@
 
 <div class="tab-panel" id="music-tab-spotify" role="tabpanel" tabindex="0" aria-labelledby="music-tab-button-spotify" hidden={tab !== 'spotify'}>
     <SpotifyPresetsEditor/>
+    <div class="panel spotify-app">
+        <h2>Spotify app</h2>
+        <ServiceSettingsForm groups={SPOTIFY_APP_GROUPS} services={data.services} error={form?.error}/>
+    </div>
 </div>
 </div>
 
@@ -1308,6 +1327,16 @@
     }
 
     /* (Hidden rather than taken out, so a tab keeps its scroll, open forms and the like while another shows) */
+    .spotify-app {
+        margin-top: 1.5rem;
+    }
+
+    .spotify-app h2 {
+        margin: 0 0 0.5rem;
+        font-size: 1.3rem;
+        color: var(--theme-on-bg);
+    }
+
     .tab-panel[hidden] {
         display: none;
     }

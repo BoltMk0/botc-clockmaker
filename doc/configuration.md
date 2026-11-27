@@ -32,6 +32,15 @@ Set these in `docker-compose.yml` (`environment:`), in a `.env` file, or with `-
 (`PORT`, `ORIGIN`, `PROTOCOL_HEADER`, `HOST_HEADER` and `BODY_SIZE_LIMIT` come from SvelteKit's Node adapter, which
 supports a few more such as `HOST` and `ADDRESS_HEADER`.)
 
+### Secrets
+
+| Variable | Description |
+| --- | --- |
+| `SECRETS_KEY` | A long random passphrase, needed to save the Spotify, Turnstile and Gmail settings below in the app instead of here (see [Credentials and `SECRETS_KEY`](credentials.md)). They're stored in the data directory, encrypted with this key. Keep it outside the data directory. |
+
+The Spotify and feedback form variables below can each be set either here or in the app (Spotify in Settings → Music
+Library, the feedback form in Settings → Feedback). A variable set here wins over the same setting saved in the app.
+
 ### Spotify
 
 | Variable | Description |
@@ -43,7 +52,7 @@ supports a few more such as `HOST` and `ADDRESS_HEADER`.)
 | Variable | Description |
 | --- | --- |
 | `TURNSTILE_SITE_KEY` | The site key of your Cloudflare Turnstile widget, shown on the feedback form. Defaults to the original Clockmaker deployment's widget, which only works on that deployment's domain, so self-hosters should set their own. |
-| `TURNSTILE_SECRET_KEY` | The secret key of the same Turnstile widget. **Required** for the feedback form to accept submissions. |
+| `TURNSTILE_SECRET_KEY` | The secret key of the same Turnstile widget. Optional: without it, submissions aren't checked for bots. |
 | `GMAIL_USER`, `GMAIL_APP_PASSWORD` | Optional. A Gmail account and app password to send feedback emails from. |
 | `FEEDBACK_TO_EMAILS` | Optional. Where to email feedback; several addresses separated by `;`. |
 
@@ -68,6 +77,7 @@ managed in the app — but it's useful to know what's where.
 | `ambience/`, `sting/` | Ambience and sting sound files. |
 | `music-tracks/`, `music-albums/`, `music-playlists/` | The music library. Music files and album art are stored alongside. |
 | `rules-slide/` | Rules slideshow images. |
+| `secrets/` | The credentials saved in the app, encrypted with `SECRETS_KEY` (see [Credentials](credentials.md)). |
 
 Feedback submissions are stored separately, in `FEEDBACK_DATA_DIR`.
 

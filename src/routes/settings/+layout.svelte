@@ -22,6 +22,9 @@
     /** For the paths whose label isn't just their name. */
     const LABELS: Record<string, string> = {
         '/settings/history': 'Game History',
+        '/settings/timerOptions': 'Timer Presets',
+        '/settings/audio': 'Audio Settings',
+        '/settings/music': 'Music Library',
         '/settings/rulesSlides': 'Rules Slides',
         '/settings/apiToken': 'API Token'
     };

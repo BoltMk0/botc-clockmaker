@@ -1,4 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync } from "fs";
+import { JSONSingletonResourceManager } from "./jsonResourceManager";
+import { getServiceSetting } from "./serviceSettings";
 
 export const FEEDBACK_DIR = process.env.FEEDBACK_DATA_DIR || "data/feedback";
 if (!existsSync(FEEDBACK_DIR)) mkdirSync(FEEDBACK_DIR, { recursive: true });
@@ -30,4 +32,28 @@ export function deleteFeedback(filename: string): boolean {
     if (!existsSync(filepath)) return false;
     unlinkSync(filepath);
     return true;
+}
+
+type FeedbackOptions = {
+    /** Whether the feedback form accepts submissions. Off until turned on in Settings → Feedback. */
+    enabled: boolean;
+};
+
+function isFeedbackOptions(value: unknown): value is FeedbackOptions {
+    return typeof value === 'object' && value !== null && typeof (value as FeedbackOptions).enabled === 'boolean';
+}
+
+const FEEDBACK_OPTIONS_MANAGER = new JSONSingletonResourceManager<FeedbackOptions>('feedback_options', isFeedbackOptions);
+
+export function isFeedbackEnabled(): boolean {
+    return FEEDBACK_OPTIONS_MANAGER.value?.enabled ?? false;
+}
+
+export function setFeedbackEnabled(enabled: boolean): void {
+    FEEDBACK_OPTIONS_MANAGER.save({ enabled });
+}
+
+/** The form is checked with Turnstile only when there's a secret key to verify its tokens with. */
+export function isTurnstileEnabled(): boolean {
+    return !!getServiceSetting('TURNSTILE_SECRET_KEY');
 }

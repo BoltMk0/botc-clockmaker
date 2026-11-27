@@ -102,7 +102,7 @@
     <!-- Fills the space left by the rest of the strip; opens the music controls -->
     <NowPlayingPanel playback={playbackState} presetName={currentPreset?.name ?? null} phases={loadedPhases}
         track={music.track} progress={model.progress} imageUrl={music.track?.imageUrl ?? null} {pendingName} {nextName} onclick={onopen}
-        emptyText={presets.length > 0 ? 'Nothing playing. Click to pick a preset.' : 'Nothing playing. Add music presets in Settings → Music.'}/>
+        emptyText={presets.length > 0 ? 'Nothing playing. Click to pick a preset.' : 'Nothing playing. Add music presets in Settings → Music Library.'}/>
     <AudioMixerText>Gain<br/>{formatGain(gain)}</AudioMixerText>
     <!-- Laid out as in ChannelStripGain. The meter only shows on the device playing the music. -->
     <div class="volume">

@@ -86,13 +86,13 @@ The full detail is in [The clock remote and the day cycle](clock-remote.md).
 
 A fresh install has no bell sounds, so the bells above are silent until you add some:
 
-1. Go to **Settings → Audio** and, under **Clock SFX**, press **+ Clock SFX Preset**.
+1. Go to **Settings → Audio Settings** and, under **Clock SFX**, press **+ Clock SFX Preset**.
 2. Name it, and upload a sound for **End of Day** (and, if you like, **Start of Day** and **Reminder Bell**).
    Save.
 3. Back on **Play**, pick the preset in the game's **Clock SFX** dropdown. (Games created *after* a preset exists
    use the first preset automatically.)
 
-Details: [Settings → Audio → Clock SFX](settings/audio.md#clock-sfx).
+Details: [Settings → Audio Settings → Clock SFX](settings/audio.md#clock-sfx).
 
 ## 6. Optional: let only one device make noise
 
@@ -103,6 +103,6 @@ will echo. The remote and the grimoire never play sound. See [Audio overview](au
 ## Next steps
 
 - Tune the display: [The town square display](town-square.md)
-- Change the timer buttons: [Settings → Timer Options](settings/timer-options.md)
+- Change the timer buttons: [Settings → Timer Presets](settings/timer-options.md)
 - Add atmosphere: [Audio overview](audio-overview.md)
 - Run the grimoire from a tablet: [Setting up a virtual grimoire](grimoire-setup.md)

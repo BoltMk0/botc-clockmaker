@@ -1,5 +1,4 @@
 import { EventEmitter } from "node:events";
-import { env } from "$env/dynamic/private";
 import type { SpotifyControlAction, SpotifyModel, SpotifyPlaybackModel } from "$lib/audio/common/model/spotifyModel";
 import { DIM_FADE_MS, type AudioDimModel } from "$lib/audio/common/model/audioDimModel";
 import { getAudioDimHelperInstance } from "../AudioDim/AudioDimHelper";
@@ -7,6 +6,7 @@ import { getTimeOfDayTrimHelperInstance } from "../TimeOfDayTrim/TimeOfDayTrimHe
 import { getMixerMastersHelperInstance } from "../MixerMasters/MixerMastersHelper";
 import { isAdaptivePresetContext, isSameSpotifyContext, isSpotifyAdaptivePreset, isSpotifyContextUri, type SpotifyAdaptivePreset } from "$lib/audio/common/spotifyPreset";
 import { JSONSingletonResourceManager } from "$lib/resources/server/jsonResourceManager";
+import { getServiceSetting, onServiceSettingsChanged } from "$lib/resources/server/serviceSettings";
 import { getSpotifyPresets } from "$lib/resources/server/spotifyPresets";
 import { getBOTCTClockInstanceManager } from "../model";
 import { getMusicHelperInstance, HANDOVER_FADE_MS } from "../Music/MusicHelper";
@@ -84,6 +84,8 @@ export class SpotifyHelper extends EventEmitter {
 
     constructor() {
         super();
+        // The client id and secret may be set in the settings, which changes whether Spotify is offered
+        onServiceSettingsChanged(() => this.changed());
         const dim = getAudioDimHelperInstance();
         this.#dimModel = dim.model;
         this.#dimDb = this.targetDimDb();
@@ -132,7 +134,7 @@ export class SpotifyHelper extends EventEmitter {
         return super.on(eventName, listener);
     }
 
-    get configured() { return !!env.SPOTIFY_CLIENT_ID && !!env.SPOTIFY_CLIENT_SECRET; }
+    get configured() { return !!getServiceSetting('SPOTIFY_CLIENT_ID') && !!getServiceSetting('SPOTIFY_CLIENT_SECRET'); }
     get authorized() { return AUTH_MANAGER.value !== null; }
 
     get model(): SpotifyModel {
@@ -161,7 +163,7 @@ export class SpotifyHelper extends EventEmitter {
         if (!this.configured) throw new Error('Spotify is not configured on the server');
         const params = new URLSearchParams({
             response_type: 'code',
-            client_id: env.SPOTIFY_CLIENT_ID!,
+            client_id: getServiceSetting('SPOTIFY_CLIENT_ID')!,
             scope: SCOPES.join(' '),
             redirect_uri: redirectUri,
             state
@@ -178,7 +180,7 @@ export class SpotifyHelper extends EventEmitter {
     }
 
     private async tokenRequest(params: Record<string, string>) {
-        const basic = Buffer.from(`${env.SPOTIFY_CLIENT_ID}:${env.SPOTIFY_CLIENT_SECRET}`).toString('base64');
+        const basic = Buffer.from(`${getServiceSetting('SPOTIFY_CLIENT_ID')}:${getServiceSetting('SPOTIFY_CLIENT_SECRET')}`).toString('base64');
         const res = await fetch('https://accounts.spotify.com/api/token', {
             method: 'POST',
             headers: { 'Authorization': `Basic ${basic}`, 'Content-Type': 'application/x-www-form-urlencoded' },

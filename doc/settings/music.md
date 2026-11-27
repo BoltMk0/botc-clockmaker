@@ -1,4 +1,4 @@
-# Settings → Music
+# Settings → Music Library
 
 [← Settings overview](README.md) · [Documentation home](../README.md)
 
@@ -83,5 +83,11 @@ are highlighted.
 For an adaptive preset, leave a phase's link empty to make that phase **silent** (the music fades out
 and pauses, and resumes by itself when a phase with a list comes round).
 
-Press **Save changes** to save. Spotify itself needs [setting up on the server](../music-and-spotify.md#setting-up-spotify)
+Press **Save changes** to save. Spotify itself needs [setting up](../music-and-spotify.md#setting-up-spotify)
 before these can be played.
+
+### Spotify app
+
+Below the presets: the **Client ID** and **Client secret** of your Spotify developer app. Both are needed for Spotify to
+be offered in the mixer. The secret is write-only, and can only be saved here once the server has `SECRETS_KEY` set —
+see [Credentials and `SECRETS_KEY`](../credentials.md). They can be set as environment variables instead.

@@ -1,4 +1,4 @@
-# Settings → Audio
+# Settings → Audio Settings
 
 [← Settings overview](README.md) · [Documentation home](../README.md)
 
@@ -36,7 +36,7 @@ about the same loudness, so a quiet folk track isn't followed by a blaring orche
 
 Each track's loudness is measured on the server (with `ffmpeg`) after it's uploaded. While tracks are still being
 measured, the page shows how many are done; unmeasured tracks play as they are until then. A track's measured
-loudness can be seen and changed in [Settings → Music](music.md#editing-a-track).
+loudness can be seen and changed in [Settings → Music Library](music.md#editing-a-track).
 
 ### Crossfade
 
@@ -56,7 +56,7 @@ The sounds a game's clock plays. Each **Clock SFX preset** is a set of up to thr
 | Sound | When it plays |
 | --- | --- |
 | **Start of Day** | A game goes from night to day. |
-| **Reminder Bell** | The reminder time is reached during a countdown (see [Timer Options](timer-options.md)). |
+| **Reminder Bell** | The reminder time is reached during a countdown (see [Timer Presets](timer-options.md)). |
 | **End of Day** | A game's timer runs out or its day is ended early, or the bell is rung by hand. |
 
 The table lists each preset with a ✓ for each sound it has. **+ Clock SFX Preset** makes a new one; the pencil

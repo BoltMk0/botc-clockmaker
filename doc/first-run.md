@@ -68,9 +68,9 @@ A brand-new install is deliberately empty. Before your first game, you may want 
 
 | You want… | You need | Where |
 | --- | --- | --- |
-| Bell sounds when the timer ends | A clock SFX preset with sounds uploaded | [Settings → Audio](settings/audio.md#clock-sfx) |
+| Bell sounds when the timer ends | A clock SFX preset with sounds uploaded | [Settings → Audio Settings](settings/audio.md#clock-sfx) |
 | A virtual grimoire | Characters and at least one script | [Settings → Characters](settings/characters.md) and [Scripts](settings/scripts.md) |
-| Ambience, stings or music | Uploaded audio files | [Settings → Audio](settings/audio.md), [Settings → Music](settings/music.md) |
+| Ambience, stings or music | Uploaded audio files | [Settings → Audio Settings](settings/audio.md), [Settings → Music Library](settings/music.md) |
 | A rules slideshow | Uploaded images | [Settings → Rules Slides](settings/rules-slides.md) |
 
 Timer options come with sensible defaults (1, 3, 5, 8 and 10 minutes, plus a 5-second example), so the clock works

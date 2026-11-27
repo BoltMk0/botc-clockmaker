@@ -13,6 +13,8 @@
     let turnstileEl: HTMLElement | undefined = $state();
     let token = $state("");
     let loadError = $state(false);
+    /** Feedback was turned off while this page was open. */
+    let disabledSince = $state(false);
 
     // Set once the widget is rendered; used to reset it after a submit.
     let resetWidget: () => void = () => {};
@@ -42,6 +44,9 @@
     }
 
     onMount(() => {
+        // No Turnstile check on this server (or no form to check), so there's no widget to load
+        if (!data.enabled || !data.siteKey) return;
+        const siteKey = data.siteKey;
         let cancelled = false;
         let widgetId: string | undefined;
 
@@ -63,7 +68,7 @@
                     return;
                 }
                 widgetId = window.turnstile.render(turnstileEl, {
-                    sitekey: data.siteKey,
+                    sitekey: siteKey,
                     action: "feedback",
                     appearance: "always",
                     retry: "auto",
@@ -102,7 +107,8 @@
 
     const submit: SubmitFunction = () => {
         submitting = true;
-        return async ({ update }) => {
+        return async ({ result, update }) => {
+            if (result.type === 'failure' && result.data?.disabled) disabledSince = true;
             await update({ reset: false });
             submitting = false;
             resetWidget();
@@ -198,7 +204,10 @@
 </style>
 
 <div class="wrap">
-    {#if form?.success}
+    {#if !data.enabled || disabledSince}
+        <h1>Feedback</h1>
+        <p>Feedback isn't being accepted right now.</p>
+    {:else if form?.success}
         <h1>Thank you!</h1>
         <p>Your feedback has been sent.</p>
         <button class="reload" onclick={closeTab}>Close</button>
@@ -218,9 +227,11 @@
                     aria-hidden="true"
                     style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0"
                 />
-                <div class="turnstile" bind:this={turnstileEl}></div>
+                {#if data.siteKey}
+                    <div class="turnstile" bind:this={turnstileEl}></div>
+                {/if}
 
-                {#if loadError}
+                {#if data.siteKey && loadError}
                     <p class="error">
                         Couldn't load the verification check. This can happen with
                         strict privacy settings or a flaky connection.
@@ -232,7 +243,7 @@
                     >
                         Reload
                     </button>
-                {:else if !token}
+                {:else if data.siteKey && !token}
                     <p class="hint">Verifying you're human…</p>
                 {:else}
                     <textarea

@@ -90,9 +90,10 @@ Most content is managed in the app itself, under **Settings** (games, scripts, c
 | `PORT` | Port to serve on (default `3000`) |
 | `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `FEEDBACK_TO_EMAILS` | Optional. Used to email submissions from the feedback form. Without them, feedback is still saved to disk but no email is sent |
 | `TURNSTILE_SITE_KEY` | Site key of your Cloudflare Turnstile widget for the feedback form, read at runtime. Defaults to the original deployment's widget |
-| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret for the feedback form, read at runtime. Without it, feedback submissions are rejected |
+| `TURNSTILE_SECRET_KEY` | Optional. Cloudflare Turnstile secret for the feedback form, read at runtime. Without it, submissions aren't checked for bots. (The form itself is off until turned on in **Settings → Feedback**.) |
 | `FEEDBACK_DATA_DIR` | Where feedback submissions are stored (default `data/feedback`; the Docker image sets it to `/data/feedback`) |
 | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` | Optional. Credentials of a Spotify developer app, to play Spotify from the mixer. See [Music & Spotify](doc/music-and-spotify.md#setting-up-spotify) |
+| `SECRETS_KEY` | Optional. A long random passphrase, to set the Gmail, Turnstile and Spotify credentials in the app instead, where they're stored encrypted with it. See [Credentials](doc/credentials.md) |
 
 See the [configuration reference](doc/configuration.md) for every variable and the data directory layout.
 

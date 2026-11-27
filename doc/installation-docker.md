@@ -133,6 +133,9 @@ Some optional features need credentials. Put them in a file called `.env` next t
 (never commit it anywhere public):
 
 ```dotenv
+# Lets you set the credentials below in the app instead (see credentials.md)
+SECRETS_KEY=a-long-random-passphrase
+
 # Spotify (see music-and-spotify.md) — needs a Spotify developer app and Spotify Premium
 SPOTIFY_CLIENT_ID=your-client-id
 SPOTIFY_CLIENT_SECRET=your-client-secret
@@ -145,7 +148,10 @@ GMAIL_APP_PASSWORD=your-gmail-app-password
 FEEDBACK_TO_EMAILS=you@example.com;someone@example.com
 ```
 
-Restart the container after changing it (`docker compose up -d` picks up changes). Every variable is listed in the
+With `SECRETS_KEY` set, you can leave out the rest and enter them in the app instead: see
+[Credentials and `SECRETS_KEY`](credentials.md).
+
+Restart the container after changing `.env` (`docker compose up -d` picks up changes). Every variable is listed in the
 [configuration reference](configuration.md#environment-variables).
 
 ## Changing the port

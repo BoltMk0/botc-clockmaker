@@ -1,4 +1,4 @@
-# Settings → Timer Options
+# Settings → Timer Presets
 
 [← Settings overview](README.md) · [Documentation home](../README.md)
 

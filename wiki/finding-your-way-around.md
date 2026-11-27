@@ -50,13 +50,13 @@ Everything shared between all games and devices:
 | --- | --- |
 | **Characters** | The character library: names, abilities, tokens and reminders. |
 | **Scripts** | Scripts, their night order, and saved setups (presets). |
-| **Timer Options** | The day lengths offered when you start the day. |
+| **Timer Presets** | The day lengths offered when you start the day. |
 | **Communications** | Ready-made messages the grimoire can show to players. |
 | **QR Codes** | Extra QR codes to show on the town square. |
-| **Audio** | Bell sounds, ambience and stings. |
-| **Music** | Music to play during the game. |
+| **Audio Settings** | Bell sounds, ambience and stings. |
+| **Music Library** | Music to play during the game. |
 | **Rules Slides** | Images for the rules slideshow. |
-| **Feedback** | What players have sent through the feedback form. |
+| **Feedback** | What players have sent through the feedback form, and turning the form on or off. |
 | **Password** | Change the password, or sign every device out. |
 | **API Token** | Lets other programs (such as smart lighting) connect. |
 

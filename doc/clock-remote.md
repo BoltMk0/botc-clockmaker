@@ -104,7 +104,7 @@ options. Going to Dusk or Night while the countdown runs asks first, then ends t
 ### The timer options
 
 Shown when you start the day: one button per timer option from
-[Settings → Timer Options](settings/timer-options.md), each with its duration (⏱), its reminder bell time (🔔, or a
+[Settings → Timer Presets](settings/timer-options.md), each with its duration (⏱), its reminder bell time (🔔, or a
 crossed-out bell for none) and its label. The option currently set up is highlighted. Tap outside to close it
 without starting.
 
@@ -124,7 +124,7 @@ Tap the bar to open the **music view**:
 - the track, artist and player;
 - **previous / play-pause / next**;
 - a **volume** slider for the player that's playing (the music strip's fader, or Spotify's volume) and **DIM**, which
-  turns all the room's audio down by the dim amount (see [Settings → Audio](settings/audio.md#dim-strength));
+  turns all the room's audio down by the dim amount (see [Settings → Audio Settings](settings/audio.md#dim-strength));
 - **Mixer** (top right) opens the [audio mixer](audio-mixer.md) as a remote control, with a back button.
 
 **‹ Clock** returns to the clock controls.
@@ -150,7 +150,7 @@ restarts while a countdown is running and the time runs out meanwhile, the game 
 ## The bells
 
 Each game rings the sounds of its **Clock SFX preset**, picked on the game's card on **Play** (see
-[Settings → Audio → Clock SFX](settings/audio.md#clock-sfx)):
+[Settings → Audio Settings → Clock SFX](settings/audio.md#clock-sfx)):
 
 | Sound | When it plays |
 | --- | --- |

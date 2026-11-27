@@ -12,14 +12,14 @@ On a phone, the list of pages is behind the ☰ button at the top left.
 | --- | --- |
 | [Characters](characters.md) | Build the character library: scrape official characters from the wiki, create homebrew ones, set token images, abilities, night order defaults and reminder tokens. |
 | [Scripts](scripts.md) | Create, import, scrape and export scripts; choose their characters and night order; manage setup presets and their win records. |
-| [Timer Options](timer-options.md) | Set the countdown buttons on the clock remote, and their reminder bells. |
+| [Timer Presets](timer-options.md) | Set the countdown buttons on the clock remote, and their reminder bells. |
 | [Communications](communications.md) | Ready-made messages to show players from the grimoire in one tap, and the lines of text to build messages from. |
 | [QR Codes](qr-codes.md) | Show QR codes (a feedback form, a website, Wi-Fi details…) on the town square. |
-| [Audio](audio.md) | Set the dim strength, music loudness levelling and crossfade; make clock bell presets; upload ambience and sting sounds. |
-| [Music](music.md) | Upload music, make playlists, and set up music and Spotify presets. |
+| [Audio Settings](audio.md) | Set the dim strength, music loudness levelling and crossfade; make clock bell presets; upload ambience and sting sounds. |
+| [Music Library](music.md) | Upload music, make playlists, set up music and Spotify presets, and set your Spotify app's credentials. |
 | [Lightscapes](../lightscapes.md) | Approve Lightscapes hubs, and make the lighting presets games' lights follow. |
 | [Rules Slides](rules-slides.md) | Upload and order the images for the rules slideshow. |
-| [Feedback](feedback.md) | Read and delete feedback sent through the feedback form. |
+| [Feedback](feedback.md) | Read and delete feedback sent through the feedback form; turn the form on or off and set up its bot check and emails. |
 | [Password](password.md) | Reset the site password and sign out every device. |
 | [API Token](api-token.md) | Create, replace or revoke the token other programs use the API with. |
 

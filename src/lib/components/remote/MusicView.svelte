@@ -397,7 +397,7 @@
         <div class="sheet-body">
             <div class="hint">Picks wait for the next phase · tap twice to play now</div>
             {#if presets.length === 0}
-            <div class="empty">No presets yet. Add them in Settings → Music or Settings → Spotify.</div>
+            <div class="empty">No presets yet. Add them in Settings → Music Library or Settings → Spotify.</div>
             {:else}
             <div class="presets">
                 {#each presets as preset (preset.key)}

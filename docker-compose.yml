@@ -7,7 +7,8 @@ services:
       - data:/data
     environment:
       - RESOURCE_DATA_DIR=/data
-    # Secrets (TURNSTILE_SITE_KEY, TURNSTILE_SECRET_KEY, GMAIL_*, FEEDBACK_TO_EMAILS, SPOTIFY_*) are read at runtime from .env, if present
+    # Secrets (SECRETS_KEY, TURNSTILE_SITE_KEY, TURNSTILE_SECRET_KEY, GMAIL_*, FEEDBACK_TO_EMAILS, SPOTIFY_*) are read at runtime from .env, if present.
+    # With SECRETS_KEY set, the others can be set in the app instead (Settings → Feedback and Music Library).
     env_file:
       - path: .env
         required: false

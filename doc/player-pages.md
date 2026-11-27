@@ -45,16 +45,17 @@ The **Rules** button appears on the home screen once at least one slide has been
 A simple anonymous form: players type a message and send it. Nothing is stored except what they write. Submissions
 are listed in [Settings → Feedback](settings/feedback.md), and can also be emailed to you.
 
-The form is protected against bots with Cloudflare Turnstile, and needs some setup on the server:
+The form is **off** until you turn it on, in [Settings → Feedback](settings/feedback.md#setup) on the Setup tab.
+That tab also has the optional extras, which can be set as environment variables instead:
 
 | Variable | Needed for |
 | --- | --- |
-| `TURNSTILE_SITE_KEY` | The site key of your Turnstile widget. Without it, the form uses the original Clockmaker deployment's widget, which won't work on your domain. |
-| `TURNSTILE_SECRET_KEY` | **Required** — the secret key of the same widget. Without it, every submission is rejected. |
+| `TURNSTILE_SITE_KEY` | The site key of your Cloudflare Turnstile widget. Without it, the original Clockmaker deployment's widget is used, which won't work on your domain. |
+| `TURNSTILE_SECRET_KEY` | Optional — checks each submission for bots with Turnstile. Without it, there's no bot check: only a limit of 3 messages a minute from each visitor. |
 | `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `FEEDBACK_TO_EMAILS` | Optional — emails each submission (from a Gmail account using an app password) to the addresses in `FEEDBACK_TO_EMAILS`, separated by `;`. Without them, feedback is only saved on the server. |
 
-> To get the keys, add a Turnstile widget for your Clockmaker's domain in the Cloudflare dashboard (a free account
-> is enough), then copy its site key and secret key into your `.env`.
+> To get the Turnstile keys, add a widget for your Clockmaker's domain in the Cloudflare dashboard (a free account
+> is enough).
 
 A good way to share the form is a [custom QR code](settings/qr-codes.md) on the town square pointing at
 `/feedback`.

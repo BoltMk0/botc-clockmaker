@@ -16,11 +16,11 @@ be set up side by side, but only one plays at a time.
 
 Plays your own music files through the mixer, so it gets the mixer's fader, dim, time-of-day trims and level meter.
 
-1. **Upload** tracks in [Settings → Music → Library](settings/music.md#library). Titles, artists, albums and cover
+1. **Upload** tracks in [Settings → Music Library → Library](settings/music.md#library). Titles, artists, albums and cover
    art are read from the files' tags.
 2. **Make playlists** on the Playlists tab.
 3. **Make presets** on the Music Presets tab — this is what the mixer shows. See [preset types](#preset-types).
-4. Optionally turn on **loudness levelling** and **crossfade** in [Settings → Audio](settings/audio.md#audio-options).
+4. Optionally turn on **loudness levelling** and **crossfade** in [Settings → Audio Settings](settings/audio.md#audio-options).
 5. In the mixer, press **+ Music** to start the player on this device, then tap a preset.
 
 Presets always play **shuffled**, and remember their place: coming back to a playlist carries on with tracks it
@@ -43,7 +43,8 @@ Plays a Spotify account through the browser, using Spotify's Web Playback SDK. T
      `https://clock.example.com/api/spotify/callback`. It must match exactly the address you open Clockmaker with.
    - Tick the **Web API** and **Web Playback SDK**.
    - While the app is in development mode, add the Spotify account(s) you'll use under the app's **User Management**.
-2. Copy the app's **Client ID** and **Client secret** into your `.env`:
+2. Copy the app's **Client ID** and **Client secret** into [Settings → Music Library](settings/music.md#spotify-app) (Spotify tab), or into your
+   `.env`:
    ```dotenv
    SPOTIFY_CLIENT_ID=...
    SPOTIFY_CLIENT_SECRET=...
@@ -54,7 +55,7 @@ Plays a Spotify account through the browser, using Spotify's Web Playback SDK. T
    accept. You're returned to the mixer.
 4. Press **+ Spotify** to start the Spotify player on this device. (Linking only needs doing once; starting the
    player is per session.)
-5. Add albums and playlists in [Settings → Music → Spotify](settings/music.md#spotify): in Spotify, use
+5. Add albums and playlists in [Settings → Music Library → Spotify](settings/music.md#spotify): in Spotify, use
    **Share → Copy link** and paste it in.
 
 Clockmaker controls the Spotify volume itself, applying the mixer's Music & Ambience master, the dim and the

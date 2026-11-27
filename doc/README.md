@@ -41,11 +41,11 @@ straight to a page:
 | --- | --- |
 | [Characters](settings/characters.md) | The character library, token images, reminder tokens and the wiki scraper |
 | [Scripts](settings/scripts.md) | Scripts, their character lists and night order, import/export, and setup presets |
-| [Timer Options](settings/timer-options.md) | The countdown buttons offered on the clock remote |
+| [Timer Presets](settings/timer-options.md) | The countdown buttons offered on the clock remote |
 | [Communications](settings/communications.md) | Ready-made messages and the text offered by the grimoire's communications |
 | [QR Codes](settings/qr-codes.md) | QR codes shown on the town square |
-| [Audio](settings/audio.md) | Dim strength, loudness levelling, crossfade, clock bell sounds, ambience and sting libraries |
-| [Music](settings/music.md) | The music library, playlists, music presets and Spotify presets |
+| [Audio Settings](settings/audio.md) | Dim strength, loudness levelling, crossfade, clock bell sounds, ambience and sting libraries |
+| [Music Library](settings/music.md) | The music library, playlists, music presets and Spotify presets |
 | [Lightscapes](lightscapes.md) | Approve Lightscapes hubs and make lighting presets |
 | [Rules Slides](settings/rules-slides.md) | The images in the rules slideshow |
 | [Feedback](settings/feedback.md) | Reading feedback sent through the feedback form |
@@ -55,4 +55,5 @@ straight to a page:
 ## Reference
 
 - [Configuration & data reference](configuration.md) — environment variables, where data lives, backups.
+- [Credentials and `SECRETS_KEY`](credentials.md) — setting Spotify, Turnstile and Gmail credentials in the app.
 - [Troubleshooting & FAQ](troubleshooting.md)

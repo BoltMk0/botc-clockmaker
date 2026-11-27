@@ -14,7 +14,7 @@ export type SpotifyPlaybackModel = {
 
 /** Server-wide Spotify state, shared by every mixer client. */
 export type SpotifyModel = {
-    /** Server has SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET. */
+    /** Server has SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET (as environment variables or in Settings → Music Library). */
     configured: boolean;
     /** A Spotify account has been linked (refresh token stored). */
     authorized: boolean;

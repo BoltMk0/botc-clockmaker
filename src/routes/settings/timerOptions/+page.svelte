@@ -51,7 +51,7 @@
 <div class="center-content main">
 <div class="panel">
 <div class="panel-header">
-    <h2>Timer Options</h2>
+    <h2>Timer Presets</h2>
     <button class="save" disabled={!dirty} onclick={save}><MaterialIcon icon={saveIcon} size="1.2em"/> Save changes</button>
 </div>
 <p class="description">Sets the timer options across all games.</p>

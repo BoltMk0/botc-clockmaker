@@ -64,7 +64,8 @@ The music plays from the device that started it. Keep that page open and the dev
 device that stays on. See [Which device plays the music](music-and-spotify.md#which-device-plays-the-music).
 
 **There's no Spotify option in the mixer.**
-The server needs `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` — see [Setting up Spotify](music-and-spotify.md#setting-up-spotify).
+The server needs the Spotify client ID and secret, set in [Settings → Music Library](settings/music.md#spotify-app) (Spotify tab) or as
+`SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` — see [Setting up Spotify](music-and-spotify.md#setting-up-spotify).
 
 **Spotify sign-in fails with a redirect URI error.**
 The Redirect URI in your Spotify app must exactly match the address you opened Clockmaker with, plus
