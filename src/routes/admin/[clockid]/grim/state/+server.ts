@@ -53,14 +53,14 @@ function clockState(clockid: string): { day: number | null; phaseLog: PhaseLogEn
 }
 
 // `?winner=good|evil` logs the game, with a snapshot of the grim as it ends, against the preset it was set up from
-// (if any) before deleting.
+// (if any) before deleting. The logged play is sent back as `play` ({ preset_id, id }), null if none was logged.
 export async function DELETE({params, url}){
     const winner = url.searchParams.get('winner');
     if(winner !== null && winner !== 'good' && winner !== 'evil'){
         return json({error: 'winner must be "good" or "evil"'}, {status: 400});
     }
 
-    let presetRecorded = false;
+    let play: { preset_id: string; id: string } | null = null;
     if(winner){
         const history = get_grimoire_state_history_resource_for_clock(params.clockid);
         const presetId = history?.loadedPreset?.preset_id;
@@ -69,18 +69,19 @@ export async function DELETE({params, url}){
             const day = clock?.day;
             // The game's timing stats, as the analysis showed them when it ended (the phase it ended in isn't counted)
             const phase_log = clock?.phaseLog.length ? structuredClone(clock.phaseLog) : undefined;
-            presetRecorded = recordPresetVictory(presetId, winner, {
+            const recorded = recordPresetVictory(presetId, winner, {
                 grim: {
                     script_id: history.scriptId,
                     snapshot: structuredClone(history.present),
                     ...(day ? { day } : {}),
                     ...(phase_log ? { phase_log } : {})
                 }
-            }) !== null;
+            });
+            if(recorded) play = { preset_id: recorded.play.preset_id, id: recorded.play.id };
         }
     }
 
     delete_grimoire_state_history_resource_for_clock(params.clockid);
     console.log("Deleted grimoire state history for clock", params.clockid);
-    return json({message: "Grimoire state history deleted successfully", presetRecorded});
+    return json({message: "Grimoire state history deleted successfully", play});
 }

@@ -1,7 +1,7 @@
 <script lang="ts">
     import "$lib/components/grim/grimUi.css";
     import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
-    import { ICON_VIEWBOX, addBoxIcon, checkIcon, closeIcon, deleteIcon, keyboardArrowDownIcon, keyboardArrowUpIcon, listAltIcon, refreshIcon, saveIcon, scheduleIcon, smsIcon, sportsScoreIcon, syncIcon, timerIcon, visibilityIcon, warningFillIcon } from "$lib/icons/material.js";
+    import { ICON_VIEWBOX, addBoxIcon, checkIcon, closeIcon, deleteIcon, keyboardArrowDownIcon, keyboardArrowUpIcon, listAltIcon, refreshIcon, saveIcon, scheduleIcon, smsIcon, syncIcon, timerIcon, visibilityIcon, warningFillIcon } from "$lib/icons/material.js";
     import { fetchScriptWithSideCharacters } from "$lib/resources/client/scriptWithSideCharacters";
     import { hasNoBlanks, nameFromElements, presetDisplayName, type MessageElement, type MessagePreset, type PresetElement, type TextOption } from "$lib/common/message";
     import { alignmentForCategory, bluffSetsOf, characterMessagePresetsFor, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
@@ -20,9 +20,10 @@
     import { cubicIn, cubicOut } from "svelte/easing";
     import { MediaQuery } from "svelte/reactivity";
     import ClockSetter from "$lib/components/ClockSetter.svelte";
-    import { BOARD_TOKEN_SIZE, nearestByAngle, remindersBySeatedToken, type Alignment, type GrimoireStateHistory, type PlacedToken } from "$lib/resources/common/grimoireState.js";
+    import { BOARD_TOKEN_SIZE, isPlayerToken, nearestByAngle, remindersBySeatedToken, type Alignment, type GrimoireStateHistory, type PlacedToken } from "$lib/resources/common/grimoireState.js";
     import TrashIcon from "$lib/components/TrashIcon.svelte";
     import { characterImageUrl } from "$lib/resources/common/characterImages";
+    import { playSnapshotUrl } from "$lib/resources/common/presetPlays.js";
     import { MessageQueue } from "$lib/model/client/messageQueue.svelte";
     import GrimBoard from "$lib/components/grim/GrimBoard.svelte";
     import { GRIM_Z, GrimModel, TRAY_IMAGE_SIZE, asScriptCharacters, isSideCategory, normaliseHistory } from "$lib/components/grim/GrimModel.svelte";
@@ -219,11 +220,15 @@
             rules: 'Show the "These are your minions" card. Point to each Minion. Show the "These characters are not in play" card. Show 3 not-in-play good character tokens.',
             presets: [headerPreset('These are your minions')], bluffs: true }
     ];
-    // The players (the named tokens, or every token while none are named), less the travellers
-    const playerCount = $derived(model.seatedTokens
+    // The players: the named tokens, or every token while none are named, less the tokens that never go in the bag
+    // (e.g. the Drunk, sat apart while the players are unnamed) unless a player's name is on them
+    const players = $derived(model.seatedTokens.filter(t =>
+        isPlayerToken(t) || characterById.get(t.characterId ?? '')?.allowedInBag !== false));
+    // The players less the travellers
+    const playerCount = $derived(players
         .filter(t => characterById.get(t.characterId ?? '')?.category !== 'traveler').length);
     // Shown under the clock: the players (travellers included) not marked dead
-    const aliveCount = $derived(model.seatedTokens.filter(t => !t.isDead).length);
+    const aliveCount = $derived(players.filter(t => !t.isDead).length);
     type NightSheetEntry = { kind: 'character'; character: ScriptCharacter } | ({ kind: 'info' } & typeof FIRST_NIGHT_INFO_STEPS[number]);
     const nightSheetEntries = $derived.by(() => {
         const entries: NightSheetEntry[] = nightSheetCharacters.map(character => ({ kind: 'character', character }));
@@ -246,25 +251,45 @@
     );
 
     let showEndGame = $state(false);
+    // Where ending the game goes next: back to the grim (from End game), or on to setting up a new game (from New game).
+    let endGameThenSetup = $state(false);
 
-    // Ends the game by deleting its grim, then reopens the grim, empty and with no script (the game always has one).
-    // A winner credits the game to the preset it was set up from (if any) before the grim is deleted.
+    // Ends the game by deleting its grim, then goes on to set up a new game (from New game), or otherwise shows the
+    // game's grim snapshot in the game history, its back button leading to the grim, now empty and with no script (the
+    // game always has one); or, with no snapshot (no winner, or no preset to log it against), reopens the grim. A winner
+    // credits the game to the preset it was set up from (if any) before the grim is deleted.
     async function endGame(winner?: 'good' | 'evil') {
         showEndGame = false;
         // Drop any pending autosave so it can't recreate the grim after the delete.
         board?.cancelPendingSave();
         grimSync.close();
         const query = winner ? `?winner=${winner}` : '';
+        let play: { preset_id: string; id: string } | null = null;
         try {
             const response = await fetch(`grim/state${query}`, { method: 'DELETE' });
             if (!response.ok) throw new Error(response.statusText);
+            play = (await response.json()).play ?? null;
         } catch (er) {
             console.error("Error ending the game:", er);
             alert("Failed to end the game");
             return;
         }
         localStorage.removeItem(`grimoire-state-${data.clockid}`);
-        location.reload();
+        if (endGameThenSetup) location.href = `/admin/${data.clockid}/grim/setup`;
+        else if (play) location.href = playSnapshotUrl(play, `/admin/${data.clockid}/grim`);
+        else location.reload();
+    }
+
+    // New game (from the clock's Game section): while a game is under way (past day 0 with tokens on the grim), first
+    // asks who won it, ending it as End game does; otherwise goes straight to setting up the new one.
+    function newGame() {
+        showTimerOptions = false;
+        if ((clockClient?.day ?? 0) > 0 && model.placedTokens.length > 0) {
+            endGameThenSetup = true;
+            showEndGame = true;
+        } else {
+            saveGrimoire().then(() => goto(`/admin/${data.clockid}/grim/setup`));
+        }
     }
 
     async function showBluffs(setIndex: number) {
@@ -1018,10 +1043,6 @@
         opacity: 1;
     }
 
-    .sidebar-btn.end-game-btn {
-        color: #ff7b7b;
-    }
-
     /* Just left of the Close button, centred on it */
     .save-status {
         position: absolute;
@@ -1107,7 +1128,6 @@
         comms={boardComms}
         trayBluffs={loadedPreset ? { count: bluffSets.length, content: trayBluffs } : undefined}
         {sidebarTop}
-        {sidebarMenuStart}
         {sidebarMenuEnd}
         {topRight}
         {centre}
@@ -1144,13 +1164,6 @@
         </button>
     {/snippet}
 
-    {#snippet sidebarMenuStart()}
-        <!-- Set up a new game on this grim (or reset it) -->
-        <button class="sidebar-btn" onclick={() => {saveGrimoire().then(()=>goto(`/admin/${data.clockid}/grim/setup`))} } title="Set up a new game">
-            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={addBoxIcon}/></svg>
-        </button>
-    {/snippet}
-
     {#snippet sidebarMenuEnd()}
         <!-- Show/Hide clock -->
         <button class="sidebar-btn" class:active={showClock} onclick={() => showClock = !showClock} title="{showClock ? 'Hide' : 'Show'} clock">
@@ -1161,22 +1174,25 @@
         <button class="sidebar-btn" onclick={() => location.reload()} title="Refresh page">
             <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={refreshIcon}/></svg>
         </button>
-
-        <!-- End the game, recording who won, and clear the grim -->
-        <button class="sidebar-btn end-game-btn" onclick={() => showEndGame = true} title="End game">
-            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={sportsScoreIcon}/></svg>
-        </button>
     {/snippet}
 
     {#snippet centre()}
-        {#if showClock}
+        {#if model.placedTokens.length === 0}
+            <!-- An empty grim (e.g. once a game has ended) has nothing to time: in the clock's place, set up the next game -->
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: {GRIM_Z.clock};">
+                <button class="button-style" style="padding: 0.8em 1.4em; font-size: 1.3em; display: flex; align-items: center; gap: 0.4em; white-space: nowrap;" onclick={newGame}>
+                    <svg viewBox={ICON_VIEWBOX} width="1.3em" height="1.3em" aria-hidden="true" fill="currentColor"><path d={addBoxIcon}/></svg>
+                    Setup new game
+                </button>
+            </div>
+        {:else if showClock}
             <!-- The clock face itself ignores pointer input (so panning/dragging works over it); only a button over its centre 50% opens the timer options. -->
             <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 2em; text-shadow: 0 0 10px rgba(0,0,0,0.7); z-index: {GRIM_Z.clock}; pointer-events: none;">
                 {#if clockClient}
                 <div style="position: relative; width: {tokenSize * CLOCK_SCALE + 35}px; height: {tokenSize * CLOCK_SCALE + 35}px; margin: 0 auto;">
                     <FullDisplay model={clockClient} size={tokenSize * CLOCK_SCALE} displayMode='original' showInstructions={false} outerShadow='shadow'>
-                        <!-- Under the clock: the alive count, its number larger than the word (line-height 0 so it doesn't push the line down) -->
-                        {#snippet subtitle()}<span style="font-size: 1.8em; line-height: 0;">{aliveCount}</span> alive{/snippet}
+                        <!-- Under the clock: the alive count out of the players (travellers included), the alive number larger than the rest (line-height 0 so it doesn't push the line down) -->
+                        {#snippet subtitle()}<span style="font-size: 1.8em; line-height: 0;">{aliveCount}</span>/{players.length} alive{/snippet}
                     </FullDisplay>
                     <button class="no-button-style" aria-label="Clock controls" style="position: absolute; top: 25%; left: 25%; width: 50%; height: 50%; border-radius: 50%; pointer-events: auto;" onclick={()=>showTimerOptions = true}></button>
                 </div>
@@ -1480,7 +1496,7 @@
             <div style="position: relative; background: var(--grim-panel-bg); padding: 48px 20px 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px;" onclick={(e) => e.stopPropagation()} >
                 <button class="overlay-close" onclick={()=>{showTimerOptions = false;}} aria-label="Close"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
                 {#if clockClient}
-                    <ClockSetter model={clockClient} timerOptions={data.timerOptions} musicPresets={data.musicPresets} spotifyPresets={data.spotifyPresets} onstart={()=>{showTimerOptions = false}} onmixer={() => {showTimerOptions = false; saveGrimoire().then(()=>goto(`/admin/mixer?remote_only=1&back_uri=${encodeURIComponent(location.pathname + location.search)}`))}} onanalysis={(url) => {showTimerOptions = false; saveGrimoire().then(()=>goto(url))}}/>
+                    <ClockSetter model={clockClient} timerOptions={data.timerOptions} musicPresets={data.musicPresets} spotifyPresets={data.spotifyPresets} onstart={()=>{showTimerOptions = false}} onmixer={() => {showTimerOptions = false; saveGrimoire().then(()=>goto(`/admin/mixer?remote_only=1&back_uri=${encodeURIComponent(location.pathname + location.search)}`))}} onanalysis={(url) => {showTimerOptions = false; saveGrimoire().then(()=>goto(url))}} onnewgame={newGame} onendgame={() => { showTimerOptions = false; endGameThenSetup = false; showEndGame = true; }}/>
                 {:else}
                     <div>Connecting to clock...</div>
                 {/if}
@@ -1493,8 +1509,8 @@
         <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {GRIM_Z.ui};" onclick={() => {showEndGame = false;}} role="dialog" tabindex="0">
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div style="background: var(--grim-panel-bg); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; max-width: 320px;" onclick={(e) => e.stopPropagation()} >
-                <h2 style="margin: 0; padding: 0;">End game</h2>
-                <div style="opacity: 0.8;">Who won this game? This clears the grim and cannot be undone.</div>
+                <h2 style="margin: 0; padding: 0;">{endGameThenSetup ? 'New game' : 'End game'}</h2>
+                <div style="opacity: 0.8;">Who won {endGameThenSetup ? 'the previous' : 'this'} game? This clears the grim and cannot be undone.</div>
                 <button class="button-style" style="background-color: #b63737; color: #fff; padding: 0.8em 1em;" onclick={() => endGame('evil')}>Evil victory</button>
                 <button class="button-style" style="background-color: #2563eb; color: #fff; padding: 0.8em 1em;" onclick={() => endGame('good')}>Good victory</button>
                 <button class="button-style" style="padding: 0.8em 1em;" onclick={() => endGame()}>No result</button>

@@ -1,6 +1,6 @@
 import { v7 } from "uuid";
 import { GRIM_STATE_MANAGER } from "./jsonResourceManager";
-import { ensureTokenIds, isPlayerToken, newGrimoireStateHistory, type GrimoireStateHistory } from "../common/grimoireState";
+import { ensureTokenIds, isPlayerToken, newGrimoireStateHistory, tokensToSeat, type GrimoireStateHistory, type PlacedToken } from "../common/grimoireState";
 import { getCharacterById } from "./characters";
 import { getBOTCTClockInstanceManager, InstanceNotFoundError } from "$lib/model/server/model";
 
@@ -59,9 +59,14 @@ export function set_grimoire_state_history_resource_for_clock(clockid: string, h
     history.revision = v7();
     GRIM_STATE_MANAGER.add(history);
 
-    // The storyteller doesn't have to set the player count by hand as they seat players: every token carrying a
-    // player name is a seated player, except travellers (who don't count towards the player count).
-    const playerCount = history.present.placedTokens.filter(t => isPlayerToken(t) && (!t.characterId || !['traveler', 'loric', 'fabled'].includes(getCharacterById(t.characterId)?.category ?? ''))).length;
+    // The storyteller doesn't have to set the player count by hand as they seat players: the seated tokens (the named
+    // ones, or every token while none are named; never loric or fabled) are the players, less the tokens that never go
+    // in the bag (e.g. the Drunk, sat apart while the players are unnamed) unless a player's name is on them, and less
+    // the travellers (who don't count towards the player count).
+    const categoryOf = (t: PlacedToken) => t.characterId ? getCharacterById(t.characterId)?.category : undefined;
+    const playerCount = tokensToSeat(history.present.placedTokens, t => ['loric', 'fabled'].includes(categoryOf(t) ?? ''))
+        .filter(t => isPlayerToken(t) || (t.characterId ? getCharacterById(t.characterId)?.allowedInBag : undefined) !== false)
+        .filter(t => categoryOf(t) !== 'traveler').length;
     try {
         getBOTCTClockInstanceManager().getInstance(clockid).playerCount = playerCount;
     } catch (e) {

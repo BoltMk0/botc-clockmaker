@@ -1,6 +1,6 @@
 <script lang="ts">
     import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
-    import { ICON_VIEWBOX, barChartIcon, chevronRightIcon, closeIcon, lightbulbFillIcon, lightbulbIcon, pauseFillIcon, playArrowFillIcon, restartAltIcon } from "$lib/icons/material.js";
+    import { ICON_VIEWBOX, addBoxIcon, barChartIcon, sportsScoreIcon, chevronRightIcon, closeIcon, lightbulbFillIcon, lightbulbIcon, pauseFillIcon, playArrowFillIcon, restartAltIcon } from "$lib/icons/material.js";
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import { formatTime } from "$lib/common/util";
@@ -30,7 +30,9 @@
         spotifyPresets = [],
         onstart = () => {},
         onmixer,
-        onanalysis
+        onanalysis,
+        onnewgame,
+        onendgame
     }: {
         model: Clocktower;
         timerOptions: TimerOption[];
@@ -41,6 +43,10 @@
         onmixer?: () => void;
         /** Opens the analysis page (given the URL, which leads back here); by default, goes straight to it. */
         onanalysis?: (url: string) => void;
+        /** When given, a "New game" button (calling this, to set up a new game) takes the place of Restart. */
+        onnewgame?: () => void;
+        /** When given, an "End game" button (calling this, to end the game and record who won) takes the place of Analysis. */
+        onendgame?: () => void;
     } = $props();
 
     /** What the time adjustment buttons add or take off, in seconds. */
@@ -209,14 +215,28 @@
         {#if gameOpen}
         <div class="game-controls">
             <div class="game-actions">
+                {#if onnewgame}
+                <button onclick={onnewgame} title="Set up a new game">
+                    <svg viewBox={ICON_VIEWBOX} width="18" height="18" aria-hidden="true" fill="currentColor"><path d={addBoxIcon}/></svg>
+                    <span>New game</span>
+                </button>
+                {:else}
                 <button onclick={newGame} title="Restart: back to dusk on day 0">
                     <svg viewBox={ICON_VIEWBOX} width="18" height="18" aria-hidden="true" fill="currentColor"><path d={restartAltIcon}/></svg>
                     <span>Restart</span>
                 </button>
+                {/if}
+                {#if onendgame}
+                <button class="end-game" onclick={onendgame} title="End the game, recording who won">
+                    <svg viewBox={ICON_VIEWBOX} width="18" height="18" aria-hidden="true" fill="currentColor"><path d={sportsScoreIcon}/></svg>
+                    <span>End game</span>
+                </button>
+                {:else}
                 <button onclick={openAnalysis} title="How the game's time divided between the phases">
                     <svg viewBox={ICON_VIEWBOX} width="18" height="18" aria-hidden="true" fill="currentColor"><path d={barChartIcon}/></svg>
                     <span>Analysis</span>
                 </button>
+                {/if}
             </div>
             <div class="stepper">
                 <button onclick={() => setPlayers(model.playerCount - 1)} disabled={model.playerCount <= 0} aria-label="One fewer player">−</button>
@@ -768,6 +788,11 @@
 
     .game-actions button:hover {
         background: color-mix(in srgb, #fff 8%, var(--surface));
+    }
+
+    /* Red, as it can't be undone */
+    .game-actions button.end-game {
+        color: #ff7b7b;
     }
 
     .stepper button {
