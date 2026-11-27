@@ -1,7 +1,7 @@
 <script lang="ts">
     import "$lib/components/grim/grimUi.css";
     import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
-    import { ICON_VIEWBOX, addBoxIcon, arrowBackIcon, checkIcon, closeIcon, deleteIcon, keyboardArrowDownIcon, keyboardArrowUpIcon, listAltIcon, refreshIcon, saveIcon, scheduleIcon, smsIcon, sportsScoreIcon, syncIcon, timerIcon, visibilityIcon, warningFillIcon } from "$lib/icons/material.js";
+    import { ICON_VIEWBOX, addBoxIcon, checkIcon, closeIcon, deleteIcon, keyboardArrowDownIcon, keyboardArrowUpIcon, listAltIcon, refreshIcon, saveIcon, scheduleIcon, smsIcon, sportsScoreIcon, syncIcon, timerIcon, visibilityIcon, warningFillIcon } from "$lib/icons/material.js";
     import { fetchScriptWithSideCharacters } from "$lib/resources/client/scriptWithSideCharacters";
     import { hasNoBlanks, nameFromElements, presetDisplayName, type MessageElement, type MessagePreset, type PresetElement, type TextOption } from "$lib/common/message";
     import { alignmentForCategory, bluffSetsOf, characterMessagePresetsFor, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
@@ -557,6 +557,9 @@
         background-color: #121212;
         /* All touch gestures (pinch/pan/drag) are handled in JS; stop the browser zooming or scrolling the page. */
         touch-action: none;
+        /* The undo button sits just left of the save status, which is just left of the Close button */
+        --grim-undo-right: 104px;
+        --grim-undo-top: 8px;
     }
 
     /* Each bluff set is a button only as big as its tokens; they wrap onto more rows as needed. */
@@ -1019,10 +1022,11 @@
         color: #ff7b7b;
     }
 
+    /* Just left of the Close button, centred on it */
     .save-status {
         position: absolute;
-        top: 8px;
-        right: 8px;
+        top: 12px;
+        right: 60px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -1054,6 +1058,12 @@
 
     .save-status.saving svg {
         animation: save-status-spin 0.9s linear infinite;
+    }
+
+    .close-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
     }
 
     @keyframes save-status-spin {
@@ -1099,8 +1109,17 @@
         {sidebarTop}
         {sidebarMenuStart}
         {sidebarMenuEnd}
+        {topRight}
         {centre}
+        ignoreGesturesOn=".close-btn"
     />
+
+    <!-- In the top right corner, right of the save status; under the token tray, as the board's own buttons are -->
+    {#snippet topRight()}
+        <button class="sidebar-btn close-btn" class:drag-hidden={boardDragging} style="z-index: {GRIM_Z.ui};" onclick={() => {saveGrimoire().then(()=>goto(`/play`, { replaceState: true }))} } title="Back to Play" aria-label="Back to Play">
+            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={closeIcon}/></svg>
+        </button>
+    {/snippet}
 
     {#snippet sidebarTop()}
         <!-- Clock controls, as tapping the clock in the middle opens -->
@@ -1126,12 +1145,6 @@
     {/snippet}
 
     {#snippet sidebarMenuStart()}
-        <!-- Go back -->
-        <button class="sidebar-btn labelled" onclick={() => {saveGrimoire().then(()=>goto(`/play`, { replaceState: true }))} } title="Back to Play">
-            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={arrowBackIcon}/></svg>
-            <span>Go back</span>
-        </button>
-
         <!-- Set up a new game on this grim (or reset it) -->
         <button class="sidebar-btn" onclick={() => {saveGrimoire().then(()=>goto(`/admin/${data.clockid}/grim/setup`))} } title="Set up a new game">
             <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={addBoxIcon}/></svg>
