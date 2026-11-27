@@ -1090,13 +1090,17 @@
             <!-- Only on a player who still wakes: not on a dead (or ability-less) one sharing a character with one who
                  does. A Minion or Demon also has their Minion Info or Demon Info wake, the numbers one under the other -->
             {@const wakeNumbers = wakeNumbersOf(token)}
+            {@const wakeToggleShown = token.id === activeTokenId && activeReminderPos && !isSideRoleCategory(characterById.get(token.characterId ?? '')?.category)}
+            <!-- The badges, one under the other, centred on the token's side -->
+            {@const badgeCount = wakeNumbers.length + (wakeToggleShown || token.customWake ? 1 : 0)}
+            {@const badgeTop = (i: number) => token.y + (i - (badgeCount - 1) / 2) * tokenSize * 0.28}
             {#each wakeNumbers as wake, i}
-            {@render wakeNumberBadge(wake, `left: calc(50% + ${token.x + tokenSize * 0.45}px); top: calc(50% + ${token.y + i * tokenSize * 0.28}px); font-size: ${tokenSize / 6}px; border-width: ${tokenSize / 70}px; z-index: ${GRIM_Z.nightOrder};`)}
+            {@render wakeNumberBadge(wake, `left: calc(50% + ${token.x + tokenSize * 0.45}px); top: calc(50% + ${badgeTop(i)}px); font-size: ${tokenSize / 6}px; border-width: ${tokenSize / 70}px; z-index: ${GRIM_Z.nightOrder};`)}
             {/each}
             <!-- A custom wake: below the night order numbers, if they have any too. While the token's popup is open, it's
                  shown dotted when off, and tapping it turns the wake on or off -->
-            {@const wakeStyle = `left: calc(50% + ${token.x + tokenSize * 0.45}px); top: calc(50% + ${token.y + wakeNumbers.length * tokenSize * 0.28}px); font-size: ${tokenSize / 6}px; border-width: ${tokenSize / 70}px; z-index: ${GRIM_Z.nightOrder};`}
-            {#if token.id === activeTokenId && activeReminderPos && !isSideRoleCategory(characterById.get(token.characterId ?? '')?.category)}
+            {@const wakeStyle = `left: calc(50% + ${token.x + tokenSize * 0.45}px); top: calc(50% + ${badgeTop(wakeNumbers.length)}px); font-size: ${tokenSize / 6}px; border-width: ${tokenSize / 70}px; z-index: ${GRIM_Z.nightOrder};`}
+            {#if wakeToggleShown}
             {@render wakeToggle(token.customWake ?? false, wakeStyle, toggleCustomWake)}
             {:else if token.customWake}
             <div class="night-order-badge" style={wakeStyle}>?</div>
@@ -1310,13 +1314,16 @@
                                  its night order and custom wake badges where the board has them -->
                             {@const size = OVERLAY_SUMMARY_TOKEN_SIZE}
                             {@const wakeNumbers = activeToken && night ? wakeNumbersOf(activeToken) : []}
+                            <!-- Its badges centred on the token's side, as on the board -->
+                            {@const badgeCount = wakeNumbers.length + (activeToken && !sideRole && night ? 1 : 0)}
+                            {@const badgeTop = (i: number) => size / 2 + (i - (badgeCount - 1) / 2) * size * 0.28}
                             <div style="position: relative; flex-shrink: 0; width: {size}px; height: {size}px;">
                                 <CharacterToken character={oc} style="position: relative;" size="{size}px" norules/>
                                 {#each wakeNumbers as wake, i}
-                                    {@render wakeNumberBadge(wake, `left: ${size * 0.95}px; top: ${size / 2 + i * size * 0.28}px; font-size: ${size / 6}px; border-width: ${size / 70}px;`)}
+                                    {@render wakeNumberBadge(wake, `left: ${size * 0.95}px; top: ${badgeTop(i)}px; font-size: ${size / 6}px; border-width: ${size / 70}px;`)}
                                 {/each}
                                 {#if activeToken && !sideRole && night}
-                                    {@render wakeToggle(activeToken.customWake ?? false, `left: ${size * 0.95}px; top: ${size / 2 + wakeNumbers.length * size * 0.28}px; font-size: ${size / 6}px; border-width: ${size / 70}px;`, (e) => { e.stopPropagation(); toggleCustomWake(); })}
+                                    {@render wakeToggle(activeToken.customWake ?? false, `left: ${size * 0.95}px; top: ${badgeTop(wakeNumbers.length)}px; font-size: ${size / 6}px; border-width: ${size / 70}px;`, (e) => { e.stopPropagation(); toggleCustomWake(); })}
                                 {/if}
                             </div>
                         {:else}
