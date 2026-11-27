@@ -1,21 +1,25 @@
 <script lang="ts">
+    import "$lib/components/grim/grimUi.css";
     import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
     import { downloadIcon } from "$lib/icons/material.js";
     import { onMount, tick } from "svelte";
     import { domToPng } from "modern-screenshot";
-    import AnotatableViewV2 from "$lib/components/DrawableCanvas2/AnotatableViewV2.svelte";
-    import CharacterToken from "$lib/components/CharacterToken.svelte";
-    import PlayerToken from "$lib/components/PlayerToken.svelte";
-    import ReminderTokenView from "$lib/components/ReminderTokenView.svelte";
-    import { alignmentForCategory, type Character, type CharacterCategory, type ReminderToken } from "$lib/resources/common/gameData.js";
-    import { ALIGNMENT_RING_FACTORS, BOARD_TOKEN_SIZE, hasDeadVote, isPlayerToken, type GrimoireStateSnapshot, type PlacedToken } from "$lib/resources/common/grimoireState.js";
-    import { fetchAllCharacters } from "$lib/resources/client/scriptWithSideCharacters.js";
+    import type { ScriptCharacter, ScriptWithCharacters } from "$lib/resources/common/gameData.js";
+    import { BOARD_TOKEN_SIZE, type GrimoireStateHistory, type GrimoireStateSnapshot } from "$lib/resources/common/grimoireState.js";
+    import { fetchAllCharacters, fetchScriptWithSideCharacters } from "$lib/resources/client/scriptWithSideCharacters.js";
+    import { GrimoireUndo } from "$lib/model/client/GrimoireUndo.svelte";
+    import GrimBoard from "$lib/components/grim/GrimBoard.svelte";
+    import GrimPieces from "$lib/components/grim/GrimPieces.svelte";
+    import { GrimModel, asScriptCharacters, normaliseHistory, scriptSummaries, type GrimScriptSummary } from "$lib/components/grim/GrimModel.svelte";
 
-    // A read-only view of a grim as it was saved: its tokens, reminders and drawings, laid out as on the grim page,
-    // which can be panned and zoomed but not changed. Shown over the whole page.
+    // A grim as it was saved, shown over the whole page on the grim board, where it can be changed (tokens and
+    // reminders added, moved or taken off, players changed, lines drawn) before it's saved as a picture. The changes
+    // are only ever kept here: the saved grim stays as it was.
 
-    let { snapshot, title, filename = 'grim', winner, when, day, characters = new Map(), onclose }: {
+    let { snapshot, scriptId = null, title, filename = 'grim', winner, when, day, onclose }: {
         snapshot: GrimoireStateSnapshot;
+        /** The script the game was played with, for its characters in the token tray. */
+        scriptId?: string | null;
         title: string;
         /** The saved PNG's name, without the extension. */
         filename?: string;
@@ -25,54 +29,57 @@
         when?: string;
         /** The in-game day the game ended on, shown under the winner. */
         day?: number;
-        /** Characters already to hand (e.g. the script's); the rest are looked up from the library. */
-        characters?: ReadonlyMap<string, Character>;
         onclose: () => void;
     } = $props();
 
     const tokenSize = BOARD_TOKEN_SIZE;
     const reminderTokenSize = Math.round(tokenSize * 0.56);
-    const FIT_PADDING = 8;
-    const FIT_MAX_SCALE = 4;
 
-    let library = $state<Character[]>([]);
-    const characterById = $derived(new Map<string, Character>([...library.map(c => [c.id, c] as const), ...characters]));
+    // The grim as saved (a copy each time, to change). The tokens were all given an alignment when they were saved.
+    const saved = (): GrimoireStateHistory => normaliseHistory({
+        id: 'snapshot',
+        scriptId,
+        loadedPreset: null,
+        saveslots: [],
+        present: structuredClone($state.snapshot(snapshot))
+    }, () => 'good');
 
-    // The grim also offers a blank reminder (just the character's icon) for every character.
-    const reminderById = $derived(new Map<string, ReminderToken & { characterId: string }>([...characterById.values()].flatMap(c => [
-        ...c.reminderTokens.map(t => [t.id, { ...t, characterId: c.id }] as const),
-        [`blank-${c.id}`, { id: `blank-${c.id}`, text: '', textSize: 100, characterId: c.id }] as const
-    ])));
-
-    // Loric and fabled are never players, so they have no alive/dead state or alignment, and don't frame the town.
-    const isSideRoleCategory = (category: CharacterCategory | undefined) => category === 'loric' || category === 'fabled';
-    const isSideRoleToken = (t: PlacedToken) => isSideRoleCategory(characterById.get(t.characterId ?? '')?.category);
-
-    // The view starts as {layers} and is never drawn on, but the canvas expects its own copy.
     // svelte-ignore state_referenced_locally
-    const layers = $state($state.snapshot(snapshot.canvas.layers));
+    let grim = $state(saved());
+    let script = $state<ScriptWithCharacters | null>(null);
+    let library = $state<ScriptCharacter[]>([]);
+    let scripts = $state<GrimScriptSummary[]>([]);
 
-    let viewScale = $state(1);
-    let viewTx = $state(0);
-    let viewTy = $state(0);
-    let boardEl = $state<HTMLElement>();
+    const model = new GrimModel({
+        grim: () => grim,
+        script: () => script,
+        library: () => library,
+        scripts: () => scripts
+    });
 
-    // Fits the seated players on screen, centred on the town circle, as the grim page does.
-    function fitView() {
-        if (!boardEl) return;
-        const framed = snapshot.placedTokens.filter(t => isPlayerToken(t) && !isSideRoleToken(t));
-        const tokens = framed.length > 0 ? framed : snapshot.placedTokens;
-        if (tokens.length === 0) { viewScale = 1; viewTx = 0; viewTy = 0; return; }
-        let halfW = 0, halfH = 0;
-        for (const t of tokens) {
-            halfW = Math.max(halfW, Math.abs(t.x) + tokenSize / 2);
-            halfH = Math.max(halfH, Math.abs(t.y) + tokenSize / 2);
-        }
-        const availW = Math.max(1, boardEl.offsetWidth - FIT_PADDING * 2);
-        const availH = Math.max(1, boardEl.offsetHeight - FIT_PADDING * 2);
-        viewScale = Math.min(FIT_MAX_SCALE, availW / (halfW * 2), availH / (halfH * 2));
-        viewTx = 0;
-        viewTy = 0;
+    const undo = new GrimoireUndo(() => grim);
+    let board = $state<GrimBoard>();
+    // Whether the grim has been changed from how it was saved (and not all undone)
+    const changed = $derived(undo.canUndo);
+
+    // Puts the grim back as it was saved.
+    function reset() {
+        if (!confirm('Put the grim back as it was saved? Your changes will be lost.')) return;
+        board?.closeReminderTray();
+        grim.present = saved().present;
+        undo.clear();
+        board?.fitView();
+    }
+
+    function close() {
+        if (changed && !confirm('Close the grim? Your changes to it will be lost.')) return;
+        onclose();
+    }
+
+    function onkeydown(e: KeyboardEvent) {
+        // Escape in a text box (a player's name) only leaves the box
+        if (e.key !== 'Escape' || (e.target as Element | null)?.closest('input, textarea')) return;
+        close();
     }
 
     // SAVING AS PNG
@@ -87,14 +94,16 @@
     let exportEl = $state<HTMLElement>();
     let exportCanvas = $state<HTMLCanvasElement>();
 
+    const layers = $derived(grim.present.canvas.layers);
+
     const exportBounds = $derived.by(() => {
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         const include = (x: number, y: number, halfW: number, halfH = halfW) => {
             minX = Math.min(minX, x - halfW); maxX = Math.max(maxX, x + halfW);
             minY = Math.min(minY, y - halfH); maxY = Math.max(maxY, y + halfH);
         };
-        for (const t of snapshot.placedTokens) include(t.x, t.y, tokenSize / 2);
-        for (const r of snapshot.placedReminders) include(r.x, r.y, reminderTokenSize / 2);
+        for (const t of model.placedTokens) include(t.x, t.y, tokenSize / 2);
+        for (const r of model.placedReminders) include(r.x, r.y, reminderTokenSize / 2);
         for (const layer of layers) for (const stroke of layer.strokes) {
             if (stroke.tool.type !== 'pen') continue;
             for (const p of stroke.points) include(p.x, p.y, stroke.tool.width / 2);
@@ -161,72 +170,46 @@
     }
 
     onMount(() => {
-        fetchAllCharacters().then(all => library = all);
-        fitView();
+        // The characters (which also frame the town: loric and fabled are left out), and the scripts for the tray
+        Promise.all([
+            fetchAllCharacters().then(all => library = asScriptCharacters(all)),
+            scriptId ? fetchScriptWithSideCharacters(scriptId).then(s => script = s).catch(() => {}) : null
+        ]).then(() => board?.fitView());
+        fetch('/api/scripts')
+            .then(r => r.ok ? r.json() : [])
+            .then(list => scripts = scriptSummaries(list))
+            .catch(() => {});
     });
 </script>
 
-<!-- The winner, tokens and reminders, placed around the centre of whatever holds them (which may be 0 wide). -->
-{#snippet pieces()}
+{#snippet winnerBanner()}
     {#if winner}
         <div class="winner-banner dumbledore-font {winner}">{#if when}<div class="winner-when">{when}</div>{/if}{winner === 'good' ? 'Good' : 'Evil'}<br>wins{#if day}<div class="winner-day">Day {day}</div>{/if}</div>
     {/if}
-    {#each snapshot.placedTokens as token (token.id)}
-        {@const character = characterById.get(token.characterId ?? '')}
-        {@const sideRole = isSideRoleCategory(character?.category)}
-        {#if character || token.characterId === null}
-            <div
-                class="board-token"
-                class:dead={!sideRole && token.isDead}
-                class:unnamed={!isPlayerToken(token)}
-                class:misaligned={!sideRole && !!character && alignmentForCategory(character.category) !== token.alignment}
-                style="left: calc(50% + {token.x}px); top: calc(50% + {token.y}px); z-index: {isPlayerToken(token) ? 20 : 15};"
-            >
-                {#if character}
-                    <CharacterToken {character} style="position: relative;" size="{tokenSize}px" norules
-                        dead={sideRole ? false : token.isDead}
-                        hasDeadVote={sideRole ? false : hasDeadVote(token)}
-                        alignment={sideRole ? undefined : token.alignment}
-                        playerName={sideRole ? undefined : (token.playerName?.trim() || undefined)}
-                        outline={isPlayerToken(token)}/>
-                {:else}
-                    <PlayerToken playerName={token.playerName ?? ''} isDead={token.isDead} hasDeadVote={hasDeadVote(token)} style="position: relative;" size="{tokenSize}px"/>
-                {/if}
-            </div>
-        {/if}
-    {/each}
-    {#each snapshot.placedReminders as reminder}
-        {@const reminderToken = reminderById.get(reminder.tokenId)}
-        {#if reminderToken}
-            <div class="board-reminder" style="left: calc(50% + {reminder.x}px); top: calc(50% + {reminder.y}px);">
-                <ReminderTokenView data={reminderToken} characterId={reminderToken.characterId} size="{reminderTokenSize}px"/>
-            </div>
-        {/if}
-    {/each}
 {/snippet}
 
-<svelte:window onkeydown={(e) => { if (e.key === 'Escape') onclose(); }} onresize={fitView} />
+<svelte:window {onkeydown} />
 
-<div class="snapshot-overlay" role="dialog" aria-modal="true" aria-label={title}>
+<!-- Not a dialog role: the board treats anything in one as outside it (see GrimBoard) -->
+<section class="snapshot-overlay grim-ui" aria-label={title}>
     <div class="snapshot-header">
         <span class="snapshot-title">{title}</span>
-        <button class="button-style" onclick={fitView}>Fit</button>
+        <button class="button-style" disabled={!changed} onclick={reset}>Reset</button>
+        <button class="button-style" onclick={() => board?.fitView()}>Fit</button>
         <button class="button-style" disabled={exporting} onclick={saveAsPng}><MaterialIcon icon={downloadIcon} size="1.2em"/> {exporting ? 'Saving…' : 'Save as PNG'}</button>
-        <button class="button-style" onclick={onclose}>Close</button>
+        <button class="button-style" onclick={close}>Close</button>
     </div>
     <div class="snapshot-body">
         <div class="snapshot-bg" aria-hidden="true"></div>
-        <AnotatableViewV2 tool={null} {layers} activeLayerIndex={0} onresetview={fitView} idleIgnore=".snapshot-header" idlePanIgnore="button" bind:viewScale bind:viewTx bind:viewTy canvasStyle="z-index: 10; pointer-events: none;">
-            <div class="board" bind:this={boardEl}>
-                {#each ALIGNMENT_RING_FACTORS as factor}
-                    <div class="alignment-ring" style="width: {tokenSize * factor * 2}px; height: {tokenSize * factor * 2}px;"></div>
-                    <div class="alignment-ring square" style="width: {tokenSize * factor * 2}px; height: {tokenSize * factor * 2}px;"></div>
-                {/each}
-                {@render pieces()}
-            </div>
-        </AnotatableViewV2>
+        <GrimBoard
+            bind:this={board}
+            {model}
+            {undo}
+            centre={winnerBanner}
+            ignoreGesturesOn=".snapshot-header"
+        />
     </div>
-</div>
+</section>
 
 {#if exporting}
     <!-- Hidden behind the overlay while it's captured. -->
@@ -234,7 +217,8 @@
         <div class="snapshot-bg" aria-hidden="true"></div>
         <canvas class="export-canvas" bind:this={exportCanvas} width={exportBounds.width} height={exportBounds.height}></canvas>
         <div class="export-origin" style="left: {-exportBounds.minX}px; top: {-exportBounds.minY}px;">
-            {@render pieces()}
+            {@render winnerBanner()}
+            <GrimPieces {model}/>
         </div>
     </div>
 {/if}
@@ -304,27 +288,8 @@
         min-height: 0;
         overflow: hidden;
         touch-action: none;
-    }
-
-    .board {
-        position: absolute;
-        inset: 0;
-    }
-
-    .alignment-ring {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        border-radius: 50%;
-        border: 2px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.01);
-        box-sizing: border-box;
-        pointer-events: none;
-        z-index: 9;
-    }
-    .alignment-ring.square {
-        border-radius: 0;
+        /* No save status beside the undo button here */
+        --grim-undo-right: 8px;
     }
 
     .winner-banner {
@@ -361,29 +326,5 @@
     }
     .winner-banner.evil {
         color: #ca4444;
-    }
-
-    .board-token,
-    .board-reminder {
-        position: absolute;
-        transform: translate(-50%, -50%);
-        user-select: none;
-    }
-    .board-reminder {
-        z-index: 30;
-    }
-
-    /* Character tokens with no player name are only reminders, so they sit back a little. */
-    .board-token.unnamed {
-        opacity: 0.8;
-    }
-    .board-token.dead :global(img:not(.dead-vote-icon)) {
-        filter: grayscale(0.7) brightness(0.6);
-    }
-    .board-token.misaligned :global(img:not(.dead-vote-icon)) {
-        filter: hue-rotate(180deg);
-    }
-    .board-token.misaligned.dead :global(img:not(.dead-vote-icon)) {
-        filter: grayscale(0.7) brightness(0.9) hue-rotate(180deg);
     }
 </style>

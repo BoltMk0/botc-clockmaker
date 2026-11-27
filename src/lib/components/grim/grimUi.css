@@ -1,0 +1,253 @@
+/* The grim's controls, shared by the grim board and the pages it sits in (the live grim, a saved grim's snapshot),
+   whose own overlays and sidebar buttons look the same. Everything is under .grim-ui, the class on each of their
+   roots. */
+
+.grim-ui {
+    /* The background of the token tray, overlays and popups: a little darker than the theme's panels, so the
+       buttons on them stand out */
+    --grim-panel-bg: color-mix(in srgb, var(--theme-bg-secondary) 72%, black);
+}
+
+/* Nothing on the grim is an image to save: holding one on a phone mustn't open the browser's image menu. */
+.grim-ui img {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.grim-ui .character-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.75);
+}
+
+.grim-ui .overlay-panel {
+    position: relative;
+    margin: auto;
+    width: min(92vw, 380px);
+    max-height: 92%;
+    overflow-y: auto;
+    box-sizing: border-box;
+    padding: 1.4em 1.2em 1.2em;
+    border-radius: 1em;
+    background: var(--grim-panel-bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.7em;
+    text-align: center;
+}
+
+.grim-ui .overlay-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    cursor: pointer;
+    /* A bigger ✕ in the same 32px circle */
+    padding: 0;
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+/* In the overlay's corner rather than the panel's, as for communications and the night order */
+.grim-ui .overlay-close.overlay-corner-close {
+    top: 10px;
+    right: 10px;
+    z-index: 1;
+}
+
+.grim-ui .overlay-name {
+    font-size: 1.6em;
+}
+
+.grim-ui .overlay-category {
+    text-transform: capitalize;
+    opacity: 0.6;
+    font-size: 0.85em;
+}
+
+.grim-ui .overlay-drag-hint {
+    opacity: 0.6;
+    font-size: 0.8em;
+    margin-top: 0.4em;
+}
+
+.grim-ui .picker-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.4em;
+}
+
+.grim-ui .tray-token {
+    flex-shrink: 0;
+    cursor: pointer;
+    /* Tapping opens the character overview, so let the tray scroll under the finger. */
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    /* Pressing and holding picks the token up, rather than bringing up the browser's image menu. */
+    -webkit-touch-callout: none;
+    opacity: 1;
+    transition: opacity 0.15s;
+}
+
+.grim-ui .tray-token.dragging {
+    opacity: 0.3;
+}
+
+.grim-ui .tray-token.in-play {
+    opacity: 0.4;
+}
+
+/* In the tray, the characters already on the grim stand out: the rest are a little faded. */
+.grim-ui .tray-token.off-grim {
+    opacity: 0.6;
+}
+
+.grim-ui .tray-token.picked {
+    outline: 3px solid gold;
+    outline-offset: 2px;
+    border-radius: 50%;
+}
+
+/* The popup's font scales with the tokens, so the name box and buttons get a minimum height too: big enough to
+   tap however small the tokens are. */
+.grim-ui .popup-toggle {
+    background: #1f2937;
+    color: #e5e7eb;
+    border: 1px solid #4b5563;
+    border-radius: 6px;
+    padding: 0.6em 1em;
+    min-height: 40px;
+    font-size: 0.8em;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.grim-ui .popup-toggle.dead,
+.grim-ui .popup-toggle.evil {
+    background: #3a1515;
+    color: #fecaca;
+    border-color: #7f1d1d;
+}
+.grim-ui .popup-toggle:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+/* Outlined while a dead player's ghost vote is still to spend */
+.grim-ui .popup-toggle.has-vote {
+    border-color: rgb(230, 140, 30);
+    color: #fde3bd;
+}
+
+.grim-ui .overlay-panel .popup-toggle {
+    font-size: 1em;
+    padding: 16px 36px;
+}
+
+.grim-ui .overlay-panel .button-style {
+    padding: 16px 36px;
+}
+
+/* A plain, darker button (Back among a character's presets) */
+.grim-ui .button-style.comms-plain {
+    background-color: var(--theme-bg);
+}
+.grim-ui .button-style.comms-plain:hover {
+    background-color: var(--theme-bg-secondary);
+}
+
+/* A button with an icon before its label */
+.grim-ui .with-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5em;
+}
+.grim-ui .with-icon .button-icon {
+    width: 1.4em;
+    height: 1.4em;
+    flex-shrink: 0;
+}
+
+/* Absolute, not fixed: mobile browsers tint their toolbars from fixed elements at the screen edge. */
+.grim-ui .locked-toast {
+    position: absolute;
+    /* Below the sidebar's top button row, which it would cover on a narrow screen */
+    top: 68px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.75);
+    color: white;
+    font-weight: bold;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.grim-ui .locked-toast svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+}
+
+/* Chrome that gets out of the way while a token or reminder is being dragged. */
+.grim-ui .drag-hidden {
+    opacity: 0 !important;
+    pointer-events: none;
+}
+
+.grim-ui .sidebar-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    border: none;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background 0.15s;
+}
+
+/* The back button carries its name beside its icon; it's the only wider one. */
+.grim-ui .sidebar-btn.labelled {
+    width: auto;
+    align-self: flex-start;
+    gap: 6px;
+    padding: 0 14px 0 11px;
+    font: inherit;
+    font-size: 15px;
+}
+
+.grim-ui .sidebar-btn:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.grim-ui .sidebar-btn.active {
+    background: rgba(80, 140, 255, 0.7);
+}
+
+.grim-ui .sidebar-btn svg {
+    width: 22px;
+    height: 22px;
+    fill: currentColor;
+}

@@ -262,7 +262,7 @@
             {#if initial.id !== 'new'}
                 <div class="section">
                     <h2 style="margin-top: 0;">History</h2>
-                    <PresetHistory presetId={initial.id} plays={data.plays ?? []} counts={victories} characters={builder.charById} onchange={(p) => victories = { good_victories: p.good_victories, evil_victories: p.evil_victories }} />
+                    <PresetHistory presetId={initial.id} plays={data.plays ?? []} counts={victories} onchange={(p) => victories = { good_victories: p.good_victories, evil_victories: p.evil_victories }} />
                 </div>
             {/if}
         {:else}

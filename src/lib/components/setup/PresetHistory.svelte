@@ -2,19 +2,17 @@
     import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
     import { chevronRightIcon, deleteIcon } from "$lib/icons/material.js";
     import GrimSnapshotView from "$lib/components/GrimSnapshotView.svelte";
-    import type { Character, Preset } from "$lib/resources/common/gameData.js";
+    import type { Preset } from "$lib/resources/common/gameData.js";
     import { byMostRecentPlay, formatPlayDate as formatDate, snapshotViewProps, todayPlayDate, type PresetPlay, type PresetPlaySummary, type PresetWinner } from "$lib/resources/common/presetPlays.js";
 
     // The games played from a preset, most recent first: ones ended from the virtual grim (with a snapshot of it) and
     // ones logged by hand here. Adding or deleting a game also changes the preset's win counts, passed back in onchange.
     // Tapping a game with a grim snapshot opens it.
 
-    let { presetId, plays: initialPlays, counts, characters, onchange }: {
+    let { presetId, plays: initialPlays, counts, onchange }: {
         presetId: string;
         plays: PresetPlaySummary[];
         counts: Pick<Preset, 'good_victories' | 'evil_victories'>;
-        /** The script's characters, for showing grim snapshots. */
-        characters?: ReadonlyMap<string, Character>;
         onchange: (preset: Preset) => void;
     } = $props();
 
@@ -123,7 +121,7 @@
 </div>
 
 {#if viewing?.grim}
-    <GrimSnapshotView snapshot={viewing.grim.snapshot} {...snapshotViewProps(viewing)} {characters} onclose={() => viewing = null}/>
+    <GrimSnapshotView snapshot={viewing.grim.snapshot} {...snapshotViewProps(viewing)} onclose={() => viewing = null}/>
 {/if}
 
 <style>

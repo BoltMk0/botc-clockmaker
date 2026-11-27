@@ -50,7 +50,8 @@ export function snapshotViewProps(play: PresetPlay) {
         when: formatPlayDate(play.date, true),
         filename: `grim-${play.date}-${play.winner}-wins`,
         winner: play.winner,
-        day: play.grim?.day
+        day: play.grim?.day,
+        scriptId: play.grim?.script_id ?? null
     };
 }
 

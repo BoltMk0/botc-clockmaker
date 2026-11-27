@@ -50,6 +50,12 @@ export class GrimoireUndo {
         this.#preset = json(loadedPreset);
     }
 
+    // Forgets every step, taking the board as it is now as the start (e.g. once it's been put back as it was).
+    clear() {
+        this.#steps = [];
+        this.reset();
+    }
+
     // Makes a step of whatever has changed since the last checkpoint.
     checkpoint() {
         const { present, loadedPreset } = this.state();

@@ -1,14 +1,13 @@
 <script lang="ts">
+    import "$lib/components/grim/grimUi.css";
     import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
-    import { ICON_VIEWBOX, addBoxIcon, addIcon, arrowBackIcon, checkIcon, chevronLeftIcon, closeIcon, cycleIcon, deleteIcon, editIcon, inkEraserIcon, keyboardArrowDownIcon, keyboardArrowUpIcon, layersClearIcon, listAltIcon, lockIcon, lockOpenIcon, menuIcon, refreshIcon, saveIcon, scheduleIcon, smsIcon, sportsScoreIcon, syncIcon, timerIcon, undoIcon, visibilityIcon, warningFillIcon } from "$lib/icons/material.js";
+    import { ICON_VIEWBOX, addBoxIcon, arrowBackIcon, checkIcon, closeIcon, deleteIcon, keyboardArrowDownIcon, keyboardArrowUpIcon, listAltIcon, refreshIcon, saveIcon, scheduleIcon, smsIcon, sportsScoreIcon, syncIcon, timerIcon, visibilityIcon, warningFillIcon } from "$lib/icons/material.js";
     import { fetchScriptWithSideCharacters } from "$lib/resources/client/scriptWithSideCharacters";
     import { hasNoBlanks, nameFromElements, presetDisplayName, type MessageElement, type MessagePreset, type PresetElement, type TextOption } from "$lib/common/message";
-    import { alignmentForCategory, bluffSetsOf, characterMessagePresetsFor, ALL_CHARACTER_CATEGORIES, type Character, type CharacterCategory, type ReminderToken, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
+    import { alignmentForCategory, bluffSetsOf, characterMessagePresetsFor, type ScriptCharacter, type ScriptWithCharacters } from "$lib/resources/common/gameData.js";
     import CharacterToken from "$lib/components/CharacterToken.svelte";
     import InPlayWarning from "$lib/components/InPlayWarning.svelte";
     import MessageBuilder, { type MessageBuilderView } from "$lib/components/MessageBuilder.svelte";
-    import ReminderTokenView from "$lib/components/ReminderTokenView.svelte";
-    import { fetchReminderTokensForCharacter } from "$lib/resources/client/reminderTokens.js";
     import { browser } from "$app/environment";
 
     import { goto } from '$app/navigation';
@@ -16,72 +15,39 @@
     import { GrimoireSync } from "$lib/model/client/GrimoireSync";
     import { GrimoireUndo } from "$lib/model/client/GrimoireUndo.svelte";
     import FullDisplay from "$lib/components/FullDisplay/FullDisplay.svelte";
-    import { flushSync, onMount, type Snippet } from "svelte";
+    import { onMount, type Snippet } from "svelte";
     import { fly, slide } from "svelte/transition";
     import { cubicIn, cubicOut } from "svelte/easing";
+    import { MediaQuery } from "svelte/reactivity";
     import ClockSetter from "$lib/components/ClockSetter.svelte";
-    import type { CanvasToolType } from "$lib/components/DrawableCanvas2/types.js";
-    import AnotatableViewV2 from "$lib/components/DrawableCanvas2/AnotatableViewV2.svelte";
-    import PlayerToken from "$lib/components/PlayerToken.svelte";
-    import { ALIGNMENT_RING_FACTORS, BOARD_TOKEN_SIZE, hasDeadVote, isPlayerToken, layoutTokensAtDefaultPositions, nearestByAngle, remindersBySeatedToken, newGrimoireStateHistory, tokensToSeat, type Alignment, type GrimoireStateHistory, type GrimoireStateSnapshot, type PlacedReminder, type PlacedToken } from "$lib/resources/common/grimoireState.js";
-    import { v7 } from "uuid";
-    import PencilIcon from "$lib/components/PencilIcon.svelte";
+    import { BOARD_TOKEN_SIZE, nearestByAngle, remindersBySeatedToken, type Alignment, type GrimoireStateHistory, type PlacedToken } from "$lib/resources/common/grimoireState.js";
     import TrashIcon from "$lib/components/TrashIcon.svelte";
     import { characterImageUrl } from "$lib/resources/common/characterImages";
     import { MessageQueue } from "$lib/model/client/messageQueue.svelte";
+    import GrimBoard from "$lib/components/grim/GrimBoard.svelte";
+    import { GRIM_Z, GrimModel, TRAY_IMAGE_SIZE, asScriptCharacters, isSideCategory, normaliseHistory } from "$lib/components/grim/GrimModel.svelte";
     import type { PageData } from "./$types";
-
-    const z_indecies = {
-        tokens: 20,
-        // Character-only tokens sit above the drawing but behind every player's token.
-        unnamedTokens: 15,
-        reminders: 30,
-        canvas: 10,
-        // Above tokens and reminders, below the UI chrome.
-        nightOrder: 40,
-        ui: 50,
-        clock: 10
-    };
-
-    // Size of the draggable character token in the character overview overlay
-    const OVERLAY_TOKEN_SIZE = 96;
-    // Size of the token at the top of a placed token's summary (on a phone)
-    const OVERLAY_SUMMARY_TOKEN_SIZE = 120;
 
     // Size of the central clock, as a multiple of the token size
     const CLOCK_SCALE = 1.0;
+    const tokenSize = BOARD_TOKEN_SIZE;
 
     let {data}: {data: PageData} = $props();
 
-    function defaultAlignmentForCharacterId(characterId: string | null): Alignment {
-        const char = characterById.get(characterId ?? '');
-        return char ? alignmentForCategory(char.category) : 'good';
-    }
+    // The board: the tokens, reminders, drawings and token tray (see GrimBoard)
+    let board = $state<GrimBoard>();
+    // The token whose popup is open on the board, and whether something's being dragged on it
+    let activeTokenId = $state<string | null>(null);
+    let boardDragging = $state(false);
 
-    function normaliseSnapshot(snap: GrimoireStateSnapshot): GrimoireStateSnapshot {
-        return {
-            ...snap,
-            placedTokens: snap.placedTokens.map(t => ({
-                ...t,
-                id: t.id ?? v7(),
-                alignment: (t as any).alignment ?? defaultAlignmentForCharacterId(t.characterId),
-            })),
-        };
-    }
-
-    function normaliseHistory(hist: GrimoireStateHistory): GrimoireStateHistory {
-        return {
-            id: hist.id,
-            scriptId: hist.scriptId ?? null,
-            loadedPreset: hist.loadedPreset ?? null,
-            saveslots: hist.saveslots.map(s => s ? normaliseSnapshot(s) : null),
-            present: normaliseSnapshot(hist.present),
-            revision: hist.revision,
-        };
+    // Before the script has loaded, a token with no alignment saved takes its character's, from the library.
+    function libraryAlignmentFor(characterId: string | null): Alignment {
+        const character = data.characters.find(c => c.id === characterId);
+        return character ? alignmentForCategory(character.category) : 'good';
     }
 
     // svelte-ignore state_referenced_locally
-    const gameState = $state(normaliseHistory(browser ? GrimoireSync.initialState(data.clockid, data.grimoireState) : data.grimoireState));
+    let gameState = $state(normaliseHistory(browser ? GrimoireSync.initialState(data.clockid, data.grimoireState) : data.grimoireState, libraryAlignmentFor));
 
     // Keeps this grim in step with the same grim open on other devices (see GrimoireSync).
     // svelte-ignore state_referenced_locally
@@ -92,22 +58,21 @@
         setLocal: (history) => {
             // This device's changes so far are its own to undo; what comes in from others isn't.
             undo.checkpoint();
-            const next = normaliseHistory(history);
+            const next = normaliseHistory(history, model.defaultAlignmentFor);
             gameState.scriptId = next.scriptId;
             gameState.loadedPreset = next.loadedPreset;
             gameState.saveslots = next.saveslots;
             gameState.present = next.present;
             gameState.revision = next.revision;
-            activeCanvasLayerIndex = Math.min(activeCanvasLayerIndex, next.present.canvas.layers.length - 1);
             undo.reset();
         },
-        isBusy: () => dragging !== null || draggingReminder !== null || drawingStroke,
+        isBusy: () => board?.isBusy() ?? false,
         onstatus: (status) => {
             // Changes made since the save began are still to go
-            saveStatus = status === 'saved' && saveGrimoireTimeout ? 'unsaved' : status;
+            saveStatus = status === 'saved' && board?.hasPendingSave() ? 'unsaved' : status;
         },
         ondeleted: () => {
-            if (saveGrimoireTimeout) clearTimeout(saveGrimoireTimeout);
+            board?.cancelPendingSave();
             localStorage.removeItem(`grimoire-state-${data.clockid}`);
             // The grim is always there for the game: reloading opens a new, empty one.
             alert('This game has been ended on another device.');
@@ -131,34 +96,18 @@
     // Undo for this device's changes: each save is a step (see GrimoireUndo).
     const undo = new GrimoireUndo(() => gameState);
 
-    function undoLastChange() {
-        closeReminderTray();
-        if (undo.undo()) saveGrimoire();
-    }
+    type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'error';
+    let saveStatus = $state<SaveStatus>('saved');
 
-    // A line is being drawn on the canvas (from its first change to its commit). In case a stroke is abandoned
-    // without a commit (e.g. it turned into a pinch), it also counts as finished after a while with no change.
-    let drawingStroke = false;
-    let drawingStrokeTimer: ReturnType<typeof setTimeout> | null = null;
-
-    function onCanvasChange() {
-        drawingStroke = true;
-        saveStatus = 'unsaved';
-        if (drawingStrokeTimer) clearTimeout(drawingStrokeTimer);
-        drawingStrokeTimer = setTimeout(onCanvasCommit, 5000);
-    }
-
-    function onCanvasCommit() {
-        if (drawingStrokeTimer) clearTimeout(drawingStrokeTimer);
-        drawingStrokeTimer = null;
-        drawingStroke = false;
-        saveGrimoire();
+    // Saves the grim now (as a step to undo), as the board does after each change.
+    async function saveGrimoire() {
+        if (board) await board.save();
+        else await grimSync.save();
     }
 
     // SCRIPT / PRESET SELECTION
     // The game's script (with every traveller, loric and fabled); null without one (a grim that hasn't been set up).
     let script = $state<ScriptWithCharacters | null>(null);
-    const scriptless = $derived(!gameState.scriptId);
 
     $effect(() => {
         const id = gameState.scriptId;
@@ -173,16 +122,29 @@
     });
 
     // Every character in the library, with their own night order: any of them can be put on the grim from the tray.
-    const libraryCharacters = $derived<ScriptCharacter[]>(
-        data.characters.map(c => ({ ...c, scriptFirstNightOrder: c.firstNightOrder, scriptOtherNightOrder: c.otherNightOrder }))
-    );
+    const libraryCharacters = $derived<ScriptCharacter[]>(asScriptCharacters(data.characters));
 
-    // Every character the grim knows: the script's (with its night order), then the rest of the library.
-    const allCharacters = $derived.by(() => {
-        const onScript = new Set(script?.characters.map(c => c.id) ?? []);
-        return [...(script?.characters ?? []), ...libraryCharacters.filter(c => !onScript.has(c.id))];
+    const model = new GrimModel({
+        grim: () => gameState,
+        script: () => script,
+        library: () => libraryCharacters,
+        scripts: () => data.scripts
     });
-    const characterById = $derived(new Map(allCharacters.map(c => [c.id, c])));
+
+    const characterById = $derived(model.characterById);
+    const availableCharacters = $derived<Record<string, ScriptCharacter>>(Object.fromEntries(characterById));
+    const availableReminderTokens = $derived(model.reminderById);
+    const placedTokens = $derived(model.placedTokens);
+    const placedReminders = $derived(model.placedReminders);
+    const seatedCharacterIdSet = $derived(model.seatedCharacterIdSet);
+    const sortedScriptCharacters = $derived(model.sortedScriptCharacters);
+    const isInPlay = (characterId: string) => model.isInPlay(characterId);
+    const activeToken = $derived<PlacedToken | null>(activeTokenId === null ? null : (placedTokens.find(t => t.id === activeTokenId) ?? null));
+
+    // Phone-width screen
+    const mobileQuery = new MediaQuery('(max-width: 768px)', false);
+    // As in the token tray: slightly smaller on a phone so more tokens fit per row.
+    const trayTokenSize = $derived(Math.max(40, Math.round(tokenSize * 0.53 * (mobileQuery.current ? 0.8 : 1))));
 
     const loadedPreset = $derived(gameState.loadedPreset);
     const bluffSets = $derived(loadedPreset ? bluffSetsOf(loadedPreset) : []);
@@ -209,181 +171,15 @@
         await saveGrimoire();
     }
 
-    const byCategoryThenName = (a: ScriptCharacter, b: ScriptCharacter) => {
-        const ac = ALL_CHARACTER_CATEGORIES.indexOf(a.category as any);
-        const bc = ALL_CHARACTER_CATEGORIES.indexOf(b.category as any);
-        if (ac !== bc) return ac - bc;
-        return a.name.localeCompare(b.name);
-    };
-    const sortedAllCharacters = $derived([...allCharacters].sort(byCategoryThenName));
-    // The script's characters, or every character without a script.
-    const sortedScriptCharacters = $derived(script ? [...script.characters].sort(byCategoryThenName) : sortedAllCharacters);
-
-    // Categories that get their own tray section rather than being lumped into "Other" / "All Characters".
-    const SIDE_CATEGORIES: { category: CharacterCategory; title: string }[] = [
-        { category: 'traveler', title: 'Travellers' },
-        { category: 'loric', title: 'Loric' },
-        { category: 'fabled', title: 'Fabled' },
-    ];
-    const isSideCategory = (c: ScriptCharacter) => SIDE_CATEGORIES.some(s => s.category === c.category);
-
-    // Synthetic "blank" reminder token (icon only, no text) available for every character.
-    // Kept out of the database since it's identical for all characters - just rendered from the character's id.
-    function blankReminderTokenId(characterId: string): string {
-        return `blank-${characterId}`;
-    }
-    function blankReminderToken(characterId: string): ReminderToken {
-        return { id: blankReminderTokenId(characterId), text: '', textSize: 100 };
-    }
-
-    const availableReminderTokens = $derived<Record<string, ReminderToken & {characterId: string}>>(
-        Object.fromEntries([
-            ...allCharacters.flatMap(c => c.reminderTokens.map(t => [t.id, {...t, characterId: c.id}] as const)),
-            ...allCharacters.map(c => [blankReminderTokenId(c.id), {...blankReminderToken(c.id), characterId: c.id}] as const)
-        ])
-    )
-    const availableCharacters = $derived<Record<string, ScriptCharacter>>(Object.fromEntries(characterById));
-
-    // STATE SELECTION
-    const workingGameSnapshot = $derived<GrimoireStateSnapshot>(gameState.present);
-
-
-    const canvasLayers = $derived(workingGameSnapshot.canvas.layers); // Set on mount by AnotatableView, source of truth for layers
-    // Pinch-zoom / pan of the board (bound to the annotatable view; also works outside draw mode)
-    let viewScale = $state(1);
-    let viewTx = $state(0);
-    let viewTy = $state(0);
-    let activeCanvasLayerIndex = $state<number>(0); // Set on mount by AnotatableView, source of truth for active layer index
-    let sidebarOpen = $state(false);
-    // Board token size in board px; the zoom does the fitting to the screen.
-    const tokenSize = BOARD_TOKEN_SIZE;
-    const reminderTokenSize = $derived(Math.round(tokenSize * 0.56));
-    // The reminders in a token's popup: smaller than on the board, in columns as tall as the name/buttons beside them
-    const popupReminderSize = $derived(Math.round(tokenSize * 0.35));
-    const POPUP_REMINDER_GAP = 4;
-    let popupMetaHeight = $state(0);
-    const popupReminderRows = $derived(Math.max(1, Math.floor((popupMetaHeight + POPUP_REMINDER_GAP) / (popupReminderSize + POPUP_REMINDER_GAP))));
-    // Phone-width screen (set from a media query on mount): tapping a token opens a full-screen summary, not a popup.
-    let isMobile = $state(false);
-    // Slightly smaller in the tray on a phone so more tokens fit per row.
-    // Tray and picker tokens are shown small, so they load the scaled-down 256px icon (see CharacterToken's imageSize).
-    const TRAY_IMAGE_SIZE = 256;
-    const trayTokenSize = $derived(Math.max(40, Math.round(tokenSize * 0.53 * (isMobile ? 0.8 : 1))));
-
-    const placedTokens = $derived(gameState.present.placedTokens);
-    const placedReminders = $derived(gameState.present.placedReminders);
-
-    // Cache of fetched reminder tokens per character
-    let reminderCache = $state< Record<string, ReminderToken[]> >({});
-
-    // Which board token's reminder tray is open
-    let activeTokenId = $state<string | null>(null);
-    let activeReminderPos = $state<{ x: number; y: number } | null>(null);
-    let activeReminderAbove = $state(false);
-    let reminderPopupEl = $state<HTMLDivElement | null>(null);
-    const activeToken = $derived<PlacedToken | null>(
-        activeTokenId === null
-            ? null
-            : (gameState.present.placedTokens.find(t => t.id === activeTokenId) ?? null)
-    );
-    const activeCharacterId = $derived(activeToken?.characterId ?? null);
-
-    // "Change character" only offers loric/fabled when swapping an existing loric/fabled token (never for a player
-    // token), since loric/fabled can never be a player character.
-    const pickableCharacters = $derived(
-        activeToken && isSideRoleToken(activeToken)
-            ? sortedScriptCharacters.filter(c => isSideRoleCategory(c.category))
-            : sortedScriptCharacters.filter(c => !isSideRoleCategory(c.category))
-    );
-
-    const tools: CanvasToolType[] = [
-        {
-            type: 'pen',
-            color: '#dddddd',
-            width: 1.5,
-        },
-        {
-            type: 'pen',
-            color: '#111111',
-            width: 1.5,
-        },
-        {
-            type: 'pen',
-            color: '#e74c3c',
-            width: 1.5,
-        },
-        {
-            type: 'pen',
-            color: '#27ae60',
-            width: 1.5,
-        },
-        {
-            type: 'pen',
-            color: '#2980b9',
-            width: 1.5,
-        },
-        {
-            type: 'pen',
-            color: '#f1c40f',
-            width: 1.5,
-        },
-        {
-            type: 'eraser',
-            width: 4,
-        }
-    ];
-
-    let activeToolIndex = $state<number>(0);
-    let activeTool = $derived(tools[activeToolIndex]);
-    // A stylus draws even outside draw mode, with the last pen picked (never the eraser).
-    let lastPenTool = $state<CanvasToolType>(tools[0]);
-    $effect(() => {
-        if (activeTool.type === 'pen') lastPenTool = activeTool;
-    });
-    // A stylus's eraser end erases, and its side button toggles it to the eraser.
-    const penEraserTool = tools.find(t => t.type === 'eraser') ?? null;
-
-
     // CLOCK CONNECTION - always the clock this grim lives under, no manual picker
     let clockClient = $state<Clocktower | null>(null);
     let showClock = $state(true);
     let showTimerOptions = $state(false);
 
-    // NIGHT ORDER LOGIC
-    const nightOrderFunction = $derived((clockClient?.day || 0) > 0 ? (c: ScriptCharacter) => c.scriptOtherNightOrder : (c: ScriptCharacter) => c.scriptFirstNightOrder);
-    // Players with their own character's "No ability" reminder beside them (any case; matched to them by angle, as
-    // the reminders are everywhere else), by token id: they no longer wake.
-    // And players with any "Has ability" reminder beside them (any case, from any character), by token id: they keep
-    // waking even while dead.
-    const abilityReminderTokenIds = $derived.by(() => {
-        const noAbility = new Set<string>();
-        const hasAbility = new Set<string>();
-        for (const [tokenId, reminders] of remindersBySeatedToken(placedTokens, placedReminders, isSideRoleToken)) {
-            const token = placedTokens.find(t => t.id === tokenId);
-            if (!token?.characterId) continue;
-            for (const r of reminders) {
-                const reminder = availableReminderTokens[r.tokenId];
-                const text = reminder?.text.trim().toLowerCase();
-                if (text === 'no ability' && reminder?.characterId === token.characterId) noAbility.add(tokenId);
-                if (text === 'has ability') hasAbility.add(tokenId);
-            }
-        }
-        return { noAbility, hasAbility };
-    });
-    const noAbilityTokenIds = $derived(abilityReminderTokenIds.noAbility);
-    const hasAbilityTokenIds = $derived(abilityReminderTokenIds.hasAbility);
-    // Whether a player still wakes in the night order: alive (or dead with a "Has ability" reminder), and with an
-    // ability.
-    const wakesInNightOrder = (token: PlacedToken) =>
-        (!token.isDead || hasAbilityTokenIds.has(token.id)) && !noAbilityTokenIds.has(token.id);
-    const nightOrderByCharacterId = $derived((placedTokens
-        .filter(wakesInNightOrder)
-        .map(c=>characterById.get(c.characterId ?? ''))
-        .filter(c => c !== undefined)
-        .map(c=>{return [c.id, nightOrderFunction(c)]})
-        .filter(([_, order])=>order !== null) as [string, number][]).sort((a, b) => a[1] - b[1])
-        .map(([id, _])=>id) ?? []);
+    // The night it is, or the coming night during the day: the first night until day 1.
+    const currentNight = $derived<'first' | 'other'>((clockClient?.day || 0) > 0 ? 'other' : 'first');
 
+    // NIGHT ORDER
     // The night order sheet: every character that wakes, in order, on the first night or the other nights. The
     // script's own characters always show; the rest (travellers, loric, fabled and characters off the script) only
     // when they're on the grim.
@@ -395,18 +191,18 @@
         next.has(key) ? next.delete(key) : next.add(key);
         nightCommsOpen = next;
     }
-    const onGrimCharacterIds = $derived(new Set(placedTokens.map(t => t.characterId).filter(id => id !== null)));
+    const onGrimCharacterIds = $derived(model.placedCharacterIds);
     // In play but every token for them dead (and none kept waking by a "Has ability" reminder), so they may not wake
     const deadCharacterIds = $derived(new Set([...onGrimCharacterIds].filter(id =>
-        placedTokens.filter(t => t.characterId === id).every(t => t.isDead && !wakesInNightOrder(t)))));
-    // In play, not all dead, but none of them waking: the live ones have no ability (see noAbilityTokenIds)
+        placedTokens.filter(t => t.characterId === id).every(t => t.isDead && !model.wakesInNightOrder(t)))));
+    // In play, not all dead, but none of them waking: the live ones have no ability (see GrimModel.wakesInNightOrder)
     const noAbilityCharacterIds = $derived(new Set([...onGrimCharacterIds].filter(id => !deadCharacterIds.has(id) &&
-        placedTokens.filter(t => t.characterId === id).every(t => !wakesInNightOrder(t)))));
+        placedTokens.filter(t => t.characterId === id).every(t => !model.wakesInNightOrder(t)))));
     const nightSheetCharacters = $derived.by(() => {
         if (!nightOrderSheet) return [];
         const orderOf = nightOrderSheet === 'first' ? (c: ScriptCharacter) => c.scriptFirstNightOrder : (c: ScriptCharacter) => c.scriptOtherNightOrder;
         const onScript = new Set(script?.characters.filter(c => !isSideCategory(c)).map(c => c.id) ?? []);
-        return allCharacters
+        return model.allCharacters
             .filter(c => orderOf(c) !== null && (onScript.has(c.id) || onGrimCharacterIds.has(c.id)))
             .sort((a, b) => (orderOf(a) as number) - (orderOf(b) as number));
     });
@@ -423,13 +219,11 @@
             rules: 'Show the "These are your minions" card. Point to each Minion. Show the "These characters are not in play" card. Show 3 not-in-play good character tokens.',
             presets: [headerPreset('These are your minions')], bluffs: true }
     ];
-    // The players are the named tokens, or every token while none are named (as on a grim set up without a script).
-    const seatedTokens = $derived(tokensToSeat(placedTokens, isSideRoleToken));
-    const seatedTokenIds = $derived(new Set(seatedTokens.map(t => t.id)));
-    const playerCount = $derived(seatedTokens
+    // The players (the named tokens, or every token while none are named), less the travellers
+    const playerCount = $derived(model.seatedTokens
         .filter(t => characterById.get(t.characterId ?? '')?.category !== 'traveler').length);
-    // Shown under the clock: the players (as above, travellers included) not marked dead
-    const aliveCount = $derived(seatedTokens.filter(t => !t.isDead).length);
+    // Shown under the clock: the players (travellers included) not marked dead
+    const aliveCount = $derived(model.seatedTokens.filter(t => !t.isDead).length);
     type NightSheetEntry = { kind: 'character'; character: ScriptCharacter } | ({ kind: 'info' } & typeof FIRST_NIGHT_INFO_STEPS[number]);
     const nightSheetEntries = $derived.by(() => {
         const entries: NightSheetEntry[] = nightSheetCharacters.map(character => ({ kind: 'character', character }));
@@ -443,299 +237,13 @@
         return entries;
     });
 
-    let showFooter = $state(false);
-    let tokensLocked = $derived(browser ? localStorage.getItem(`grimoire-locked-${data.clockid}`) === 'true' : false);
-    let editing = $state(false);
-
-
-    // When annotate mode is entered: hide tray
-    $effect(()=>{ if (editing) showFooter = false; });
-
-    // Keep the popup on-screen horizontally by clamping its x after measuring its rendered width.
-    $effect(() => {
-        if (activeTokenId === null || !activeReminderPos || !reminderPopupEl || !boardEl) return;
-        // Touch reactive content so the effect re-runs when the popup's contents (and thus width) change.
-        void (activeCharacterId && reminderCache[activeCharacterId]);
-        void activeToken?.playerName;
-        void activeToken?.isDead;
-        void activeToken?.alignment;
-        void playerCommsShown;
-        const popupRect = reminderPopupEl.getBoundingClientRect();
-        const margin = 8;
-        const halfWidth = popupRect.width / 2;
-        const minX = halfWidth + margin;
-        const maxX = window.innerWidth - halfWidth - margin;
-        if (maxX < minX) return;
-        const clampedX = Math.max(minX, Math.min(maxX, activeReminderPos.x));
-        if (clampedX !== activeReminderPos.x) {
-            activeReminderPos = { ...activeReminderPos, x: clampedX };
-        }
-    });
-
-    // Close the reminder popup when tapping anywhere outside a board token, the popup itself, or a board reminder.
-    $effect(() => {
-        if (activeTokenId === null) return;
-        const handler = (e: PointerEvent) => {
-            const target = e.target as HTMLElement | null;
-            if (!target) return;
-            if (target.closest('.board-token, .reminder-popup, .board-reminder, .character-overlay, .wake-toggle')) return;
-            closeReminderTray();
-        };
-        document.addEventListener('pointerdown', handler, true);
-        return () => document.removeEventListener('pointerdown', handler, true);
-    });
-
-    // Close the token tray when tapping anywhere outside of it (or its opening button).
-    $effect(() => {
-        if (!showFooter) return;
-        const handler = (e: PointerEvent) => {
-            const target = e.target as HTMLElement | null;
-            if (!target) return;
-            if (target.closest('.grimoire-footer, .open-tray-btn, .character-overlay')) return;
-            showFooter = false;
-        };
-        document.addEventListener('pointerdown', handler, true);
-        return () => document.removeEventListener('pointerdown', handler, true);
-    });
-
-    type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'error';
-    let saveStatus = $state<SaveStatus>('saved');
-
-    async function saveGrimoire(){
-        if(saveGrimoireTimeout){
-            clearTimeout(saveGrimoireTimeout);
-            saveGrimoireTimeout = null;
-        }
-        // Not mid-drag (the dragged token or reminder is off the board until it's dropped) or mid-line
-        if (!dragging && !draggingReminder && !drawingStroke) undo.checkpoint();
-        await grimSync.save();
-    }
-
-    let saveGrimoireTimeout: NodeJS.Timeout | null = null;
-    async function rescheduleSaveGrimoire(){
-        saveStatus = 'unsaved';
-        if(saveGrimoireTimeout){
-            clearTimeout(saveGrimoireTimeout);
-        }
-        saveGrimoireTimeout = setTimeout(() => {
-            saveGrimoireTimeout = null;
-            // Don't persist a half-finished drag (the dragged token is temporarily removed from state)
-            if (dragging || draggingReminder) {
-                rescheduleSaveGrimoire();
-                return;
-            }
-            saveGrimoire();
-        }, 1000);
-    }
-
-    function quickSaveState(index: number) {
-        if (!gameState) return;
-        while(gameState.saveslots.length < index + 1){
-            gameState.saveslots.push(null);
-        }
-        gameState.present.timestamp = Date.now();
-        const snapshot: GrimoireStateSnapshot = JSON.parse(JSON.stringify(gameState.present)); // Deep copy
-        gameState.saveslots[index] = snapshot;
-        gameState.present.id = v7();
-        gameState.present.previousSnapshotId = snapshot.id;
-    }
-
-    function quickLoadState(index: number) {
-        if (!gameState) return;
-        if(index < 0 || index >= gameState.saveslots.length){
-            alert("Invalid snapshot index");
-            return;
-        }
-        const snapshot = gameState.saveslots[index];
-        if (!snapshot) return;
-        gameState.present = JSON.parse(JSON.stringify(snapshot)); // Deep copy
-        gameState.present.previousSnapshotId = snapshot.id;
-        gameState.present.id = v7();
-        gameState.present.timestamp = Date.now();
-    }
-
-    function setTokensLocked(val: boolean) {
-        tokensLocked = val;
-        if(tokensLocked){
-            showFooter = false;
-        }
-        if (browser) {
-            localStorage.setItem(`grimoire-locked-${data.clockid}`, String(val));
-        }
-    }
-
-    function toggleTray() {
-        showFooter = !showFooter;
-        if (showFooter) {
-            setTokensLocked(false);
-            editing = false;
-        }
-    }
-
-    async function loadRemindersForCharacter(characterId: string): Promise<ReminderToken[]> {
-        if (reminderCache[characterId]) return reminderCache[characterId];
-        const tokens = await fetchReminderTokensForCharacter(characterId);
-        // The blank token is only a fallback for characters with no reminders of their own
-        reminderCache[characterId] = tokens.length > 0 ? tokens : [blankReminderToken(characterId)];
-        return reminderCache[characterId];
-    }
-
-    const placedCharIds = $derived(new Set(placedTokens.map(t => t.characterId).filter(id => id !== null)));
-
-    // Characters on seated (named) tokens, including travellers
-    const seatedCharacterIds = $derived([...new Set(
-        placedTokens.filter(t => isPlayerToken(t) && t.characterId !== null).map(t => t.characterId as string)
-    )]);
-
-    const seatedCharacterIdSet = $derived(new Set(seatedCharacterIds));
-
-    function isInPlay(characterId: string): boolean {
-        return placedCharIds.has(characterId);
-    }
-
-    // The reminders on the grim by the character of the player they're beside (the nearest seated token by angle
-    // about the centre, as auto-arrange moves them with), for character communications' pickers.
-    const remindersByCharacterId = $derived.by(() => {
-        const byToken = remindersBySeatedToken(placedTokens, placedReminders, isSideRoleToken);
-        const byCharacter: Record<string, (ReminderToken & { characterId: string })[]> = {};
-        for (const token of placedTokens) {
-            const reminders = byToken.get(token.id);
-            if (!token.characterId || !reminders) continue;
-            const shown = reminders.map(r => availableReminderTokens[r.tokenId]).filter(r => !!r);
-            if (shown.length > 0) byCharacter[token.characterId] = [...(byCharacter[token.characterId] ?? []), ...shown];
-        }
-        return byCharacter;
-    });
-
-    // The token tray's sections, in order: the in-play characters (with a preset loaded), then the bluffs (shown
-    // before the script's section, see the tray) and the script's own characters, always open; then every character,
-    // under each script they're on (and the rest under "Other"), and the travellers, loric and fabled, in sections that
-    // can be collapsed. Without a script there's just the collapsible ones.
-    type TraySection = { key: string; title: string; characters: ScriptCharacter[]; collapsible?: boolean };
-    const traySections = $derived.by((): TraySection[] => {
-        if (allCharacters.length === 0) return [];
-        const sections: TraySection[] = [];
-        if (loadedPreset && seatedCharacterIds.length > 0) {
-            const inPlay = seatedCharacterIds.map(id => characterById.get(id)).filter((c): c is ScriptCharacter => !!c);
-            sections.push({ key: 'in-play', title: 'In-play', characters: inPlay });
-        }
-        if (script) {
-            sections.push({ key: 'script', title: script.name, characters: sortedScriptCharacters.filter(c => !isSideCategory(c)) });
-        }
-        const townCharacters = sortedAllCharacters.filter(c => !isSideCategory(c));
-        const onAScript = new Set<string>();
-        for (const s of data.scripts) {
-            const ids = new Set(s.characterIds);
-            const scriptCharacters = townCharacters.filter(c => ids.has(c.id));
-            scriptCharacters.forEach(c => onAScript.add(c.id));
-            // The game's own script is already open at the top.
-            if (scriptCharacters.length > 0 && s.id !== script?.id) sections.push({ key: `script-${s.id}`, title: s.name, characters: scriptCharacters, collapsible: true });
-        }
-        const others = townCharacters.filter(c => !onAScript.has(c.id));
-        if (others.length > 0) sections.push({ key: 'other', title: 'Other', characters: others, collapsible: true });
-        for (const side of SIDE_CATEGORIES) {
-            const sideCharacters = sortedAllCharacters.filter(c => c.category === side.category);
-            if (sideCharacters.length > 0) sections.push({ key: side.category, title: side.title, characters: sideCharacters, collapsible: true });
-        }
-        return sections;
-    });
-
-    // The communications character picker lists them the same way, but with no In-play section and, with a script,
-    // just its characters (and the travellers, loric and fabled) rather than every script's.
-    const commsSections = $derived(traySections.filter(s => s.key !== 'in-play' && (!script || (s.key !== 'other' && !s.key.startsWith('script-')))));
+    // The communications character picker lists the characters as the token tray does, but with no In-play section
+    // and, with a script, just its characters (and the travellers, loric and fabled) rather than every script's.
+    const commsSections = $derived(model.traySections.filter(s => s.key !== 'in-play' && (!script || (s.key !== 'other' && !s.key.startsWith('script-')))));
     // It opens with the travellers showing while any are in play (among the tokens auto-arrange seats).
     const commsOpenSections = $derived(
-        tokensToSeat(placedTokens, isSideRoleToken).some(t => characterById.get(t.characterId ?? '')?.category === 'traveler') ? ['traveler'] : []
+        model.seatedTokens.some(t => characterById.get(t.characterId ?? '')?.category === 'traveler') ? ['traveler'] : []
     );
-
-    // The collapsible tray sections that are open, by key. They start collapsed; which are open is remembered on this
-    // device (for every game, as the sections are the scripts).
-    const TRAY_EXPANDED_KEY = 'grimoire-tray-expanded';
-    let expandedTraySections = $state<string[]>(browser ? (() => {
-        try {
-            const saved = JSON.parse(localStorage.getItem(TRAY_EXPANDED_KEY) ?? '[]');
-            return Array.isArray(saved) ? saved.filter((k): k is string => typeof k === 'string') : [];
-        } catch {
-            return [];
-        }
-    })() : []);
-
-    function toggleTraySection(key: string) {
-        expandedTraySections = expandedTraySections.includes(key)
-            ? expandedTraySections.filter(k => k !== key)
-            : [...expandedTraySections, key];
-        try {
-            localStorage.setItem(TRAY_EXPANDED_KEY, JSON.stringify(expandedTraySections));
-        } catch {
-            // Only a convenience
-        }
-    }
-
-    let dragging = $state<{ character: ScriptCharacter | null; source: 'tray' | 'board'; sourceToken?: PlacedToken } | null>(null);
-    let draggingReminder = $state<{ token: ReminderToken; characterId: string; source: 'popup' | 'board' } | null>(null);
-    const isDraggingAnything = $derived(dragging !== null || draggingReminder !== null);
-    let ghostPos = $state<{ x: number; y: number } | null>(null);
-    let dragOffset = $state<{ x: number; y: number }>({ x: 0, y: 0 });
-    let boardEl = $state<HTMLDivElement | null>(null);
-    let footerEl = $state<HTMLDivElement | null>(null);
-
-    // Edge threshold in px for deleting reminder tokens
-    const EDGE_THRESHOLD = 60;
-
-    // Distinguish tap vs drag
-    let pointerStartPos: { x: number; y: number } | null = null;
-    let pointerStartToken: PlacedToken | null = null;
-    const TAP_THRESHOLD = 10;
-
-    // Loric and fabled characters can never be player characters: no name/alignment/alive-dead state, no colour by
-    // alignment, and they sit apart from the town so they're ignored when spacing or framing it.
-    function isSideRoleCategory(category: CharacterCategory | null | undefined): boolean {
-        return category === 'loric' || category === 'fabled';
-    }
-    function isSideRoleToken(t: PlacedToken): boolean {
-        return isSideRoleCategory(characterById.get(t.characterId ?? '')?.category);
-    }
-
-    // Spaces the players evenly round the middle guide ring in their current order (the outer one with more than 15
-    // of them): the named tokens, or every token while none are named. Unnamed tokens (while some are named) and
-    // reminders rotate with the nearest player, and loric and fabled stay put.
-    const AUTO_ARRANGE_OUTER_RING_OVER = 15;
-    function autoArrangeTokens() {
-        const players = tokensToSeat(placedTokens, isSideRoleToken);
-        if (players.length === 0) return;
-        closeReminderTray();
-        const ringIndex = players.length > AUTO_ARRANGE_OUTER_RING_OVER ? 2 : 1;
-        const laidOut = layoutTokensAtDefaultPositions(placedTokens, placedReminders, isSideRoleToken, tokenSize * ALIGNMENT_RING_FACTORS[ringIndex]);
-        gameState.present.placedTokens = laidOut.tokens;
-        gameState.present.placedReminders = laidOut.reminders;
-        saveGrimoire();
-        fitView();
-    }
-
-    // Zoom so the placed tokens fill the screen, edge to edge, with the town centred (rings, reminders, the clock, loric/fabled and unnamed tokens are ignored).
-    const FIT_PADDING = 8;
-    const FIT_MAX_SCALE = 4;
-    function fitView() {
-        if (!boardEl) return;
-        // Half-extents of the framed tokens about the board's centre (0, 0): the view is centred on the centre of the
-        // town circle, not on the bounding box of whatever tokens happen to be placed, so the town sits mid-screen.
-        let halfW = 0, halfH = 0;
-        // Only seated players count: loric/fabled and other character tokens with no player name are ignored.
-        const framed = placedTokens.filter(t => isPlayerToken(t) && !isSideRoleToken(t));
-        const tokens = framed.length > 0 ? framed : placedTokens;
-        for (const t of tokens) {
-            halfW = Math.max(halfW, Math.abs(t.x) + tokenSize / 2);
-            halfH = Math.max(halfH, Math.abs(t.y) + tokenSize / 2);
-        }
-        if (tokens.length === 0) { viewScale = 1; viewTx = 0; viewTy = 0; return; }
-
-        const availW = Math.max(1, boardEl.offsetWidth - FIT_PADDING * 2);
-        const availH = Math.max(1, boardEl.offsetHeight - FIT_PADDING * 2);
-        viewScale = Math.min(FIT_MAX_SCALE, availW / (halfW * 2), availH / (halfH * 2));
-        // Screen position = centre + translate + scale * world, so no translation keeps the board's centre on screen centre.
-        viewTx = 0;
-        viewTy = 0;
-    }
 
     let showEndGame = $state(false);
 
@@ -744,10 +252,7 @@
     async function endGame(winner?: 'good' | 'evil') {
         showEndGame = false;
         // Drop any pending autosave so it can't recreate the grim after the delete.
-        if (saveGrimoireTimeout) {
-            clearTimeout(saveGrimoireTimeout);
-            saveGrimoireTimeout = null;
-        }
+        board?.cancelPendingSave();
         grimSync.close();
         const query = winner ? `?winner=${winner}` : '';
         try {
@@ -760,94 +265,6 @@
         }
         localStorage.removeItem(`grimoire-state-${data.clockid}`);
         location.reload();
-    }
-
-    // A second finger landed: whatever tap/drag the first finger was starting is now part of a pinch instead.
-    function cancelPendingBoardTap() {
-        pointerStartPos = null;
-        pointerStartToken = null;
-    }
-
-    // Character overview opened by tapping a token in the tray
-    let overlayOpen = $state(false);
-    let overlayCharacter = $state<ScriptCharacter | null>(null);
-    // True when the overlay was opened from a token on the board (adds the alive/good/name controls, drops the character token).
-    let overlayFromBoard = $state(false);
-
-    function openCharacterOverlay(character: ScriptCharacter | null, fromBoard = false) {
-        overlayOpen = true;
-        overlayCharacter = character;
-        overlayFromBoard = fromBoard;
-        if (character) loadRemindersForCharacter(character.id).then(() => { reminderCache = reminderCache; });
-    }
-
-    /** Keyboard equivalent of a click for non-button elements with role="button": Enter or Space activates. */
-    function onActivateKey(e: KeyboardEvent, activate: () => void) {
-        if (e.key !== 'Enter' && e.key !== ' ') return;
-        e.preventDefault(); // Space would otherwise scroll
-        activate();
-    }
-
-    function closeOverlay() {
-        overlayOpen = false;
-        overlayCharacter = null;
-        pickingCharacter = false;
-        overlayFromBoard = false;
-        closeReminderTray();
-    }
-
-    // Dragged with a finger, a token rides just above it rather than under it, so it can be seen where it's going (and
-    // where it'll land: a drop goes where the token is drawn). It's picked up where it was grabbed (`grab`: the pointer
-    // less the token's centre) and glides up over the finger; a mouse or pen holds it where it's grabbed. `size` is the
-    // dragged token's size on screen. Returns the offset to start the drag with.
-    const LIFT_MS = 180;
-    let liftFrame: number | null = null;
-
-    function pickUpOffset(pointerType: string, size: number, grab: { x: number; y: number }): { x: number; y: number } {
-        if (liftFrame !== null) cancelAnimationFrame(liftFrame);
-        liftFrame = null;
-        if (pointerType !== 'touch') return grab;
-        const lifted = { x: 0, y: Math.min(size / 2, 90) + 20 };
-        const start = performance.now();
-        const step = (now: number) => {
-            // Dropped (or cancelled) part way up
-            if (!ghostPos || (!dragging && !draggingReminder)) {
-                liftFrame = null;
-                return;
-            }
-            const t = Math.min(1, (now - start) / LIFT_MS);
-            const eased = 1 - (1 - t) ** 3;
-            const pointer = { x: ghostPos.x + dragOffset.x, y: ghostPos.y + dragOffset.y };
-            dragOffset = { x: grab.x + (lifted.x - grab.x) * eased, y: grab.y + (lifted.y - grab.y) * eased };
-            ghostPos = { x: pointer.x - dragOffset.x, y: pointer.y - dragOffset.y };
-            liftFrame = t < 1 ? requestAnimationFrame(step) : null;
-        };
-        liftFrame = requestAnimationFrame(step);
-        return grab;
-    }
-    const characterGhostSize = () => tokenSize * viewScale;
-    const reminderGhostSize = () => reminderTokenSize * viewScale;
-
-    // The moment a drag starts from the overlay, get the tray and overlay out of the way so the grim shows.
-    function startDragCharacterFromOverlay(e: PointerEvent, character: ScriptCharacter) {
-        startDragFromTray(e, character);
-        dragOffset = pickUpOffset(e.pointerType, characterGhostSize(), { x: 0, y: 0 });
-        ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
-        overlayOpen = false;
-        overlayCharacter = null;
-        showFooter = false;
-    }
-
-    function startDragReminderFromOverlay(e: PointerEvent, token: ReminderToken, characterId: string) {
-        e.preventDefault();
-        e.stopPropagation();
-        closeReminderTray();
-        dragOffset = pickUpOffset(e.pointerType, reminderGhostSize(), { x: 0, y: 0 });
-        draggingReminder = { token, characterId, source: 'popup' };
-        ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
-        overlayOpen = false;
-        overlayCharacter = null;
-        showFooter = false;
     }
 
     async function showBluffs(setIndex: number) {
@@ -937,7 +354,7 @@
 
     // For a character's communications pickers: their reminders beside each character (none without a character).
     const characterRemindersFor = (characterId: string | null | undefined) => characterId
-        ? (id: string) => (remindersByCharacterId[id] ?? []).filter(r => r.characterId === characterId)
+        ? (id: string) => (model.remindersByCharacterId[id] ?? []).filter(r => r.characterId === characterId)
         : undefined;
 
     function showCustomMessage() {
@@ -1036,12 +453,12 @@
     // And each Auto demon is made the demon in play: the one seated demon, or a blank if there's none or more than one.
     const DRUNK_ID = 'drunk';
     function withRemindersResolved(elements: PresetElement[], forCharacterId?: string): PresetElement[] {
-        const seated = tokensToSeat(placedTokens, isSideRoleToken);
+        const seated = model.seatedTokens;
         const withCharacter = forCharacterId ? seated.filter(t => t.characterId === forCharacterId) : [];
         const ownPlayer = forCharacterId && activeToken?.characterId === forCharacterId ? activeToken
             : withCharacter.length === 1 ? withCharacter[0] : null;
         const demons = seated.filter(t => characterById.get(t.characterId ?? '')?.category === 'demon');
-        const remindersByToken = remindersBySeatedToken(placedTokens, placedReminders, isSideRoleToken);
+        const remindersByToken = remindersBySeatedToken(placedTokens, placedReminders, model.isSideRoleToken);
         const isDrunk = (token: PlacedToken) =>
             (remindersByToken.get(token.id) ?? []).some(r => availableReminderTokens[r.tokenId]?.characterId === DRUNK_ID);
         return elements.map((element): PresetElement => {
@@ -1074,29 +491,18 @@
         }
     }
 
-    // The night it is, or the coming night during the day: the first night until day 1.
-    const currentNight = $derived<'first' | 'other'>((clockClient?.day || 0) > 0 ? 'other' : 'first');
-
     // A character's own presets for the night, offered in the player info and the night order.
     const characterPresetsFor = (characterId: string | null | undefined, night: 'first' | 'other') => {
         const character = characterById.get(characterId ?? '');
         return character ? characterMessagePresetsFor(character, night) : [];
     };
 
-    // Whether the player info (the token popup, or the overlay on mobile) is listing the character's presets for
-    // tonight in place of its buttons. With only one, it's shown straight away (as showPreset does), and with no presets
-    // of their own, communications' Preset tab is opened instead.
-    let playerCommsShown = $state(false);
-    $effect(() => {
-        void activeTokenId; void overlayOpen;
-        playerCommsShown = false;
-    });
-    function openPlayerComms(characterId: string) {
-        const presets = characterPresetsFor(characterId, currentNight);
-        if (presets.length === 0) openPresetComms(characterId);
-        else if (presets.length === 1) showPreset(presets[0], characterId);
-        else playerCommsShown = true;
-    }
+    // What the board's player info offers to communicate to a character's player: their presets for tonight.
+    const boardComms = {
+        presetsFor: (characterId: string) => characterPresetsFor(characterId, currentNight),
+        showPreset: (preset: MessagePreset, characterId: string) => showPreset(preset, characterId),
+        openPresetComms
+    };
 
     // The bluffs from communications: queued as a message like the bluffs page, or shown on that page.
     function showCommsBluffs(setIndex: number) {
@@ -1128,461 +534,17 @@
         goto(`/admin/${data.clockid}/grim/character/${characterId}`);
     }
 
-    function boardCentre(): { x: number; y: number } {
-        const rect = boardEl!.getBoundingClientRect();
-        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-    }
-
-    function startDragFromTray(e: PointerEvent, character: ScriptCharacter) {
-        e.preventDefault();
-        closeReminderTray();
-        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        dragOffset = pickUpOffset(e.pointerType, characterGhostSize(), { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) });
-        dragging = { character, source: 'tray' };
-        ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
-    }
-
-    // A token can be picked straight up out of the tray, without going through its overview, and the tray closes so
-    // it can be put on the grim. With a finger (or pen), by pressing and holding it: one that moves before the hold is up
-    // is scrolling the tray instead. With a mouse, by dragging it at all. A plain tap or click still opens the overview.
-    const TRAY_HOLD_MS = 400;
-    type TrayHold = { pointerId: number; character: ScriptCharacter; start: { x: number; y: number }; last: { x: number; y: number };
-        pointerType: string; grab: { x: number; y: number }; timer: ReturnType<typeof setTimeout> | null };
-    let trayHold: TrayHold | null = null;
-    // The click that follows letting go of a held token mustn't also open its overview.
-    let suppressTrayClick = false;
-
-    function startTrayHold(e: PointerEvent, character: ScriptCharacter) {
-        if (!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
-        cancelTrayHold();
-        suppressTrayClick = false;
-        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        const hold: TrayHold = {
-            pointerId: e.pointerId,
-            character,
-            start: { x: e.clientX, y: e.clientY },
-            last: { x: e.clientX, y: e.clientY },
-            pointerType: e.pointerType,
-            grab: { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) },
-            // A mouse picks it up as soon as it moves instead (see onPointerMove)
-            timer: e.pointerType === 'mouse' ? null : setTimeout(() => pickUpFromTray(hold), TRAY_HOLD_MS)
-        };
-        trayHold = hold;
-    }
-
-    function pickUpFromTray(hold: TrayHold) {
-        cancelTrayHold();
-        suppressTrayClick = true;
-        closeReminderTray();
-        dragOffset = pickUpOffset(hold.pointerType, characterGhostSize(), hold.grab);
-        dragging = { character: hold.character, source: 'tray' };
-        ghostPos = { x: hold.last.x - dragOffset.x, y: hold.last.y - dragOffset.y };
-        // It's going on the grim: the tray stays closed once it's dropped
-        showFooter = false;
-        if (hold.pointerType !== 'mouse') navigator.vibrate?.(15);
-    }
-
-    function cancelTrayHold() {
-        if (trayHold?.timer) clearTimeout(trayHold.timer);
-        trayHold = null;
-    }
-
-    function onTrayTokenClick(character: ScriptCharacter) {
-        if (suppressTrayClick) {
-            suppressTrayClick = false;
-            return;
-        }
-        openCharacterOverlay(character);
-    }
-
-    function startDragFromBoard(e: PointerEvent, token: PlacedToken) {
-        e.preventDefault();
-        if (tokensLocked) {
-            // Still allow tap for reminder tray, just no drag
-            pointerStartPos = { x: e.clientX, y: e.clientY };
-            pointerStartToken = token;
-            return;
-        }
-        pointerStartPos = { x: e.clientX, y: e.clientY };
-        pointerStartToken = token;
-    }
-
-    // A toast saying why a token won't move, when one is dragged while they're locked
-    const LOCKED_TOAST_MS = 1800;
-    let lockedToastVisible = $state(false);
-    let lockedToastTimer: ReturnType<typeof setTimeout> | null = null;
-    function showLockedToast() {
-        lockedToastVisible = true;
-        if (lockedToastTimer !== null) clearTimeout(lockedToastTimer);
-        lockedToastTimer = setTimeout(() => { lockedToastVisible = false; lockedToastTimer = null; }, LOCKED_TOAST_MS);
-    }
-    $effect(() => () => { if (lockedToastTimer !== null) clearTimeout(lockedToastTimer); });
-
-    function actuallyStartBoardDrag(e: PointerEvent, token: PlacedToken) {
-        if (tokensLocked) {
-            showLockedToast();
-            return;
-        }
-        if(!boardEl) return;
-
-        const character = characterById.get(token.characterId ?? '') ?? null;
-        if (token.characterId !== null && !character) {
-            console.error("Character not found for token:", token);
-            return;
-        }
-
-        closeReminderTray();
-        const centre = boardCentre();
-        const tokenScreenX = centre.x + token.x * viewScale;
-        const tokenScreenY = centre.y + token.y * viewScale;
-        dragOffset = pickUpOffset(e.pointerType, characterGhostSize(), { x: e.clientX - tokenScreenX, y: e.clientY - tokenScreenY });
-        dragging = { character: character, source: 'board', sourceToken: token };
-        ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
-        gameState.present.placedTokens = placedTokens.filter(t => t !== token);
-    }
-
-    function startDragReminderFromPopup(e: PointerEvent, token: ReminderToken) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (activeCharacterId === null) return;
-        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        dragOffset = pickUpOffset(e.pointerType, reminderGhostSize(), { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) });
-        draggingReminder = { token, characterId: activeCharacterId, source: 'popup' };
-        ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
-        closeReminderTray();
-    }
-
-    function startDragReminderFromBoard(e: PointerEvent, reminder: PlacedReminder) {
-        e.preventDefault();
-        e.stopPropagation();
-        closeReminderTray();
-
-        const token = availableReminderTokens[reminder.tokenId];
-        if (!token) {
-            console.error("Reminder token not found for placed reminder:", reminder);
-            return;
-        }
-
-        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        dragOffset = pickUpOffset(e.pointerType, reminderGhostSize(), { x: e.clientX - (rect.left + rect.width / 2), y: e.clientY - (rect.top + rect.height / 2) });
-        draggingReminder = { token, characterId: token.characterId, source: 'board' };
-        ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
-        gameState.present.placedReminders = placedReminders.filter(r => !(r.tokenId === reminder.tokenId && r.x === reminder.x && r.y === reminder.y));
-    }
-
-    async function toggleReminderTray(token: PlacedToken) {
-        const character = characterById.get(token.characterId ?? '') ?? null;
-        if (isMobile) {
-            // The alive/good/name handlers work off the active token, so mark it active without showing the popup.
-            activeTokenId = token.id;
-            activeReminderPos = null;
-            openCharacterOverlay(character, true);
-            return;
-        }
-        if (activeTokenId === token.id) {
-            closeReminderTray();
-            return;
-        }
-        activeTokenId = token.id;
-        if(!boardEl) return;
-        const centre = boardCentre();
-        // Use the current token size for vertical offset, plus a small gap (10px)
-        const gap = 10;
-        const halfToken = (tokenSize / 2) * viewScale;
-        activeReminderAbove = token.y > 0;
-        activeReminderPos = {
-            x: centre.x + token.x * viewScale,
-            y: activeReminderAbove
-                ? centre.y + token.y * viewScale - halfToken - gap
-                : centre.y + token.y * viewScale + halfToken + gap,
-        };
-        if (token.characterId !== null) {
-            await loadRemindersForCharacter(token.characterId);
-            reminderCache = reminderCache; // trigger reactivity
-        }
-    }
-
-    function toggleAlive() {
-        if (!activeToken) return;
-        const target = activeToken;
-        gameState.present.placedTokens = gameState.present.placedTokens.map(t =>
-            t === target ? { ...t, isDead: !t.isDead } : t
-        );
-        saveGrimoire();
-    }
-
-    function toggleDeadVote() {
-        if (!activeToken) return;
-        const target = activeToken;
-        gameState.present.placedTokens = gameState.present.placedTokens.map(t =>
-            t === target ? { ...t, deadVoteUsed: !t.deadVoteUsed } : t
-        );
-        saveGrimoire();
-    }
-
-    function toggleAlignment() {
-        if (!activeToken) return;
-        const target = activeToken;
-        gameState.present.placedTokens = gameState.present.placedTokens.map(t =>
-            t === target ? { ...t, alignment: t.alignment === 'evil' ? 'good' : 'evil' } : t
-        );
-        saveGrimoire();
-    }
-
-    function setPlayerName(name: string) {
-        if (!activeToken) return;
-        const target = activeToken;
-        gameState.present.placedTokens = gameState.present.placedTokens.map(t =>
-            t === target ? { ...t, playerName: name } : t
-        );
-        rescheduleSaveGrimoire();
-    }
-
-    // Gives the active player a different character (or none), keeping their name, seat and life status.
-    let pickingCharacter = $state(false);
-
-    function setCharacter(characterId: string | null) {
-        if (!activeToken) return;
-        const target = activeToken;
-        gameState.present.placedTokens = gameState.present.placedTokens.map(t =>
-            t === target ? { ...t, characterId, alignment: defaultAlignmentForCharacterId(characterId) } : t
-        );
-        if (characterId) loadRemindersForCharacter(characterId).then(() => { reminderCache = reminderCache; });
-        closeOverlay();
-        closeReminderTray();
-        saveGrimoire();
-    }
-
-    function closeReminderTray() {
-        activeTokenId = null;
-        activeReminderPos = null;
-    }
-
-    // The popup's player name is shown as text until its edit button is pressed.
-    let editingPlayerName = $state(false);
-    let playerNameInput = $state<HTMLInputElement | null>(null);
-
-    // Each token's popup opens not editing the name
-    $effect(() => {
-        void activeTokenId;
-        editingPlayerName = false;
-    });
-
-    function startEditingPlayerName() {
-        editingPlayerName = true;
-        // Rendered and focused in the same tap, or iOS won't raise the keyboard. All selected, so typing replaces it.
-        flushSync();
-        playerNameInput?.focus();
-        playerNameInput?.select();
-    }
-
-    function toggleCustomWake() {
-        if (!activeToken) return;
-        const target = activeToken;
-        gameState.present.placedTokens = gameState.present.placedTokens.map(t =>
-            t === target ? { ...t, customWake: !t.customWake } : t
-        );
-        saveGrimoire();
-    }
-
-    // The edge zone a dragged token dropped now would be taken off the board in, if any: where it's drawn (`ghost`) or
-    // where the pointer holding it is is in the top or bottom zone. (Both, as a token lifted above a finger can't reach
-    // the bottom zone itself.)
-    function deleteEdgeFor(ghost: { x: number; y: number }): 'top' | 'bottom' | null {
-        const pointer = { x: ghost.x + dragOffset.x, y: ghost.y + dragOffset.y };
-        for (const p of [ghost, pointer]) {
-            if (p.y < EDGE_THRESHOLD) return 'top';
-            if (p.y > window.innerHeight - EDGE_THRESHOLD) return 'bottom';
-        }
-        return null;
-    }
-
-    function onPointerMove(e: PointerEvent) {
-        if (trayHold && e.pointerId === trayHold.pointerId) {
-            trayHold.last = { x: e.clientX, y: e.clientY };
-            if (Math.abs(e.clientX - trayHold.start.x) > TAP_THRESHOLD || Math.abs(e.clientY - trayHold.start.y) > TAP_THRESHOLD) {
-                // A mouse is dragging the token out of it; a finger is scrolling the tray
-                if (trayHold.pointerType === 'mouse') pickUpFromTray(trayHold);
-                else cancelTrayHold();
-            }
-            return;
-        }
-        // Check if we should transition from tap-detection to drag
-        if (pointerStartPos && pointerStartToken) {
-            const dx = e.clientX - pointerStartPos.x;
-            const dy = e.clientY - pointerStartPos.y;
-            if (Math.abs(dx) > TAP_THRESHOLD || Math.abs(dy) > TAP_THRESHOLD) {
-                actuallyStartBoardDrag(e, pointerStartToken);
-                pointerStartPos = null;
-                pointerStartToken = null;
-            }
-            return;
-        }
-
-        if (!dragging && !draggingReminder) return;
-        e.preventDefault();
-        ghostPos = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
-    }
-
-    function onPointerUp(e: PointerEvent) {
-        cancelTrayHold();
-        // Handle tap on board token
-        if (pointerStartPos && pointerStartToken) {
-            const dx = e.clientX - pointerStartPos.x;
-            const dy = e.clientY - pointerStartPos.y;
-            if (Math.abs(dx) <= TAP_THRESHOLD && Math.abs(dy) <= TAP_THRESHOLD) {
-                toggleReminderTray(pointerStartToken);
-            }
-            pointerStartPos = null;
-            pointerStartToken = null;
-            return;
-        }
-
-        // Handle reminder token drop
-        if (draggingReminder) {
-            if (boardEl && deleteEdgeFor({ x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y }) === null) {
-                const centre = boardCentre();
-                const dropX = e.clientX - dragOffset.x;
-                const dropY = e.clientY - dragOffset.y;
-                const x = (dropX - centre.x) / viewScale;
-                const y = (dropY - centre.y) / viewScale;
-                gameState.present.placedReminders = [...placedReminders, { tokenId: draggingReminder.token.id, x, y }];
-            }
-            // If near edge, it's deleted (not re-added)
-            draggingReminder = null;
-            ghostPos = null;
-            saveGrimoire();
-            return;
-        }
-
-        if (!dragging) return;
-
-        if (boardEl) {
-            const centre = boardCentre();
-            const footerRect = footerEl?.getBoundingClientRect();
-            const isOverFooter = footerRect && (
-                e.clientX >= footerRect.left && e.clientX <= footerRect.right &&
-                e.clientY >= footerRect.top && e.clientY <= footerRect.bottom
-            );
-            // The board rect grows/shrinks with zoom, so test against the screen rather than the rect.
-            const isOverBoard = !isOverFooter && (
-                e.clientX >= 0 && e.clientX <= window.innerWidth &&
-                e.clientY >= 0 && e.clientY <= window.innerHeight
-            );
-
-            if (isOverBoard && deleteEdgeFor({ x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y }) === null) {
-                const dropX = e.clientX - dragOffset.x;
-                const dropY = e.clientY - dragOffset.y;
-                const x = (dropX - centre.x) / viewScale;
-                const y = (dropY - centre.y) / viewScale;
-                const newPlacedToken: PlacedToken = dragging.sourceToken
-                    ? { ...dragging.sourceToken, x, y }
-                    : {
-                        id: v7(),
-                        characterId: dragging.character?.id ?? null,
-                        x, y,
-                        isDead: false,
-                        alignment: defaultAlignmentForCharacterId(dragging.character?.id ?? null),
-                    };
-                gameState.present.placedTokens = [...gameState.present.placedTokens, newPlacedToken];
-            }
-            // If near edge or over footer: token returns to tray (not re-added)
-        }
-
-        dragging = null;
-        ghostPos = null;
-        saveGrimoire();
-    }
-
-    // The browser took the pointer for itself (e.g. to scroll): a held tray token isn't picked up, and one already
-    // picked up from the tray goes back to it.
-    function onPointerCancel() {
-        cancelTrayHold();
-        if (dragging?.source === 'tray') {
-            dragging = null;
-            ghostPos = null;
-        }
-    }
-
-    // Once a tray token has been picked up, the finger moving mustn't scroll the tray (or the page) instead of
-    // dragging it. (Passive listeners can't stop that, hence one added by hand.)
-    function preventScrollWhileDragging(e: TouchEvent) {
-        if (dragging?.source === 'tray') e.preventDefault();
-    }
-
     onMount(()=>{
         if(!browser) return;
         clockClient = new Clocktower(data.model);
-        document.addEventListener('touchmove', preventScrollWhileDragging, { passive: false });
         grimSync.connect();
-        fitView();
-
-        // Refit the zoom when the screen space changes (rotation, window resize). Only the board's layout size is
-        // observed, so pinch-zoom (a transform) doesn't trigger it; skip the observer's initial callback.
-        let lastBoardSize = boardEl ? `${boardEl.offsetWidth}x${boardEl.offsetHeight}` : '';
-        const boardResizeObserver = new ResizeObserver(() => {
-            if (!boardEl) return;
-            const size = `${boardEl.offsetWidth}x${boardEl.offsetHeight}`;
-            if (size === lastBoardSize) return;
-            lastBoardSize = size;
-            fitView();
-        });
-        if (boardEl) boardResizeObserver.observe(boardEl);
-
-        // A phone-width screen
-        const mobileQuery = window.matchMedia('(max-width: 768px)');
-        isMobile = mobileQuery.matches;
-        const onMobileChange = (e: MediaQueryListEvent) => { isMobile = e.matches; };
-        mobileQuery.addEventListener('change', onMobileChange);
 
         return () => {
-            if (liftFrame !== null) cancelAnimationFrame(liftFrame);
-            document.removeEventListener('touchmove', preventScrollWhileDragging);
-            cancelTrayHold();
-            boardResizeObserver.disconnect();
-            mobileQuery.removeEventListener('change', onMobileChange);
-            if(saveGrimoireTimeout){
-                clearTimeout(saveGrimoireTimeout);
-            }
             clockClient?.close();
             grimSync.close();
         }
     });
-
-    function clearLayer(index: number){
-        if(!workingGameSnapshot) return;
-        gameState.present.canvas.layers = gameState.present.canvas.layers.map((layer, i) => {
-            if(i === index){
-                return { strokes: [] };
-            }
-            return layer;
-        });
-        saveGrimoire();
-    }
-
-    function addLayer(){
-        if(!workingGameSnapshot) return;
-        gameState.present.canvas.layers.push({ strokes: [] });
-        activeCanvasLayerIndex = gameState.present.canvas.layers.length - 1;
-        saveGrimoire();
-    }
-
-    function deleteLayer(index: number){
-        if(!workingGameSnapshot) return;
-        if(gameState.present.canvas.layers.length <= 1){
-            alert("Cannot delete the last layer.");
-            return;
-        }
-        gameState.present.canvas.layers = gameState.present.canvas.layers.filter((_, i) => i !== index);
-        if(activeCanvasLayerIndex >= gameState.present.canvas.layers.length){
-            activeCanvasLayerIndex = gameState.present.canvas.layers.length - 1;
-        }
-        saveGrimoire();
-    }
-
 </script>
-
-<svelte:window onpointermove={onPointerMove} onpointerup={onPointerUp} onpointercancel={onPointerCancel}/>
 
 <style>
     /* Pins the whole grim view to the viewport and clips everything else (e.g. the hidden tray sitting
@@ -1595,228 +557,9 @@
         background-color: #121212;
         /* All touch gestures (pinch/pan/drag) are handled in JS; stop the browser zooming or scrolling the page. */
         touch-action: none;
-        /* The background of the token tray, overlays and popups: a little darker than the theme's panels, so the
-           buttons on them stand out */
-        --grim-panel-bg: color-mix(in srgb, var(--theme-bg-secondary) 72%, black);
     }
 
-    /* Nothing on the grim is an image to save: holding one on a phone mustn't open the browser's image menu. */
-    .grim-root :global(img) {
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        user-select: none;
-        -webkit-user-drag: none;
-    }
-
-    .grimoire-board {
-        position: absolute;
-        inset: 0;
-    }
-
-    .alignment-ring {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        border-radius: 50%;
-        border: 2px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.01);
-        box-sizing: border-box;
-        pointer-events: none;
-    }
-
-    .alignment-ring.square {
-        border-radius: 0;
-    }
-
-    .board-token {
-        position: absolute;
-        transform: translate(-50%, -50%);
-        cursor: grab;
-        touch-action: none;
-        user-select: none;
-    }
-
-    /* Character tokens that aren't players (unnamed while others are named, and loric/fabled) are only reminders, so let them sit back a little. */
-    .board-token.unnamed {
-        opacity: 0.8;
-    }
-
-    .board-token:active {
-        cursor: grabbing;
-    }
-
-    /* The tray takes over the whole screen and scrolls vertically, slightly see-through so the grim shows faintly
-       behind it. */
-    .grimoire-footer {
-        transition: transform 0.3s ease;
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        width: 100%;
-        height: 100%;
-        background-color: color-mix(in srgb, var(--grim-panel-bg) 93%, transparent);
-    }
-
-    .token-tray-container {
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        height: 100%;
-        overflow-y: hidden;
-        padding: 0.5em 0.5em 0;
-        box-sizing: border-box;
-    }
-
-    /* Out to the tray's edges, past the container's padding */
-    .token-tray-header {
-        position: relative;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 0.5em;
-        min-height: 40px;
-        margin: -0.5em -0.5em 0.5em;
-    }
-
-    /* Centred at the title bar's right end (more specific than .overlay-close, which comes later) */
-    .token-tray-header .tray-close-btn {
-        top: 50%;
-        right: 4px;
-        transform: translateY(-50%);
-        z-index: 1;
-    }
-
-    /* A bar right across the tray, tinted as the sections' headers are */
-    .tray-title {
-        flex: 1;
-        min-height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        /* Clear of the close button at its right end */
-        padding: 0 44px;
-        /* The sections' header tint, but solid: the see-through tray doesn't show through it */
-        background: color-mix(in srgb, var(--grim-panel-bg) 92%, white);
-        font-size: 1.15em;
-        font-weight: 600;
-    }
-
-    .token-tray {
-        flex: 1;
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5em;
-        width: 100%;
-        box-sizing: border-box;
-        overflow-x: hidden;
-        overflow-y: auto;
-        touch-action: pan-y;
-        -webkit-overflow-scrolling: touch;
-        padding: 0 0 3em;
-    }
-
-    /* The sections, no wider than this on a big screen, centred */
-    .token-tray > * {
-        width: 100%;
-        max-width: 900px;
-        margin: 0 auto;
-    }
-
-    .sub-tray {
-        display: grid;
-        /* Fixed-width columns (not 1fr) so spare row width doesn't stretch the gaps between tokens. */
-        grid-template-columns: repeat(auto-fill, calc(var(--tray-token) + 2px));
-        justify-content: center;
-        justify-items: center;
-        align-items: center;
-        gap: 0.15em;
-        padding: 0.5em;
-        box-sizing: border-box;
-    }
-
-    .tray-token {
-        flex-shrink: 0;
-        cursor: pointer;
-        /* Tapping opens the character overview, so let the tray scroll under the finger. */
-        touch-action: manipulation;
-        user-select: none;
-        -webkit-user-select: none;
-        /* Pressing and holding picks the token up, rather than bringing up the browser's image menu. */
-        -webkit-touch-callout: none;
-        opacity: 1;
-        transition: opacity 0.15s;
-    }
-
-
-    .tray-token.dragging {
-        opacity: 0.3;
-    }
-
-    .tray-token.in-play {
-        opacity: 0.4;
-    }
-
-    /* In the tray, the characters already on the grim stand out: the rest are a little faded. */
-    .tray-token.off-grim {
-        opacity: 0.6;
-    }
-
-    .tray-token.picked {
-        outline: 3px solid gold;
-        outline-offset: 2px;
-        border-radius: 50%;
-    }
-
-    .tray-section-toggle {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.3em;
-        width: 100%;
-        padding: 0.5em 0.7em;
-        border: none;
-        border-radius: 10px;
-        background: rgba(255, 255, 255, 0.08);
-        color: inherit;
-        font: inherit;
-        white-space: nowrap;
-        cursor: pointer;
-        touch-action: manipulation;
-    }
-
-    /* The same header on the sections that are always open, which can't be folded away. */
-    .tray-section-toggle.fixed {
-        cursor: default;
-    }
-
-    .tray-section-toggle svg {
-        width: 1.2em;
-        height: 1.2em;
-        fill: currentColor;
-        transition: transform 0.15s;
-    }
-
-    .tray-section-toggle svg.collapsed {
-        transform: rotate(-90deg);
-    }
-
-    .tray-section-count {
-        opacity: 0.6;
-        font-size: 0.85em;
-    }
-
-    .picker-grid {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 0.4em;
-    }
-
-    /* Each set is a button only as big as its tokens; they wrap onto more rows as needed. */
+    /* Each bluff set is a button only as big as its tokens; they wrap onto more rows as needed. */
     .bluff-set-buttons {
         display: flex;
         flex-wrap: wrap;
@@ -1881,16 +624,6 @@
         gap: 2px;
     }
 
-    .character-overlay {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        overflow-y: auto;
-        background: rgba(0, 0, 0, 0.75);
-    }
-
     /* Each bluff set to choose from in communications: its name over its tokens. */
     .comms-bluff-set {
         width: 100%;
@@ -1904,23 +637,6 @@
         flex-wrap: wrap;
         justify-content: center;
         gap: 4px;
-    }
-
-    .overlay-panel {
-        position: relative;
-        margin: auto;
-        width: min(92vw, 380px);
-        max-height: 92%;
-        overflow-y: auto;
-        box-sizing: border-box;
-        padding: 1.4em 1.2em 1.2em;
-        border-radius: 1em;
-        background: var(--grim-panel-bg);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.7em;
-        text-align: center;
     }
 
     .overlay-panel.comms-panel {
@@ -2127,14 +843,6 @@
         flex-shrink: 0;
     }
 
-    /* In the overlay's corner rather than the panel's, as for communications and the night order (both classes, to win
-       over .overlay-close, which comes later) */
-    .overlay-close.overlay-corner-close {
-        top: 10px;
-        right: 10px;
-        z-index: 1;
-    }
-
     .comms-tabs {
         width: 100%;
         margin-bottom: 0.5em;
@@ -2307,494 +1015,8 @@
         opacity: 1;
     }
 
-    .overlay-close {
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        border: none;
-        background: rgba(0, 0, 0, 0.5);
-        color: white;
-        cursor: pointer;
-        /* A bigger ✕ in the same 32px circle */
-        padding: 0;
-        font-size: 1.25rem;
-        line-height: 1;
-    }
-
-    .overlay-icon {
-        width: 96px;
-        height: 96px;
-        border-radius: 50%;
-        object-fit: cover;
-        flex-shrink: 0;
-    }
-
-    .overlay-name {
-        font-size: 1.6em;
-    }
-
-    .overlay-category {
-        text-transform: capitalize;
-        opacity: 0.6;
-        font-size: 0.85em;
-    }
-
-    /* Wraps onto a second line when they don't all fit (e.g. a dead player's ghost vote as well) */
-    .overlay-toggles {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 6px;
-    }
-
-    /* Trim the horizontal padding so more of them fit on a line, and share out what's left of each line between them. */
-    .overlay-panel .overlay-toggles > button {
-        flex: 1 1 auto;
-        padding: 16px 16px;
-        white-space: nowrap;
-    }
-
-    /* A character's presets in the player info, in place of its buttons, with the Back button under them */
-    .overlay-comms {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        width: 100%;
-        /* Clear of the close button in the panel's corner */
-        margin-top: 24px;
-    }
-
-    .overlay-panel .popup-toggle {
-        font-size: 1em;
-        padding: 16px 36px;
-    }
-
-    .overlay-panel .button-style {
-        padding: 16px 36px;
-    }
-
-    .overlay-panel .popup-player-name {
-        font-size: 1em;
-        padding: 8px 10px;
-    }
-
-    /* Sits above the icon, clear of the close button in the corner. */
-    .overlay-panel .overlay-player-name {
-        width: calc(100% - 80px);
-        text-align: center;
-    }
-
-    .overlay-rules {
-        opacity: 0.9;
-        line-height: 1.35;
-    }
-
-    .overlay-drag-hint {
-        opacity: 0.6;
-        font-size: 0.8em;
-        margin-top: 0.4em;
-    }
-
-    .overlay-tokens {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        align-items: center;
-        gap: 0.8em;
-    }
-
-    .overlay-drag-token {
-        cursor: grab;
-        touch-action: none;
-        user-select: none;
-    }
-
-    .drag-ghost {
-        position: fixed;
-        pointer-events: none;
-        transform: translate(-50%, -50%);
-        opacity: 0.8;
-    }
-
-    .reminder-popup {
-        position: absolute;
-        transform: translate(-50%, 0);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 12px;
-        background: rgba(0, 0, 0, 0.85);
-        border-radius: 10px;
-        white-space: nowrap;
-    }
-    .reminder-popup.above {
-        transform: translate(-50%, -100%);
-    }
-
-    .popup-meta {
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-        gap: 8px;
-    }
-    /* As wide as the name box and buttons above it, never wider: the width of 0 keeps the text from widening the
-       popup, and the min-width then fills it out to the column's full width. */
-    .popup-rules {
-        width: 0;
-        min-width: 100%;
-        white-space: normal;
-        color: #e5e7eb;
-        font-size: 0.75em;
-        line-height: 1.3;
-    }
-    .popup-rules-name {
-        font-weight: 600;
-        margin-bottom: 2px;
-        color: #f3f4f6;
-    }
-    .popup-rules-text {
-        opacity: 0.85;
-    }
-    .setup-text {
-        font-weight: 600;
-    }
-    .popup-toggles {
-        display: flex;
-        gap: 6px;
-        align-items: center;
-    }
-    /* The popup's font scales with the tokens, so the name box and buttons get a minimum height too: big enough to
-       tap however small the tokens are. */
-    .popup-toggle {
-        background: #1f2937;
-        color: #e5e7eb;
-        border: 1px solid #4b5563;
-        border-radius: 6px;
-        padding: 0.6em 1em;
-        min-height: 40px;
-        font-size: 0.8em;
-        font-weight: 600;
-        cursor: pointer;
-        touch-action: manipulation;
-    }
-    .popup-toggle.dead {
-        background: #3a1515;
-        color: #fecaca;
-        border-color: #7f1d1d;
-    }
-    .popup-toggle.evil {
-        background: #3a1515;
-        color: #fecaca;
-        border-color: #7f1d1d;
-    }
-    /* Two by two, every button the same size: a long label wraps rather than widening its column */
-    /* In pairs: the player's life and vote, their alignment and character, then what to show them */
-    .popup-buttons {
-        display: grid;
-        grid-template-columns: repeat(2, 6.2em);
-        grid-auto-rows: 1fr;
-        gap: 6px;
-    }
-    /* Two lines tall, so "Change character" fits on two */
-    .popup-buttons .popup-toggle {
-        white-space: normal;
-        line-height: 1.2;
-        min-height: max(40px, calc(2.4em + 1.2em));
-    }
-    /* Back among a character's presets in the token popup: a plain, darker button */
-    .button-style.comms-plain {
-        background-color: var(--theme-bg);
-    }
-    .button-style.comms-plain:hover {
-        background-color: var(--theme-bg-secondary);
-    }
-    /* A character's presets and Back, filling the popup in place of its controls and reminders */
-    .popup-comms {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        width: calc(2 * 6.2em + 6px);
-    }
-    .popup-comms .popup-toggle {
-        white-space: normal;
-        line-height: 1.2;
-    }
-    /* Back among the popup's presets: a plain button, as big as the presets */
-    .popup-comms .button-style {
-        min-height: 40px;
-        font-size: 0.8em;
-        font-weight: 600;
-        padding: 0.6em 1em;
-    }
-    .popup-toggle:disabled {
-        opacity: 0.4;
-        cursor: default;
-    }
-    /* A button with an icon before its label */
-    .with-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5em;
-    }
-    .with-icon .button-icon {
-        width: 1.4em;
-        height: 1.4em;
-        flex-shrink: 0;
-    }
-    /* Outlined while a dead player's ghost vote is still to spend */
-    .popup-toggle.has-vote {
-        border-color: rgb(230, 140, 30);
-        color: #fde3bd;
-    }
-    .popup-name-row {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        min-height: 40px;
-    }
-    .popup-name-text {
-        flex: 1;
-        color: #f3f4f6;
-        font-size: 0.95em;
-        font-weight: 600;
-        padding: 0 0.2em;
-    }
-    .popup-name-text.unnamed {
-        color: #9ca3af;
-        font-weight: 400;
-        font-style: italic;
-    }
-    .popup-name-edit {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-        width: 40px;
-        flex-shrink: 0;
-    }
-    .popup-player-name {
-        background: #1f2937;
-        color: #e5e7eb;
-        border: 1px solid #4b5563;
-        border-radius: 6px;
-        padding: 0.5em 0.7em;
-        min-height: 40px;
-        font-size: 0.85em;
-        width: 100%;
-        box-sizing: border-box;
-    }
-    .popup-divider {
-        width: 1px;
-        align-self: stretch;
-        background: rgba(255, 255, 255, 0.18);
-        margin: 2px 2px;
-    }
-
-    /* A grid rather than a wrapping flex column, which browsers don't widen properly for the extra columns */
-    .reminder-popup-tokens {
-        display: grid;
-        grid-auto-flow: column;
-        align-self: center;
-        align-items: center;
-    }
-
-    .reminder-popup-token {
-        cursor: grab;
-        touch-action: none;
-        user-select: none;
-        flex-shrink: 0;
-    }
-
-    .reminder-popup-token:active {
-        cursor: grabbing;
-    }
-
-    .board-token.dead :global(img:not(.dead-vote-icon)) {
-        filter: grayscale(0.7) brightness(0.6);
-    }
-    .board-token.misaligned :global(img:not(.dead-vote-icon)) {
-        filter: hue-rotate(180deg);
-    }
-    .board-token.misaligned.dead :global(img:not(.dead-vote-icon)) {
-        filter: grayscale(0.7) brightness(0.9) hue-rotate(180deg);
-    }
-    .night-order-badge {
-        position: absolute;
-        transform: translate(-60%, -50%);
-        border-style: solid;
-        border-radius: 50%;
-        background-color: rgb(150, 85, 5);
-        border-color: white;
-        box-shadow: 0 3px 4px #0008;
-        color: white;
-        text-shadow: 0 0 5px #0004;
-        height: 1.5em;
-        width: 1.5em;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        pointer-events: none;
-        user-select: none;
-    }
-    /* An open token's wake badge, tapped to turn the wake on or off: a dotted outline while it's off */
-    .wake-toggle {
-        box-sizing: content-box;
-        padding: 0;
-        margin: 0;
-        font: inherit;
-        line-height: 1;
-        cursor: pointer;
-        pointer-events: auto;
-        touch-action: manipulation;
-    }
-    .wake-toggle.off {
-        border-style: dotted;
-        background-color: #0006;
-        box-shadow: none;
-        color: #fff9;
-    }
-    .board-reminder {
-        position: absolute;
-        transform: translate(-50%, -50%);
-        cursor: grab;
-        touch-action: none;
-        user-select: none;
-    }
-
-    .board-reminder:active {
-        cursor: grabbing;
-    }
-
-    /* Absolute, not fixed: mobile browsers tint their toolbars from fixed elements at the screen edge. */
-    .locked-toast {
-        position: absolute;
-        /* Below the sidebar's top button row, which it would cover on a narrow screen */
-        top: 68px;
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 16px;
-        border-radius: 999px;
-        background: rgba(0, 0, 0, 0.75);
-        color: white;
-        font-weight: bold;
-        white-space: nowrap;
-        pointer-events: none;
-    }
-
-    .locked-toast svg {
-        width: 20px;
-        height: 20px;
-        fill: currentColor;
-    }
-
-    /* Chrome that gets out of the way while a token or reminder is being dragged. */
-    .drag-hidden {
-        opacity: 0 !important;
-        pointer-events: none;
-    }
-
-    .delete-zone {
-        position: absolute;
-        left: 0;
-        right: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        pointer-events: none;
-        box-sizing: border-box;
-        border-radius: 12px;
-        background: rgba(255, 60, 60, 0.12);
-        border: 2px dashed rgba(255, 60, 60, 0.7);
-        color: rgba(255, 255, 255, 0.85);
-        transition: background 0.15s;
-    }
-
-    /* Kept a few px off the very top so the browser doesn't sample it for the status bar colour. */
-    .delete-zone.top { top: 6px; }
-    .delete-zone.bottom { bottom: 0; }
-
-    .delete-zone.active {
-        background: rgba(255, 60, 60, 0.35);
-    }
-
-    .sidebar {
-        position: absolute;
-        left: 0;
-        top: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        padding: 8px;
-        /* The box spans the gaps between (and beside) the buttons; let touches there reach the board, so a pinch
-           with a finger near the sidebar still works. Only the buttons and popups themselves catch the pointer. */
-        pointer-events: none;
-    }
-
-    .sidebar :global(button),
-    .sidebar :global([role='dialog']) {
-        pointer-events: auto;
-    }
-
-    .sidebar-top-row {
-        display: flex;
-        gap: 8px;
-    }
-
-    .sidebar-btn {
-        width: 44px;
-        height: 44px;
-        border-radius: 10px;
-        border: none;
-        background: rgba(0, 0, 0, 0.6);
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        touch-action: manipulation;
-        transition: background 0.15s;
-    }
-
-    /* The back button carries its name beside its icon; it's the only wider one. */
-    .sidebar-btn.labelled {
-        width: auto;
-        align-self: flex-start;
-        gap: 6px;
-        padding: 0 14px 0 11px;
-        font: inherit;
-        font-size: 15px;
-    }
-
-    .sidebar-btn:hover {
-        background: rgba(0, 0, 0, 0.8);
-    }
-
-    .sidebar-btn.active {
-        background: rgba(80, 140, 255, 0.7);
-    }
-
-    /* Just left of the save status in the top right, centred on the same line (it's 36px tall to this 44px). */
-    .undo-stroke-btn {
-        position: absolute;
-        top: 4px;
-        right: 52px;
-    }
-
     .sidebar-btn.end-game-btn {
         color: #ff7b7b;
-    }
-
-    .sidebar-btn svg {
-        width: 22px;
-        height: 22px;
-        fill: currentColor;
     }
 
     .save-status {
@@ -2839,92 +1061,12 @@
         to { transform: rotate(360deg); }
     }
 
-    .open-tray-tab {
-        position: absolute;
-        bottom: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 5px 14px 7px;
-        border: none;
-        border-radius: 8px 8px 0 0;
-        background: var(--grim-panel-bg);
-        color: white;
-        font: inherit;
-        font-size: 14px;
-        white-space: nowrap;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 3px;
-        cursor: pointer;
-        touch-action: manipulation;
-        opacity: 0.85;
-    }
-
-    .open-tray-tab:hover {
-        opacity: 1;
-    }
-
-    .open-tray-tab svg {
-        fill: currentColor;
-    }
-
-    .open-tray-arrow {
-        width: 14px;
-        height: 8px;
-    }
-
-    .open-tray-label {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .open-tray-label svg {
-        width: 30px;
-        height: 14px;
-    }
-
-    .script-picker-row {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        padding-bottom: 8px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-    }
-
-    .script-picker-row:last-child {
-        border-bottom: none;
-        padding-bottom: 0;
-    }
-
-    .script-picker-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .script-picker-name {
-        flex: 1;
-        text-align: left;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .script-picker-presets {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        padding-left: 1em;
-    }
-
 </style>
 
 
     <!-- No long-press menu (on Android, "save image" and the like) anywhere but in text boxes -->
-    <div class="grim-root" role="presentation" oncontextmenu={(e) => { if (!(e.target as Element).closest('input, textarea')) e.preventDefault(); }}>
-    <div class="save-status {saveStatus}" class:drag-hidden={isDraggingAnything} style="z-index: {z_indecies.ui};" title={
+    <div class="grim-root grim-ui" role="presentation" oncontextmenu={(e) => { if (!(e.target as Element).closest('input, textarea')) e.preventDefault(); }}>
+    <div class="save-status {saveStatus}" class:drag-hidden={boardDragging} style="z-index: {GRIM_Z.ui};" title={
         saveStatus === 'saved' ? 'All changes saved'
         : saveStatus === 'saving' ? 'Saving…'
         : saveStatus === 'error' ? 'Failed to save changes'
@@ -2941,37 +1083,26 @@
         {/if}
     </div>
 
-    {#if undo.canUndo}
-    <!-- Undo this device's last change -->
-    <button class="sidebar-btn undo-stroke-btn" class:drag-hidden={isDraggingAnything} style="z-index: {z_indecies.ui};" onclick={undoLastChange} title="Undo" aria-label="Undo">
-        <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={undoIcon}/></svg>
-    </button>
-    {/if}
+    <GrimBoard
+        bind:this={board}
+        bind:activeTokenId
+        bind:dragging={boardDragging}
+        {model}
+        {undo}
+        lockStorageKey="grimoire-locked-{data.clockid}"
+        night={currentNight}
+        onsave={() => grimSync.save()}
+        onunsaved={() => saveStatus = 'unsaved'}
+        onshowcharacter={viewCharacter}
+        comms={boardComms}
+        trayBluffs={loadedPreset ? { count: bluffSets.length, content: trayBluffs } : undefined}
+        {sidebarTop}
+        {sidebarMenuStart}
+        {sidebarMenuEnd}
+        {centre}
+    />
 
-    {#if lockedToastVisible}
-    <div class="locked-toast" role="status" style="z-index: {z_indecies.ui + 40};"
-        in:fly={{ y: -24, opacity: 0, duration: 300, easing: cubicOut }}
-        out:fly={{ y: -24, opacity: 0, duration: 250, easing: cubicIn }}>
-        <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={lockIcon}/></svg>
-        <span>Grimoire Tokens Locked</span>
-    </div>
-    {/if}
-
-    <div class="sidebar" class:drag-hidden={isDraggingAnything} style="z-index: {z_indecies.ui};">
-        <div class="sidebar-top-row">
-        <!-- Collapse / expand the sidebar -->
-        <button class="sidebar-btn" class:active={sidebarOpen} onclick={() => {
-            sidebarOpen = !sidebarOpen;
-            // The draw tools live in the sidebar, so closing it leaves draw mode.
-            if (!sidebarOpen) editing = false;
-        }} title="{sidebarOpen ? 'Hide' : 'Show'} menu">
-            {#if sidebarOpen}
-                <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={keyboardArrowUpIcon}/></svg>
-            {:else}
-                <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={menuIcon}/></svg>
-            {/if}
-        </button>
-
+    {#snippet sidebarTop()}
         <!-- Clock controls, as tapping the clock in the middle opens -->
         <button class="sidebar-btn" class:active={showTimerOptions} onclick={() => showTimerOptions = true} title="Clock controls">
             <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={timerIcon}/></svg>
@@ -2983,7 +1114,7 @@
         </button>
 
         <!-- Night order: who wakes, and when, on the first night and the other nights -->
-        <button class="sidebar-btn" class:active={nightOrderSheet !== null} onclick={() => nightOrderSheet = (clockClient?.day || 0) > 0 ? 'other' : 'first'} title="Night order">
+        <button class="sidebar-btn" class:active={nightOrderSheet !== null} onclick={() => nightOrderSheet = currentNight} title="Night order">
             <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={listAltIcon}/></svg>
         </button>
 
@@ -2992,9 +1123,9 @@
         <button class="sidebar-btn" onclick={() => {saveGrimoire().then(()=>goto(`/admin/${data.clockid}/grim/hidden`, { replaceState: true }))} } title="Hide grimoire">
             <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={visibilityIcon}/></svg>
         </button>
-        </div>
+    {/snippet}
 
-        {#if sidebarOpen}
+    {#snippet sidebarMenuStart()}
         <!-- Go back -->
         <button class="sidebar-btn labelled" onclick={() => {saveGrimoire().then(()=>goto(`/play`, { replaceState: true }))} } title="Back to Play">
             <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={arrowBackIcon}/></svg>
@@ -3005,86 +1136,9 @@
         <button class="sidebar-btn" onclick={() => {saveGrimoire().then(()=>goto(`/admin/${data.clockid}/grim/setup`))} } title="Set up a new game">
             <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={addBoxIcon}/></svg>
         </button>
+    {/snippet}
 
-        <!-- Canvas control -->
-         <div style="position: relative">
-            <button class="sidebar-btn" class:active={editing} onclick={() => {
-                editing = !editing;
-                if (editing) {
-                    showFooter = false;
-                }
-            }} title="{editing ? 'Exit annotate mode' : 'Enter annotate mode'}">
-                <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={editIcon}/></svg>
-            </button>
-            {#if editing}
-            <!-- Raised one square (button + gap) to sit beside the back button rather than below it. -->
-            <div style="position: absolute; left: 52px; top: -52px; display: flex; flex-direction: column; gap: 8px;">
-                <!-- TOOLS -->
-                {#each tools as tool, index}
-                    <button class="sidebar-btn" class:active={index === activeToolIndex} onclick={() => activeToolIndex = index} title={tool.type === 'pen' ? `Pen tool (color: ${tool.color})` : 'Eraser tool'}>
-                        {#if tool.type === 'pen'}
-                            <svg viewBox="0 0 24 24">
-                                <circle cx="12" cy="12" r="9" fill={tool.color} stroke="currentColor" stroke-width="2"/>
-                            </svg>
-                        {:else if tool.type === 'eraser'}
-                            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={inkEraserIcon}/></svg>
-                        {/if}
-                    </button>
-                {/each}
-                <div style="height: 2px; background-color: #FFF9;"></div>
-                {#each canvasLayers as layer, index}
-                <div style="position: relative;">
-                    <button class="sidebar-btn" class:active={activeCanvasLayerIndex === index} onclick={() => activeCanvasLayerIndex = index} title={`Activate layer ${index + 1}`}>
-                        <div>
-                            {index + 1}
-                        </div>
-                    </button>
-                    {#if activeCanvasLayerIndex === index}
-
-                    <div style="display: flex; gap: 4px; position: absolute; left: 52px; top: 0;">
-                        <!-- Reset button -->
-                        <button class="sidebar-btn" onclick={()=>{clearLayer(index)}} title="Clear layer">
-                            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={layersClearIcon}/></svg>
-                        </button>
-
-                        {#if canvasLayers.length > 1}
-
-                        <!-- Delete Button -->
-                        <button class="sidebar-btn" onclick={()=>{
-                            deleteLayer(index);
-                        }} title="Delete layer">
-                            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={deleteIcon}/></svg>
-                        </button>
-
-                        {/if}
-                    </div>
-                    {/if}
-                </div>
-                {/each}
-                <!-- Add layer button -->
-                <button class="sidebar-btn" onclick={addLayer} title="Add new layer">
-                <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={addIcon}/></svg>
-                </button>
-            </div>
-            {/if}
-         </div>
-
-        <!-- Lock/Unlock token positions -->
-        <button class="sidebar-btn" class:active={tokensLocked} onclick={() => setTokensLocked(!(tokensLocked))} title="{tokensLocked ? 'Unlock' : 'Lock'} token positions">
-            {#if tokensLocked}
-                <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={lockIcon}/></svg>
-            {:else}
-                <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={lockOpenIcon}/></svg>
-            {/if}
-        </button>
-
-        {#if !tokensLocked}
-        <!-- Auto-arrange: space the players evenly round a ring -->
-        <button class="sidebar-btn" onclick={autoArrangeTokens} title="Auto-arrange tokens">
-            <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={cycleIcon}/></svg>
-        </button>
-        {/if}
-
+    {#snippet sidebarMenuEnd()}
         <!-- Show/Hide clock -->
         <button class="sidebar-btn" class:active={showClock} onclick={() => showClock = !showClock} title="{showClock ? 'Hide' : 'Show'} clock">
             <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={scheduleIcon}/></svg>
@@ -3099,96 +1153,55 @@
         <button class="sidebar-btn end-game-btn" onclick={() => showEndGame = true} title="End game">
             <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={sportsScoreIcon}/></svg>
         </button>
+    {/snippet}
 
-        {/if}
-    </div>
-
-    <AnotatableViewV2 ongesturestart={cancelPendingBoardTap} onresetview={fitView} bind:viewScale bind:viewTx bind:viewTy idleGestures={!dragging && !draggingReminder} idleIgnore=".sidebar button, .undo-stroke-btn, .grimoire-footer, .reminder-popup, .wake-toggle, [role='dialog']" idlePanIgnore=".board-token, .board-reminder, button, a, input, [role='dialog']" tool={editing ? activeTool : null} penTool={lastPenTool} eraserTool={penEraserTool} penButtonErases onchange={onCanvasChange} oncommit={onCanvasCommit} onundo={undoLastChange} layers={canvasLayers} activeLayerIndex={activeCanvasLayerIndex} canvasStyle="z-index: {z_indecies.canvas};">
-
-    <div class="grimoire-board" bind:this={boardEl}>
-        {#each ALIGNMENT_RING_FACTORS as factor}
-            <div class="alignment-ring" style="width: {tokenSize * factor * 2}px; height: {tokenSize * factor * 2}px; z-index: {z_indecies.canvas - 1};"></div>
-            <div class="alignment-ring square" style="width: {tokenSize * factor * 2}px; height: {tokenSize * factor * 2}px; z-index: {z_indecies.canvas - 1};"></div>
-        {/each}
-        {#each placedTokens as token (token.id)}
-            {@const character = characterById.get(token.characterId ?? '')}
-            {@const sideRole = isSideRoleCategory(character?.category)}
-            {#if character || token.characterId === null}
-            <div
-                class="board-token"
-                class:dead={!sideRole && token.isDead}
-                class:unnamed={!seatedTokenIds.has(token.id)}
-                class:misaligned={!sideRole && token.characterId !== null && defaultAlignmentForCharacterId(token.characterId) !== token.alignment}
-                style="left: calc(50% + {token.x}px); top: calc(50% + {token.y}px); z-index: {seatedTokenIds.has(token.id) ? z_indecies.tokens : z_indecies.unnamedTokens};"
-                onpointerdown={(e) => startDragFromBoard(e, token)}
-            >
-                {#if character}
-                    <CharacterToken {character} style="position: relative;" size={tokenSize + 'px'} norules
-                        dead={sideRole ? false : token.isDead}
-                        hasDeadVote={sideRole ? false : hasDeadVote(token)}
-                        alignment={sideRole ? undefined : token.alignment}
-                        playerName={sideRole ? undefined : (token.playerName?.trim() || undefined)}
-                        outline={seatedTokenIds.has(token.id) && !token.isDead}/>
-                {:else}
-                    <PlayerToken playerName={token.playerName ?? ''} isDead={token.isDead} hasDeadVote={hasDeadVote(token)} style="position: relative;" size={tokenSize + 'px'}/>
+    {#snippet centre()}
+        {#if showClock}
+            <!-- The clock face itself ignores pointer input (so panning/dragging works over it); only a button over its centre 50% opens the timer options. -->
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 2em; text-shadow: 0 0 10px rgba(0,0,0,0.7); z-index: {GRIM_Z.clock}; pointer-events: none;">
+                {#if clockClient}
+                <div style="position: relative; width: {tokenSize * CLOCK_SCALE + 35}px; height: {tokenSize * CLOCK_SCALE + 35}px; margin: 0 auto;">
+                    <FullDisplay model={clockClient} size={tokenSize * CLOCK_SCALE} displayMode='original' showInstructions={false} outerShadow='shadow'>
+                        <!-- Under the clock: the alive count, its number larger than the word (line-height 0 so it doesn't push the line down) -->
+                        {#snippet subtitle()}<span style="font-size: 1.8em; line-height: 0;">{aliveCount}</span> alive{/snippet}
+                    </FullDisplay>
+                    <button class="no-button-style" aria-label="Clock controls" style="position: absolute; top: 25%; left: 25%; width: 50%; height: 50%; border-radius: 50%; pointer-events: auto;" onclick={()=>showTimerOptions = true}></button>
+                </div>
                 {/if}
             </div>
-            {/if}
-        {/each}
+        {/if}
+    {/snippet}
 
-        {#each placedTokens as token (token.id)}
-            {@const order = token.characterId ? nightOrderByCharacterId.indexOf(token.characterId) : -1}
-            <!-- Only on a player who still wakes: not on a dead (or ability-less) one sharing a character with one who does -->
-            {@const numbered = order >= 0 && wakesInNightOrder(token) && characterById.has(token.characterId ?? '')}
-            {#if numbered}
-            <div
-                class="night-order-badge"
-                style="left: calc(50% + {token.x + tokenSize * 0.45}px); top: calc(50% + {token.y}px); font-size: {tokenSize / 6}px; border-width: {tokenSize / 70}px; z-index: {z_indecies.nightOrder};"
-            >{order + 1}</div>
-            {/if}
-            <!-- A custom wake: below the night order number, if they have one too. While the token's popup is open, it's
-                 shown dotted when off, and tapping it turns the wake on or off -->
-            {@const wakeStyle = `left: calc(50% + ${token.x + tokenSize * 0.45}px); top: calc(50% + ${token.y + (numbered ? tokenSize * 0.28 : 0)}px); font-size: ${tokenSize / 6}px; border-width: ${tokenSize / 70}px; z-index: ${z_indecies.nightOrder};`}
-            {#if token.id === activeTokenId && activeReminderPos && !isSideRoleCategory(characterById.get(token.characterId ?? '')?.category)}
-            {@render wakeToggle(token.customWake ?? false, wakeStyle, toggleCustomWake)}
-            {:else if token.customWake}
-            <div class="night-order-badge" style={wakeStyle}>?</div>
-            {/if}
-        {/each}
-
-        {#each placedReminders as reminder}
-            {@const token = availableReminderTokens[reminder.tokenId]}
-            {#if token}
-            <div
-                class="board-reminder"
-                style="left: calc(50% + {reminder.x}px); top: calc(50% + {reminder.y}px); z-index: {z_indecies.reminders};"
-                onpointerdown={(e) => startDragReminderFromBoard(e, reminder)}
-            >
-                <ReminderTokenView data={token} characterId={token.characterId} size="{reminderTokenSize}px"/>
-            </div>
-            {/if}
-        {/each}
-
-    </div>
-
-    {#if showClock}
-        <!-- The clock face itself ignores pointer input (so panning/dragging works over it); only a button over its centre 50% opens the timer options. -->
-        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 2em; text-shadow: 0 0 10px rgba(0,0,0,0.7); z-index: {z_indecies.clock}; pointer-events: none;">
-            {#if clockClient}
-            <div style="position: relative; width: {tokenSize * CLOCK_SCALE + 35}px; height: {tokenSize * CLOCK_SCALE + 35}px; margin: 0 auto;">
-                <FullDisplay model={clockClient} size={tokenSize * CLOCK_SCALE} displayMode='original' showInstructions={false} outerShadow='shadow'>
-                    <!-- Under the clock: the alive count, its number larger than the word (line-height 0 so it doesn't push the line down) -->
-                    {#snippet subtitle()}<span style="font-size: 1.8em; line-height: 0;">{aliveCount}</span> alive{/snippet}
-                </FullDisplay>
-                <button class="no-button-style" aria-label="Clock controls" style="position: absolute; top: 25%; left: 25%; width: 50%; height: 50%; border-radius: 50%; pointer-events: auto;" onclick={()=>showTimerOptions = true}></button>
-            </div>
-            {/if}
+    <!-- The bluff sets, above the script's characters in the token tray -->
+    {#snippet trayBluffs()}
+        <div class="bluff-set-buttons">
+        {#each bluffSets as bluffSet, setIndex}
+        <div class="bluff-set-item">
+        <button class="button-style show-bluffs-btn" onclick={() => showBluffs(setIndex)} title={bluffSets.length > 1 ? `Show bluffs ${setIndex + 1}` : 'Show bluffs'} aria-label={bluffSets.length > 1 ? `Show bluffs ${setIndex + 1}` : 'Show bluffs'}>
+            <span class="show-bluffs-icon">
+                {#each bluffSet.slice(0, 3) as bluffId (bluffId)}
+                    {@const bluff = characterById.get(bluffId)}
+                    {#if bluff}
+                        <div style="position: relative; width: 56px; height: 56px;">
+                            <CharacterToken character={bluff} style="position: relative;" size="56px" imageSize={TRAY_IMAGE_SIZE} norules/>
+                            {#if seatedCharacterIdSet.has(bluffId)}<InPlayWarning size="20px" style="position: absolute; bottom: -3px; right: -3px;"/>{/if}
+                        </div>
+                    {/if}
+                {/each}
+            </span>
+        </button>
+        <button class="delete-bluff-set-btn" onclick={() => deleteBluffSet(setIndex)} title="Delete bluff set" aria-label="Delete bluff set"><MaterialIcon icon={deleteIcon} size="1.25em"/></button>
         </div>
-    {/if}
-
-
-    </AnotatableViewV2>
-
+        {/each}
+        <button class="button-style show-bluffs-btn add-bluff-set-btn" onclick={() => newBluffSet = []} title="Add bluff set" aria-label="Add bluff set">
+            <span class="show-bluffs-icon">
+                <span class="bluff-placeholder"></span>
+                <span class="bluff-placeholder">+</span>
+                <span class="bluff-placeholder"></span>
+            </span>
+        </button>
+        </div>
+    {/snippet}
 
         <!-- A night order row's image and text, and its communications icon if it has any: the whole row shows its one
              preset, or shows or hides its presets below it (expanded: whether they're showing, null with one preset) -->
@@ -3205,313 +1218,10 @@
         {#snippet commsIcon()}
             <svg class="button-icon" viewBox={ICON_VIEWBOX} aria-hidden="true" fill="currentColor"><path d={smsIcon}/></svg>
         {/snippet}
-        {#snippet eyeIcon()}
-            <svg class="button-icon" viewBox={ICON_VIEWBOX} aria-hidden="true" fill="currentColor"><path d={visibilityIcon}/></svg>
-        {/snippet}
-        {#snippet wakeToggle(on: boolean, style: string, onclick: (e: MouseEvent) => void)}
-            <button type="button" class="night-order-badge wake-toggle" class:off={!on} {style} {onclick}
-                title={on ? 'Remove the wake reminder' : 'Add a wake reminder, to wake them tonight'}
-                aria-label={on ? 'Remove the wake reminder' : 'Add a wake reminder'} aria-pressed={on}>?</button>
-        {/snippet}
-        {#if activeTokenId !== null && activeReminderPos && (activeCharacterId === null || reminderCache[activeCharacterId])}
-            <div bind:this={reminderPopupEl} class="reminder-popup" class:above={activeReminderAbove} style="font-size: {tokenSize * 0.12}px; left: {activeReminderPos.x}px; top: {activeReminderPos.y}px; z-index: {z_indecies.ui};">
-                {#if activeToken}
-                    {@const activeChar = characterById.get(activeCharacterId ?? '')}
-                    {@const sideRole = isSideRoleCategory(activeChar?.category)}
-                    {#if playerCommsShown && activeChar && !sideRole}
-                    <!-- The character's presets for tonight and Back, in place of everything else -->
-                    <div class="popup-comms">
-                        {#each characterPresetsFor(activeChar.id, currentNight) as preset}
-                            <button type="button" class="popup-toggle" onclick={() => showPreset(preset, activeChar.id)}>{presetDisplayName(preset)}</button>
-                        {/each}
-                        <button type="button" class="button-style comms-plain" onclick={() => playerCommsShown = false}><MaterialIcon icon={chevronLeftIcon} size="1.2em"/> Back</button>
-                    </div>
-                    {:else}
-                    <div class="popup-meta" bind:clientHeight={popupMetaHeight}>
-                        {#if !sideRole}
-                            {#if editingPlayerName}
-                            <input
-                                bind:this={playerNameInput}
-                                type="text"
-                                class="popup-player-name"
-                                placeholder="Player name"
-                                value={activeToken.playerName ?? ''}
-                                oninput={(e) => setPlayerName((e.target as HTMLInputElement).value)}
-                                onkeydown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') (e.target as HTMLInputElement).blur(); }}
-                                onblur={() => editingPlayerName = false}
-                                onpointerdown={(e) => e.stopPropagation()}
-                            />
-                            {:else}
-                            <div class="popup-name-row">
-                                <span class="popup-name-text" class:unnamed={!activeToken.playerName?.trim()}>{activeToken.playerName?.trim() || 'No player name'}</span>
-                                <button type="button" class="popup-toggle popup-name-edit" onclick={startEditingPlayerName} title="Edit player name" aria-label="Edit player name">
-                                    <PencilIcon size={18}/>
-                                </button>
-                            </div>
-                            {/if}
-                        {/if}
-                        <div class="popup-buttons">
-                            {#if sideRole}
-                                {#if activeChar}
-                                    <button type="button" class="popup-toggle with-icon" onclick={() => viewCharacter(activeChar.id)}>{@render eyeIcon()}Show</button>
-                                {/if}
-                                <button type="button" class="popup-toggle" onclick={() => pickingCharacter = true}>Change character</button>
-                            {:else}
-                                <button type="button" class="popup-toggle" class:dead={activeToken.isDead} onclick={toggleAlive}>
-                                    {activeToken.isDead ? 'Dead' : 'Alive'}
-                                </button>
-                                <!-- Only dead players have a ghost vote -->
-                                <button type="button" class="popup-toggle" class:has-vote={hasDeadVote(activeToken)} disabled={!activeToken.isDead} onclick={toggleDeadVote}>
-                                    {activeToken.isDead && activeToken.deadVoteUsed ? 'Vote used' : 'Has vote'}
-                                </button>
-                                <button type="button" class="popup-toggle" class:evil={activeToken.alignment === 'evil'} onclick={toggleAlignment}>
-                                    {activeToken.alignment === 'evil' ? 'Evil' : 'Good'}
-                                </button>
-                                <button type="button" class="popup-toggle" onclick={() => pickingCharacter = true}>
-                                    {activeChar ? 'Change character' : 'Choose character'}
-                                </button>
-                                <button type="button" class="popup-toggle with-icon" disabled={!activeChar} onclick={() => activeChar && viewCharacter(activeChar.id)}>{@render eyeIcon()}Show</button>
-                                <!-- The character's own presets for tonight -->
-                                <button type="button" class="popup-toggle with-icon" disabled={!activeChar}
-                                    onclick={() => activeChar && openPlayerComms(activeChar.id)}>{@render commsIcon()}Comms</button>
-                            {/if}
-                        </div>
-                        {#if activeChar?.rules}
-                            <div class="popup-rules">
-                                <div class="popup-rules-name">{activeChar.name}</div>
-                                <div class="popup-rules-text">{activeChar.rules}</div>
-                                {#if activeChar.setup}
-                                    <div class="popup-rules-text setup-text">[{activeChar.setup}]</div>
-                                {/if}
-                            </div>
-                        {/if}
-                    </div>
-                    <div class="popup-divider"></div>
-                    {/if}
-                {/if}
-                {#if activeCharacterId !== null && !playerCommsShown}
-                    {#if (reminderCache[activeCharacterId] ?? []).length === 0}
-                        <span style="color: #999; font-size: 0.8em; padding: 4px;">No reminders</span>
-                    {:else}
-                        <!-- Down in columns, starting a new column once one is as tall as the controls beside it -->
-                        <div class="reminder-popup-tokens" style="grid-template-rows: repeat({popupReminderRows}, auto); gap: {POPUP_REMINDER_GAP}px;">
-                            {#each reminderCache[activeCharacterId] ?? [] as rToken (rToken.id)}
-                                <div class="reminder-popup-token" onpointerdown={(e) => startDragReminderFromPopup(e, rToken)}>
-                                    <ReminderTokenView data={rToken} characterId={activeCharacterId} size="{popupReminderSize}px"/>
-                                </div>
-                            {/each}
-                        </div>
-                    {/if}
-                {/if}
-            </div>
-        {/if}
-
-    {#if !showFooter}
-        <button class="open-tray-btn open-tray-tab" class:drag-hidden={isDraggingAnything} onclick={toggleTray} title="Show token tray" style="z-index: {z_indecies.ui};">
-            <!-- An up arrow, centred over the whole button, above a tray holding three tokens and the button's name -->
-            <svg class="open-tray-arrow" viewBox="8 2 8 4.5" aria-hidden="true"><path d="M8.5 6L12 2.5L15.5 6z"/></svg>
-            <span class="open-tray-label">
-                <svg viewBox="1.5 11 21 10" aria-hidden="true">
-                    <circle cx="7" cy="14.5" r="2.4"/>
-                    <circle cx="12" cy="14.5" r="2.4"/>
-                    <circle cx="17" cy="14.5" r="2.4"/>
-                    <path d="M2.5 12v6.5a1.5 1.5 0 0 0 1.5 1.5h16a1.5 1.5 0 0 0 1.5-1.5V12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                Token Tray
-            </span>
-        </button>
-    {/if}
-
-    <!-- FOOTER -->
-    <div class="grimoire-footer" bind:this={footerEl} style="--tray-token: {trayTokenSize}px; transform: translateY({showFooter && !dragging && !draggingReminder ? '0' : '100%'}); z-index: {z_indecies.ui};">
-        <div class="token-tray-container">
-            <div class="token-tray-header">
-                <button class="overlay-close tray-close-btn" onclick={() => showFooter = false} aria-label="Close"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
-                <div class="tray-title">Token Tray</div>
-            </div>
-            <div class="token-tray">
-                {#if traySections.length === 0}
-                    <div style="text-align: center; opacity: 0.6; padding: 1em;">Loading…</div>
-                {:else}
-                {#each traySections as section (section.key)}
-                {#if section.key === 'script' && loadedPreset}
-                    <div>
-                        <div class="tray-section-toggle fixed">Bluffs <span class="tray-section-count">{bluffSets.length}</span></div>
-                        <div class="bluff-set-buttons">
-                        {#each bluffSets as bluffSet, setIndex}
-                        <div class="bluff-set-item">
-                        <button class="button-style show-bluffs-btn" onclick={() => showBluffs(setIndex)} title={bluffSets.length > 1 ? `Show bluffs ${setIndex + 1}` : 'Show bluffs'} aria-label={bluffSets.length > 1 ? `Show bluffs ${setIndex + 1}` : 'Show bluffs'}>
-                            <span class="show-bluffs-icon">
-                                {#each bluffSet.slice(0, 3) as bluffId (bluffId)}
-                                    {@const bluff = characterById.get(bluffId)}
-                                    {#if bluff}
-                                        <div style="position: relative; width: 56px; height: 56px;">
-                                            <CharacterToken character={bluff} style="position: relative;" size="56px" imageSize={TRAY_IMAGE_SIZE} norules/>
-                                            {#if seatedCharacterIdSet.has(bluffId)}<InPlayWarning size="20px" style="position: absolute; bottom: -3px; right: -3px;"/>{/if}
-                                        </div>
-                                    {/if}
-                                {/each}
-                            </span>
-                        </button>
-                        <button class="delete-bluff-set-btn" onclick={() => deleteBluffSet(setIndex)} title="Delete bluff set" aria-label="Delete bluff set"><MaterialIcon icon={deleteIcon} size="1.25em"/></button>
-                        </div>
-                        {/each}
-                        <button class="button-style show-bluffs-btn add-bluff-set-btn" onclick={() => newBluffSet = []} title="Add bluff set" aria-label="Add bluff set">
-                            <span class="show-bluffs-icon">
-                                <span class="bluff-placeholder"></span>
-                                <span class="bluff-placeholder">+</span>
-                                <span class="bluff-placeholder"></span>
-                            </span>
-                        </button>
-                        </div>
-                    </div>
-                {/if}
-                {@const collapsed = section.collapsible && !expandedTraySections.includes(section.key)}
-                <div>
-                    {#if section.collapsible}
-                        <button class="tray-section-toggle" aria-expanded={!collapsed} onclick={() => toggleTraySection(section.key)}>
-                            <svg viewBox={ICON_VIEWBOX} class:collapsed fill="currentColor"><path d={keyboardArrowDownIcon}/></svg>
-                            {section.title}
-                            <span class="tray-section-count">{section.characters.length}</span>
-                        </button>
-                    {:else}
-                        <div class="tray-section-toggle fixed">{section.title} <span class="tray-section-count">{section.characters.length}</span></div>
-                    {/if}
-                    {#if !collapsed}
-                    <div class="sub-tray">
-                        {#each section.characters as character (character.id)}
-                                <div
-                                    class="tray-token"
-                                    class:dragging={dragging?.character?.id === character.id}
-                                    class:off-grim={!isInPlay(character.id)}
-                                    role="button"
-                                    tabindex="0"
-                                    aria-label={character.name}
-                                    onpointerdown={(e) => startTrayHold(e, character)}
-                                    oncontextmenu={(e) => e.preventDefault()}
-                                    ondragstart={(e) => e.preventDefault()}
-                                    onclick={() => onTrayTokenClick(character)}
-                                    onkeydown={(e) => onActivateKey(e, () => openCharacterOverlay(character))}
-                                >
-                                    <CharacterToken {character} style="position: relative;" size={trayTokenSize + 'px'} imageSize={TRAY_IMAGE_SIZE} norules/>
-                                </div>
-                        {/each}
-                    </div>
-                    {/if}
-                </div>
-                {/each}
-                {/if}
-            </div>
-        </div>
-    </div>
-
-    {#if overlayOpen}
-        {@const oc = overlayCharacter}
-        {@const sideRole = isSideRoleCategory(oc?.category)}
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 10};" onclick={(e) => { if (!(e.target as Element).closest('input')) closeOverlay(); }}>
-            <div class="overlay-panel">
-                <button class="overlay-close" onclick={closeOverlay} aria-label="Close"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
-                {#if overlayFromBoard && activeToken && oc && playerCommsShown}
-                    <!-- The character's presets for tonight and Back, in place of everything else -->
-                    <div class="overlay-comms">
-                        {#each characterPresetsFor(oc.id, currentNight) as preset}
-                            <button type="button" class="popup-toggle" onclick={(e) => { e.stopPropagation(); showPreset(preset, oc.id); }}>{presetDisplayName(preset)}</button>
-                        {/each}
-                        <button type="button" class="button-style" onclick={(e) => { e.stopPropagation(); playerCommsShown = false; }}><MaterialIcon icon={chevronLeftIcon} size="1.2em"/> Back</button>
-                    </div>
-                {:else}
-                    {#if overlayFromBoard && activeToken && !sideRole}
-                        <input
-                            type="text"
-                            class="popup-player-name overlay-player-name"
-                            placeholder="Player name"
-                            value={activeToken.playerName ?? ''}
-                            oninput={(e) => setPlayerName((e.target as HTMLInputElement).value)}
-                        />
-                    {/if}
-                    {#if oc}
-                        {#if overlayFromBoard}
-                            <!-- A placed token's summary shows the token itself, its name on it and its type in its ring's colour, with
-                                 its night order and custom wake badges where the board has them -->
-                            {@const size = OVERLAY_SUMMARY_TOKEN_SIZE}
-                            {@const order = activeToken?.characterId && wakesInNightOrder(activeToken) ? nightOrderByCharacterId.indexOf(activeToken.characterId) : -1}
-                            <div style="position: relative; flex-shrink: 0; width: {size}px; height: {size}px;">
-                                <CharacterToken character={oc} style="position: relative;" size="{size}px" norules/>
-                                {#if order >= 0}
-                                    <div class="night-order-badge" style="left: {size * 0.95}px; top: {size / 2}px; font-size: {size / 6}px; border-width: {size / 70}px;">{order + 1}</div>
-                                {/if}
-                                {#if activeToken && !sideRole}
-                                    {@render wakeToggle(activeToken.customWake ?? false, `left: ${size * 0.95}px; top: ${size / 2 + (order >= 0 ? size * 0.28 : 0)}px; font-size: ${size / 6}px; border-width: ${size / 70}px;`, (e) => { e.stopPropagation(); toggleCustomWake(); })}
-                                {/if}
-                            </div>
-                        {:else}
-                            <img class="overlay-icon" src={`/api/characters/${oc.id}/img`} alt="" onerror={(e) => (e.currentTarget as HTMLImageElement).style.display = 'none'} />
-                            <div class="overlay-name dumbledore-font">{oc.name}</div>
-                            <div class="overlay-category">{oc.category}</div>
-                        {/if}
-                        {#if oc.rules}
-                            <div class="overlay-rules">{oc.rules}</div>
-                        {/if}
-                        {#if oc.setup}
-                            <div class="overlay-rules setup-text">[{oc.setup}]</div>
-                        {/if}
-                    {:else if activeToken}
-                        <div class="overlay-name dumbledore-font">{activeToken.playerName || 'Player'}</div>
-                        <div class="overlay-category">No character</div>
-                    {/if}
-                    {#if overlayFromBoard && activeToken}
-                        <div class="overlay-toggles">
-                            {#if !sideRole}
-                            <button type="button" class="popup-toggle" class:dead={activeToken.isDead} onclick={(e) => { e.stopPropagation(); toggleAlive(); }}>
-                                {activeToken.isDead ? 'Dead' : 'Alive'}
-                            </button>
-                            <button type="button" class="popup-toggle" class:evil={activeToken.alignment === 'evil'} onclick={(e) => { e.stopPropagation(); toggleAlignment(); }}>
-                                {activeToken.alignment === 'evil' ? 'Evil' : 'Good'}
-                            </button>
-                            {#if activeToken.isDead}
-                                <button type="button" class="popup-toggle" class:has-vote={hasDeadVote(activeToken)} onclick={(e) => { e.stopPropagation(); toggleDeadVote(); }}>
-                                    {activeToken.deadVoteUsed ? 'Vote used' : 'Has vote'}
-                                </button>
-                            {/if}
-                            {/if}
-                            {#if oc}
-                                <button type="button" class="button-style with-icon" onclick={() => viewCharacter(oc.id)}>{@render eyeIcon()}Show</button>
-                                {#if !sideRole}
-                                    <button type="button" class="button-style with-icon" onclick={(e) => { e.stopPropagation(); openPlayerComms(oc.id); }}>{@render commsIcon()}Comms</button>
-                                {/if}
-                            {/if}
-                        </div>
-                        <button type="button" class="button-style" onclick={(e) => { e.stopPropagation(); pickingCharacter = true; }}>
-                            {oc ? 'Change character' : 'Choose character'}
-                        </button>
-                    {/if}
-                    {#if oc}
-                        {#if !overlayFromBoard}
-                            <button class="button-style with-icon" onclick={() => viewCharacter(oc.id)}>{@render eyeIcon()}Show</button>
-                        {/if}
-                        <div class="overlay-drag-hint">{overlayFromBoard ? 'Drag a reminder onto the grim' : 'Drag onto the grim'}</div>
-                        <div class="overlay-tokens">
-                            {#if !overlayFromBoard}
-                                <div class="overlay-drag-token" onpointerdown={(e) => startDragCharacterFromOverlay(e, oc)}>
-                                    <CharacterToken character={oc} style="position: relative;" size="{OVERLAY_TOKEN_SIZE}px" norules/>
-                                </div>
-                            {/if}
-                            {#each reminderCache[oc.id] ?? [] as rToken (rToken.id)}
-                                <div class="overlay-drag-token" onpointerdown={(e) => startDragReminderFromOverlay(e, rToken, oc.id)}>
-                                    <ReminderTokenView data={rToken} characterId={oc.id} size="{OVERLAY_TOKEN_SIZE * 0.7}px"/>
-                                </div>
-                            {/each}
-                        </div>
-                    {/if}
-                {/if}
-            </div>
-        </div>
-    {/if}
 
     {#if nightOrderSheet}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 20};" onclick={() => nightOrderSheet = null}>
+        <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {GRIM_Z.ui + 20};" onclick={() => nightOrderSheet = null}>
             <!-- Outside the panel, so it stays put while the panel scrolls -->
             <button class="overlay-close overlay-corner-close" onclick={(e) => { e.stopPropagation(); nightOrderSheet = null; }} aria-label="Close" title="Close"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
@@ -3587,7 +1297,7 @@
 
     {#if commsView !== null}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 20};" onclick={() => commsView = null}>
+        <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {GRIM_Z.ui + 20};" onclick={() => commsView = null}>
             <!-- Outside the panel, so it stays put while the panel scrolls -->
             <button class="overlay-close overlay-corner-close" onclick={(e) => { e.stopPropagation(); commsView = null; }} aria-label="Close" title="Close"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
@@ -3719,7 +1429,7 @@
 
     <!-- Out here, as a character's preset can be queued from their token or the night order with communications closed -->
     {#if queuedToast !== null}
-        <div class="locked-toast queued-toast" role="status" style="z-index: {z_indecies.ui + 40};"
+        <div class="locked-toast queued-toast" role="status" style="z-index: {GRIM_Z.ui + 40};"
             in:fly={{ y: -24, opacity: 0, duration: 300, easing: cubicOut }}
             out:fly={{ y: -24, opacity: 0, duration: 250, easing: cubicIn }}>
             <span>Queued: {queuedToast}</span>
@@ -3728,7 +1438,7 @@
 
     {#if newBluffSet && script}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 20};" onclick={() => newBluffSet = null}>
+        <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {GRIM_Z.ui + 20};" onclick={() => newBluffSet = null}>
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <div class="overlay-panel" style="width: min(94vw, 720px);" onclick={(e) => e.stopPropagation()}>
                 <button class="overlay-close" onclick={() => newBluffSet = null} aria-label="Close"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
@@ -3750,56 +1460,9 @@
         </div>
     {/if}
 
-    {#if pickingCharacter && activeToken}
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {z_indecies.ui + 20};" onclick={() => pickingCharacter = false}>
-            <div class="overlay-panel" style="width: min(94vw, 720px);">
-                <button class="overlay-close" onclick={() => pickingCharacter = false} aria-label="Close"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
-                <div class="overlay-name dumbledore-font">{activeToken.playerName || 'Player'}</div>
-                <div class="overlay-drag-hint">Choose a character</div>
-                <div class="picker-grid">
-                    {#each pickableCharacters as character (character.id)}
-                        <button class="no-button-style tray-token" class:off-grim={!isInPlay(character.id)} onclick={(e) => { e.stopPropagation(); setCharacter(character.id); }}>
-                            <CharacterToken {character} style="position: relative;" size="{trayTokenSize}px" imageSize={TRAY_IMAGE_SIZE} norules/>
-                        </button>
-                    {/each}
-                </div>
-                {#if activeToken.characterId !== null}
-                    <button class="button-style" onclick={(e) => { e.stopPropagation(); setCharacter(null); }}>No character</button>
-                {/if}
-            </div>
-        </div>
-    {/if}
-
-    {#if dragging && ghostPos}
-        <div class="drag-ghost" style="left: {ghostPos.x}px; top: {ghostPos.y}px; z-index: {z_indecies.ui};">
-            {#if dragging.character}
-                <CharacterToken character={dragging.character} style="position: relative;" size={tokenSize * viewScale + 'px'} norules/>
-            {:else}
-                <PlayerToken playerName={dragging.sourceToken?.playerName ?? ''} style="position: relative;" size={tokenSize * viewScale + 'px'}/>
-            {/if}
-        </div>
-        {@render deleteZones()}
-    {/if}
-
-    {#if draggingReminder && ghostPos}
-        <div class="drag-ghost" style="left: {ghostPos.x}px; top: {ghostPos.y}px;">
-            <ReminderTokenView data={draggingReminder.token} characterId={draggingReminder.characterId} size="{reminderTokenSize * viewScale}px"/>
-        </div>
-        {@render deleteZones()}
-    {/if}
-
-    {#snippet deleteZones()}
-        {#each ['top', 'bottom'] as edge}
-            <div class="delete-zone {edge}" class:active={ghostPos !== null && deleteEdgeFor(ghostPos) === edge} style="height: {EDGE_THRESHOLD}px; z-index: {z_indecies.ui};">
-                <svg viewBox={ICON_VIEWBOX} width="28" height="28" fill="currentColor"><path d={deleteIcon}/></svg>
-            </div>
-        {/each}
-    {/snippet}
-
     {#if showTimerOptions}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {z_indecies.ui};" onclick={() => {showTimerOptions = false;}} role="dialog" tabindex="0">
+        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {GRIM_Z.ui};" onclick={() => {showTimerOptions = false;}} role="dialog" tabindex="0">
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div style="position: relative; background: var(--grim-panel-bg); padding: 48px 20px 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px;" onclick={(e) => e.stopPropagation()} >
                 <button class="overlay-close" onclick={()=>{showTimerOptions = false;}} aria-label="Close"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
@@ -3812,10 +1475,9 @@
         </div>
     {/if}
 
-
     {#if showEndGame}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {z_indecies.ui};" onclick={() => {showEndGame = false;}} role="dialog" tabindex="0">
+        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {GRIM_Z.ui};" onclick={() => {showEndGame = false;}} role="dialog" tabindex="0">
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div style="background: var(--grim-panel-bg); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; max-width: 320px;" onclick={(e) => e.stopPropagation()} >
                 <h2 style="margin: 0; padding: 0;">End game</h2>
@@ -3830,7 +1492,7 @@
 
     {#if syncConflict}
         <!-- Can't be dismissed: one or the other has to be chosen -->
-        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {z_indecies.ui + 50};" role="dialog" aria-modal="true" aria-labelledby="sync-conflict-title">
+        <div style="position: absolute;inset: 0; display:flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: {GRIM_Z.ui + 50};" role="dialog" aria-modal="true" aria-labelledby="sync-conflict-title">
             <div style="background: var(--grim-panel-bg); padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; max-width: 340px;">
                 <h2 id="sync-conflict-title" style="margin: 0; padding: 0;">Unsaved changes</h2>
                 <div style="opacity: 0.8;">
