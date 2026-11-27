@@ -424,10 +424,12 @@
             presets: [headerPreset('These are your minions')], bluffs: true }
     ];
     // The players are the named tokens, or every token while none are named (as on a grim set up without a script).
-    const playerCount = $derived(tokensToSeat(placedTokens, isSideRoleToken)
+    const seatedTokens = $derived(tokensToSeat(placedTokens, isSideRoleToken));
+    const seatedTokenIds = $derived(new Set(seatedTokens.map(t => t.id)));
+    const playerCount = $derived(seatedTokens
         .filter(t => characterById.get(t.characterId ?? '')?.category !== 'traveler').length);
     // Shown under the clock: the players (as above, travellers included) not marked dead
-    const aliveCount = $derived(tokensToSeat(placedTokens, isSideRoleToken).filter(t => !t.isDead).length);
+    const aliveCount = $derived(seatedTokens.filter(t => !t.isDead).length);
     type NightSheetEntry = { kind: 'character'; character: ScriptCharacter } | ({ kind: 'info' } & typeof FIRST_NIGHT_INFO_STEPS[number]);
     const nightSheetEntries = $derived.by(() => {
         const entries: NightSheetEntry[] = nightSheetCharacters.map(character => ({ kind: 'character', character }));
@@ -1635,7 +1637,7 @@
         user-select: none;
     }
 
-    /* Character tokens with no player name are only reminders, so let them sit back a little. */
+    /* Character tokens that aren't players (unnamed while others are named, and loric/fabled) are only reminders, so let them sit back a little. */
     .board-token.unnamed {
         opacity: 0.8;
     }
@@ -3115,9 +3117,9 @@
             <div
                 class="board-token"
                 class:dead={!sideRole && token.isDead}
-                class:unnamed={!isPlayerToken(token)}
+                class:unnamed={!seatedTokenIds.has(token.id)}
                 class:misaligned={!sideRole && token.characterId !== null && defaultAlignmentForCharacterId(token.characterId) !== token.alignment}
-                style="left: calc(50% + {token.x}px); top: calc(50% + {token.y}px); z-index: {isPlayerToken(token) ? z_indecies.tokens : z_indecies.unnamedTokens};"
+                style="left: calc(50% + {token.x}px); top: calc(50% + {token.y}px); z-index: {seatedTokenIds.has(token.id) ? z_indecies.tokens : z_indecies.unnamedTokens};"
                 onpointerdown={(e) => startDragFromBoard(e, token)}
             >
                 {#if character}
@@ -3126,7 +3128,7 @@
                         hasDeadVote={sideRole ? false : hasDeadVote(token)}
                         alignment={sideRole ? undefined : token.alignment}
                         playerName={sideRole ? undefined : (token.playerName?.trim() || undefined)}
-                        outline={isPlayerToken(token)}/>
+                        outline={seatedTokenIds.has(token.id)}/>
                 {:else}
                     <PlayerToken playerName={token.playerName ?? ''} isDead={token.isDead} hasDeadVote={hasDeadVote(token)} style="position: relative;" size={tokenSize + 'px'}/>
                 {/if}
