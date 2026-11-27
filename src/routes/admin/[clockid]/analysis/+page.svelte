@@ -32,7 +32,7 @@
     <div class="content">
         <h2 class="team-name">{data.teamName} · Analysis</h2>
         {#if model}
-        <PhaseStatsView {model}/>
+        <PhaseStatsView log={model.phaseLog}/>
         {/if}
     </div>
 </div>

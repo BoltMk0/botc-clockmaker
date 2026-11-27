@@ -14,19 +14,18 @@
 </script>
 
 <script lang="ts">
-    import type { Clocktower } from "$lib/model/client/Clocktower.svelte";
     import { TIME_OF_DAY_LABELS, TIMES_OF_DAY } from "$lib/model/client/types";
-    import { formatDuration, phaseStats } from "$lib/model/common/phaseLog";
+    import { formatDuration, phaseStats, type PhaseLogEntry } from "$lib/model/common/phaseLog";
     import PhaseDonut, { type DonutGroup, type DonutSegment } from "./PhaseDonut.svelte";
 
     /**
      * The remote's analysis view: how the game's time has divided between its phases, all days together and day by
      * day, with the averages. The phase the game's in now isn't counted: at the end of the game, that's the storyteller
-     * going over the game with the players.
+     * going over the game with the players. Also shows a past game's stats, from its saved log (`ended`).
      */
-    let { model }: { model: Clocktower } = $props();
+    let { log, ended = false }: { log: readonly PhaseLogEntry[]; ended?: boolean } = $props();
 
-    const stats = $derived(phaseStats(model.phaseLog));
+    const stats = $derived(phaseStats(log));
 
     function dayLabel(day: number) {
         return day === 0 ? 'First night' : `Day ${day}`;
@@ -55,11 +54,11 @@
 <div class="stats-view">
     {#if stats.total === 0}
     <section class="card empty">
-        <p>No phase has ended yet.</p>
+        <p>{ended ? 'No phase ended before the game did.' : 'No phase has ended yet.'}</p>
         <p class="note">The game's time is counted from the first night: when night falls on day 0, after a new game.</p>
     </section>
     {:else}
-    <p class="note">The {TIME_OF_DAY_LABELS[model.phaseLog[model.phaseLog.length - 1].timeOfDay].toLowerCase()} the game's in now isn't counted. Tap a slice for its time.</p>
+    <p class="note">The {TIME_OF_DAY_LABELS[log[log.length - 1].timeOfDay].toLowerCase()} the game {ended ? 'ended in' : "'s in now"} isn't counted. Tap a slice for its time.</p>
 
     <section class="card">
         <h3>Averages</h3>
@@ -125,19 +124,27 @@
 </div>
 
 <style>
+    /* The panels side by side as far as they fit, wrapping onto more rows on narrower screens */
     .stats-view {
         display: flex;
-        flex-direction: column;
+        flex-wrap: wrap;
+        justify-content: center;
+        /* The panels in a row are all as tall as the tallest */
+        align-items: stretch;
         gap: 12px;
-        /* A fixed width, not the content's, as the other views */
-        width: min(360px, calc(100vw - 32px));
-        margin: 0 auto;
+    }
+
+    .stats-view > .note {
+        flex-basis: 100%;
     }
 
     /* Tints are opaque mixes of white into --surface, not translucent white, which forced dark modes turn black */
     .card {
         display: flex;
         flex-direction: column;
+        box-sizing: border-box;
+        /* A fixed width, not the content's, as the other views */
+        width: min(360px, calc(100vw - 32px));
         gap: 10px;
         padding: 14px 12px;
         border-radius: 14px;

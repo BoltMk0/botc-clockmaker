@@ -3,6 +3,7 @@ import { json } from '@sveltejs/kit';
 import { isGrimoireStateHistory } from '$lib/resources/common/grimoireState';
 import { recordPresetVictory } from '$lib/resources/server/presets';
 import { getBOTCTClockInstanceManager, InstanceNotFoundError } from '$lib/model/server/model';
+import type { PhaseLogEntry } from '$lib/model/common/phaseLog';
 
 export async function GET({params}){
     const data = get_grimoire_state_history_resource_for_clock(params.clockid);
@@ -40,11 +41,11 @@ export async function POST({params, request}){
     }
 }
 
-// The clock's in-game day, or null before the first day or if the clock isn't running.
-function clockDay(clockid: string): number | null {
+// The clock's in-game day (null before the first day) and its phase log, or null if the clock isn't running.
+function clockState(clockid: string): { day: number | null; phaseLog: PhaseLogEntry[] } | null {
     try{
-        const day = getBOTCTClockInstanceManager().getInstance(clockid).day;
-        return day > 0 ? day : null;
+        const clock = getBOTCTClockInstanceManager().getInstance(clockid);
+        return { day: clock.day > 0 ? clock.day : null, phaseLog: clock.model.clock.phaseLog ?? [] };
     }catch(e){
         if(e instanceof InstanceNotFoundError) return null;
         throw e;
@@ -64,9 +65,17 @@ export async function DELETE({params, url}){
         const history = get_grimoire_state_history_resource_for_clock(params.clockid);
         const presetId = history?.loadedPreset?.preset_id;
         if(history && presetId){
-            const day = clockDay(params.clockid);
+            const clock = clockState(params.clockid);
+            const day = clock?.day;
+            // The game's timing stats, as the analysis showed them when it ended (the phase it ended in isn't counted)
+            const phase_log = clock?.phaseLog.length ? structuredClone(clock.phaseLog) : undefined;
             presetRecorded = recordPresetVictory(presetId, winner, {
-                grim: { script_id: history.scriptId, snapshot: structuredClone(history.present), ...(day ? { day } : {}) }
+                grim: {
+                    script_id: history.scriptId,
+                    snapshot: structuredClone(history.present),
+                    ...(day ? { day } : {}),
+                    ...(phase_log ? { phase_log } : {})
+                }
             }) !== null;
         }
     }

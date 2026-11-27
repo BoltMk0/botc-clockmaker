@@ -1,21 +1,29 @@
+<script lang="ts" module>
+    import type { GrimoireStateSnapshot } from "$lib/resources/common/grimoireState.js";
+
+    // Changes made to a snapshot, kept while its timing stats are open (on their own page) to come back to
+    const drafts = new Map<string, GrimoireStateSnapshot>();
+</script>
+
 <script lang="ts">
     import "$lib/components/grim/grimUi.css";
-    import { ICON_VIEWBOX, closeIcon, fitScreenIcon, photoCameraIcon, restartAltIcon } from "$lib/icons/material.js";
+    import { ICON_VIEWBOX, barChartIcon, closeIcon, fitScreenIcon, photoCameraIcon, restartAltIcon } from "$lib/icons/material.js";
     import { onMount, tick } from "svelte";
     import { domToPng } from "modern-screenshot";
     import type { ScriptCharacter, ScriptWithCharacters } from "$lib/resources/common/gameData.js";
-    import { BOARD_TOKEN_SIZE, type GrimoireStateHistory, type GrimoireStateSnapshot } from "$lib/resources/common/grimoireState.js";
+    import { BOARD_TOKEN_SIZE, type GrimoireStateHistory } from "$lib/resources/common/grimoireState.js";
     import { fetchAllCharacters, fetchScriptWithSideCharacters } from "$lib/resources/client/scriptWithSideCharacters.js";
     import { GrimoireUndo } from "$lib/model/client/GrimoireUndo.svelte";
     import GrimBoard from "$lib/components/grim/GrimBoard.svelte";
     import GrimPieces from "$lib/components/grim/GrimPieces.svelte";
+    import { goto } from "$app/navigation";
     import { GRIM_Z, GrimModel, asScriptCharacters, normaliseHistory, scriptSummaries, type GrimScriptSummary } from "$lib/components/grim/GrimModel.svelte";
 
     // A grim as it was saved, shown over the whole page on the grim board, where it can be changed (tokens and
     // reminders added, moved or taken off, players changed, lines drawn) before it's saved as a picture. The changes
     // are only ever kept here: the saved grim stays as it was.
 
-    let { snapshot, scriptId = null, title, filename = 'grim', winner, when, day, onclose }: {
+    let { snapshot, scriptId = null, title, filename = 'grim', winner, when, day, draftKey, statsHref, onclose }: {
         snapshot: GrimoireStateSnapshot;
         /** The script the game was played with, for its characters in the token tray. */
         scriptId?: string | null;
@@ -28,6 +36,10 @@
         when?: string;
         /** The in-game day the game ended on, shown under the winner. */
         day?: number;
+        /** Names the snapshot, to keep its changes while its timing stats are open. */
+        draftKey?: string;
+        /** The page with the game's timing stats; absent when they weren't saved. */
+        statsHref?: string;
         onclose: () => void;
     } = $props();
 
@@ -43,8 +55,15 @@
         present: structuredClone($state.snapshot(snapshot))
     }, () => 'good');
 
+    // As it was changed before the timing stats were opened, if they were (only the once: the draft is used up)
     // svelte-ignore state_referenced_locally
-    let grim = $state(saved());
+    const draft = draftKey ? drafts.get(draftKey) : undefined;
+    // svelte-ignore state_referenced_locally
+    if (draftKey) drafts.delete(draftKey);
+    // svelte-ignore state_referenced_locally
+    let grim = $state(draft ? { ...saved(), present: draft } : saved());
+    // Whether it was brought back changed (which undo doesn't know about)
+    let restoredChanges = $state(!!draft);
     let script = $state<ScriptWithCharacters | null>(null);
     let library = $state<ScriptCharacter[]>([]);
     let scripts = $state<GrimScriptSummary[]>([]);
@@ -61,7 +80,7 @@
     // Whether a token or reminder is being dragged on the board, which hides the Close button as it hides its own
     let dragging = $state(false);
     // Whether the grim has been changed from how it was saved (and not all undone)
-    const changed = $derived(undo.canUndo);
+    const changed = $derived(undo.canUndo || restoredChanges);
 
     // Puts the grim back as it was saved.
     function reset() {
@@ -69,9 +88,17 @@
         board?.closeReminderTray();
         grim.present = saved().present;
         undo.clear();
+        restoredChanges = false;
         board?.fitView();
     }
 
+
+    // Opens the timing stats, keeping the changes to come back to
+    function openStats() {
+        if (!statsHref) return;
+        if (draftKey && changed) drafts.set(draftKey, $state.snapshot(grim.present));
+        goto(statsHref);
+    }
 
     function onkeydown(e: KeyboardEvent) {
         // Escape in a text box (a player's name) only leaves the box
@@ -196,6 +223,11 @@
     <button class="sidebar-btn" disabled={!changed} onclick={reset} title="Reset to as it was saved" aria-label="Reset to as it was saved">
         <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={restartAltIcon}/></svg>
     </button>
+    {#if statsHref}
+    <button class="sidebar-btn" onclick={openStats} title="Timing stats" aria-label="Timing stats">
+        <svg viewBox={ICON_VIEWBOX} fill="currentColor"><path d={barChartIcon}/></svg>
+    </button>
+    {/if}
 {/snippet}
 
 <!-- In the top right corner, as the sidebar is in the top left; under the token tray, as the board's own buttons are -->
@@ -223,6 +255,7 @@
         />
     </div>
 </section>
+
 
 {#if exporting}
     <!-- Hidden behind the overlay while it's captured. -->

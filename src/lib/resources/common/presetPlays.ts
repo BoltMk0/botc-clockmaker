@@ -1,4 +1,5 @@
 import { validateGrimoireState, type GrimoireStateSnapshot } from "./grimoireState";
+import { isPhaseLog, type PhaseLogEntry } from "$lib/model/common/phaseLog";
 
 export type PresetWinner = 'good' | 'evil';
 
@@ -15,6 +16,8 @@ export type PresetPlay = {
         snapshot: GrimoireStateSnapshot;
         /** The clock's in-game day when the game ended; absent when it wasn't known or the game hadn't started. */
         day?: number;
+        /** When each phase of the game began, as the clock logged them up to when the game ended, for its timing stats. */
+        phase_log?: PhaseLogEntry[];
     };
 };
 
@@ -40,6 +43,12 @@ const shortPlayDateFormat = new Intl.DateTimeFormat(undefined, { day: 'numeric',
 export function formatPlayDate(value: string, short = false): string {
     const [y, m, d] = value.split('-').map(Number);
     return (short ? shortPlayDateFormat : playDateFormat).format(new Date(y, m - 1, d));
+}
+
+/** The page showing a play's grim snapshot (or, with `stats`, its timing stats), going back to `backUrl` when closed. */
+export function playSnapshotUrl(play: Pick<PresetPlay, 'preset_id' | 'id'>, backUrl?: string, stats = false): string {
+    const path = `/play/history/${encodeURIComponent(play.preset_id)}/${encodeURIComponent(play.id)}${stats ? '/stats' : ''}`;
+    return backUrl ? `${path}?backUrl=${encodeURIComponent(backUrl)}` : path;
 }
 
 /** What the grim snapshot view shows for a play. */
@@ -73,6 +82,7 @@ export function isPresetPlay(obj: any): obj is PresetPlay {
             typeof obj.grim === 'object' &&
             (obj.grim.script_id === null || typeof obj.grim.script_id === 'string') &&
             (obj.grim.day === undefined || (Number.isInteger(obj.grim.day) && obj.grim.day > 0)) &&
+            (obj.grim.phase_log === undefined || isPhaseLog(obj.grim.phase_log)) &&
             validateGrimoireState(obj.grim.snapshot)
         ));
 }

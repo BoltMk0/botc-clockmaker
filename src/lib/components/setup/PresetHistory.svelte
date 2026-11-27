@@ -1,9 +1,9 @@
 <script lang="ts">
     import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
     import { chevronRightIcon, deleteIcon } from "$lib/icons/material.js";
-    import GrimSnapshotView from "$lib/components/GrimSnapshotView.svelte";
+    import { page } from "$app/state";
     import type { Preset } from "$lib/resources/common/gameData.js";
-    import { byMostRecentPlay, formatPlayDate as formatDate, snapshotViewProps, todayPlayDate, type PresetPlay, type PresetPlaySummary, type PresetWinner } from "$lib/resources/common/presetPlays.js";
+    import { byMostRecentPlay, formatPlayDate as formatDate, playSnapshotUrl, todayPlayDate, type PresetPlaySummary, type PresetWinner } from "$lib/resources/common/presetPlays.js";
 
     // The games played from a preset, most recent first: ones ended from the virtual grim (with a snapshot of it) and
     // ones logged by hand here. Adding or deleting a game also changes the preset's win counts, passed back in onchange.
@@ -15,20 +15,6 @@
         counts: Pick<Preset, 'good_victories' | 'evil_victories'>;
         onchange: (preset: Preset) => void;
     } = $props();
-
-    let viewing = $state<PresetPlay | null>(null);
-
-    async function openSnapshot(play: PresetPlaySummary) {
-        try {
-            const response = await fetch(`/api/presets/${presetId}/plays/${play.id}`);
-            if (!response.ok) throw new Error(response.statusText);
-            const full: PresetPlay = await response.json();
-            if (!full.grim) throw new Error('This game has no grim snapshot');
-            viewing = full;
-        } catch (er) {
-            alert(`Failed to open the grim snapshot: ${er}`);
-        }
-    }
 
     // svelte-ignore state_referenced_locally
     let plays = $state(initialPlays);
@@ -100,7 +86,7 @@
                 <li class="play" class:openable={play.has_grim}>
                     {#if play.has_grim}
                         <!-- Covers the whole row, so tapping anywhere on it opens the snapshot; the delete button sits above it. -->
-                        <button class="row-open" aria-label="Show the grim from {formatDate(play.date)}" onclick={() => openSnapshot(play)}></button>
+                        <a class="row-open" aria-label="Show the grim from {formatDate(play.date)}" href={playSnapshotUrl({ preset_id: presetId, id: play.id }, page.url.pathname + page.url.search)}></a>
                     {/if}
                     <span class="play-date">{formatDate(play.date)}</span>
                     <span class="winner-pill {play.winner}">{play.winner === 'good' ? 'Good' : 'Evil'} won</span>
@@ -119,10 +105,6 @@
         {/if}
     {/if}
 </div>
-
-{#if viewing?.grim}
-    <GrimSnapshotView snapshot={viewing.grim.snapshot} {...snapshotViewProps(viewing)} onclose={() => viewing = null}/>
-{/if}
 
 <style>
     .history {

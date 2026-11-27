@@ -1,26 +1,12 @@
 <script lang="ts">
     import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
     import { ICON_VIEWBOX, chevronLeftIcon, chevronRightIcon, visibilityIcon } from "$lib/icons/material.js";
-    import GrimSnapshotView from '$lib/components/GrimSnapshotView.svelte';
-    import { formatPlayDate, snapshotViewProps, type PlayHistoryEntry, type PresetPlay } from '$lib/resources/common/presetPlays';
+    import { formatPlayDate, playSnapshotUrl, type PlayHistoryEntry } from '$lib/resources/common/presetPlays';
 
     // Every game logged against a preset, most recent first. Tapping one with a grim snapshot opens it.
 
     let { data }: { data: { plays: PlayHistoryEntry[] } } = $props();
 
-    let viewing = $state<PresetPlay | null>(null);
-
-    async function openSnapshot(play: PlayHistoryEntry){
-        try{
-            const response = await fetch(`/api/presets/${play.preset_id}/plays/${play.id}`);
-            if(!response.ok) throw new Error(response.statusText);
-            const full: PresetPlay = await response.json();
-            if(!full.grim) throw new Error('This game has no grim snapshot');
-            viewing = full;
-        }catch(er){
-            alert(`Failed to open the grim snapshot: ${er}`);
-        }
-    }
 </script>
 
 <div class="history-page">
@@ -41,7 +27,7 @@
                 <li class="play" class:openable={play.has_grim}>
                     {#if play.has_grim}
                         <!-- Covers the whole row, so tapping anywhere on it opens the snapshot; the preset button sits above it. -->
-                        <button class="row-open" aria-label="Show the grim from {formatPlayDate(play.date)}" onclick={() => openSnapshot(play)}></button>
+                        <a class="row-open" aria-label="Show the grim from {formatPlayDate(play.date)}" href={playSnapshotUrl(play)}></a>
                         <span class="grim-chevron" aria-hidden="true"><MaterialIcon icon={visibilityIcon} size="1.4em"/><MaterialIcon icon={chevronRightIcon} size="2em"/></span>
                     {/if}
                     <div class="play-main">
@@ -60,10 +46,6 @@
   </section>
   </div>
 </div>
-
-{#if viewing?.grim}
-    <GrimSnapshotView snapshot={viewing.grim.snapshot} {...snapshotViewProps(viewing)} onclose={() => viewing = null}/>
-{/if}
 
 <style>
     .history-page {
