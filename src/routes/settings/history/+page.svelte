@@ -1,6 +1,6 @@
 <script lang="ts">
     import MaterialIcon from "$lib/icons/MaterialIcon.svelte";
-    import { ICON_VIEWBOX, chevronLeftIcon, chevronRightIcon, visibilityIcon } from "$lib/icons/material.js";
+    import { chevronRightIcon, visibilityIcon } from "$lib/icons/material.js";
     import { formatPlayDate, playSnapshotUrl, type PlayHistoryEntry } from '$lib/resources/common/presetPlays';
 
     // Every game logged against a preset, most recent first. Tapping one with a grim snapshot opens it.
@@ -11,10 +11,6 @@
 
 <div class="history-page">
   <div class="column">
-  <a class="back-link" href="/play">
-    <svg width={24} height={24} viewBox={ICON_VIEWBOX} fill="currentColor"><path d={chevronLeftIcon}/></svg>
-    Back
-  </a>
   <h1>Game History</h1>
   <p class="description">Every game played from a preset, most recent first. Tap a game with a grim snapshot to see how the grim ended.</p>
 
@@ -66,20 +62,6 @@
         display: flex;
         flex-direction: column;
         gap: 0.75rem;
-    }
-
-    .back-link {
-        align-self: flex-start;
-        display: flex;
-        align-items: center;
-        gap: 0.2em;
-        font-size: large;
-        color: var(--theme-on-bg);
-        text-decoration: none;
-        opacity: 0.8;
-    }
-    .back-link:hover {
-        opacity: 1;
     }
 
     h1 {

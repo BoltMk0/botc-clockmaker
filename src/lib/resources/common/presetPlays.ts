@@ -47,7 +47,7 @@ export function formatPlayDate(value: string, short = false): string {
 
 /** The page showing a play's grim snapshot (or, with `stats`, its timing stats), going back to `backUrl` when closed. */
 export function playSnapshotUrl(play: Pick<PresetPlay, 'preset_id' | 'id'>, backUrl?: string, stats = false): string {
-    const path = `/play/history/${encodeURIComponent(play.preset_id)}/${encodeURIComponent(play.id)}${stats ? '/stats' : ''}`;
+    const path = `/settings/history/${encodeURIComponent(play.preset_id)}/${encodeURIComponent(play.id)}${stats ? '/stats' : ''}`;
     return backUrl ? `${path}?backUrl=${encodeURIComponent(backUrl)}` : path;
 }
 

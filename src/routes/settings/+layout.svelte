@@ -6,6 +6,7 @@
     const paths = [
         '/settings/characters',
         '/settings/scripts',
+        '/settings/history',
         '/settings/timerOptions',
         '/settings/communications',
         '/settings/qrCodes',
@@ -20,6 +21,7 @@
 
     /** For the paths whose label isn't just their name. */
     const LABELS: Record<string, string> = {
+        '/settings/history': 'Game History',
         '/settings/rulesSlides': 'Rules Slides',
         '/settings/apiToken': 'API Token'
     };

@@ -7,5 +7,5 @@ export async function load({ params, url }) {
     const play = getPresetPlay(params.presetId, params.playId);
     if (!play) error(404, 'Game not found');
     if (!play.grim) error(404, 'This game has no grim snapshot');
-    return { play, backUrl: backUrlFrom(url) ?? '/play/history' };
+    return { play, backUrl: backUrlFrom(url) ?? '/settings/history' };
 }
