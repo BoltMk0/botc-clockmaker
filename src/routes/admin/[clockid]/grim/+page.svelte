@@ -3128,7 +3128,7 @@
                         hasDeadVote={sideRole ? false : hasDeadVote(token)}
                         alignment={sideRole ? undefined : token.alignment}
                         playerName={sideRole ? undefined : (token.playerName?.trim() || undefined)}
-                        outline={seatedTokenIds.has(token.id)}/>
+                        outline={seatedTokenIds.has(token.id) && !token.isDead}/>
                 {:else}
                     <PlayerToken playerName={token.playerName ?? ''} isDead={token.isDead} hasDeadVote={hasDeadVote(token)} style="position: relative;" size={tokenSize + 'px'}/>
                 {/if}
