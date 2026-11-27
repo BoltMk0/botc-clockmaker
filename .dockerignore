@@ -6,3 +6,4 @@ botc-clocktower.config.json
 .env
 .env.*
 
+*.private
