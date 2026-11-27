@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onDestroy, onMount } from "svelte";
+    import { onDestroy, onMount, type Snippet } from "svelte";
     import NewClocktower from "./NewClocktowerDisplay/NewClocktowerDisplay.svelte";
     import SkyDisplay from "./NewClocktowerDisplay/subviews/SkyDisplay.svelte";
     import OldClockFace from "./OldClockDisplay/OldClockFace/OldClockFace.svelte";
@@ -18,7 +18,8 @@
         displayMode = undefined,
         showClockNames = undefined,
         size=undefined,
-        showInstructions = true
+        showInstructions = true,
+        subtitle = undefined
     } : {
         model: Clocktower;
         models?: Clocktower[];
@@ -27,6 +28,8 @@
         size?: number;
         /** Shows the bell/reminder messages ("The end of the day is approaching..." etc.) over the clock. */
         showInstructions?: boolean;
+        /** Text below the clock, mirroring its name above it (the "original" display only). */
+        subtitle?: string | Snippet;
     } = $props();
 
     let otherClockNotificationPresent: boolean = $state(false);
@@ -157,6 +160,9 @@
         <div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);">
             <div class="clock-name-title dumbledore-font" style="font-size: {shownSize/10}px; transform: translateY(-100%); height: 0.5em;">{model.name}</div>
             <OldClockFace totalTime={model.duration} progress={progress} dayNumber={model.day} size={size ?? shownSize} hue={model.hue}/>
+            {#if subtitle}
+            <div class="clock-name-title dumbledore-font" style="font-size: {shownSize/10}px; transform: translateY(-0.7em); height: 0.5em;">{#if typeof subtitle === 'string'}{subtitle}{:else}{@render subtitle()}{/if}</div>
+            {/if}
         </div>
     {:else}
         <div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);">

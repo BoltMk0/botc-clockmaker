@@ -426,6 +426,8 @@
     // The players are the named tokens, or every token while none are named (as on a grim set up without a script).
     const playerCount = $derived(tokensToSeat(placedTokens, isSideRoleToken)
         .filter(t => characterById.get(t.characterId ?? '')?.category !== 'traveler').length);
+    // Shown under the clock: the players (as above, travellers included) not marked dead
+    const aliveCount = $derived(tokensToSeat(placedTokens, isSideRoleToken).filter(t => !t.isDead).length);
     type NightSheetEntry = { kind: 'character'; character: ScriptCharacter } | ({ kind: 'info' } & typeof FIRST_NIGHT_INFO_STEPS[number]);
     const nightSheetEntries = $derived.by(() => {
         const entries: NightSheetEntry[] = nightSheetCharacters.map(character => ({ kind: 'character', character }));
@@ -3172,7 +3174,10 @@
         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 2em; text-shadow: 0 0 10px rgba(0,0,0,0.7); z-index: {z_indecies.clock}; pointer-events: none;">
             {#if clockClient}
             <div style="position: relative; width: {tokenSize * CLOCK_SCALE + 35}px; height: {tokenSize * CLOCK_SCALE + 35}px; margin: 0 auto;">
-                <FullDisplay model={clockClient} size={tokenSize * CLOCK_SCALE} displayMode='original' showInstructions={false}/>
+                <FullDisplay model={clockClient} size={tokenSize * CLOCK_SCALE} displayMode='original' showInstructions={false}>
+                    <!-- Under the clock: the alive count, its number larger than the word (line-height 0 so it doesn't push the line down) -->
+                    {#snippet subtitle()}<span style="font-size: 1.8em; line-height: 0;">{aliveCount}</span> alive{/snippet}
+                </FullDisplay>
                 <button class="no-button-style" aria-label="Clock controls" style="position: absolute; top: 25%; left: 25%; width: 50%; height: 50%; border-radius: 50%; pointer-events: auto;" onclick={()=>showTimerOptions = true}></button>
             </div>
             {/if}
