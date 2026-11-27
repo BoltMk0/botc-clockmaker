@@ -26,7 +26,7 @@
     import { playSnapshotUrl } from "$lib/resources/common/presetPlays.js";
     import { MessageQueue } from "$lib/model/client/messageQueue.svelte";
     import GrimBoard from "$lib/components/grim/GrimBoard.svelte";
-    import { GRIM_Z, GrimModel, TRAY_IMAGE_SIZE, asScriptCharacters, isSideCategory, normaliseHistory } from "$lib/components/grim/GrimModel.svelte";
+    import { FIRST_NIGHT_INFO_MIN_PLAYERS, FIRST_NIGHT_INFO_ORDERS, GRIM_Z, GrimModel, TRAY_IMAGE_SIZE, asScriptCharacters, isSideCategory, normaliseHistory } from "$lib/components/grim/GrimModel.svelte";
     import type { PageData } from "./$types";
 
     // Size of the central clock, as a multiple of the token size
@@ -199,24 +199,23 @@
     // In play, not all dead, but none of them waking: the live ones have no ability (see GrimModel.wakesInNightOrder)
     const noAbilityCharacterIds = $derived(new Set([...onGrimCharacterIds].filter(id => !deadCharacterIds.has(id) &&
         placedTokens.filter(t => t.characterId === id).every(t => !model.wakesInNightOrder(t)))));
-    const nightSheetCharacters = $derived.by(() => {
-        if (!nightOrderSheet) return [];
-        const orderOf = nightOrderSheet === 'first' ? (c: ScriptCharacter) => c.scriptFirstNightOrder : (c: ScriptCharacter) => c.scriptOtherNightOrder;
+    function nightCharactersFor(night: 'first' | 'other'): ScriptCharacter[] {
+        const orderOf = night === 'first' ? (c: ScriptCharacter) => c.scriptFirstNightOrder : (c: ScriptCharacter) => c.scriptOtherNightOrder;
         const onScript = new Set(script?.characters.filter(c => !isSideCategory(c)).map(c => c.id) ?? []);
         return model.allCharacters
             .filter(c => orderOf(c) !== null && (onScript.has(c.id) || onGrimCharacterIds.has(c.id)))
             .sort((a, b) => (orderOf(a) as number) - (orderOf(b) as number));
-    });
+    }
 
     // With 7 or more players (not counting travellers), the Minions and the Demon learn each other on the first
     // night. Each step goes before the first character whose canonical first night order comes after it, and has the
     // cards it shows as communications (and the Demon's bluffs).
     const headerPreset = (text: string): MessagePreset => ({ name: text, elements: [{ type: 'text', value: text, style: 'Header' }] });
     const FIRST_NIGHT_INFO_STEPS = [
-        { id: 'minioninfo', name: 'Minion Info', defaultOrder: 6,
+        { id: 'minioninfo', name: 'Minion Info', defaultOrder: FIRST_NIGHT_INFO_ORDERS.minioninfo,
             rules: 'If more than one Minion, they all make eye contact with each other. Show the "This is the Demon" card. Point to the Demon.',
             presets: [headerPreset('This is the demon')], bluffs: false },
-        { id: 'demoninfo', name: 'Demon Info', defaultOrder: 9,
+        { id: 'demoninfo', name: 'Demon Info', defaultOrder: FIRST_NIGHT_INFO_ORDERS.demoninfo,
             rules: 'Show the "These are your minions" card. Point to each Minion. Show the "These characters are not in play" card. Show 3 not-in-play good character tokens.',
             presets: [headerPreset('These are your minions')], bluffs: true }
     ];
@@ -230,9 +229,9 @@
     // Shown under the clock: the players (travellers included) not marked dead
     const aliveCount = $derived(players.filter(t => !t.isDead).length);
     type NightSheetEntry = { kind: 'character'; character: ScriptCharacter } | ({ kind: 'info' } & typeof FIRST_NIGHT_INFO_STEPS[number]);
-    const nightSheetEntries = $derived.by(() => {
-        const entries: NightSheetEntry[] = nightSheetCharacters.map(character => ({ kind: 'character', character }));
-        if (nightOrderSheet !== 'first' || playerCount < 7) return entries;
+    function nightEntriesFor(night: 'first' | 'other'): NightSheetEntry[] {
+        const entries: NightSheetEntry[] = nightCharactersFor(night).map(character => ({ kind: 'character', character }));
+        if (night !== 'first' || playerCount < FIRST_NIGHT_INFO_MIN_PLAYERS) return entries;
         for (const step of FIRST_NIGHT_INFO_STEPS) {
             let insertAt = entries.findIndex(e => e.kind === 'character'
                 && e.character.firstNightOrder !== null && e.character.firstNightOrder > step.defaultOrder);
@@ -240,7 +239,13 @@
             entries.splice(insertAt, 0, { kind: 'info', ...step });
         }
         return entries;
-    });
+    }
+    const nightSheetEntries = $derived(nightOrderSheet ? nightEntriesFor(nightOrderSheet) : []);
+    const nightEntryKey = (entry: NightSheetEntry) => entry.kind === 'info' ? entry.id : entry.character.id;
+
+    // A wake tapped on the board (by its number there): its night order sheet entry, shown on its own.
+    let nightWake = $state<{ key: string; number: number; night: 'first' | 'other' } | null>(null);
+    const nightWakeEntry = $derived(nightWake ? nightEntriesFor(nightWake.night).find(e => nightEntryKey(e) === nightWake?.key) ?? null : null);
 
     // The communications character picker lists the characters as the token tray does, but with no In-play section
     // and, with a script, just its characters (and the travellers, loric and fabled) rather than every script's.
@@ -690,6 +695,19 @@
         overflow: hidden;
     }
 
+    /* One wake from the night order sheet, tapped on the board */
+    .overlay-panel.night-wake {
+        width: min(92vw, 480px);
+        align-items: stretch;
+        text-align: left;
+        gap: 0.6em;
+    }
+    .night-wake-title {
+        font-weight: bold;
+        opacity: 0.8;
+        padding-right: 2.5em;
+    }
+
     /* Full screen on a phone, like the communications panel */
     @media (max-width: 768px) {
         .overlay-panel.night-sheet {
@@ -1122,6 +1140,8 @@
         {undo}
         lockStorageKey="grimoire-locked-{data.clockid}"
         night={currentNight}
+        firstNightInfo={playerCount >= FIRST_NIGHT_INFO_MIN_PLAYERS}
+        onwakenumber={(key, number) => { if (currentNight) nightWake = { key, number, night: currentNight }; }}
         onsave={() => grimSync.save()}
         onunsaved={() => saveStatus = 'unsaved'}
         onshowcharacter={viewCharacter}
@@ -1248,6 +1268,63 @@
             <svg class="button-icon" viewBox={ICON_VIEWBOX} aria-hidden="true" fill="currentColor"><path d={smsIcon}/></svg>
         {/snippet}
 
+    <!-- A night order sheet entry, for the given night: a character or a first night info step -->
+    {#snippet nightEntry(entry: NightSheetEntry, entryNight: 'first' | 'other')}
+        {#if entry.kind === 'info'}
+        {@const single = entry.presets.length === 1 && !entry.bluffs}
+        <li class="in-play">
+            {#snippet infoHead()}
+                <div class="night-sheet-info-icon" aria-hidden="true"></div>
+                <div class="night-sheet-text">
+                    <div class="night-sheet-name">{entry.name}</div>
+                    <div class="night-sheet-rules">{entry.rules}</div>
+                </div>
+            {/snippet}
+            {@render nightRow(infoHead, single ? () => showPreset(entry.presets[0]) : () => toggleNightComms(entry.id),
+                `${entry.name} communications`, single ? null : nightCommsOpen.has(entry.id))}
+            {#if !single && nightCommsOpen.has(entry.id)}
+                <div class="night-sheet-presets" transition:slide={{ duration: 200 }}>
+                    {#each entry.presets as preset}
+                        <button class="popup-toggle" onclick={() => showPreset(preset)}>{presetDisplayName(preset)}</button>
+                    {/each}
+                    {#if entry.bluffs}
+                        <button class="popup-toggle" disabled={bluffSets.length === 0 && !(script && loadedPreset)} onclick={chooseBluffs}>
+                            {bluffSets.length === 0 ? 'Bluffs (create a bluff set)' : 'Bluffs'}
+                        </button>
+                    {/if}
+                </div>
+            {/if}
+        </li>
+        {:else}
+        {@const character = entry.character}
+        {@const inPlay = onGrimCharacterIds.has(character.id)}
+        {@const presets = characterPresetsFor(character.id, entryNight)}
+        {@const asleep = inPlay && (deadCharacterIds.has(character.id) || noAbilityCharacterIds.has(character.id))}
+        <li class:in-play={inPlay} class:dead={asleep}>
+            {#snippet characterHead()}
+                <img src={characterImageUrl(character.id, 128)} alt="" onerror={(e) => (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'} />
+                <div class="night-sheet-text">
+                    <div class="night-sheet-name">
+                        {character.name}
+                        {#if inPlay}<span class="night-sheet-badge" class:dead={asleep}>{deadCharacterIds.has(character.id) ? 'Dead' : noAbilityCharacterIds.has(character.id) ? 'No ability' : 'In play'}</span>{/if}
+                    </div>
+                    <div class="night-sheet-rules">{(entryNight === 'first' ? character.firstNightReminder : character.otherNightReminder) || character.rules}</div>
+                </div>
+            {/snippet}
+            {@render nightRow(characterHead,
+                presets.length === 1 ? () => showPreset(presets[0], character.id) : presets.length > 1 ? () => toggleNightComms(character.id) : null,
+                `${character.name}'s communications`, presets.length > 1 ? nightCommsOpen.has(character.id) : null)}
+            {#if presets.length > 1 && nightCommsOpen.has(character.id)}
+                <div class="night-sheet-presets" transition:slide={{ duration: 200 }}>
+                    {#each presets as preset}
+                        <button class="popup-toggle" onclick={() => showPreset(preset, character.id)}>{presetDisplayName(preset)}</button>
+                    {/each}
+                </div>
+            {/if}
+        </li>
+        {/if}
+    {/snippet}
+
     {#if nightOrderSheet}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {GRIM_Z.ui + 20};" onclick={() => nightOrderSheet = null}>
@@ -1263,63 +1340,25 @@
                     <p class="night-sheet-empty">Nobody wakes.</p>
                 {:else}
                     <ol class="night-sheet-list">
-                        {#each nightSheetEntries as entry (entry.kind === 'info' ? entry.id : entry.character.id)}
-                            {#if entry.kind === 'info'}
-                            {@const single = entry.presets.length === 1 && !entry.bluffs}
-                            <li class="in-play">
-                                {#snippet infoHead()}
-                                    <div class="night-sheet-info-icon" aria-hidden="true"></div>
-                                    <div class="night-sheet-text">
-                                        <div class="night-sheet-name">{entry.name}</div>
-                                        <div class="night-sheet-rules">{entry.rules}</div>
-                                    </div>
-                                {/snippet}
-                                {@render nightRow(infoHead, single ? () => showPreset(entry.presets[0]) : () => toggleNightComms(entry.id),
-                                    `${entry.name} communications`, single ? null : nightCommsOpen.has(entry.id))}
-                                {#if !single && nightCommsOpen.has(entry.id)}
-                                    <div class="night-sheet-presets" transition:slide={{ duration: 200 }}>
-                                        {#each entry.presets as preset}
-                                            <button class="popup-toggle" onclick={() => showPreset(preset)}>{presetDisplayName(preset)}</button>
-                                        {/each}
-                                        {#if entry.bluffs}
-                                            <button class="popup-toggle" disabled={bluffSets.length === 0 && !(script && loadedPreset)} onclick={chooseBluffs}>
-                                                {bluffSets.length === 0 ? 'Bluffs (create a bluff set)' : 'Bluffs'}
-                                            </button>
-                                        {/if}
-                                    </div>
-                                {/if}
-                            </li>
-                            {:else}
-                            {@const character = entry.character}
-                            {@const inPlay = onGrimCharacterIds.has(character.id)}
-                            {@const presets = nightOrderSheet ? characterPresetsFor(character.id, nightOrderSheet) : []}
-                            {@const asleep = inPlay && (deadCharacterIds.has(character.id) || noAbilityCharacterIds.has(character.id))}
-                            <li class:in-play={inPlay} class:dead={asleep}>
-                                {#snippet characterHead()}
-                                    <img src={characterImageUrl(character.id, 128)} alt="" onerror={(e) => (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'} />
-                                    <div class="night-sheet-text">
-                                        <div class="night-sheet-name">
-                                            {character.name}
-                                            {#if inPlay}<span class="night-sheet-badge" class:dead={asleep}>{deadCharacterIds.has(character.id) ? 'Dead' : noAbilityCharacterIds.has(character.id) ? 'No ability' : 'In play'}</span>{/if}
-                                        </div>
-                                        <div class="night-sheet-rules">{(nightOrderSheet === 'first' ? character.firstNightReminder : character.otherNightReminder) || character.rules}</div>
-                                    </div>
-                                {/snippet}
-                                {@render nightRow(characterHead,
-                                    presets.length === 1 ? () => showPreset(presets[0], character.id) : presets.length > 1 ? () => toggleNightComms(character.id) : null,
-                                    `${character.name}'s communications`, presets.length > 1 ? nightCommsOpen.has(character.id) : null)}
-                                {#if presets.length > 1 && nightCommsOpen.has(character.id)}
-                                    <div class="night-sheet-presets" transition:slide={{ duration: 200 }}>
-                                        {#each presets as preset}
-                                            <button class="popup-toggle" onclick={() => showPreset(preset, character.id)}>{presetDisplayName(preset)}</button>
-                                        {/each}
-                                    </div>
-                                {/if}
-                            </li>
-                            {/if}
+                        {#each nightSheetEntries as entry (nightEntryKey(entry))}
+                            {@render nightEntry(entry, nightOrderSheet)}
                         {/each}
                     </ol>
                 {/if}
+            </div>
+        </div>
+    {/if}
+
+    {#if nightWake && nightWakeEntry}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <div class="character-overlay" role="dialog" tabindex="-1" style="z-index: {GRIM_Z.ui + 20};" onclick={() => nightWake = null}>
+            <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+            <div class="overlay-panel night-wake" onclick={(e) => e.stopPropagation()}>
+                <button class="overlay-close" onclick={() => nightWake = null} aria-label="Close" title="Close"><MaterialIcon icon={closeIcon} size="1.25em"/></button>
+                <div class="night-wake-title">{nightWake.night === 'first' ? 'First night' : 'Other nights'} · wakes {nightWake.number}</div>
+                <ol class="night-sheet-list">
+                    {@render nightEntry(nightWakeEntry, nightWake.night)}
+                </ol>
             </div>
         </div>
     {/if}

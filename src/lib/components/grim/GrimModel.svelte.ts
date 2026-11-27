@@ -17,6 +17,13 @@ export const GRIM_Z = {
     clock: 10
 };
 
+// With 7 or more players (not counting travellers), the Minions and then the Demon wake on the first night to learn
+// each other. Each step's canonical first night order: it goes before the first character whose canonical first night
+// order comes after it.
+export const FIRST_NIGHT_INFO_ORDERS = { minioninfo: 6, demoninfo: 9 } as const;
+export type FirstNightInfoStep = keyof typeof FIRST_NIGHT_INFO_ORDERS;
+export const FIRST_NIGHT_INFO_MIN_PLAYERS = 7;
+
 // Tray and picker tokens are shown small, so they load the scaled-down 256px icon (see CharacterToken's imageSize).
 export const TRAY_IMAGE_SIZE = 256;
 

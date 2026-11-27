@@ -20,7 +20,7 @@
     import type { GrimoireUndo } from "$lib/model/client/GrimoireUndo.svelte";
     import { v7 } from "uuid";
     import GrimPieces from "./GrimPieces.svelte";
-    import { GRIM_Z, TRAY_IMAGE_SIZE, blankReminderToken, isSideRoleCategory, type GrimModel } from "./GrimModel.svelte";
+    import { FIRST_NIGHT_INFO_ORDERS, GRIM_Z, TRAY_IMAGE_SIZE, blankReminderToken, isSideRoleCategory, type FirstNightInfoStep, type GrimModel } from "./GrimModel.svelte";
 
     // The grim itself: the tokens, reminders and drawings on the board, which can be panned and zoomed, the token
     // tray to add more from, each token's popup (or summary, on a phone) to change it, the drawing tools, and undo.
@@ -37,6 +37,8 @@
         undo,
         lockStorageKey,
         night = null,
+        firstNightInfo = false,
+        onwakenumber,
         onsave,
         onunsaved,
         onshowcharacter,
@@ -58,6 +60,12 @@
         lockStorageKey?: string;
         /** The night whose order the players wake in is shown on them, with their wake reminders; none without one. */
         night?: 'first' | 'other' | null;
+        /** Whether the Minions and the Demon wake on the first night to learn each other (with enough players), which
+         *  is numbered on them in the first night's order. */
+        firstNightInfo?: boolean;
+        /** When given, tapping a night order number calls it with its wake (the character's id, or "minioninfo" or
+         *  "demoninfo") and the number. */
+        onwakenumber?: (key: string, number: number) => void;
         /** Called to save the grim after each change (or, while typing or drawing, once it's settled). */
         onsave?: () => void | Promise<void>;
         /** Called when the grim has changed and is waiting to be saved. */
@@ -168,6 +176,40 @@
         .map(c => [c.id, nightOrderOf(c)])
         .filter(([_, order]) => order !== null) as [string, number][]).sort((a, b) => a[1] - b[1])
         .map(([id, _]) => id));
+    // The night's wakes in order: the characters' (by id) and, on the first night with firstNightInfo, the Minion Info
+    // and Demon Info steps, each before the first waking character whose canonical first night order comes after it
+    // (as on the night order sheet).
+    const infoWake = (step: FirstNightInfoStep) => `info:${step}`;
+    const ordinalSuffix = (n: number) => (n % 100 >= 11 && n % 100 <= 13) ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th';
+    const wakeSequence = $derived.by(() => {
+        const sequence = [...nightOrderByCharacterId];
+        if (night !== 'first' || !firstNightInfo) return sequence;
+        for (const [step, at] of Object.entries(FIRST_NIGHT_INFO_ORDERS) as [FirstNightInfoStep, number][]) {
+            let insertAt = sequence.findIndex(id => {
+                const order = characterById.get(id)?.firstNightOrder;
+                return order !== null && order !== undefined && order > at;
+            });
+            if (insertAt === -1) insertAt = sequence.length;
+            sequence.splice(insertAt, 0, infoWake(step));
+        }
+        return sequence;
+    });
+    // A token's wakes in the night's order (their numbers, and what wakes: the character's id or the info step's),
+    // earliest first: its character's wake while it still wakes, and, for a seated Minion or Demon still alive, its
+    // Minion Info or Demon Info wake.
+    function wakeNumbersOf(token: PlacedToken): { number: number; key: string }[] {
+        const numbers: { number: number; key: string }[] = [];
+        if (!token.characterId || !characterById.has(token.characterId)) return numbers;
+        const own = model.wakesInNightOrder(token) ? wakeSequence.indexOf(token.characterId) : -1;
+        if (own >= 0) numbers.push({ number: own + 1, key: token.characterId });
+        const category = characterById.get(token.characterId)?.category;
+        const step: FirstNightInfoStep | null = category === 'minion' ? 'minioninfo' : category === 'demon' ? 'demoninfo' : null;
+        if (step && !token.isDead && model.seatedTokenIds.has(token.id)) {
+            const info = wakeSequence.indexOf(infoWake(step));
+            if (info >= 0) numbers.push({ number: info + 1, key: step });
+        }
+        return numbers.sort((a, b) => a.number - b.number);
+    }
 
     let showFooter = $state(false);
     // svelte-ignore state_referenced_locally
@@ -906,6 +948,16 @@
 {#snippet eyeIcon()}
     <svg class="button-icon" viewBox={ICON_VIEWBOX} aria-hidden="true" fill="currentColor"><path d={visibilityIcon}/></svg>
 {/snippet}
+<!-- A night order number; tapped, it shows what wakes then (with onwakenumber) -->
+{#snippet wakeNumberBadge(wake: { number: number; key: string }, style: string)}
+    {#if onwakenumber}
+    <button type="button" class="night-order-badge wake-number" {style} onclick={(e) => { e.stopPropagation(); onwakenumber(wake.key, wake.number); }}
+        title="What wakes {wake.number}{ordinalSuffix(wake.number)}" aria-label="Wakes {wake.number}{ordinalSuffix(wake.number)}">{wake.number}</button>
+    {:else}
+    <div class="night-order-badge" {style}>{wake.number}</div>
+    {/if}
+{/snippet}
+
 {#snippet wakeToggle(on: boolean, style: string, onclick: (e: MouseEvent) => void)}
     <button type="button" class="night-order-badge wake-toggle" class:off={!on} {style} {onclick}
         title={on ? 'Remove the wake reminder' : 'Add a wake reminder, to wake them tonight'}
@@ -1035,18 +1087,15 @@
 
         {#if night}
         {#each placedTokens as token (token.id)}
-            {@const order = token.characterId ? nightOrderByCharacterId.indexOf(token.characterId) : -1}
-            <!-- Only on a player who still wakes: not on a dead (or ability-less) one sharing a character with one who does -->
-            {@const numbered = order >= 0 && model.wakesInNightOrder(token) && characterById.has(token.characterId ?? '')}
-            {#if numbered}
-            <div
-                class="night-order-badge"
-                style="left: calc(50% + {token.x + tokenSize * 0.45}px); top: calc(50% + {token.y}px); font-size: {tokenSize / 6}px; border-width: {tokenSize / 70}px; z-index: {GRIM_Z.nightOrder};"
-            >{order + 1}</div>
-            {/if}
-            <!-- A custom wake: below the night order number, if they have one too. While the token's popup is open, it's
+            <!-- Only on a player who still wakes: not on a dead (or ability-less) one sharing a character with one who
+                 does. A Minion or Demon also has their Minion Info or Demon Info wake, the numbers one under the other -->
+            {@const wakeNumbers = wakeNumbersOf(token)}
+            {#each wakeNumbers as wake, i}
+            {@render wakeNumberBadge(wake, `left: calc(50% + ${token.x + tokenSize * 0.45}px); top: calc(50% + ${token.y + i * tokenSize * 0.28}px); font-size: ${tokenSize / 6}px; border-width: ${tokenSize / 70}px; z-index: ${GRIM_Z.nightOrder};`)}
+            {/each}
+            <!-- A custom wake: below the night order numbers, if they have any too. While the token's popup is open, it's
                  shown dotted when off, and tapping it turns the wake on or off -->
-            {@const wakeStyle = `left: calc(50% + ${token.x + tokenSize * 0.45}px); top: calc(50% + ${token.y + (numbered ? tokenSize * 0.28 : 0)}px); font-size: ${tokenSize / 6}px; border-width: ${tokenSize / 70}px; z-index: ${GRIM_Z.nightOrder};`}
+            {@const wakeStyle = `left: calc(50% + ${token.x + tokenSize * 0.45}px); top: calc(50% + ${token.y + wakeNumbers.length * tokenSize * 0.28}px); font-size: ${tokenSize / 6}px; border-width: ${tokenSize / 70}px; z-index: ${GRIM_Z.nightOrder};`}
             {#if token.id === activeTokenId && activeReminderPos && !isSideRoleCategory(characterById.get(token.characterId ?? '')?.category)}
             {@render wakeToggle(token.customWake ?? false, wakeStyle, toggleCustomWake)}
             {:else if token.customWake}
@@ -1260,14 +1309,14 @@
                             <!-- A placed token's summary shows the token itself, its name on it and its type in its ring's colour, with
                                  its night order and custom wake badges where the board has them -->
                             {@const size = OVERLAY_SUMMARY_TOKEN_SIZE}
-                            {@const order = activeToken?.characterId && model.wakesInNightOrder(activeToken) ? nightOrderByCharacterId.indexOf(activeToken.characterId) : -1}
+                            {@const wakeNumbers = activeToken && night ? wakeNumbersOf(activeToken) : []}
                             <div style="position: relative; flex-shrink: 0; width: {size}px; height: {size}px;">
                                 <CharacterToken character={oc} style="position: relative;" size="{size}px" norules/>
-                                {#if order >= 0}
-                                    <div class="night-order-badge" style="left: {size * 0.95}px; top: {size / 2}px; font-size: {size / 6}px; border-width: {size / 70}px;">{order + 1}</div>
-                                {/if}
+                                {#each wakeNumbers as wake, i}
+                                    {@render wakeNumberBadge(wake, `left: ${size * 0.95}px; top: ${size / 2 + i * size * 0.28}px; font-size: ${size / 6}px; border-width: ${size / 70}px;`)}
+                                {/each}
                                 {#if activeToken && !sideRole && night}
-                                    {@render wakeToggle(activeToken.customWake ?? false, `left: ${size * 0.95}px; top: ${size / 2 + (order >= 0 ? size * 0.28 : 0)}px; font-size: ${size / 6}px; border-width: ${size / 70}px;`, (e) => { e.stopPropagation(); toggleCustomWake(); })}
+                                    {@render wakeToggle(activeToken.customWake ?? false, `left: ${size * 0.95}px; top: ${size / 2 + wakeNumbers.length * size * 0.28}px; font-size: ${size / 6}px; border-width: ${size / 70}px;`, (e) => { e.stopPropagation(); toggleCustomWake(); })}
                                 {/if}
                             </div>
                         {:else}
@@ -1767,8 +1816,9 @@
         pointer-events: none;
         user-select: none;
     }
-    /* An open token's wake badge, tapped to turn the wake on or off: a dotted outline while it's off */
-    .wake-toggle {
+    /* An open token's wake badge, tapped to turn the wake on or off: a dotted outline while it's off; and a night order
+       number, tapped to show what wakes then */
+    .wake-toggle, .wake-number {
         box-sizing: content-box;
         padding: 0;
         margin: 0;
